@@ -30,6 +30,12 @@ You may not offer AstroBlocks as a SaaS or hosted service.
 
 ---
 
+<p align="center">
+  <img src="img/dashboard.png" alt="AstroBlocks dashboard" width="860" style="border-radius:8px" />
+</p>
+
+---
+
 ## Características
 
 - **Panel de administración** en `/cms`: dashboard, páginas, menús, ajustes, usuarios y regenerar sitio
