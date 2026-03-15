@@ -1,0 +1,31 @@
+---
+import AdminLayout from './layout.astro';
+import { loadSite } from '../../api/data.mjs';
+import { loadPages, getPublishedPages } from '../../api/data.mjs';
+const site = await loadSite();
+const pagesData = await loadPages();
+const published = getPublishedPages(pagesData);
+const draft = (pagesData.pages || []).filter((p) => p.status === 'draft');
+---
+
+<AdminLayout site={site} title="CMS Dashboard">
+  <div class="cms-stack">
+    <div class="cms-page-header">
+      <h1 class="cms-title">Dashboard</h1>
+    </div>
+    <div class="cms-grid-cards">
+      <div class="cms-card">
+        <p class="cms-muted">Publicadas</p>
+        <p style="font-size: 1.5rem; font-weight: 700; color: var(--cms-primary); margin: 0;">{published.length}</p>
+      </div>
+      <div class="cms-card">
+        <p class="cms-muted">Borradores</p>
+        <p style="font-size: 1.5rem; font-weight: 700; color: var(--cms-secondary); margin: 0;">{draft.length}</p>
+      </div>
+    </div>
+    <div class="cms-cluster">
+      <a href="/cms/pages/new" class="cms-btn cms-btn-primary">Nueva página</a>
+      <a href="/cms/pages" class="cms-btn cms-btn-secondary">Editar páginas</a>
+    </div>
+  </div>
+</AdminLayout>

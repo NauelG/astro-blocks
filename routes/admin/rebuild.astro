@@ -1,0 +1,42 @@
+---
+export const prerender = false;
+import AdminLayout from './layout.astro';
+import { loadSite } from '../../api/data.mjs';
+const site = await loadSite();
+---
+
+<AdminLayout site={site} title="Regenerar sitio">
+  <div class="cms-stack">
+    <h1 class="cms-title">Regenerar sitio</h1>
+    <div class="cms-card">
+      <p class="cms-muted cms-rebuild-intro">
+        Al regenerar el sitio se vuelven a generar todas las páginas HTML, recursos estáticos y metadatos (sitemap, etc.) con el contenido y la configuración actuales. Es la misma acción que ejecutar un build completo del proyecto (por ejemplo <code class="cms-code">npm run build</code>).
+      </p>
+      <p class="cms-muted cms-rebuild-intro">
+        Úsalo cuando hayas guardado cambios en páginas, menús o ajustes y quieras que el sitio público se actualice. La operación puede tardar unos segundos según el tamaño del sitio.
+      </p>
+      <div class="cms-form-actions">
+        <div class="cms-form-actions-right">
+          <button type="button" id="rebuild-confirm-btn" class="cms-btn cms-btn-primary">Regenerar sitio</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function() {
+      const btn = document.getElementById('rebuild-confirm-btn') as HTMLButtonElement | null;
+      if (!btn) return;
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        const token = window.getCmsToken?.() || '';
+        try {
+          const res = await fetch('/cms/api/rebuild', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+          if (res.ok) alert('Build iniciado.');
+          else alert('Error: ' + (await res.text()));
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    })();
+  </script>
+</AdminLayout>

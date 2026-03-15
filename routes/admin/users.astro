@@ -1,0 +1,241 @@
+---
+export const prerender = false;
+import AdminLayout from './layout.astro';
+import DetailModal from './components/DetailModal.astro';
+import { loadSite } from '../../api/data.mjs';
+const site = await loadSite();
+---
+
+<AdminLayout site={site} title="Usuarios">
+  <div class="cms-stack">
+    <div class="cms-page-header">
+      <h1 class="cms-title">Usuarios</h1>
+      <button type="button" id="cms-users-add-btn" class="cms-btn cms-btn-primary">Añadir usuario</button>
+    </div>
+    <p id="cms-users-error" class="cms-muted cms-hidden" role="alert"></p>
+    <p id="cms-users-loading" class="cms-muted">Cargando…</p>
+    <div id="cms-users-list-wrap" class="cms-hidden cms-card cms-card--no-padding">
+      <div class="cms-table-wrap">
+        <table class="cms-table">
+          <thead>
+            <tr>
+              <th class="cms-table-actions"></th>
+              <th>Email</th>
+              <th>Rol</th>
+              <th>Fecha</th>
+              <th class="cms-table-actions-delete"></th>
+            </tr>
+          </thead>
+          <tbody id="cms-users-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <DetailModal id="user-detail-modal" title="Usuario">
+    <form id="user-detail-form" class="cms-form">
+      <input type="hidden" id="user-detail-id" name="id" value="" />
+      <div class="cms-field">
+        <label for="user-detail-email">Email</label>
+        <input type="email" id="user-detail-email" name="email" placeholder="usuario@ejemplo.com" />
+      </div>
+      <div class="cms-field" id="user-detail-password-wrap">
+        <label for="user-detail-password">Contraseña</label>
+        <input type="password" id="user-detail-password" name="password" placeholder="Dejar en blanco para no cambiar" autocomplete="new-password" />
+      </div>
+      <div class="cms-field">
+        <label for="user-detail-role">Rol</label>
+        <select name="role" id="user-detail-role">
+          <option value="user">Usuario</option>
+          <option value="owner">Propietario</option>
+        </select>
+      </div>
+    </form>
+    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="user-detail-modal">Cancelar</button>
+    <button type="submit" form="user-detail-form" class="cms-btn cms-btn-primary" id="user-detail-submit" slot="actions-right">Guardar</button>
+  </DetailModal>
+
+  <script is:inline>
+    (function() {
+      function run() {
+        var token = (typeof window !== 'undefined' && window.getCmsToken) ? window.getCmsToken() : '';
+        var user = (typeof window !== 'undefined' && window.getCmsUser) ? window.getCmsUser() : null;
+        if (!token) { if (typeof window !== 'undefined') window.location.href = '/cms'; return; }
+        function initWithUser(u) {
+          if (!u || u.role !== 'owner') { if (typeof window !== 'undefined') window.location.href = '/cms'; return; }
+          if (window.getCmsUser && !window.getCmsUser()) try { sessionStorage.setItem('cms-user', JSON.stringify(u)); } catch (_) {}
+          initPage(token, u);
+        }
+        if (user) { initWithUser(user); return; }
+        fetch('/cms/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+          .then(function(r) { return r.ok ? r.json() : null; })
+          .then(function(data) { initWithUser(data ? data.user : null); })
+          .catch(function() { initWithUser(null); });
+      }
+      function initPage(token, user) {
+        var headers = function() { return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }; };
+        var loadingEl = document.getElementById('cms-users-loading');
+        var listWrap = document.getElementById('cms-users-list-wrap');
+        var tbody = document.getElementById('cms-users-tbody');
+        var errorEl = document.getElementById('cms-users-error');
+        var dialog = document.getElementById('user-detail-modal');
+        var form = document.getElementById('user-detail-form');
+        var titleEl = dialog && dialog.querySelector('[data-detail-modal-title]');
+        var idInput = document.getElementById('user-detail-id');
+        var emailInput = document.getElementById('user-detail-email');
+        var passwordWrap = document.getElementById('user-detail-password-wrap');
+        var passwordInput = document.getElementById('user-detail-password');
+        var roleSelect = document.getElementById('user-detail-role');
+        var submitBtn = document.getElementById('user-detail-submit');
+
+        function setError(msg) {
+          if (errorEl) { errorEl.textContent = msg || ''; errorEl.classList.toggle('cms-hidden', !msg); }
+        }
+        function formatDate(iso) {
+          if (!iso) return '—';
+          try { return new Date(iso).toLocaleDateString(undefined, { dateStyle: 'short' }); } catch (e) { return iso; }
+        }
+        function closeModal() { if (dialog) dialog.close(); }
+        function openModal() { if (dialog) dialog.showModal(); }
+        function setFormTitle(label, submitLabel) {
+          if (titleEl) titleEl.textContent = label;
+          if (submitBtn) submitBtn.textContent = submitLabel;
+        }
+
+        function openNew() {
+          if (idInput) idInput.value = '';
+          if (emailInput) { emailInput.value = ''; emailInput.disabled = false; }
+          if (passwordInput) { passwordInput.value = ''; passwordInput.required = true; }
+          if (passwordWrap) passwordWrap.style.display = '';
+          if (roleSelect) roleSelect.value = 'user';
+          setFormTitle('Nuevo usuario', 'Crear');
+          openModal();
+        }
+
+        function openEdit(u) {
+          if (!u) return;
+          if (idInput) idInput.value = u.id;
+          if (emailInput) { emailInput.value = u.email || ''; emailInput.disabled = true; }
+          if (passwordInput) { passwordInput.value = ''; passwordInput.required = false; }
+          if (passwordWrap) passwordWrap.style.display = '';
+          if (roleSelect) roleSelect.value = u.role || 'user';
+          setFormTitle('Editar usuario', 'Guardar');
+          openModal();
+        }
+
+        var pencilSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
+        var trashSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+        function renderRow(u, ownerCount) {
+          var tr = document.createElement('tr');
+          var canDelete = u.role !== 'owner' || ownerCount > 1;
+          var deleteBtn = canDelete
+            ? '<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="' + u.id + '" aria-label="Eliminar">' + trashSvg + '</button>'
+            : '<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="' + u.id + '" disabled aria-label="Eliminar" title="No se puede eliminar al único propietario">' + trashSvg + '</button>';
+          tr.innerHTML =
+            '<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-user-edit" data-id="' + u.id + '" aria-label="Editar">' + pencilSvg + '</button></td>' +
+            '<td>' + (u.email || '') + '</td>' +
+            '<td><span class="cms-badge ' + (u.role === 'owner' ? 'cms-badge-success' : 'cms-badge-neutral') + '">' + (u.role === 'owner' ? 'Propietario' : 'Usuario') + '</span></td>' +
+            '<td>' + formatDate(u.createdAt) + '</td>' +
+            '<td class="cms-table-actions-delete">' + deleteBtn + '</td>';
+          return tr;
+        }
+
+        function loadUsers() {
+          setError('');
+          if (loadingEl) loadingEl.classList.remove('cms-hidden');
+          if (listWrap) listWrap.classList.add('cms-hidden');
+          fetch('/cms/api/users', { headers: headers() })
+            .then(function(r) {
+              if (r.status === 403) { window.location.href = '/cms'; return null; }
+              if (!r.ok) throw new Error('Error al cargar usuarios');
+              return r.json();
+            })
+            .then(function(data) {
+              if (!data) return;
+              if (loadingEl) loadingEl.classList.add('cms-hidden');
+              if (listWrap) listWrap.classList.remove('cms-hidden');
+              var users = data.users || [];
+              var ownerCount = users.filter(function(u) { return u.role === 'owner'; }).length;
+              if (tbody) {
+                tbody.innerHTML = '';
+                users.forEach(function(u) {
+                  var row = renderRow(u, ownerCount);
+                  tbody.appendChild(row);
+                  row.querySelector('.cms-user-edit').addEventListener('click', function() { openEdit(u); });
+                  var delBtn = row.querySelector('.cms-user-delete');
+                  if (!delBtn.disabled) delBtn.addEventListener('click', function() { deleteUser(u.id); });
+                });
+              }
+            })
+            .catch(function(err) {
+              if (loadingEl) loadingEl.classList.add('cms-hidden');
+              setError(err.message || 'Error al cargar');
+            });
+        }
+
+        function deleteUser(id) {
+          if (!id) return;
+          var confirmFn = (typeof window !== 'undefined' && window.cmsConfirm) ? window.cmsConfirm : function() { return Promise.resolve(confirm('¿Eliminar este usuario?')); };
+          confirmFn({ message: '¿Eliminar este usuario?', confirmLabel: 'Eliminar' }).then(function(ok) {
+            if (!ok) return;
+            setError('');
+            fetch('/cms/api/users/' + id, { method: 'DELETE', headers: headers() })
+              .then(function(r) {
+                if (r.status === 204) { loadUsers(); return; }
+                return r.json().then(function(data) { throw new Error(data.error || 'Error al eliminar'); });
+              })
+              .catch(function(err) { setError(err.message || 'Error al eliminar'); });
+          });
+        }
+
+        document.getElementById('cms-users-add-btn').addEventListener('click', openNew);
+
+        if (dialog) {
+          dialog.addEventListener('click', function(e) {
+            if (e.target.getAttribute && e.target.getAttribute('data-close-modal') === 'user-detail-modal') closeModal();
+            if (e.target === dialog) closeModal();
+          });
+          dialog.addEventListener('cancel', closeModal);
+        }
+
+        if (form) form.addEventListener('submit', function(e) {
+          e.preventDefault();
+          var id = idInput && idInput.value ? idInput.value.trim() : '';
+          var email = emailInput && emailInput.value ? emailInput.value.trim() : '';
+          var password = passwordInput && passwordInput.value ? passwordInput.value : '';
+          var role = roleSelect && roleSelect.value ? roleSelect.value : 'user';
+          if (!email) { setError('Email obligatorio'); return; }
+          if (!id && !password) { setError('La contraseña es obligatoria para nuevos usuarios'); return; }
+          setError('');
+          if (id) {
+            var body = { role: role };
+            if (password) body.password = password;
+            fetch('/cms/api/users/' + id, { method: 'PUT', headers: headers(), body: JSON.stringify(body) })
+              .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+              .then(function(res) {
+                if (!res.ok) throw new Error(res.data.error || 'Error al guardar');
+                closeModal();
+                loadUsers();
+              })
+              .catch(function(err) { setError(err.message || 'Error al guardar'); });
+          } else {
+            fetch('/cms/api/users', { method: 'POST', headers: headers(), body: JSON.stringify({ email: email, password: password, role: role }) })
+              .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+              .then(function(res) {
+                if (!res.ok) throw new Error(res.data.error || 'Error al crear');
+                closeModal();
+                loadUsers();
+              })
+              .catch(function(err) { setError(err.message || 'Error al crear'); });
+          }
+        });
+
+        loadUsers();
+      }
+      if (typeof document !== 'undefined') {
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+        else run();
+      }
+    })();
+  </script>
+</AdminLayout>

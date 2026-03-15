@@ -1,0 +1,114 @@
+---
+import AdminLayout from './layout.astro';
+import { loadSite } from '../../api/data.mjs';
+const site = await loadSite();
+function toFullHex(val: string | undefined, fallback: string) {
+  if (!val || !val.startsWith('#')) return fallback;
+  const hex = val.slice(1);
+  if (hex.length === 6 && /^[0-9a-fA-F]+$/.test(hex)) return val;
+  if (hex.length === 3 && /^[0-9a-fA-F]+$/.test(hex)) return '#' + hex.split('').map(c => c + c).join('');
+  return fallback;
+}
+const primaryHex = toFullHex(site.primaryColor, '#333333');
+const secondaryHex = toFullHex(site.secondaryColor, '#666666');
+---
+
+<AdminLayout site={site} title="Ajustes">
+  <div class="cms-stack">
+    <h1 class="cms-title">Ajustes del sitio</h1>
+    <div class="cms-card">
+      <form id="settings-form" class="cms-form">
+        <div class="cms-field">
+          <label for="siteName">Nombre del sitio</label>
+          <input type="text" id="siteName" name="siteName" value={site.siteName} />
+        </div>
+        <div class="cms-field">
+          <label for="baseUrl">URL base</label>
+          <input type="text" id="baseUrl" name="baseUrl" value={site.baseUrl} placeholder="https://example.com" />
+        </div>
+        <div class="cms-field">
+          <label for="favicon">Favicon (ruta)</label>
+          <input type="text" id="favicon" name="favicon" value={site.favicon} placeholder="/favicon.svg" />
+        </div>
+        <div class="cms-field">
+          <label for="logo">Logo (URL)</label>
+          <input type="text" id="logo" name="logo" value={site.logo} />
+        </div>
+        <div class="cms-field">
+          <label for="primaryColor">Color primario (white-label)</label>
+          <div class="cms-color-field">
+            <input type="color" id="primaryColor-picker" value={primaryHex} title="Elegir color" />
+            <input type="text" id="primaryColor" name="primaryColor" value={site.primaryColor} placeholder="#333" maxlength="7" />
+          </div>
+        </div>
+        <div class="cms-field">
+          <label for="secondaryColor">Color secundario (white-label)</label>
+          <div class="cms-color-field">
+            <input type="color" id="secondaryColor-picker" value={secondaryHex} title="Elegir color" />
+            <input type="text" id="secondaryColor" name="secondaryColor" value={site.secondaryColor} placeholder="#666" maxlength="7" />
+          </div>
+        </div>
+        <div class="cms-form-actions">
+          <div class="cms-form-actions-right">
+            <button type="submit" class="cms-btn cms-btn-primary">Guardar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script>
+    (function() {
+      function toFullHex(s: string) {
+        if (!s || !s.startsWith('#')) return null;
+        const hex = s.slice(1).replace(/[^0-9a-fA-F]/g, '');
+        if (hex.length === 6) return '#' + hex;
+        if (hex.length === 3) return '#' + hex.split('').map(function(c: string) { return c + c; }).join('');
+        return null;
+      }
+      function syncPickerToText(pickerId: string, textId: string) {
+        var picker = document.getElementById(pickerId) as HTMLInputElement | null;
+        var text = document.getElementById(textId) as HTMLInputElement | null;
+        if (!picker || !text) return;
+        var pickerEl = picker;
+        var textEl = text;
+        pickerEl.addEventListener('input', function() { textEl.value = pickerEl.value; });
+      }
+      function syncTextToPicker(textId: string, pickerId: string) {
+        var text = document.getElementById(textId) as HTMLInputElement | null;
+        var picker = document.getElementById(pickerId) as HTMLInputElement | null;
+        if (!text || !picker) return;
+        var textEl = text;
+        var pickerEl = picker;
+        textEl.addEventListener('input', function() {
+          var hex = toFullHex(textEl.value);
+          if (hex) pickerEl.value = hex;
+        });
+      }
+      syncPickerToText('primaryColor-picker', 'primaryColor');
+      syncTextToPicker('primaryColor', 'primaryColor-picker');
+      syncPickerToText('secondaryColor-picker', 'secondaryColor');
+      syncTextToPicker('secondaryColor', 'secondaryColor-picker');
+    })();
+    document.getElementById('settings-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target as HTMLFormElement | null;
+      if (!form) return;
+      const token = (window as unknown as { getCmsToken?: () => string }).getCmsToken?.() || '';
+      const body = {
+        siteName: (form.elements.namedItem('siteName') as HTMLInputElement).value,
+        baseUrl: (form.elements.namedItem('baseUrl') as HTMLInputElement).value,
+        favicon: (form.elements.namedItem('favicon') as HTMLInputElement).value,
+        logo: (form.elements.namedItem('logo') as HTMLInputElement).value,
+        primaryColor: (form.elements.namedItem('primaryColor') as HTMLInputElement).value,
+        secondaryColor: (form.elements.namedItem('secondaryColor') as HTMLInputElement).value,
+      };
+      const res = await fetch('/cms/api/site', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) alert('Error: ' + (await res.text()));
+      else alert('Guardado.');
+    });
+  </script>
+</AdminLayout>

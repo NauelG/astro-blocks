@@ -1,0 +1,286 @@
+---
+import { Image } from 'astro:assets';
+import '@picocss/pico/css/pico.min.css';
+import 'animate.css';
+import '../../styles/cms-admin.css';
+import { LayoutDashboard, FileText, Menu, Settings, RefreshCw, User, LogOut, Users } from '@lucide/astro';
+import ConfirmDialog from './components/ConfirmDialog.astro';
+import pkg from '../../package.json' with { type: 'json' };
+import blocksLogo from '../../img/blocks_logo.png';
+const { site = {}, title = 'AstroBlocks' } = Astro.props;
+const cmsVersion = pkg.version;
+const primary = site.primaryColor || '#333';
+const secondary = site.secondaryColor || site.primaryColor || '#666';
+const currentPath = Astro.url.pathname;
+function isActive(href: string) {
+  if (href === '/cms') return currentPath === '/cms' || currentPath === '/cms/';
+  return currentPath.startsWith(href);
+}
+---
+
+<!doctype html>
+<html lang="en" data-theme="light" style="color-scheme: light;">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title}</title>
+  </head>
+  <body class="cms-root" style={`--cms-primary: ${primary}; --cms-secondary: ${secondary};`}>
+    <div id="admin-wrap" class="cms-wrap">
+      <div id="login-form" class="cms-hidden cms-login-wrap">
+        <div class="cms-login-card cms-card cms-animate-in">
+          <div id="cms-auth-logo" class="cms-auth-logo"></div>
+          <p id="cms-auth-loading" class="cms-muted">Cargando…</p>
+          <div id="cms-auth-forms" class="cms-hidden">
+            <p id="cms-auth-message" class="cms-muted"></p>
+            <form id="cms-login-form" class="cms-login-fields" method="post" action="#" autocomplete="off">
+              <input
+                type="email"
+                id="cms-email-input"
+                name="email"
+                placeholder="Email"
+                class="cms-input"
+                autocomplete="username"
+              />
+              <input
+                type="password"
+                id="cms-password-input"
+                name="password"
+                placeholder="Contraseña"
+                class="cms-input"
+                autocomplete="current-password"
+              />
+              <button type="submit" id="cms-login-btn" class="cms-btn cms-btn-primary">
+                <span id="cms-submit-label">Entrar</span>
+              </button>
+            </form>
+          </div>
+          <p id="cms-login-error" class="cms-muted cms-hidden" role="alert"></p>
+        </div>
+      </div>
+      <div id="admin-content" class="cms-hidden cms-panel">
+        <header class="cms-topbar" role="banner">
+          <div class="cms-topbar-brand">
+            {site.logo ? <img src={site.logo} alt="" class="cms-topbar-logo" /> : <span class="cms-topbar-title">Panel</span>}
+          </div>
+          <div class="cms-topbar-profile">
+            <button type="button" class="cms-topbar-profile-trigger" id="cms-profile-trigger" aria-haspopup="true" aria-expanded="false" aria-label="Menú de usuario">
+              <User class="cms-topbar-profile-icon" size={14} />
+            </button>
+            <div class="cms-topbar-dropdown" id="cms-profile-dropdown" role="menu">
+              <button type="button" class="cms-topbar-dropdown-item" id="cms-logout-btn" role="menuitem">
+                <LogOut class="cms-topbar-dropdown-icon" size={14} />
+                <span>Salir</span>
+              </button>
+            </div>
+          </div>
+        </header>
+        <div class="cms-panel-body">
+          <aside class="cms-sidebar">
+            <nav class="cms-nav" aria-label="Panel">
+              <a href="/cms" class={`cms-nav-link ${isActive('/cms') ? 'cms-nav-link--active' : ''}`}>
+                <LayoutDashboard class="cms-nav-icon" size={16} />
+                <span>Dashboard</span>
+              </a>
+              <div class="cms-nav-group">
+                <span class="cms-nav-group-title">Contenido</span>
+                <a href="/cms/pages" class={`cms-nav-link ${isActive('/cms/pages') ? 'cms-nav-link--active' : ''}`}>
+                  <FileText class="cms-nav-icon" size={16} />
+                  <span>Páginas</span>
+                </a>
+                <a href="/cms/menus" class={`cms-nav-link ${isActive('/cms/menus') ? 'cms-nav-link--active' : ''}`}>
+                  <Menu class="cms-nav-icon" size={16} />
+                  <span>Menús</span>
+                </a>
+              </div>
+              <div class="cms-nav-group">
+                <span class="cms-nav-group-title">Configuración</span>
+                <a href="/cms/settings" class={`cms-nav-link ${isActive('/cms/settings') ? 'cms-nav-link--active' : ''}`} data-cms-owner-only>
+                  <Settings class="cms-nav-icon" size={16} />
+                  <span>Ajustes</span>
+                </a>
+                <a href="/cms/users" class={`cms-nav-link ${isActive('/cms/users') ? 'cms-nav-link--active' : ''}`} data-cms-owner-only>
+                  <Users class="cms-nav-icon" size={16} />
+                  <span>Usuarios</span>
+                </a>
+                <a href="/cms/rebuild" class={`cms-nav-link ${isActive('/cms/rebuild') ? 'cms-nav-link--active' : ''}`}>
+                  <RefreshCw class="cms-nav-icon" size={16} />
+                  <span>Regenerar sitio</span>
+                </a>
+              </div>
+            </nav>
+          </aside>
+          <main class="cms-main cms-animate-in">
+            <slot />
+          </main>
+        </div>
+        <footer class="cms-footer" role="contentinfo">
+          <Image src={blocksLogo} width={12} height={12} alt="" class="cms-footer-logo" />
+          <span class="cms-footer-name">AstroBlocks</span>
+          <span class="cms-footer-version">v{cmsVersion}</span>
+        </footer>
+      </div>
+    </div>
+    <ConfirmDialog />
+    <script>
+      (function() {
+        if (typeof document === 'undefined') return;
+        const loginForm = document.getElementById('login-form');
+        const adminContent = document.getElementById('admin-content');
+        const authLogo = document.getElementById('cms-auth-logo');
+        const authLoading = document.getElementById('cms-auth-loading');
+        const authForms = document.getElementById('cms-auth-forms');
+        const authMessage = document.getElementById('cms-auth-message');
+        const submitLabel = document.getElementById('cms-submit-label');
+        const loginFormEl = document.getElementById('cms-login-form');
+        const emailInput = document.getElementById('cms-email-input');
+        const passwordInput = document.getElementById('cms-password-input');
+        const loginError = document.getElementById('cms-login-error');
+        function show(hasToken: boolean) {
+          if (loginForm) loginForm.classList.toggle('cms-hidden', hasToken);
+          if (adminContent) adminContent.classList.toggle('cms-hidden', !hasToken);
+        }
+        function setLoginError(msg: string) {
+          if (loginError) {
+            loginError.textContent = msg;
+            loginError.classList.toggle('cms-hidden', !msg);
+          }
+        }
+        function setAuthScreen(hasUsers: boolean, logo: string, siteName: string) {
+          if (authLogo) {
+            if (logo) {
+              const img = document.createElement('img');
+              img.src = logo;
+              img.alt = siteName;
+              img.className = 'cms-auth-logo-img';
+              authLogo.innerHTML = '';
+              authLogo.appendChild(img);
+            } else {
+              authLogo.innerHTML = '<span class="cms-auth-logo-title">' + (siteName || 'AstroBlocks') + '</span>';
+            }
+          }
+          if (authMessage) {
+            authMessage.textContent = hasUsers
+              ? 'Inicia sesión con tu email y contraseña.'
+              : 'Crea la cuenta del primer usuario (propietario).';
+          }
+          if (submitLabel) submitLabel.textContent = hasUsers ? 'Entrar' : 'Crear cuenta';
+          if (authLoading) authLoading.classList.add('cms-hidden');
+          if (authForms) authForms.classList.remove('cms-hidden');
+        }
+        try {
+          const token = sessionStorage.getItem('cms-token');
+          show(!!token);
+          if (token && adminContent && !adminContent.classList.contains('cms-hidden')) {
+            fetch('/cms/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+              .then((r) => r.ok ? r.json() : null)
+              .then((data) => {
+                if (data?.user) {
+                  try { sessionStorage.setItem('cms-user', JSON.stringify(data.user)); } catch (_) {}
+                }
+                document.querySelectorAll('[data-cms-owner-only]').forEach((el) => {
+                  (el as HTMLElement).style.display = data?.user?.role === 'owner' ? '' : 'none';
+                });
+              })
+              .catch(() => {});
+          } else if (token) {
+            const raw = sessionStorage.getItem('cms-user');
+            const user = raw ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : null;
+            document.querySelectorAll('[data-cms-owner-only]').forEach((el) => {
+              (el as HTMLElement).style.display = user?.role === 'owner' ? '' : 'none';
+            });
+          } else {
+            fetch('/cms/api/auth/status')
+              .then((r) => r.ok ? r.json() : { hasUsers: true, logo: '', siteName: 'CMS' })
+              .then((data) => setAuthScreen(!!data.hasUsers, data.logo || '', data.siteName || 'AstroBlocks'))
+              .catch(() => setAuthScreen(true, '', 'AstroBlocks'));
+          }
+        } catch (e) {}
+        if (loginFormEl && emailInput && passwordInput) {
+          loginFormEl.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const email = (emailInput as HTMLInputElement).value.trim();
+            const password = (passwordInput as HTMLInputElement).value;
+            setLoginError('');
+            if (!email || !password) {
+              setLoginError('Email y contraseña obligatorios.');
+              return;
+            }
+            const res = await fetch('/cms/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, password }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              setLoginError(data.error || 'Error al iniciar sesión.');
+              return;
+            }
+            try {
+              sessionStorage.setItem('cms-token', data.token);
+              if (data.user) sessionStorage.setItem('cms-user', JSON.stringify(data.user));
+            } catch (_) {}
+            location.reload();
+          });
+        }
+      })();
+    </script>
+    <script>
+      (window as unknown as { getCmsToken: () => string; getCmsUser: () => { id: string; email: string; role: string } | null }).getCmsToken = function() {
+        try { return sessionStorage.getItem('cms-token') || ''; } catch (e) { return ''; }
+      };
+      (window as unknown as { getCmsUser: () => { id: string; email: string; role: string } | null }).getCmsUser = function() {
+        try {
+          const raw = sessionStorage.getItem('cms-user');
+          return raw ? JSON.parse(raw) : null;
+        } catch (e) { return null; }
+      };
+    </script>
+    <script>
+      (function() {
+        if (typeof document === 'undefined') return;
+        function initProfileDropdown() {
+          const trigger = document.getElementById('cms-profile-trigger');
+          const dropdown = document.getElementById('cms-profile-dropdown');
+          const logoutBtn = document.getElementById('cms-logout-btn');
+          if (!trigger || !dropdown) return;
+          const triggerEl = trigger;
+          const dropdownEl = dropdown;
+          function isOpen() {
+            return dropdownEl.classList.contains('cms-topbar-dropdown--open');
+          }
+          function open() {
+            dropdownEl.classList.add('cms-topbar-dropdown--open');
+            triggerEl.setAttribute('aria-expanded', 'true');
+          }
+          function close() {
+            dropdownEl.classList.remove('cms-topbar-dropdown--open');
+            triggerEl.setAttribute('aria-expanded', 'false');
+          }
+          function toggle(e: Event) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isOpen()) close(); else open();
+          }
+          triggerEl.addEventListener('click', toggle);
+          document.addEventListener('click', function(e: MouseEvent) {
+            const target = e.target instanceof Node ? e.target : null;
+            if (!isOpen() || !target) return;
+            if (!dropdownEl.contains(target) && !triggerEl.contains(target)) close();
+          });
+          if (logoutBtn) {
+            logoutBtn.addEventListener('click', function() {
+              try { sessionStorage.removeItem('cms-token'); sessionStorage.removeItem('cms-user'); } catch (err) {}
+              location.reload();
+            });
+          }
+        }
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', initProfileDropdown);
+        } else {
+          initProfileDropdown();
+        }
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,35 @@
+{
+  "name": "astro-blocks",
+  "version": "0.4.4",
+  "type": "module",
+  "main": "./plugin/index.mjs",
+  "exports": {
+    ".": "./plugin/index.mjs",
+    "./contract": "./contract/index.mjs",
+    "./getMenu": "./utils/getMenu.mjs"
+  },
+  "types": "./plugin/index.d.mts",
+  "dependencies": {
+    "@lucide/astro": "^0.577.0",
+    "@picocss/pico": "^2.0.0",
+    "animate.css": "^4.1.1",
+    "jose": "^6.0.0",
+    "simple-dropzone": "^0.8.0",
+    "sortablejs": "^1.15.0"
+  },
+  "peerDependencies": {
+    "astro": "^6.0.0"
+  },
+  "files": [
+    "plugin",
+    "contract",
+    "routes",
+    "api",
+    "utils",
+    "styles",
+    "img"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

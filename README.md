@@ -1,0 +1,217 @@
+<p align="center">
+  <img src="img/blocks_logo.png" alt="AstroBlocks" width="160" />
+</p>
+
+<h1 align="center">AstroBlocks</h1>
+<p align="center">
+  <strong>CMS sin base de datos para Astro.</strong> Panel de administración, páginas editables, menús y configuración del sitio. Todo en JSON.
+</p>
+
+<p align="center">
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.4.4-blue" alt="version" /></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js" alt="Node 18+" /></a>
+  <a href="https://astro.build"><img src="https://img.shields.io/badge/Astro-6+-FF5D01?logo=astro" alt="Astro 6+" /></a>
+</p>
+
+---
+
+## Características
+
+- **Panel de administración** en `/cms`: dashboard, páginas, menús, ajustes, usuarios y regenerar sitio
+- **Sin base de datos**: contenido en `data/*.json` y archivos en `public/uploads/`
+- **Bloques editables**: define componentes con `defineBlockSchema` y edita props desde el panel
+- **White-label**: colores y logo del sitio configurables en Ajustes
+- **Autenticación**: primer usuario como propietario, JWT para la API
+- **SEO**: títulos, descripciones y canonical por página; sitemap y robots generados
+
+## Requisitos
+
+| Dependencia   | Versión  |
+|---------------|----------|
+| **Astro**    | 6+       |
+| **Node.js**  | 18+      |
+| **Adapter**  | `@astrojs/node` (v10+) para rutas del panel y la API |
+
+En Astro 6 se usa `output: 'static'`; las rutas del CMS son server-rendered con el adapter.
+
+---
+
+## Instalación
+
+### Dependencia local (mismo repo o ruta externa)
+
+Si el paquete está en una carpeta del repo (p. ej. `lib/astro-blocks`) o en una ruta externa (p. ej. otro repositorio):
+
+```json
+{
+  "dependencies": {
+    "astro-blocks": "file:./lib/astro-blocks"
+  }
+}
+```
+
+Ejecuta `npm install` (o equivalente) en el **proyecto Astro** para que las dependencias de astro-blocks se instalen ahí.
+
+**Desarrollo local:** Si usas `file:../astro-blocks` y ves un error al resolver `@picocss/pico` o `animate.css`, ejecuta también `npm install` **dentro de la carpeta astro-blocks**. Así el paquete tendrá su propio `node_modules` y podrá resolver esas dependencias cuando el bundler use la ruta real del paquete. Cuando el paquete esté instalado desde npm, no es necesario. (El paquete usa `legacy-peer-deps` en su `.npmrc` porque `@lucide/astro` aún no declara soporte para Astro 6 en su peer dependency.)
+
+### Desde npm (cuando esté publicado)
+
+```bash
+npm install astro-blocks
+```
+
+---
+
+## Configuración rápida
+
+1. **Integración en `astro.config.mjs`:**
+
+```js
+import { defineConfig } from 'astro/config';
+import node from '@astrojs/node';
+import astroBlocks from 'astro-blocks';
+
+export default defineConfig({
+  output: 'static',
+  adapter: node({ mode: 'standalone' }),
+  integrations: [
+    astroBlocks({
+      layoutPath: './src/layouts/Layout.astro',
+      components: {
+        hero: './src/components/Hero.astro',
+        // más bloques...
+      },
+    }),
+  ],
+});
+```
+
+2. **Adapter Node** es obligatorio para que el panel (`/cms`) y la API funcionen.
+
+3. La carpeta **`data/`** se crea automáticamente en la raíz del proyecto con `pages.json`, `site.json`, `menus.json` y `users.json`.
+
+El panel usa **Pico CSS**, **Animate.css**, **Sortable.js** y **simple-dropzone**; todo va incluido en el paquete y solo se carga en el admin.
+
+---
+
+## Opciones del plugin
+
+| Opción        | Descripción |
+|---------------|-------------|
+| `layoutPath`  | Ruta al layout del proyecto (ej. `'./src/layouts/Layout.astro'`). Recibe props de SEO (`title`, `description`, `canonical`, `noindex`, `site`, `seo`) en páginas servidas por el CMS. |
+| `components`  | Objeto `{ nombreBloque: rutaComponente }`. Cada componente debe cumplir el [contrato de bloques](#contrato-de-componentes). |
+
+---
+
+## Carpeta `data/`
+
+En la **raíz del proyecto**:
+
+| Archivo        | Uso |
+|----------------|-----|
+| `data/pages.json`  | Páginas (slug, draft/published, bloques, SEO). |
+| `data/site.json`   | Sitio: nombre, baseUrl, favicon, logo, colores, SEO por defecto. |
+| `data/menus.json`  | Menús por clave (ej. `main`, `footer`): `[{ name, path }]`. |
+| `data/users.json`  | Usuarios del panel (email, rol owner/editor). |
+
+Los archivos subidos se guardan en **`public/uploads/`**. Puedes versionar `data/` en tu repo.
+
+---
+
+## Menús en el sitio: `getMenu(key)`
+
+En código servidor (p. ej. frontmatter de Astro):
+
+```astro
+---
+import { getMenu } from 'astro-blocks/getMenu';
+
+const menu = await getMenu('main');
+---
+<nav>
+  {menu.map((item) => (
+    <a href={item.path}>{item.name}</a>
+  ))}
+</nav>
+```
+
+Devuelve `{ name: string, path: string }[]`.
+
+---
+
+## Contrato de componentes
+
+Cada bloque registrado en `components` debe:
+
+1. Importar `defineBlockSchema` desde `astro-blocks/contract`.
+2. Exportar un `schema` con las props editables (tipo y etiqueta).
+
+**Ejemplo:**
+
+```astro
+---
+import { defineBlockSchema } from 'astro-blocks/contract';
+
+export const schema = defineBlockSchema({
+  title: { type: 'string', label: 'Título' },
+  subtitle: { type: 'text', label: 'Subtítulo' },
+});
+
+const { title = '', subtitle = '' } = Astro.props;
+---
+<section>
+  <h1>{title}</h1>
+  {subtitle ? <p>{subtitle}</p> : null}
+</section>
+```
+
+**Tipos de prop:** `string`, `text`, `number`, `boolean`, `image`, `link`, `select`.
+
+---
+
+## Panel de administración (`/cms`)
+
+- **Dashboard** — Resumen y acceso rápido.
+- **Contenido** — Páginas (crear, editar, eliminar en modal) y Menús.
+- **Configuración** — Ajustes (nombre, URL, favicon, logo, colores), Usuarios, Regenerar sitio.
+
+La edición se hace en **modales** en la misma pantalla del listado. Las acciones destructivas usan un diálogo de confirmación (`window.cmsConfirm()`). Interfaz **white-label** con colores configurables en Ajustes.
+
+### Diálogos de confirmación
+
+El layout incluye `ConfirmDialog.astro`. Uso:
+
+```js
+const ok = await window.cmsConfirm({
+  message: '¿Eliminar este elemento?',
+  confirmLabel: 'Eliminar',
+  cancelLabel: 'Cancelar',
+});
+```
+
+---
+
+## Seguridad y usuarios
+
+- **Primer usuario** → pantalla de registro (se crea como propietario).
+- **Resto de usuarios** → login con email y contraseña.
+- **Sesión** → JWT en `Authorization: Bearer <token>` en las peticiones a la API.
+- **Variables de entorno** (recomendadas en producción):
+  - `CMS_SECRET` — secreto compartido para la API.
+  - `CMS_JWT_SECRET` — firma de los JWT.
+
+---
+
+## Regenerar sitio
+
+En **Configuración → Regenerar sitio** (`/cms/rebuild`) un botón ejecuta `npm run build` en la raíz del proyecto (p. ej. para actualizar HTML, sitemap y metadatos). Requiere Node y acceso al disco; en entornos serverless puede no estar disponible.
+
+---
+
+## Página de inicio y conflicto con `index.astro`
+
+Para que la **ruta `/`** la gestione el CMS, crea en el panel una página con slug `/`. Evita conflictos **eliminando o renombrando** `src/pages/index.astro`; las rutas basadas en archivo pueden tener prioridad. Si existe `src/pages/index.astro`, el plugin muestra un aviso en consola.
+
+---
+
+*AstroBlocks* — CMS para [Astro](https://astro.build). Panel en `/cms`, datos en JSON, sin base de datos.

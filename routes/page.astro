@@ -1,0 +1,39 @@
+---
+import { loadPages, getPublishedPages, pageToSlugParam } from '../api/data.mjs';
+import { Layout, componentMap } from 'astro-blocks-runtime';
+
+export async function getStaticPaths() {
+  const projectRoot = import.meta.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
+  process.env.ASTRO_BLOCKS_PROJECT_ROOT = projectRoot;
+  const pagesData = await loadPages();
+  const published = getPublishedPages(pagesData);
+  return published.map((page) => ({
+    params: { slug: pageToSlugParam(page) },
+    props: { page },
+  }));
+}
+
+const { page } = Astro.props;
+const site = await import('../api/data.mjs').then((m) => m.loadSite());
+const seo = page.seo || {};
+const title = seo.title ?? site.seo?.defaultTitle ?? page.title ?? site.siteName;
+const description = seo.description ?? site.seo?.defaultDescription ?? '';
+const canonical = seo.canonical ?? `${site.baseUrl}${page.slug === '/' || (Array.isArray(page.slug) && !page.slug.length) ? '' : (Array.isArray(page.slug) ? '/' + page.slug.join('/') : page.slug)}`;
+const noindex = page.indexable === false;
+const blocks = page.blocks || [];
+---
+
+<Layout
+  title={title}
+  description={description}
+  canonical={canonical}
+  noindex={noindex}
+  site={site}
+  seo={seo}
+>
+  {blocks.map((block) => {
+    const Comp = componentMap[block.type];
+    if (!Comp) return null;
+    return <Comp {...(block.props || {})} />;
+  })}
+</Layout>

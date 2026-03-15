@@ -1,0 +1,210 @@
+---
+import AdminLayout from './layout.astro';
+import DetailModal from './components/DetailModal.astro';
+import { Pencil, Trash2 } from '@lucide/astro';
+import { loadSite } from '../../api/data.mjs';
+import { loadPages } from '../../api/data.mjs';
+const site = await loadSite();
+const pagesData = await loadPages();
+const pages = pagesData.pages || [];
+function slugStr(p: { slug?: string | string[] }) {
+  if (p.slug === '/' || (Array.isArray(p.slug) && !p.slug.length)) return '/';
+  return Array.isArray(p.slug) ? '/' + p.slug.join('/') : p.slug;
+}
+---
+
+<AdminLayout site={site} title="Páginas">
+  <div class="cms-stack">
+    <div class="cms-page-header">
+      <h1 class="cms-title">Páginas</h1>
+      <button type="button" id="cms-page-new-btn" class="cms-btn cms-btn-primary">Nueva página</button>
+    </div>
+    <div class="cms-card cms-card--no-padding">
+      <div class="cms-table-wrap">
+        <table class="cms-table">
+          <thead>
+            <tr>
+              <th class="cms-table-actions"></th>
+              <th>Título</th>
+              <th>Slug</th>
+              <th>Estado</th>
+              <th class="cms-table-actions-delete"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {pages.map((p: { id: string; title: string; slug?: string | string[]; status: string }) => (
+              <tr>
+                <td class="cms-table-actions">
+                  <button type="button" class="cms-table-btn-edit cms-page-edit" data-id={p.id} aria-label="Editar">
+                    <Pencil size={14} />
+                  </button>
+                </td>
+                <td>{p.title}</td>
+                <td class="cms-table-cell-monospace">{slugStr(p)}</td>
+                <td>
+                  <span class={p.status === 'published' ? 'cms-badge cms-badge-success' : 'cms-badge cms-badge-neutral'}>
+                    {p.status}
+                  </span>
+                </td>
+                <td class="cms-table-actions-delete">
+                  <button type="button" class="cms-table-btn-delete cms-page-delete" data-id={p.id} aria-label="Eliminar">
+                    <Trash2 size={14} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <DetailModal id="page-detail-modal" title="Página">
+    <form id="page-detail-form" class="cms-form">
+      <input type="hidden" id="page-detail-id" name="id" value="" />
+      <div class="cms-field">
+        <label for="page-detail-title">Título</label>
+        <input type="text" id="page-detail-title" name="title" required />
+      </div>
+      <div class="cms-field">
+        <label for="page-detail-slug">Slug</label>
+        <input type="text" id="page-detail-slug" name="slug" placeholder="/ o /about" />
+      </div>
+      <div class="cms-field">
+        <label for="page-detail-status">Estado</label>
+        <select name="status" id="page-detail-status">
+          <option value="draft">Borrador</option>
+          <option value="published">Publicado</option>
+        </select>
+      </div>
+      <div class="cms-field" style="display: flex; align-items: center; gap: 0.5rem;">
+        <input type="checkbox" name="indexable" id="page-detail-indexable" checked />
+        <label for="page-detail-indexable" style="margin-bottom: 0;">Indexable</label>
+      </div>
+      <div class="cms-field">
+        <label for="page-detail-blocks">Blocks (JSON)</label>
+        <textarea name="blocks" id="page-detail-blocks" class="cms-input-monospace" rows="8">[]</textarea>
+      </div>
+      <div class="cms-field">
+        <label for="page-detail-seo">SEO (JSON)</label>
+        <textarea name="seo" id="page-detail-seo" class="cms-input-monospace" rows="4">{}</textarea>
+      </div>
+    </form>
+    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="page-detail-modal">Cancelar</button>
+    <button type="submit" form="page-detail-form" class="cms-btn cms-btn-primary" id="page-detail-submit" slot="actions-right">Guardar</button>
+  </DetailModal>
+
+  <script is:inline>
+    (function() {
+      var dialog = document.getElementById('page-detail-modal');
+      var form = document.getElementById('page-detail-form');
+      var titleEl = dialog && dialog.querySelector('[data-detail-modal-title]');
+      var idInput = document.getElementById('page-detail-id');
+      var submitBtn = document.getElementById('page-detail-submit');
+      var newBtn = document.getElementById('cms-page-new-btn');
+
+      function getToken() { try { return (window.getCmsToken && window.getCmsToken()) || ''; } catch (e) { return ''; } }
+      function closeModal() { if (dialog) dialog.close(); }
+      function openModal() { if (dialog) dialog.showModal(); }
+
+      function setFormTitle(label, submitLabel) {
+        if (titleEl) titleEl.textContent = label;
+        if (submitBtn) submitBtn.textContent = submitLabel;
+      }
+
+      function openNew() {
+        if (idInput) idInput.value = '';
+        if (form) {
+          form.title.value = 'Untitled';
+          form.slug.value = '/';
+          form.status.value = 'draft';
+          form.querySelector('#page-detail-indexable').checked = true;
+          form.querySelector('#page-detail-blocks').value = '[]';
+          form.querySelector('#page-detail-seo').value = '{}';
+        }
+        setFormTitle('Nueva página', 'Crear');
+        openModal();
+      }
+
+      function openEdit(id) {
+        var token = getToken();
+        fetch('/cms/api/pages', { headers: { 'Authorization': 'Bearer ' + token } })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            var pages = data.pages || [];
+            var page = pages.find(function(p) { return p.id === id; });
+            if (!page) return;
+            if (idInput) idInput.value = page.id;
+            if (form) {
+              form.title.value = page.title || '';
+              form.slug.value = page.slug === '/' || (Array.isArray(page.slug) && !page.slug.length) ? '/' : (Array.isArray(page.slug) ? '/' + page.slug.join('/') : page.slug);
+              form.status.value = page.status || 'draft';
+              form.querySelector('#page-detail-indexable').checked = page.indexable !== false;
+              form.querySelector('#page-detail-blocks').value = JSON.stringify(page.blocks || [], null, 2);
+              form.querySelector('#page-detail-seo').value = JSON.stringify(page.seo || {}, null, 2);
+            }
+            setFormTitle('Editar página', 'Guardar');
+            openModal();
+          });
+      }
+
+      function deletePage(id) {
+        if (!id) return;
+        var confirmFn = (typeof window !== 'undefined' && window.cmsConfirm) ? window.cmsConfirm : function(opts) { return Promise.resolve(confirm(opts.message)); };
+        confirmFn({ message: '¿Eliminar esta página?', confirmLabel: 'Eliminar' }).then(function(ok) {
+          if (!ok) return;
+          var token = getToken();
+          fetch('/cms/api/pages/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } })
+            .then(function(r) {
+              if (r.status === 204) { location.reload(); return; }
+              throw new Error('Error al eliminar');
+            })
+            .catch(function() { alert('Error al eliminar'); });
+        });
+      }
+
+      if (newBtn) newBtn.addEventListener('click', openNew);
+      document.querySelectorAll('.cms-page-edit').forEach(function(btn) {
+        btn.addEventListener('click', function() { openEdit(btn.getAttribute('data-id')); });
+      });
+      document.querySelectorAll('.cms-page-delete').forEach(function(btn) {
+        btn.addEventListener('click', function() { deletePage(btn.getAttribute('data-id')); });
+      });
+
+      dialog.addEventListener('click', function(e) {
+        if (e.target.getAttribute && e.target.getAttribute('data-close-modal') === 'page-detail-modal') closeModal();
+        if (e.target === dialog) closeModal();
+      });
+      dialog.addEventListener('cancel', closeModal);
+
+      if (form) form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var token = getToken();
+        var id = idInput && idInput.value ? idInput.value.trim() : '';
+        var blocks = []; var seo = {};
+        try { blocks = JSON.parse(form.querySelector('#page-detail-blocks').value || '[]'); } catch (_) {}
+        try { seo = JSON.parse(form.querySelector('#page-detail-seo').value || '{}'); } catch (_) {}
+        var indexableEl = form.querySelector('#page-detail-indexable');
+        var body = {
+          title: form.title.value,
+          slug: form.slug.value || '/',
+          status: form.status.value,
+          indexable: indexableEl ? indexableEl.checked : true,
+          blocks: blocks,
+          seo: seo,
+        };
+        var url = id ? '/cms/api/pages/' + id : '/cms/api/pages';
+        var method = id ? 'PUT' : 'POST';
+        fetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify(body),
+        }).then(function(r) {
+          if (!r.ok) throw new Error('Error');
+          closeModal();
+          location.reload();
+        }).catch(function() { alert('Error al guardar'); });
+      });
+    })();
+  </script>
+</AdminLayout>

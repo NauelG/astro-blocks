@@ -1,0 +1,48 @@
+---
+import AdminLayout from './layout.astro';
+import { loadSite, loadMenus } from '../../api/data.mjs';
+const site = await loadSite();
+const menus = await loadMenus();
+const menusStr = JSON.stringify(menus, null, 2);
+---
+
+<AdminLayout site={site} title="Menús">
+  <div class="cms-stack">
+    <h1 class="cms-title">Menús</h1>
+    <p class="cms-muted">
+      Edita los menús en JSON. Las claves son los IDs (ej. "main", "footer"). Cada valor es un array de <code class="cms-code">{`{ "name": "Etiqueta", "path": "/url" }`}</code>.
+    </p>
+    <div class="cms-card">
+      <form id="menus-form" class="cms-form">
+        <div class="cms-field">
+          <label for="menus-json">JSON de menús</label>
+          <textarea name="menus" id="menus-json" class="cms-input-monospace" rows="14">{menusStr}</textarea>
+        </div>
+        <div class="cms-form-actions">
+          <div class="cms-form-actions-right">
+            <button type="submit" class="cms-btn cms-btn-primary">Guardar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script>
+    document.getElementById('menus-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const token = window.getCmsToken?.() || '';
+      let data = {};
+      try { data = JSON.parse(form.menus.value || '{}'); } catch (_) {
+        alert('JSON no válido');
+        return;
+      }
+      const res = await fetch('/cms/api/menus', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) alert('Error: ' + (await res.text()));
+      else alert('Guardado.');
+    });
+  </script>
+</AdminLayout>
