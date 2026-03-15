@@ -1,3 +1,8 @@
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
 import { loadMenus } from '../api/data.mjs';
 
 /**

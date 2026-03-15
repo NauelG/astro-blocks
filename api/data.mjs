@@ -1,3 +1,8 @@
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getDataPath, getDataDir, getUploadsDir } from '../utils/paths.mjs';

@@ -1,8 +1,22 @@
+<!--
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+-->
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+## [0.6.2] - 2026-03-15
+
+### Added
+
+- **Copyright y licencia BSL:** bloque de copyright al inicio de todos los archivos (código, estilos, .md). En .astro, el bloque va al inicio del frontmatter con `/* ... */` para no renderizarse. En .md se usa comentario HTML `<!-- ... -->`. Criterios en AGENTS.md §14: incluir el copy en archivos nuevos y actualizar el año en todos los bloques al cambiar de año.
+- **Disclaimer en README:** texto sobre software source-available, uso permitido (proyectos personales, open-source, uso interno) y prohibición de ofrecer AstroBlocks como SaaS o servicio alojado.
+
+---
 
 ## [0.6.1] - 2026-03-15
 

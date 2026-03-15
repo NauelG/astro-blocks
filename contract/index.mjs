@@ -1,3 +1,8 @@
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
 /**
  * Block schema definition for Astro CMS.
  * Components in your project import defineBlockSchema and export a schema

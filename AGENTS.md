@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+-->
+
 # Guía para agentes – AstroBlocks
 
 Documento de referencia para iteraciones futuras sobre el CMS. Describe la estructura, convenciones y puntos de extensión.
@@ -170,3 +175,10 @@ Formato de la primera línea: `<tipo>[ámbito opcional]: <descripción>`.
 
 - **Reviewed-by:** Todo commit debe incluir en el footer el trailer `Reviewed-by: <nombre> <email>`, donde nombre y email son los del **usuario Git que ejecuta** el commit (`git config user.name`, `git config user.email`). Identifica a la persona que revisa/ejecuta el cambio.
 - **Sin etiquetas del agente:** No añadir en los commits ninguna etiqueta ni meta-etiqueta que identifique al agente o herramienta que generó el código (p. ej. Co-authored-by de un bot, "Generated-by", "Agent: …"). El historial refleja solo autores humanos y el Reviewed-by del usuario que ejecuta.
+
+---
+
+## 14. Copyright y licencia
+
+- **Archivos nuevos:** Al generar cualquier archivo nuevo (código o documentación), incluir siempre al inicio el bloque de copyright BSL con el formato adecuado al tipo de archivo: bloque `/* ... */` para .mjs, .js, .mts, .ts, .css y .astro (en .astro al inicio del frontmatter, no en el template, para que no se renderice); comentario HTML `<!-- ... -->` para .md. No añadir copyright a archivos JSON (package.json, etc.) por limitación del formato.
+- **Cambio de año:** Al cambiar el año natural (p. ej. de 2026 a 2027), actualizar el año en **todos** los bloques de copyright del repositorio (búsqueda y reemplazo del año en esos bloques). Incluir esta tarea en la revisión de inicio de año o cuando se detecte el cambio.
