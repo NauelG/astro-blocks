@@ -226,8 +226,7 @@ function slugStr(p: { slug?: string | string[] }) {
 
       function deletePage(id) {
         if (!id) return;
-        var confirmFn = (typeof window !== 'undefined' && window.cmsConfirm) ? window.cmsConfirm : function(opts) { return Promise.resolve(confirm(opts.message)); };
-        confirmFn({ message: '¿Eliminar esta página?', confirmLabel: 'Eliminar' }).then(function(ok) {
+        window.cmsConfirm({ message: '¿Eliminar esta página?', confirmLabel: 'Eliminar' }).then(function(ok) {
           if (!ok) return;
           var token = getToken();
           fetch('/cms/api/pages/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } })
@@ -235,7 +234,7 @@ function slugStr(p: { slug?: string | string[] }) {
               if (r.status === 204) { location.reload(); return; }
               throw new Error('Error al eliminar');
             })
-            .catch(function() { alert('Error al eliminar'); });
+            .catch(function() { window.cmsAlert({ message: 'Error al eliminar', title: 'Error' }); });
         });
       }
 
@@ -329,7 +328,7 @@ function slugStr(p: { slug?: string | string[] }) {
           if (!r.ok) throw new Error('Error');
           closeModal();
           location.reload();
-        }).catch(function() { alert('Error al guardar'); });
+        }).catch(function() { window.cmsAlert({ message: 'Error al guardar', title: 'Error' }); });
       });
     })();
   </script>

@@ -1,0 +1,61 @@
+---
+/**
+ * Diálogo de aviso del CMS (no usa alert() nativo).
+ * Expone window.cmsAlert(options) que devuelve Promise<void>.
+ * options: { message: string, title?: string, okLabel?: string }
+ */
+---
+
+<dialog id="cms-alert-dialog" class="cms-alert-dialog" aria-labelledby="cms-alert-title" aria-describedby="cms-alert-message">
+  <div class="cms-alert-panel">
+    <h2 id="cms-alert-title" class="cms-alert-title">Aviso</h2>
+    <p id="cms-alert-message" class="cms-alert-message"></p>
+    <div class="cms-alert-actions cms-form-actions">
+      <div class="cms-form-actions-right">
+        <button type="button" id="cms-alert-ok" class="cms-btn cms-btn-primary">Aceptar</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<script is:inline>
+  (function() {
+    var dialog = document.getElementById('cms-alert-dialog');
+    var titleEl = document.getElementById('cms-alert-title');
+    var messageEl = document.getElementById('cms-alert-message');
+    var okBtn = document.getElementById('cms-alert-ok');
+
+    function open(opts) {
+      var message = (opts && opts.message) || '';
+      var title = (opts && opts.title) != null ? opts.title : 'Aviso';
+      var okLabel = (opts && opts.okLabel) != null ? opts.okLabel : 'Aceptar';
+      if (messageEl) messageEl.textContent = message;
+      if (titleEl) titleEl.textContent = title;
+      if (okBtn) okBtn.textContent = okLabel;
+      if (dialog) dialog.showModal();
+    }
+
+    function close() {
+      if (dialog) dialog.close();
+    }
+
+    window.cmsAlert = function(opts) {
+      return new Promise(function(resolve) {
+        if (!dialog || !okBtn) {
+          resolve();
+          return;
+        }
+        open(opts);
+        function done() {
+          close();
+          resolve();
+          okBtn.removeEventListener('click', onOk);
+          dialog.removeEventListener('cancel', onOk);
+        }
+        function onOk() { done(); }
+        okBtn.addEventListener('click', onOk);
+        dialog.addEventListener('cancel', onOk);
+      });
+    };
+  })();
+</script>

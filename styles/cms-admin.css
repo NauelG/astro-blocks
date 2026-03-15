@@ -801,6 +801,54 @@
   color: #fff;
 }
 
+/* --- Diálogo de aviso (cmsAlert) --- */
+.cms-alert-dialog {
+  max-width: 100%;
+  max-height: 100%;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 1rem;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cms-alert-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.cms-alert-panel {
+  min-width: 18rem;
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem;
+  background: var(--cms-surface, #fff);
+  border-radius: 0.5rem;
+  box-shadow: var(--cms-shadow-lg);
+  border: 1px solid var(--cms-border);
+}
+
+.cms-alert-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--cms-primary, #333);
+}
+
+.cms-alert-message {
+  margin: 0 0 1rem 0;
+  font-size: 0.8125rem;
+  color: #374151;
+}
+
+.cms-alert-actions {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--cms-border, #e5e7eb);
+}
+
 .cms-rebuild-intro {
   font-size: 0.8125rem;
   margin-bottom: 0.5rem;
@@ -906,7 +954,7 @@
 
 /* --- Menús: card informativa --- */
 .cms-menus-info-card {
-  font-size: 9.5px;
+  font-size: 10px;
   padding: 0.5rem 0.75rem;
   line-height: 1.4;
   color: var(--pico-muted-color, #6b7280);

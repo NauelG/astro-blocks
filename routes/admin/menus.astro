@@ -387,8 +387,7 @@ const menus = menusData.menus ?? [];
       }
 
       function deleteMenu(id) {
-        const confirmFn = (typeof window !== 'undefined' && window.cmsConfirm) ? window.cmsConfirm : function (opts) { return Promise.resolve(confirm(opts.message)); };
-        confirmFn({ message: '¿Eliminar este menú?', confirmLabel: 'Eliminar' }).then(function (ok) {
+        window.cmsConfirm({ message: '¿Eliminar este menú?', confirmLabel: 'Eliminar' }).then(function (ok) {
           if (!ok) return;
           const token = getToken();
           fetch('/cms/api/menus/' + encodeURIComponent(id), { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } })
@@ -396,7 +395,7 @@ const menus = menusData.menus ?? [];
               if (r.status === 204) { location.reload(); return; }
               throw new Error('Error al eliminar');
             })
-            .catch(function () { alert('Error al eliminar'); });
+            .catch(function () { window.cmsAlert({ message: 'Error al eliminar', title: 'Error' }); });
         });
       }
 

@@ -107,8 +107,8 @@ const secondaryHex = toFullHex(site.secondaryColor, '#666666');
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify(body),
       });
-      if (!res.ok) alert('Error: ' + (await res.text()));
-      else alert('Guardado.');
+      if (!res.ok) await window.cmsAlert({ message: 'Error: ' + (await res.text()), title: 'Error' });
+      else await window.cmsAlert({ message: 'Guardado.', title: 'Ajustes' });
     });
   </script>
 </AdminLayout>

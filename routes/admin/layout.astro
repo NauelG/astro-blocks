@@ -5,6 +5,7 @@ import 'animate.css';
 import '../../styles/cms-admin.css';
 import { LayoutDashboard, FileText, Menu, Settings, RefreshCw, User, LogOut, Users } from '@lucide/astro';
 import ConfirmDialog from './components/ConfirmDialog.astro';
+import AlertDialog from './components/AlertDialog.astro';
 import pkg from '../../package.json' with { type: 'json' };
 import blocksLogo from '../../img/blocks_logo.png';
 const { site = {}, title = 'AstroBlocks' } = Astro.props;
@@ -23,6 +24,7 @@ function isActive(href: string) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
+    <link rel="icon" href={blocksLogo.src} type="image/png" />
     <title>{title}</title>
   </head>
   <body class="cms-root" style={`--cms-primary: ${primary}; --cms-secondary: ${secondary};`}>
@@ -122,6 +124,7 @@ function isActive(href: string) {
       </div>
     </div>
     <ConfirmDialog />
+    <AlertDialog />
     <script>
       (function() {
         if (typeof document === 'undefined') return;

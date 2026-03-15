@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.1] - 2026-03-15
+
+### Added
+
+- **Diálogo de aviso (cmsAlert):** componente `AlertDialog.astro` con el mismo estilo que el de confirmación (overlay + panel centrado); expone `window.cmsAlert({ message, title?, okLabel? })`. Sustitución de todos los `alert()` del panel por cmsAlert (regenerar sitio, ajustes, páginas, menús).
+- **Favicon del CMS:** el panel usa el logo de AstroBlocks como favicon (solo en rutas bajo `/cms`).
+
+### Changed
+
+- **AGENTS.md:** criterio de no utilizar nunca `alert()` ni `confirm()` nativos en el panel; usar siempre cmsConfirm y cmsAlert. Estructura del directorio con `AlertDialog.astro`. Criterio para tips informativos (estilo `.cms-menus-info-card`).
+
+---
+
 ## [0.6.0] - 2026-03-15
 
 ### Added

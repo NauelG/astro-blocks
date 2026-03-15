@@ -175,8 +175,7 @@ const site = await loadSite();
 
         function deleteUser(id) {
           if (!id) return;
-          var confirmFn = (typeof window !== 'undefined' && window.cmsConfirm) ? window.cmsConfirm : function() { return Promise.resolve(confirm('¿Eliminar este usuario?')); };
-          confirmFn({ message: '¿Eliminar este usuario?', confirmLabel: 'Eliminar' }).then(function(ok) {
+          window.cmsConfirm({ message: '¿Eliminar este usuario?', confirmLabel: 'Eliminar' }).then(function(ok) {
             if (!ok) return;
             setError('');
             fetch('/cms/api/users/' + id, { method: 'DELETE', headers: headers() })

@@ -24,15 +24,15 @@ const site = await loadSite();
   </div>
   <script>
     (function() {
-      const btn = document.getElementById('rebuild-confirm-btn') as HTMLButtonElement | null;
+      const btn = document.getElementById('rebuild-confirm-btn');
       if (!btn) return;
       btn.addEventListener('click', async () => {
         btn.disabled = true;
-        const token = window.getCmsToken?.() || '';
+        const token = (typeof window !== 'undefined' && window.getCmsToken) ? window.getCmsToken() : '';
         try {
           const res = await fetch('/cms/api/rebuild', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
-          if (res.ok) alert('Build iniciado.');
-          else alert('Error: ' + (await res.text()));
+          if (res.ok) await window.cmsAlert({ message: 'Build iniciado.', title: 'Regenerar sitio' });
+          else await window.cmsAlert({ message: 'Error: ' + (await res.text()), title: 'Error' });
         } finally {
           btn.disabled = false;
         }
