@@ -105,19 +105,26 @@ Al añadir rutas nuevas del panel o de la API, mantener estos prefijos y actuali
 - **Nueva pantalla del panel (listado + detalle):** crear `routes/admin/nombre.astro` con la tabla/listado y un **DetailModal** para crear/editar; inyectar en el plugin `injectRoute({ pattern: '/cms/nombre', entrypoint: ... })`, enlazar desde `layout.astro`. No crear páginas separadas para "nuevo" o "editar"; usar siempre el modal en la misma pantalla que el listado. **Tablas:** seguir el lenguaje de diseño unificado (sección 8): primera columna solo editar (lápiz), última columna solo eliminar (papelera roja) si aplica; font-size 0.75rem; para eliminar usar `window.cmsConfirm`. Ver `pages.astro` y `users.astro` como referencia.
 - **Nueva pantalla sin listado (ej. ajustes):** crear `routes/admin/nombre.astro` sin modal (ej. `settings.astro`, `rebuild.astro`).
 - **Nuevo endpoint API:** en `handlers.mjs` añadir la función; en `routes/api/catchall.mjs` despachar por método y segmentos; en el admin usar `fetch('/cms/api/...')`.
+- **Menús:** Estructura en `data/menus.json`: `{ menus: [ { id, name, selector, items } ] }`; cada ítem tiene `name`, `path` y opcionalmente `children` (submenús anidados). API: GET/POST `/cms/api/menus`, PUT/DELETE `/cms/api/menus/:id`. Selector: solo `[a-zA-Z0-9_-]`, único. Ruta obligatoria en todos los ítems; validación en cliente y API. Reordenación de ítems y submenús con Sortable.js (`ghostClass: 'cms-dragging'`, handle `.cms-drag-handle`). `getMenu(selector)` devuelve ítems con `children` para el sitio.
 - **Nuevo tipo de prop en el contrato:** en `contract/index.mjs` (y tipos en `contract/index.d.mts`) añadir el tipo; en el panel, si hay UI generada por schema, soportar el nuevo tipo.
 - **Cambio de prefijo de rutas:** buscar y reemplazar `/cms` y `/cms/api` en plugin, admin, robots-get.mjs y README; en el catchall ajustar `getPathSegments` (p. ej. `slice(2)` para `/cms/api/...`).
-- **Al entregar cambios en el paquete:** no hacer bump de versión ni entrada en CHANGELOG hasta que la versión se dé por cerrada (ver sección 11). En el momento en que se pida hacer el commit, previamente se actualiza la versión en `package.json` y se añade la entrada en `CHANGELOG.md`.
+- **Al entregar cambios en el paquete:** no hacer bump de versión ni entrada en CHANGELOG hasta que la versión se dé por cerrada (ver sección 12). En el momento en que se pida hacer el commit, previamente se actualiza la versión en `package.json` y se añade la entrada en `CHANGELOG.md`.
 
 ---
 
-## 10. Plan de referencia
+## 10. Compatibilidad con versiones antiguas
+
+**Hasta próximo aviso:** no se da soporte a versiones antiguas. Toda implementación que suponga un *breaking change* se implementa **sin fallback** ni migración: se asume el nuevo formato o contrato y se documenta el cambio. No añadir lógica de compatibilidad hacia atrás (p. ej. detectar formato antiguo en `loadMenus` y convertirlo); si se cambia la estructura de datos o la API, el código solo maneja la versión nueva.
+
+---
+
+## 11. Plan de referencia
 
 El diseño completo (requisitos, data en raíz, contrato, borrador/publicado, SEO, sitemap, robots, getMenu, etc.) está en el plan final del proyecto (documento "Plan final: CMS para Astro"). Usar este AGENTS.md junto con ese plan para mantener coherencia en iteraciones futuras.
 
 ---
 
-## 11. README y versionado
+## 12. README y versionado
 
 ### Estilo del README (`README.md`)
 
@@ -130,7 +137,7 @@ El README debe mantenerse **moderno y listo para repositorio público**. Al actu
 
 ### Versionado y CHANGELOG
 
-- **Cuándo actualizar:** No se crea la versión ni la entrada en el CHANGELOG hasta que la versión se dé por **cerrada** y se decida hacer el commit. Durante el desarrollo o al entregar cambios, el agente no debe hacer bump de versión ni tocar el CHANGELOG. En el momento en que el usuario pida **hacer el commit**, previamente se hace: (1) incrementar `version` en `package.json`, (2) añadir la entrada en `CHANGELOG.md`; después se realiza el commit.
+- **Cuándo actualizar:** No se crea la versión ni la entrada en el CHANGELOG hasta que la versión se dé por **cerrada** y se decida hacer el commit. Durante el desarrollo o al entregar cambios, el agente no debe hacer bump de versión ni tocar el CHANGELOG. En el momento en que el usuario pida **hacer el commit**, previamente se hace: (1) incrementar `version` en `package.json`, (2) añadir la entrada en `CHANGELOG.md`; después se realiza el commit. Ver también sección 10 (compatibilidad: sin fallback).
 - **Versión:** al cerrar versión, incrementar `version` en `package.json` según semver: *patch* (0.0.X) para docs, fixes o cambios menores; *minor* (0.X.0) para nuevas funcionalidades compatibles; *major* (X.0.0) para cambios incompatibles.
 - **CHANGELOG:** Formato [Keep a Changelog](https://keepachangelog.com/en/1.0.0/):
   - Nueva entrada al **inicio** del archivo, bajo el título "Changelog".
@@ -140,11 +147,11 @@ El README debe mantenerse **moderno y listo para repositorio público**. Al actu
 
 ---
 
-## 12. Commits
+## 13. Commits
 
 En este proyecto **todos los commits** siguen [Conventional Commits](https://www.conventionalcommits.org/). El mensaje debe tener una primera línea con tipo (y opcionalmente ámbito) y descripción; cuerpo y footer son opcionales.
 
-- **Antes de commit:** si se pide hacer el commit y hay cambios en el paquete que aún no tienen versión cerrada, primero actualizar `package.json` (bump) y `CHANGELOG.md` (entrada nueva) según la sección 11, y después ejecutar el commit.
+- **Antes de commit:** si se pide hacer el commit y hay cambios en el paquete que aún no tienen versión cerrada, primero actualizar `package.json` (bump) y `CHANGELOG.md` (entrada nueva) según la sección 12, y después ejecutar el commit.
 
 **Tipos admitidos:**
 

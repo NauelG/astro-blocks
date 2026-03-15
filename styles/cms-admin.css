@@ -880,6 +880,58 @@
   cursor: grabbing;
 }
 
+/* --- Menús: submenús en modal --- */
+.menu-children-list {
+  list-style: none;
+  margin: 0.25rem 0 0 0;
+  padding: 0;
+  min-height: 0.5rem;
+}
+.menu-child-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+}
+.menu-child-row .cms-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+.menu-children-wrap .menu-add-child-btn {
+  margin-top: 0.25rem;
+}
+
+/* --- Menús: card informativa --- */
+.cms-menus-info-card {
+  font-size: 9.5px;
+  padding: 0.5rem 0.75rem;
+  line-height: 1.4;
+  color: var(--pico-muted-color, #6b7280);
+}
+.cms-menus-info-text {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+.cms-menus-info-icon {
+  flex-shrink: 0;
+  margin-top: 0.1em;
+  color: var(--pico-primary, #333);
+}
+.cms-menus-info-body {
+  flex: 1;
+  min-width: 0;
+}
+.cms-menus-info-card code {
+  font-size: 1em;
+  padding: 0.1em 0.25em;
+  border-radius: 2px;
+}
+
 /* --- simple-dropzone: zona de subida --- */
 .cms-dropzone {
   border: 2px dashed var(--cms-border, #e5e7eb);
@@ -1037,4 +1089,8 @@
 .cms-topbar-dropdown .cms-topbar-dropdown-item:hover {
   background: var(--cms-accent-soft);
   color: var(--cms-primary, #333);
+}
+
+.cms-table tbody tr input {
+  margin-bottom: 0;
 }

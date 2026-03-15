@@ -285,14 +285,109 @@ export async function handlePutSite(request) {
 }
 
 export async function handleGetMenus() {
-  const menus = await data.loadMenus();
-  return Response.json(menus);
+  const menusData = await data.loadMenus();
+  return Response.json(menusData);
 }
 
-export async function handlePutMenus(request) {
-  const body = await request.json();
-  await data.saveMenus(body);
-  return Response.json(body);
+/** Recursively validate that every item has non-empty path. Returns error message or null. */
+function validateMenuItemsPaths(items) {
+  if (!Array.isArray(items)) return 'Los elementos del menú deben ser un array.';
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!item || typeof item !== 'object') return 'Elemento del menú no válido.';
+    const pathVal = item.path;
+    if (typeof pathVal !== 'string' || pathVal.trim() === '') {
+      return 'La ruta es obligatoria en todos los elementos del menú.';
+    }
+    if (Array.isArray(item.children)) {
+      const childErr = validateMenuItemsPaths(item.children);
+      if (childErr) return childErr;
+    }
+  }
+  return null;
+}
+
+/** Validate selector format and uniqueness. excludeMenuId = id to exclude when updating. */
+function validateMenuSelector(menusData, selector, excludeMenuId) {
+  if (typeof selector !== 'string' || selector.trim() === '') {
+    return 'El selector es obligatorio.';
+  }
+  if (!data.MENU_SELECTOR_REGEX.test(selector)) {
+    return 'El selector solo puede contener letras, números, guiones y guiones bajos (sin espacios).';
+  }
+  const menus = menusData.menus ?? [];
+  const taken = menus.some((m) => m.selector === selector && m.id !== excludeMenuId);
+  if (taken) return 'Ya existe un menú con ese selector.';
+  return null;
+}
+
+export async function handlePostMenus(request) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 });
+  }
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const selector = typeof body.selector === 'string' ? body.selector.trim() : '';
+  const items = Array.isArray(body.items) ? body.items : [];
+
+  const menusData = await data.loadMenus();
+  const selErr = validateMenuSelector(menusData, selector, null);
+  if (selErr) return new Response(JSON.stringify({ error: selErr }), { status: 400 });
+  const pathErr = validateMenuItemsPaths(items);
+  if (pathErr) return new Response(JSON.stringify({ error: pathErr }), { status: 400 });
+
+  const newMenu = {
+    id: data.generateId(),
+    name: name || 'Menú',
+    selector: selector || 'menu',
+    items,
+  };
+  menusData.menus.push(newMenu);
+  await data.saveMenus(menusData);
+  return Response.json(newMenu);
+}
+
+export async function handlePutMenu(id, request) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 });
+  }
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const selector = typeof body.selector === 'string' ? body.selector.trim() : '';
+  const items = Array.isArray(body.items) ? body.items : [];
+
+  const menusData = await data.loadMenus();
+  const index = (menusData.menus ?? []).findIndex((m) => m.id === id);
+  if (index === -1) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+
+  const selErr = validateMenuSelector(menusData, selector, id);
+  if (selErr) return new Response(JSON.stringify({ error: selErr }), { status: 400 });
+  const pathErr = validateMenuItemsPaths(items);
+  if (pathErr) return new Response(JSON.stringify({ error: pathErr }), { status: 400 });
+
+  const updated = {
+    id: menusData.menus[index].id,
+    name: name || 'Menú',
+    selector: selector || 'menu',
+    items,
+  };
+  menusData.menus[index] = updated;
+  await data.saveMenus(menusData);
+  return Response.json(updated);
+}
+
+export async function handleDeleteMenu(id) {
+  const menusData = await data.loadMenus();
+  const menus = (menusData.menus ?? []).filter((m) => m.id !== id);
+  if (menus.length === menusData.menus.length) {
+    return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+  }
+  await data.saveMenus({ menus });
+  return new Response(null, { status: 204 });
 }
 
 export async function handleUpload(request) {

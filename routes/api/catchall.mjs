@@ -51,6 +51,7 @@ export async function POST({ request }) {
   const user = authResult.user;
 
   if (seg[0] === 'pages' && seg.length === 1) return handlers.handlePostPages(request);
+  if (seg[0] === 'menus' && seg.length === 1) return handlers.handlePostMenus(request);
   if (seg[0] === 'upload' && seg.length === 1) return handlers.handleUpload(request);
   if (seg[0] === 'rebuild' && seg.length === 1) return handlers.handleRebuild();
   if (seg[0] === 'users' && seg.length === 1) return handlers.handlePostUsers(request, user);
@@ -71,7 +72,7 @@ export async function PUT({ request }) {
     if (forbidden) return forbidden;
     return handlers.handlePutSite(request);
   }
-  if (seg[0] === 'menus' && seg.length === 1) return handlers.handlePutMenus(request);
+  if (seg[0] === 'menus' && seg.length === 2) return handlers.handlePutMenu(seg[1], request);
   if (seg[0] === 'users' && seg.length === 2) return handlers.handlePutUser(seg[1], request, user);
   return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
 }
@@ -85,6 +86,7 @@ export async function DELETE({ request }) {
 
   const seg = getPathSegments(request.url);
   if (seg[0] === 'pages' && seg.length === 2) return handlers.handleDeletePage(seg[1]);
+  if (seg[0] === 'menus' && seg.length === 2) return handlers.handleDeleteMenu(seg[1]);
   if (seg[0] === 'users' && seg.length === 2) return handlers.handleDeleteUser(seg[1], user);
   if (seg[0] === 'upload' && seg.length === 1) return handlers.handleDeleteUpload(request);
   return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });

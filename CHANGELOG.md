@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.0] - 2026-03-15
+
+### Added
+
+- **Menús mejorados:** tabla de menús (nombre, selector) con editar y eliminar; modal de detalle con nombre, selector (validado: alfanumérico, guiones, guiones bajos), tabla de ítems con añadir/eliminar, reordenación con Sortable.js, submenús anidados (`children`) con la misma lógica. Validación de ruta obligatoria en cliente y API. API: GET/POST `/cms/api/menus`, PUT/DELETE `/cms/api/menus/:id`. Estructura en `data/menus.json`: `{ "menus": [ { id, name, selector, items } ] }`; ítems con `name`, `path` y opcionalmente `children`. `getMenu(selector)` devuelve ítems con `children` para navegación anidada.
+- **Card informativa en página de menús:** texto explicativo con icono de bombilla sobre el uso del selector y `getMenu()` en el sitio (tipografía 8px, maquetación en párrafo).
+
+### Changed
+
+- **Menús:** se elimina la edición en JSON; formato antiguo de `menus.json` sin soporte (criterio de no compatibilidad hacia atrás en AGENTS.md).
+
+---
+
 ## [0.5.2] - 2025-03-15
 
 ### Added

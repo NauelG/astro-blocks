@@ -15,8 +15,35 @@ const DEFAULT_SITE = {
     defaultDescription: '',
   },
 };
-const DEFAULT_MENUS = {};
+const DEFAULT_MENUS = { menus: [] };
 const DEFAULT_USERS = { users: [] };
+
+export const MENU_SELECTOR_REGEX = /^[a-zA-Z0-9_-]+$/;
+
+/** Normalize a single menu item (name, path, children?). */
+function normalizeMenuItem(item) {
+  if (!item || typeof item !== 'object') return { name: '', path: '', children: [] };
+  const children = Array.isArray(item.children) ? item.children.map(normalizeMenuItem) : [];
+  return {
+    name: typeof item.name === 'string' ? item.name : '',
+    path: typeof item.path === 'string' ? item.path : '',
+    ...(children.length > 0 ? { children } : {}),
+  };
+}
+
+/** Normalize a menu entry (id, name, selector, items). */
+function normalizeMenu(menu, index) {
+  if (!menu || typeof menu !== 'object') {
+    return { id: generateId(), name: '', selector: 'menu-' + index, items: [] };
+  }
+  const items = Array.isArray(menu.items) ? menu.items.map(normalizeMenuItem) : [];
+  return {
+    id: typeof menu.id === 'string' && menu.id ? menu.id : generateId(),
+    name: typeof menu.name === 'string' ? menu.name : '',
+    selector: typeof menu.selector === 'string' ? menu.selector : 'menu-' + String(index),
+    items,
+  };
+}
 
 async function ensureDir(dir) {
   await fs.mkdir(dir, { recursive: true });
@@ -59,7 +86,12 @@ export async function saveSite(siteData) {
 
 export async function loadMenus() {
   const data = await readJson(getDataPath('menus.json'), DEFAULT_MENUS);
-  return typeof data === 'object' && data !== null ? data : {};
+  if (!data || typeof data !== 'object' || !Array.isArray(data.menus)) {
+    return { menus: [] };
+  }
+  return {
+    menus: data.menus.map((m, i) => normalizeMenu(m, i)),
+  };
 }
 
 export async function saveMenus(menusData) {
@@ -133,7 +165,7 @@ export async function ensureDefaultFiles() {
   try {
     await fs.access(menusPath);
   } catch {
-    await writeJson(menusPath, DEFAULT_MENUS);
+    await writeJson(menusPath, { menus: [] });
   }
   const usersPath = getDataPath('users.json');
   try {

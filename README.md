@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.5.2-blue" alt="version" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.6.0-blue" alt="version" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="alpha" />
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js" alt="Node 18+" /></a>
   <a href="https://astro.build"><img src="https://img.shields.io/badge/Astro-6+-FF5D01?logo=astro" alt="Astro 6+" /></a>
@@ -112,14 +112,14 @@ En la **raíz del proyecto**:
 |----------------|-----|
 | `data/pages.json`  | Páginas (slug, draft/published, bloques, `indexable`, SEO: título, descripción, canonical, imagen, nofollow). Las no indexables se excluyen del sitemap y llevan meta noindex; sus rutas se añaden a `robots.txt` como Disallow (excepto la home). |
 | `data/site.json`   | Sitio: nombre, baseUrl, favicon, logo, colores, SEO por defecto. |
-| `data/menus.json`  | Menús por clave (ej. `main`, `footer`): `[{ name, path }]`. |
+| `data/menus.json`  | Lista de menús: `{ "menus": [ { "id", "name", "selector", "items": [ { "name", "path", "children"?: [...] } ] } ] }`. El **selector** es la clave que se usa en código (ej. `main`, `footer`). Los ítems pueden tener `children` para submenús anidados. |
 | `data/users.json`  | Usuarios del panel (email, rol owner/editor). |
 
 Los archivos subidos se guardan en **`public/uploads/`**. Puedes versionar `data/` en tu repo.
 
 ---
 
-## Menús en el sitio: `getMenu(key)`
+## Menús en el sitio: `getMenu(selector)`
 
 En código servidor (p. ej. frontmatter de Astro):
 
@@ -136,7 +136,7 @@ const menu = await getMenu('main');
 </nav>
 ```
 
-Devuelve `{ name: string, path: string }[]`.
+Devuelve un array de ítems: `{ name: string, path: string, children?: Array<...> }[]`. Si un menú tiene submenús, cada ítem puede incluir `children` con la misma forma para renderizar dropdowns o listas anidadas.
 
 ---
 
