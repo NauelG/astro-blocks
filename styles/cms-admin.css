@@ -546,6 +546,22 @@
   color: #374151;
 }
 
+.cms-indexable-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.cms-indexable-dot--yes {
+  background: #22c55e;
+}
+
+.cms-indexable-dot--no {
+  background: #ef4444;
+}
+
 /* --- Formularios (complemento a Pico) --- */
 .cms-form .cms-field:last-of-type {
   margin-bottom: 0;
@@ -591,6 +607,45 @@
   margin: 0;
   cursor: pointer;
   flex-shrink: 0;
+}
+
+/* Campo imagen SEO: miniatura + Subir / Eliminar */
+.cms-seo-image-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.cms-seo-image-preview {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border: 1px solid var(--cms-border, #e5e7eb);
+  border-radius: 0.25rem;
+  overflow: hidden;
+  background: var(--cms-surface-alt, #f8f9fa);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cms-seo-image-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cms-seo-image-empty {
+  font-size: 0.7rem;
+  color: var(--pico-muted-color, #8891a4);
+}
+
+.cms-seo-image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .cms-form-actions {

@@ -8,7 +8,8 @@
 </p>
 
 <p align="center">
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.4.4-blue" alt="version" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.5.2-blue" alt="version" /></a>
+  <img src="https://img.shields.io/badge/status-alpha-orange" alt="alpha" />
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js" alt="Node 18+" /></a>
   <a href="https://astro.build"><img src="https://img.shields.io/badge/Astro-6+-FF5D01?logo=astro" alt="Astro 6+" /></a>
 </p>
@@ -22,7 +23,7 @@
 - **Bloques editables**: define componentes con `defineBlockSchema` y edita props desde el panel
 - **White-label**: colores y logo del sitio configurables en Ajustes
 - **Autenticación**: primer usuario como propietario, JWT para la API
-- **SEO**: títulos, descripciones y canonical por página; sitemap y robots generados
+- **SEO**: campos predefinidos por página (título, descripción, canonical, imagen); páginas indexables o no; sitemap y robots con Disallow para no indexables
 
 ## Requisitos
 
@@ -98,7 +99,7 @@ El panel usa **Pico CSS**, **Animate.css**, **Sortable.js** y **simple-dropzone*
 
 | Opción        | Descripción |
 |---------------|-------------|
-| `layoutPath`  | Ruta al layout del proyecto (ej. `'./src/layouts/Layout.astro'`). Recibe props de SEO (`title`, `description`, `canonical`, `noindex`, `site`, `seo`) en páginas servidas por el CMS. |
+| `layoutPath`  | Ruta al layout del proyecto (ej. `'./src/layouts/Layout.astro'`). Recibe props de SEO (`title`, `description`, `canonical`, `noindex`, `site`, `seo`) en páginas servidas por el CMS. El objeto `seo` incluye `image` (URL absoluta para og:image/twitter:image) y `nofollow` (boolean). Para una experiencia SEO completa, el layout debe renderizar `<meta property="og:title">`, `og:description`, `og:image`, `og:url` (canonical) y opcionalmente `twitter:card`, `twitter:title`, `twitter:description`, `twitter:image`; y para `noindex`/`nofollow` usar `content="noindex"` o `content="noindex, nofollow"` según las props. |
 | `components`  | Objeto `{ nombreBloque: rutaComponente }`. Cada componente debe cumplir el [contrato de bloques](#contrato-de-componentes). |
 
 ---
@@ -109,7 +110,7 @@ En la **raíz del proyecto**:
 
 | Archivo        | Uso |
 |----------------|-----|
-| `data/pages.json`  | Páginas (slug, draft/published, bloques, SEO). |
+| `data/pages.json`  | Páginas (slug, draft/published, bloques, `indexable`, SEO: título, descripción, canonical, imagen, nofollow). Las no indexables se excluyen del sitemap y llevan meta noindex; sus rutas se añaden a `robots.txt` como Disallow (excepto la home). |
 | `data/site.json`   | Sitio: nombre, baseUrl, favicon, logo, colores, SEO por defecto. |
 | `data/menus.json`  | Menús por clave (ej. `main`, `footer`): `[{ name, path }]`. |
 | `data/users.json`  | Usuarios del panel (email, rol owner/editor). |

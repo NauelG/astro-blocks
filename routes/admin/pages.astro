@@ -28,11 +28,12 @@ function slugStr(p: { slug?: string | string[] }) {
               <th>Título</th>
               <th>Slug</th>
               <th>Estado</th>
+              <th>Indexable</th>
               <th class="cms-table-actions-delete"></th>
             </tr>
           </thead>
           <tbody>
-            {pages.map((p: { id: string; title: string; slug?: string | string[]; status: string }) => (
+            {pages.map((p: { id: string; title: string; slug?: string | string[]; status: string; indexable?: boolean }) => (
               <tr>
                 <td class="cms-table-actions">
                   <button type="button" class="cms-table-btn-edit cms-page-edit" data-id={p.id} aria-label="Editar">
@@ -45,6 +46,13 @@ function slugStr(p: { slug?: string | string[] }) {
                   <span class={p.status === 'published' ? 'cms-badge cms-badge-success' : 'cms-badge cms-badge-neutral'}>
                     {p.status}
                   </span>
+                </td>
+                <td>
+                  <span
+                    class={'cms-indexable-dot cms-indexable-dot--' + (p.indexable !== false ? 'yes' : 'no')}
+                    aria-label={p.indexable !== false ? 'Indexable' : 'No indexable'}
+                    role="img"
+                  />
                 </td>
                 <td class="cms-table-actions-delete">
                   <button type="button" class="cms-table-btn-delete cms-page-delete" data-id={p.id} aria-label="Eliminar">
@@ -81,13 +89,45 @@ function slugStr(p: { slug?: string | string[] }) {
         <input type="checkbox" name="indexable" id="page-detail-indexable" checked />
         <label for="page-detail-indexable" style="margin-bottom: 0;">Indexable</label>
       </div>
+      <p id="page-detail-seo-hidden-hint" class="cms-muted cms-hidden" style="font-size: 0.75rem; margin-top: -0.5rem;">
+        Las páginas no indexables no aparecen en el sitemap y llevan meta noindex. Los campos SEO no se utilizan.
+      </p>
+      <div id="page-detail-seo-fields" class="cms-stack">
+        <div class="cms-field">
+          <label for="page-detail-seo-title">Título SEO</label>
+          <input type="text" id="page-detail-seo-title" name="seo-title" placeholder="50–60 caracteres" />
+        </div>
+        <div class="cms-field">
+          <label for="page-detail-seo-description">Descripción</label>
+          <textarea id="page-detail-seo-description" name="seo-description" rows="2" placeholder="150–160 caracteres"></textarea>
+        </div>
+        <div class="cms-field">
+          <label for="page-detail-seo-canonical">URL canónica</label>
+          <input type="text" id="page-detail-seo-canonical" name="seo-canonical" placeholder="Dejar vacío para usar la URL de la página" />
+        </div>
+        <div class="cms-field">
+          <label>Imagen (og:image / twitter:image)</label>
+          <div class="cms-seo-image-field">
+            <input type="hidden" id="page-detail-seo-image" name="seo-image" value="" />
+            <div id="page-detail-seo-image-preview" class="cms-seo-image-preview">
+              <img id="page-detail-seo-image-thumb" class="cms-seo-image-thumb cms-hidden" alt="" />
+              <span id="page-detail-seo-image-empty" class="cms-seo-image-empty">Sin imagen</span>
+            </div>
+            <div class="cms-seo-image-actions">
+              <button type="button" id="page-detail-seo-image-upload" class="cms-btn cms-btn-secondary">Subir imagen</button>
+              <button type="button" id="page-detail-seo-image-remove" class="cms-btn cms-btn-secondary cms-hidden" aria-label="Eliminar imagen">Eliminar</button>
+            </div>
+          </div>
+          <input type="file" id="page-detail-seo-image-file" accept="image/*" class="cms-hidden" />
+        </div>
+        <div class="cms-field" style="display: flex; align-items: center; gap: 0.5rem;">
+          <input type="checkbox" name="seo-nofollow" id="page-detail-seo-nofollow" />
+          <label for="page-detail-seo-nofollow" style="margin-bottom: 0;">Añadir nofollow</label>
+        </div>
+      </div>
       <div class="cms-field">
         <label for="page-detail-blocks">Blocks (JSON)</label>
         <textarea name="blocks" id="page-detail-blocks" class="cms-input-monospace" rows="8">[]</textarea>
-      </div>
-      <div class="cms-field">
-        <label for="page-detail-seo">SEO (JSON)</label>
-        <textarea name="seo" id="page-detail-seo" class="cms-input-monospace" rows="4">{}</textarea>
       </div>
     </form>
     <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="page-detail-modal">Cancelar</button>
@@ -112,6 +152,31 @@ function slugStr(p: { slug?: string | string[] }) {
         if (submitBtn) submitBtn.textContent = submitLabel;
       }
 
+      function toggleSeoVisibility(visible) {
+        var seoFields = document.getElementById('page-detail-seo-fields');
+        var hint = document.getElementById('page-detail-seo-hidden-hint');
+        if (seoFields) seoFields.classList.toggle('cms-hidden', !visible);
+        if (hint) hint.classList.toggle('cms-hidden', visible);
+      }
+
+      function updateSeoImagePreview(url) {
+        var input = document.getElementById('page-detail-seo-image');
+        var thumb = document.getElementById('page-detail-seo-image-thumb');
+        var empty = document.getElementById('page-detail-seo-image-empty');
+        var removeBtn = document.getElementById('page-detail-seo-image-remove');
+        var uploadBtn = document.getElementById('page-detail-seo-image-upload');
+        if (!input) return;
+        input.value = url || '';
+        var hasImage = !!(url && url.trim());
+        if (thumb) {
+          thumb.classList.toggle('cms-hidden', !hasImage);
+          if (hasImage) { thumb.src = url; thumb.alt = 'Imagen SEO'; }
+        }
+        if (empty) empty.classList.toggle('cms-hidden', hasImage);
+        if (removeBtn) removeBtn.classList.toggle('cms-hidden', !hasImage);
+        if (uploadBtn) uploadBtn.textContent = hasImage ? 'Cambiar' : 'Subir imagen';
+      }
+
       function openNew() {
         if (idInput) idInput.value = '';
         if (form) {
@@ -120,7 +185,12 @@ function slugStr(p: { slug?: string | string[] }) {
           form.status.value = 'draft';
           form.querySelector('#page-detail-indexable').checked = true;
           form.querySelector('#page-detail-blocks').value = '[]';
-          form.querySelector('#page-detail-seo').value = '{}';
+          form.querySelector('#page-detail-seo-title').value = '';
+          form.querySelector('#page-detail-seo-description').value = '';
+          form.querySelector('#page-detail-seo-canonical').value = '';
+          updateSeoImagePreview('');
+          form.querySelector('#page-detail-seo-nofollow').checked = false;
+          toggleSeoVisibility(true);
         }
         setFormTitle('Nueva página', 'Crear');
         openModal();
@@ -136,12 +206,18 @@ function slugStr(p: { slug?: string | string[] }) {
             if (!page) return;
             if (idInput) idInput.value = page.id;
             if (form) {
+              var seo = page.seo || {};
               form.title.value = page.title || '';
               form.slug.value = page.slug === '/' || (Array.isArray(page.slug) && !page.slug.length) ? '/' : (Array.isArray(page.slug) ? '/' + page.slug.join('/') : page.slug);
               form.status.value = page.status || 'draft';
               form.querySelector('#page-detail-indexable').checked = page.indexable !== false;
               form.querySelector('#page-detail-blocks').value = JSON.stringify(page.blocks || [], null, 2);
-              form.querySelector('#page-detail-seo').value = JSON.stringify(page.seo || {}, null, 2);
+              form.querySelector('#page-detail-seo-title').value = seo.title || '';
+              form.querySelector('#page-detail-seo-description').value = seo.description || '';
+              form.querySelector('#page-detail-seo-canonical').value = seo.canonical || '';
+              updateSeoImagePreview(seo.image || '');
+              form.querySelector('#page-detail-seo-nofollow').checked = !!seo.nofollow;
+              toggleSeoVisibility(page.indexable !== false);
             }
             setFormTitle('Editar página', 'Guardar');
             openModal();
@@ -163,6 +239,50 @@ function slugStr(p: { slug?: string | string[] }) {
         });
       }
 
+      var indexableCheck = form && form.querySelector('#page-detail-indexable');
+      if (indexableCheck) indexableCheck.addEventListener('change', function() { toggleSeoVisibility(this.checked); });
+
+      var imageUploadBtn = document.getElementById('page-detail-seo-image-upload');
+      var imageFileInput = document.getElementById('page-detail-seo-image-file');
+      var imageRemoveBtn = document.getElementById('page-detail-seo-image-remove');
+      if (imageUploadBtn && imageFileInput) {
+        imageUploadBtn.addEventListener('click', function() { imageFileInput.click(); });
+        imageFileInput.addEventListener('change', function() {
+          var file = this.files && this.files[0];
+          if (!file) return;
+          var fd = new FormData();
+          fd.append('file', file);
+          var token = getToken();
+          fetch('/cms/api/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd })
+            .then(function(r) { return r.json(); })
+            .then(function(data) { if (data && data.url) updateSeoImagePreview(data.url); })
+            .catch(function() {});
+          this.value = '';
+        });
+      }
+      if (imageRemoveBtn) {
+        imageRemoveBtn.addEventListener('click', function() {
+          var input = document.getElementById('page-detail-seo-image');
+          var currentUrl = (input && input.value) ? input.value.trim() : '';
+          var isOwnUpload = currentUrl && currentUrl.indexOf('/uploads/') === 0;
+          function clearImage() {
+            updateSeoImagePreview('');
+          }
+          if (isOwnUpload && currentUrl) {
+            var token = getToken();
+            fetch('/cms/api/upload', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+              body: JSON.stringify({ url: currentUrl }),
+            }).then(function(r) {
+              if (r.status === 204 || r.status === 404) clearImage();
+            }).catch(function() { clearImage(); });
+          } else {
+            clearImage();
+          }
+        });
+      }
+
       if (newBtn) newBtn.addEventListener('click', openNew);
       document.querySelectorAll('.cms-page-edit').forEach(function(btn) {
         btn.addEventListener('click', function() { openEdit(btn.getAttribute('data-id')); });
@@ -181,9 +301,15 @@ function slugStr(p: { slug?: string | string[] }) {
         e.preventDefault();
         var token = getToken();
         var id = idInput && idInput.value ? idInput.value.trim() : '';
-        var blocks = []; var seo = {};
+        var blocks = [];
         try { blocks = JSON.parse(form.querySelector('#page-detail-blocks').value || '[]'); } catch (_) {}
-        try { seo = JSON.parse(form.querySelector('#page-detail-seo').value || '{}'); } catch (_) {}
+        var seo = {
+          title: (form.querySelector('#page-detail-seo-title') && form.querySelector('#page-detail-seo-title').value) || undefined,
+          description: (form.querySelector('#page-detail-seo-description') && form.querySelector('#page-detail-seo-description').value) || undefined,
+          canonical: (form.querySelector('#page-detail-seo-canonical') && form.querySelector('#page-detail-seo-canonical').value) || undefined,
+          image: (form.querySelector('#page-detail-seo-image') && form.querySelector('#page-detail-seo-image').value) || undefined,
+          nofollow: !!(form.querySelector('#page-detail-seo-nofollow') && form.querySelector('#page-detail-seo-nofollow').checked),
+        };
         var indexableEl = form.querySelector('#page-detail-indexable');
         var body = {
           title: form.title.value,

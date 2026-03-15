@@ -61,7 +61,8 @@ Al añadir rutas nuevas del panel o de la API, mantener estos prefijos y actuali
 | `api/data.mjs` | Lee/escribe `data/pages.json`, `data/site.json`, `data/menus.json`. `ensureDefaultFiles()` crea `data/` y JSON por defecto si no existen. |
 | `api/handlers.mjs` | Lógica de cada endpoint: auth con `CMS_SECRET`, CRUD páginas/site/menus, upload a `public/uploads`, rebuild (`npm run build`). |
 | `routes/api/catchall.mjs` | Despacha por método y path (segmentos tras `/cms/api/`). `getPathSegments` usa `pathname.split('/').filter(Boolean).slice(2)`. |
-| `routes/page.astro` | `getStaticPaths` desde `data/pages.json` (solo `status === 'published'`). Render con layout y `componentMap` del runtime; props SEO al layout. |
+| `routes/page.astro` | `getStaticPaths` desde `data/pages.json` (solo `status === 'published'`). Render con layout y `componentMap` del runtime; props SEO al layout. Convierte `seo.image` relativa a URL absoluta con `site.baseUrl`. |
+| `routes/robots-get.mjs` | Genera `robots.txt` con `Disallow: /cms`, líneas `Disallow` por cada página publicada y no indexable (excepto home), y `Sitemap`. |
 | `utils/paths.mjs` | Resolución de `projectRoot`, `data/`, `public/uploads`, directorio del paquete (para entrypoints). |
 
 ---
@@ -87,12 +88,14 @@ Al añadir rutas nuevas del panel o de la API, mantener estos prefijos y actuali
 - **Convención:** La creación y edición de una entidad (detalle) no son páginas separadas; se hacen con un **modal** en la propia página de listado.
 - **Componente:** Usar `routes/admin/components/DetailModal.astro`. Props: `id` (id del `<dialog>`), `title` (opcional). Slots: contenido por defecto (formulario con clase `cms-form`, campos con `cms-field`), `slot="actions-left"` (ej. botón Cancelar con `data-close-modal="id"`), `slot="actions-right"` (botón Guardar/Crear; puede usar `form="id-del-form"` si el form está en el slot por defecto).
 - **Comportamiento:** Al abrir para **crear**: vaciar el formulario, poner título ej. "Nueva entidad", botón "Crear". Al abrir para **editar**: cargar datos (p. ej. `GET /cms/api/entidad` y localizar por id), rellenar el formulario, título "Editar entidad", botón "Guardar". Cerrar con `dialog.close()`; al enviar el form, llamar a la API (POST o PUT), cerrar modal y refrescar lista (o `location.reload()`).
+- **Formulario de página (SEO):** Campos predefinidos (título SEO, descripción, canonical, imagen con botón "Subir imagen", nofollow). El bloque de campos SEO (`#page-detail-seo-fields`) se muestra u oculta según el checkbox "Indexable"; si no indexable, se muestra el hint `#page-detail-seo-hidden-hint`. En PUT, el body envía `seo` como objeto; el handler hace merge con `existing.seo` para preservar claves extra.
 - **Estilos:** El panel del modal (`.cms-detail-modal-panel`) sigue el mismo criterio que `.cms-card` (borde, sombra, padding). Los botones y campos usan `.cms-form-actions`, `.cms-btn`, `.cms-field` como en el resto del panel.
 
 ## 8. Tablas (lenguaje de diseño unificado)
 
 - **Tipografía:** Todas las columnas con el mismo `font-size` (0.75rem). Celdas con monospace solo cuando sea dato técnico (ej. slug): clase `.cms-table-cell-monospace`.
 - **Columnas de acciones:** Primera columna (`<th class="cms-table-actions">` vacío): solo botón **editar** (icono lápiz, `.cms-table-btn-edit`, `aria-label="Editar"`). Última columna (`<th class="cms-table-actions-delete">` vacío): solo botón **eliminar** (icono papelera, `.cms-table-btn-delete`, rojo, `aria-label="Eliminar"`), alineado a la derecha.
+- **Indicador indexable (páginas):** Columna "Indexable" con `<span class="cms-indexable-dot cms-indexable-dot--yes|no" role="img" aria-label="Indexable|No indexable">`. Estilos en `cms-admin.css`: `.cms-indexable-dot` (8px, border-radius 50%), `--yes` verde, `--no` rojo.
 - **Iconos:** Pencil (editar) y Trash2 (eliminar) de `@lucide/astro`; en filas generadas por JS usar el mismo SVG inline (14×14, stroke 2).
 - **Confirmación antes de eliminar:** Usar `window.cmsConfirm({ message: '...', confirmLabel: 'Eliminar' })` (devuelve `Promise<boolean>`). El componente `ConfirmDialog.astro` está incluido en el layout del panel.
 - **Referencia:** `pages.astro` y `users.astro`. Mantener este criterio en futuras tablas del panel.
@@ -104,7 +107,7 @@ Al añadir rutas nuevas del panel o de la API, mantener estos prefijos y actuali
 - **Nuevo endpoint API:** en `handlers.mjs` añadir la función; en `routes/api/catchall.mjs` despachar por método y segmentos; en el admin usar `fetch('/cms/api/...')`.
 - **Nuevo tipo de prop en el contrato:** en `contract/index.mjs` (y tipos en `contract/index.d.mts`) añadir el tipo; en el panel, si hay UI generada por schema, soportar el nuevo tipo.
 - **Cambio de prefijo de rutas:** buscar y reemplazar `/cms` y `/cms/api` en plugin, admin, robots-get.mjs y README; en el catchall ajustar `getPathSegments` (p. ej. `slice(2)` para `/cms/api/...`).
-- **Al entregar cualquier cambio en el paquete:** hacer **bump de versión** en `package.json` y **añadir entrada** en `CHANGELOG.md` (ver sección 11). Sin excepción.
+- **Al entregar cambios en el paquete:** no hacer bump de versión ni entrada en CHANGELOG hasta que la versión se dé por cerrada (ver sección 11). En el momento en que se pida hacer el commit, previamente se actualiza la versión en `package.json` y se añade la entrada en `CHANGELOG.md`.
 
 ---
 
@@ -120,26 +123,28 @@ El diseño completo (requisitos, data en raíz, contrato, borrador/publicado, SE
 
 El README debe mantenerse **moderno y listo para repositorio público**. Al actualizarlo o ampliarlo:
 
-- **Cabecera:** logo centrado (`img/blocks_logo.png`, ancho ~160px), título H1 centrado, tagline en una línea. **Badges** en una fila: versión del proyecto (enlazando a `CHANGELOG.md`; ej. `https://img.shields.io/badge/version-X.Y.Z-blue`), Node ≥18, Astro 6+ (shields.io). Al hacer bump de versión en `package.json`, actualizar también el número en el badge de versión del README.
+- **Cabecera:** logo centrado (`img/blocks_logo.png`, ancho ~160px), título H1 centrado, tagline en una línea. **Badges** en una fila: versión del proyecto (enlazando a `CHANGELOG.md`; ej. `https://img.shields.io/badge/version-X.Y.Z-blue`), badge de estado (ej. alpha) si aplica, Node ≥18, Astro 6+ (shields.io). Al hacer bump de versión en `package.json`, actualizar también el número en el badge de versión del README.
 - **Estructura:** sección **Características** al inicio (viñetas cortas). Luego **Requisitos** (tabla), **Instalación** (local / npm), **Configuración rápida** (bloque de código completo). Opciones del plugin y carpeta `data/` en **tablas**. Resto en secciones concisas con código cuando aplique.
 - **Formato:** separadores `---` entre bloques, tablas para listas de opciones/archivos/requisitos, negrita y cursiva para resaltar. Sin párrafos largos; preferir listas y tablas.
 - **Contenido:** si se añaden opciones del plugin, rutas del panel, archivos en `data/` o endpoints de API, actualizar README (tablas y texto) para que la documentación pública siga al día.
 
 ### Versionado y CHANGELOG
 
-- **Versión:** al hacer cambios que afecten al paquete, **incrementar `version`** en `package.json` según semver: *patch* (0.0.X) para docs, fixes o cambios menores; *minor* (0.X.0) para nuevas funcionalidades compatibles; *major* (X.0.0) para cambios incompatibles.
-- **CHANGELOG:** **siempre** que se modifique código o documentación del paquete, **añadir una entrada** en `CHANGELOG.md`. Formato [Keep a Changelog](https://keepachangelog.com/en/1.0.0/):
+- **Cuándo actualizar:** No se crea la versión ni la entrada en el CHANGELOG hasta que la versión se dé por **cerrada** y se decida hacer el commit. Durante el desarrollo o al entregar cambios, el agente no debe hacer bump de versión ni tocar el CHANGELOG. En el momento en que el usuario pida **hacer el commit**, previamente se hace: (1) incrementar `version` en `package.json`, (2) añadir la entrada en `CHANGELOG.md`; después se realiza el commit.
+- **Versión:** al cerrar versión, incrementar `version` en `package.json` según semver: *patch* (0.0.X) para docs, fixes o cambios menores; *minor* (0.X.0) para nuevas funcionalidades compatibles; *major* (X.0.0) para cambios incompatibles.
+- **CHANGELOG:** Formato [Keep a Changelog](https://keepachangelog.com/en/1.0.0/):
   - Nueva entrada al **inicio** del archivo, bajo el título "Changelog".
   - Encabezado: `## [X.Y.Z] - AAAA-MM-DD`.
   - Bloques `### Added`, `### Changed`, `### Fixed`, `### Removed` según corresponda.
   - Descripción breve y clara de cada cambio; enlaces a archivos o secciones si ayuda.
-- No cerrar una iteración sin: (1) versión actualizada en `package.json`, (2) entrada correspondiente en `CHANGELOG.md`.
 
 ---
 
 ## 12. Commits
 
 En este proyecto **todos los commits** siguen [Conventional Commits](https://www.conventionalcommits.org/). El mensaje debe tener una primera línea con tipo (y opcionalmente ámbito) y descripción; cuerpo y footer son opcionales.
+
+- **Antes de commit:** si se pide hacer el commit y hay cambios en el paquete que aún no tienen versión cerrada, primero actualizar `package.json` (bump) y `CHANGELOG.md` (entrada nueva) según la sección 11, y después ejecutar el commit.
 
 **Tipos admitidos:**
 

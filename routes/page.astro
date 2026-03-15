@@ -16,6 +16,12 @@ export async function getStaticPaths() {
 const { page } = Astro.props;
 const site = await import('../api/data.mjs').then((m) => m.loadSite());
 const seo = page.seo || {};
+const baseUrl = (site.baseUrl || '').replace(/\/$/, '');
+const imageAbs =
+  seo.image && !String(seo.image).startsWith('http')
+    ? `${baseUrl}${seo.image.startsWith('/') ? '' : '/'}${seo.image}`
+    : seo.image;
+const seoForLayout = { ...seo, image: imageAbs };
 const title = seo.title ?? site.seo?.defaultTitle ?? page.title ?? site.siteName;
 const description = seo.description ?? site.seo?.defaultDescription ?? '';
 const canonical = seo.canonical ?? `${site.baseUrl}${page.slug === '/' || (Array.isArray(page.slug) && !page.slug.length) ? '' : (Array.isArray(page.slug) ? '/' + page.slug.join('/') : page.slug)}`;
@@ -29,7 +35,7 @@ const blocks = page.blocks || [];
   canonical={canonical}
   noindex={noindex}
   site={site}
-  seo={seo}
+  seo={seoForLayout}
 >
   {blocks.map((block) => {
     const Comp = componentMap[block.type];

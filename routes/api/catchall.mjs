@@ -86,5 +86,6 @@ export async function DELETE({ request }) {
   const seg = getPathSegments(request.url);
   if (seg[0] === 'pages' && seg.length === 2) return handlers.handleDeletePage(seg[1]);
   if (seg[0] === 'users' && seg.length === 2) return handlers.handleDeleteUser(seg[1], user);
+  if (seg[0] === 'upload' && seg.length === 1) return handlers.handleDeleteUpload(request);
   return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
 }

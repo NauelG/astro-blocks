@@ -249,7 +249,10 @@ export async function handlePutPage(id, request) {
     status: body.status !== undefined ? body.status : existing.status,
     title: body.title !== undefined ? body.title : existing.title,
     blocks: body.blocks !== undefined ? body.blocks : existing.blocks,
-    seo: body.seo !== undefined ? body.seo : existing.seo,
+    seo:
+      body.seo !== undefined
+        ? { ...(existing.seo || {}), ...body.seo }
+        : existing.seo,
     indexable: body.indexable !== undefined ? body.indexable : existing.indexable,
     updatedAt: now,
     publishedAt: body.status === 'published' ? (existing.publishedAt || now) : existing.publishedAt,
@@ -304,27 +307,51 @@ export async function handleUpload(request) {
   const subdir = new Date().toISOString().slice(0, 7).replace(/-/g, '/');
   const dir = path.join(getUploadsDir(), subdir);
   await fs.mkdir(dir, { recursive: true });
+  const token = crypto.randomBytes(4).toString('hex');
   const base = path.basename(name, ext) || 'file';
-  let filename = `${base}${ext}`;
-  let filepath = path.join(dir, filename);
-  let i = 0;
-  while (await exists(filepath)) {
-    i++;
-    filename = `${base}-${i}${ext}`;
-    filepath = path.join(dir, filename);
-  }
+  const filename = `${token}-${base}${ext}`;
+  const filepath = path.join(dir, filename);
   await fs.writeFile(filepath, Buffer.from(buf));
   const url = `/uploads/${subdir}/${filename}`.replace(/\/+/g, '/');
   return Response.json({ url });
 }
 
-async function exists(p) {
+/**
+ * Resolve an upload URL (e.g. /uploads/2025/03/abc.jpg) to a filesystem path.
+ * Returns null if the URL is not under /uploads/ or would escape the uploads dir.
+ */
+function uploadUrlToFilePath(url) {
+  if (!url || typeof url !== 'string') return null;
+  const normalized = url.replace(/\/+/g, '/').replace(/^\//, '');
+  if (!normalized.startsWith('uploads/')) return null;
+  const relative = normalized.slice('uploads/'.length);
+  if (relative.includes('..')) return null;
+  const fullPath = path.join(getUploadsDir(), relative);
+  const uploadsDir = path.resolve(getUploadsDir());
+  const resolved = path.resolve(fullPath);
+  if (!resolved.startsWith(uploadsDir)) return null;
+  return resolved;
+}
+
+export async function handleDeleteUpload(request) {
+  let body;
   try {
-    await fs.access(p);
-    return true;
+    body = await request.json();
   } catch {
-    return false;
+    return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 });
   }
+  const url = body?.url;
+  const filePath = uploadUrlToFilePath(url);
+  if (!filePath) {
+    return new Response(JSON.stringify({ error: 'Invalid or disallowed URL' }), { status: 400 });
+  }
+  try {
+    await fs.unlink(filePath);
+  } catch (e) {
+    if (e.code === 'ENOENT') return new Response(null, { status: 204 });
+    return new Response(JSON.stringify({ error: 'Delete failed' }), { status: 500 });
+  }
+  return new Response(null, { status: 204 });
 }
 
 export async function handleRebuild() {

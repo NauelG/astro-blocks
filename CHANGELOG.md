@@ -4,6 +4,45 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.5.2] - 2025-03-15
+
+### Added
+
+- **Ruta `/uploads/[...path]`:** endpoint que sirve los archivos de `public/uploads/` para que las imágenes subidas no devuelvan 404 al ser capturadas por la ruta dinámica `/[...slug]`. Inyectado antes del catch-all en el plugin.
+- **README:** badge de estado alpha.
+
+### Changed
+
+- **AGENTS.md:** el bump de versión y la entrada en CHANGELOG no se hacen durante el desarrollo; solo al cerrar la versión cuando se pide hacer el commit. En ese momento se actualizan `package.json` y `CHANGELOG.md` y después se ejecuta el commit.
+
+---
+
+## [0.5.1] - 2025-03-15
+
+### Added
+
+- **Prefijo tipo token en subida de imágenes:** el nombre del archivo subido incluye un prefijo aleatorio (8 caracteres hex) para evitar colisiones (ej. `a1b2c3d4-foto.jpg`).
+- **Campo imagen SEO con miniatura:** en el formulario de página, el campo imagen muestra una miniatura (80×80) en lugar de la ruta; botones "Subir imagen" / "Cambiar" y "Eliminar" para mantener el valor ordenado.
+- **Eliminación de archivo al quitar imagen:** al pulsar "Eliminar" se borra el atributo `seo.image` y, si la URL es del CMS (`/uploads/...`), también se elimina el archivo en disco. Nuevo endpoint `DELETE /cms/api/upload` con body `{ url }`.
+
+---
+
+## [0.5.0] - 2025-03-15
+
+### Added
+
+- **Campos SEO predefinidos:** el formulario de página deja de usar un JSON libre y ofrece campos concretos: Título SEO, Descripción, URL canónica, Imagen (con botón "Subir imagen") y checkbox "Añadir nofollow". Los campos SEO se ocultan cuando la página no es indexable.
+- **Indicador de indexable en la tabla de páginas:** columna "Indexable" con círculo verde (indexable) o rojo (no indexable). Estilos `.cms-indexable-dot`, `.cms-indexable-dot--yes`, `.cms-indexable-dot--no` en `cms-admin.css`.
+- **Robots.txt:** se añaden líneas `Disallow` para cada página publicada y no indexable (excepto la home, para no bloquear todo el sitio). El sitemap sigue excluyendo páginas no indexables.
+
+### Changed
+
+- **Formulario de página:** reemplazo del textarea "SEO (JSON)" por los campos predefinidos anteriores. En PUT de página, el objeto `seo` enviado se hace merge con el existente para preservar claves extra que el layout pueda usar.
+- **page.astro:** si `seo.image` es una URL relativa, se convierte a absoluta con `site.baseUrl` antes de pasarla al Layout (og:image / twitter:image).
+- **README:** descripción de SEO ampliada (campos predefinidos, indexable, robots, recomendaciones para el layout: og:, twitter:, nofollow).
+
+---
+
 ## [0.4.4] - 2025-03-15
 
 ### Added

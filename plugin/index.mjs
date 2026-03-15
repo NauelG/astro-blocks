@@ -106,6 +106,7 @@ export default function astroBlocks(options = {}) {
 
         injectRoute({ pattern: '/cms/api/[...path]', entrypoint: resolveCms('api/catchall.mjs') });
 
+        injectRoute({ pattern: '/uploads/[...path]', entrypoint: resolveCms('uploads-get.mjs') });
         injectRoute({ pattern: '/[...slug]', entrypoint: resolveCms('page.astro') });
       },
     },
