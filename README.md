@@ -20,13 +20,14 @@ Licensed under the Business Source License 1.1
 </p>
 
 ---
-
+Licencia:
+<blockquote style="font-size: 10px;">
 AstroBlocks is source-available software.
 
 You are free to use it for personal projects, open-source work,
 and internal company usage.
-
 You may not offer AstroBlocks as a SaaS or hosted service.
+</blockquote>
 
 ---
 
