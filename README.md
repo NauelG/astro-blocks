@@ -4,7 +4,7 @@ Licensed under the Business Source License 1.1
 -->
 
 <p align="center">
-  <img src="img/blocks_logo.png" alt="AstroBlocks" width="160" />
+  <img src="img/blocks_logo.jpg" alt="AstroBlocks" width="160" />
 </p>
 
 <h1 align="center">AstroBlocks</h1>
@@ -32,7 +32,7 @@ You may not offer AstroBlocks as a SaaS or hosted service.
 ---
 
 <p align="center">
-  <img src="img/dashboard.png" alt="AstroBlocks dashboard" width="860" style="border-radius:8px" />
+  <img src="img/dashboard.jpg" alt="AstroBlocks dashboard" width="860" style="border-radius:8px" />
 </p>
 
 ---
