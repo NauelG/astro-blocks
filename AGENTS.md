@@ -324,8 +324,9 @@ El README debe mantenerse **moderno y listo para repositorio público**. Al actu
 
 ## 13. Commits
 
-En este proyecto **todos los commits** siguen [Conventional Commits](https://www.conventionalcommits.org/). El mensaje debe tener una primera línea con tipo (y opcionalmente ámbito) y descripción; cuerpo y footer son opcionales. **Todos los mensajes de commit se escriben en inglés** (tipo, descripción, cuerpo y footer).
+En este proyecto **todos los commits** siguen [Conventional Commits](https://www.conventionalcommits.org/). El mensaje debe tener una primera línea con tipo (y opcionalmente ámbito) y descripción; cuerpo y footer son opcionales.
 
+- **Idioma:** **Todos los mensajes de commit se escriben siempre en inglés** (tipo, descripción, cuerpo y footer). Sin excepciones.
 - **Antes de commit:** si se pide hacer el commit y hay cambios en el paquete que aún no tienen versión cerrada, primero actualizar `package.json` (bump) y `CHANGELOG.md` (entrada nueva) según la sección 12, y después ejecutar el commit.
 
 **Tipos admitidos:**

@@ -92,8 +92,7 @@ npm install astro-blocks
 import { defineConfig } from 'astro/config';
 import node from '@astrojs/node';
 import astroBlocks from 'astro-blocks';
-import { schema as heroSchema } from './src/components/Hero.astro';
-// import { schema as ctaSchema } from './src/components/Cta.astro';
+import { schema as heroSchema } from './src/components/Hero.schema.ts';
 
 export default defineConfig({
   output: 'static',
@@ -120,7 +119,7 @@ El panel usa **Pico CSS**, **Animate.css**, **Sortable.js** y **simple-dropzone*
 | Opción        | Descripción |
 |---------------|-------------|
 | `layoutPath`  | Ruta al layout del proyecto (ej. `'./src/layouts/Layout.astro'`). Recibe props de SEO (`title`, `description`, `canonical`, `noindex`, `site`, `seo`) en páginas servidas por el CMS. El objeto `seo` incluye `image` (URL absoluta para og:image/twitter:image) y `nofollow` (boolean). Para una experiencia SEO completa, el layout debe renderizar `<meta property="og:title">`, `og:description`, `og:image`, `og:url` (canonical) y opcionalmente `twitter:card`, `twitter:title`, `twitter:description`, `twitter:image`; y para `noindex`/`nofollow` usar `content="noindex"` o `content="noindex, nofollow"` según las props. |
-| `blocks`      | Array de schemas. Cada schema se importa desde su componente (`import { schema as heroSchema } from './src/components/Hero.astro'`). Cada componente debe exportar `schema` con `defineBlockSchema(definition, import.meta.url)`. Ver [contrato de bloques](#contrato-de-componentes). |
+| `blocks`      | Array de schemas. Cada schema se importa desde un [archivo de schema separado](#schema-en-archivo-separado) (ej. `Hero.schema.ts`). Ver [contrato de componentes](#contrato-de-componentes). |
 
 ---
 
@@ -162,15 +161,34 @@ Devuelve un array de ítems: `{ name: string, path: string, children?: Array<...
 
 ## Contrato de componentes
 
-Cada bloque debe:
+Cada bloque tiene dos partes:
 
-1. Importar `defineBlockSchema` desde `astro-blocks/contract`.
-2. Exportar un `schema` con `defineBlockSchema(definition, import.meta.url)`. La definición incluye `name` (nombre del bloque), `icon` (opcional; nombre de icono Lucide para el selector), `key` (opcional; clave del tipo) e `items` (props editables con `type`, `label`, `required?`, `options?` para select).
+1. **El componente** (`.astro`): recibe las props definidas en el schema y renderiza el markup. No exporta el schema.
+2. **El schema** (archivo aparte, p. ej. `Nombre.schema.ts`): exporta `schema` con `defineBlockSchema(definition, urlDelComponente)`. La definición incluye `name`, `icon` (opcional), `key` (opcional) e `items` (props editables: `type`, `label`, `required?`, `options?` para select).
 
-**Ejemplo:**
+En la config del plugin se importa el schema desde el archivo `.schema.ts` y se pasa en `blocks: [heroSchema, ...]`. Ver más abajo el apartado [Editor de bloques](#editor-de-bloques).
 
-```astro
----
+**Tipos de prop:** `string`, `text`, `number`, `boolean`, `image`, `link`, `select`.
+
+### Schema en archivo separado
+
+El schema debe definirse en un **fichero aparte** junto al componente. La config de Astro se ejecuta en Node y no puede importar directamente desde un `.astro` (el archivo se interpreta como JS y falla el parsing).
+
+Estructura de archivos recomendada:
+
+```
+src/components/
+├── Hero.astro          # Solo el componente (props, markup)
+├── Hero.schema.ts      # Schema del bloque
+├── Cta.astro
+└── Cta.schema.ts
+```
+
+El archivo de schema exporta el schema y pasa la ruta del componente con `new URL(..., import.meta.url).href`:
+
+**`Hero.schema.ts`:**
+
+```ts
 import { defineBlockSchema } from 'astro-blocks/contract';
 
 export const schema = defineBlockSchema(
@@ -182,19 +200,20 @@ export const schema = defineBlockSchema(
       subtitle: { type: 'text', label: 'Subtítulo' },
     },
   },
-  import.meta.url
+  new URL('./Hero.astro', import.meta.url).href
 );
-const { title = '', subtitle = '' } = Astro.props;
----
-<section>
-  <h1>{title}</h1>
-  {subtitle ? <p>{subtitle}</p> : null}
-</section>
 ```
 
-En la config del plugin se importa el schema y se pasa en `blocks: [heroSchema, ...]`. Ver más abajo el apartado [Editor de bloques](#editor-de-bloques).
+En **`astro.config.mjs`** (o `astro.config.mts`) importas desde el schema:
 
-**Tipos de prop:** `string`, `text`, `number`, `boolean`, `image`, `link`, `select`.
+```js
+import { schema as heroSchema } from './src/components/Hero.schema.ts';
+
+astroBlocks({
+  layoutPath: './src/layouts/Layout.astro',
+  blocks: [heroSchema],
+})
+```
 
 ---
 
