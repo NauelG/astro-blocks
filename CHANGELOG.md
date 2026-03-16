@@ -9,6 +9,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.8.0] - 2026-03-16
+
+### Added
+
+- **Editor de bloques (modal de página):** modal casi a pantalla completa con dos columnas: izquierda (pestañas Información y SEO; tab SEO solo visible si la página es indexable), derecha (lista de bloques reordenable). Botón duplicar bloque (icono copia, color azul/índigo sutil) que inserta una copia debajo. Botón expandir con chevron en lugar de +/−. Botón eliminar con icono papelera. Lista de bloques y selector de tipo sin decoración de lista; ítems del selector con borde/sombra tipo card.
+- **Pie del modal de página:** botones Guardar (siempre a la derecha), Publicar (verde sutil) y A borrador (ámbar sutil) según estado; campo Estado retirado del formulario. Nuevas páginas en borrador; Publicar/A borrador cambian estado al guardar.
+- **API block-schemas en build:** el plugin genera `.astro-blocks/schema-map.mjs` (solo datos, sin imports .astro); el handler GET `/cms/api/block-schemas` carga ese archivo en lugar de `runtime.mjs` para que funcione tras `npm run build` en Node.
+- **README:** apartado "Editor de bloques" con descripción del modal y captura `img/page_editor.jpg`. Eliminados `docs/plan-editor-bloques-schema.md` y `docs/plan-final-editor-bloques.md`.
+
+### Changed
+
+- **DetailModal:** prop opcional `large` para modal casi pantalla completa (usado en página). Columnas del modal de página con scroll independiente, divisor entre columnas, scrollbar fina y sutil.
+- **Tabs Información/SEO:** estilos de tab sin borde/outline en focus; solo borde inferior en tab activo. Focus de inputs más sutil (ring 1px en lugar de 3px).
+- **Hint no indexable:** margen ajustado para no solaparse con el checkbox; clase `cms-field-indexable` con margen inferior.
+
+### Fixed
+
+- **Editar página no funcionaba:** el script inline usaba sintaxis TypeScript `(window as any).Sortable`; sustituido por `window['Sortable']` para que el navegador no lanzara SyntaxError y se registraran los listeners.
+
+---
+
 ## [0.7.0] - 2026-03-16
 
 ### Added

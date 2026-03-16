@@ -39,6 +39,7 @@ export async function GET({ request }) {
   if (seg[0] === 'site' && seg.length === 1) return handlers.handleGetSite();
   if (seg[0] === 'menus' && seg.length === 1) return handlers.handleGetMenus();
   if (seg[0] === 'users' && seg.length === 1) return handlers.handleGetUsers(user);
+  if (seg[0] === 'block-schemas' && seg.length === 1) return handlers.handleGetBlockSchemas();
   return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
 }
 

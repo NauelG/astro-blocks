@@ -242,9 +242,10 @@ El dashboard debe seguir el mismo design system, pero con reglas específicas:
 
 ## 5. Contrato de componentes
 
-- Los componentes del **proyecto** importan `defineBlockSchema` desde `astro-blocks/contract` y exportan `schema` con las props editables (type, label, options para select).
-- El plugin genera en `.astro-blocks/runtime.mjs` imports del layout y de cada componente registrado en `components`; exporta `Layout` y `componentMap` (nombre → componente).
-- En `page.astro` se hace `componentMap[block.type]` y se renderiza con `block.props`. Añadir un nuevo tipo de bloque = registrar el componente en la config del plugin y (opcionalmente) un nuevo tipo en `contract` si hace falta.
+- Los componentes del **proyecto** importan `defineBlockSchema` desde `astro-blocks/contract` y exportan `schema` con `defineBlockSchema(definition, import.meta.url)`. La definición tiene `name`, `icon?` (nombre Lucide), `key?` e `items` (Record de PropDef con `type`, `label`, `required?`, `options?`). El path del componente se guarda en el schema (propiedad interna) para que el plugin genere el runtime.
+- La config del plugin usa **solo** `blocks: Schema[]` (array de schemas importados desde cada componente). No existe la opción `components`.
+- El plugin genera en `.astro-blocks/runtime.mjs` imports del layout y de cada bloque; exporta `Layout`, `componentMap` (key → componente) y `schemaMap` (key → schema serializable: name, icon, items). Keys duplicadas o schema sin path → error en `generateRuntime`.
+- En `page.astro` se hace `componentMap[block.type]` y se renderiza con `block.props`. Añadir un nuevo tipo de bloque = crear el componente con `export const schema = defineBlockSchema(..., import.meta.url)` y añadirlo al array `blocks` en la config.
 
 ---
 

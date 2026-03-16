@@ -13,7 +13,7 @@ Licensed under the Business Source License 1.1
 </p>
 
 <p align="center">
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.7.0-blue" alt="version" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.8.0-blue" alt="version" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="alpha" />
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js" alt="Node 18+" /></a>
   <a href="https://astro.build"><img src="https://img.shields.io/badge/Astro-6+-FF5D01?logo=astro" alt="Astro 6+" /></a>
@@ -92,6 +92,8 @@ npm install astro-blocks
 import { defineConfig } from 'astro/config';
 import node from '@astrojs/node';
 import astroBlocks from 'astro-blocks';
+import { schema as heroSchema } from './src/components/Hero.astro';
+// import { schema as ctaSchema } from './src/components/Cta.astro';
 
 export default defineConfig({
   output: 'static',
@@ -99,10 +101,7 @@ export default defineConfig({
   integrations: [
     astroBlocks({
       layoutPath: './src/layouts/Layout.astro',
-      components: {
-        hero: './src/components/Hero.astro',
-        // más bloques...
-      },
+      blocks: [heroSchema],
     }),
   ],
 });
@@ -121,7 +120,7 @@ El panel usa **Pico CSS**, **Animate.css**, **Sortable.js** y **simple-dropzone*
 | Opción        | Descripción |
 |---------------|-------------|
 | `layoutPath`  | Ruta al layout del proyecto (ej. `'./src/layouts/Layout.astro'`). Recibe props de SEO (`title`, `description`, `canonical`, `noindex`, `site`, `seo`) en páginas servidas por el CMS. El objeto `seo` incluye `image` (URL absoluta para og:image/twitter:image) y `nofollow` (boolean). Para una experiencia SEO completa, el layout debe renderizar `<meta property="og:title">`, `og:description`, `og:image`, `og:url` (canonical) y opcionalmente `twitter:card`, `twitter:title`, `twitter:description`, `twitter:image`; y para `noindex`/`nofollow` usar `content="noindex"` o `content="noindex, nofollow"` según las props. |
-| `components`  | Objeto `{ nombreBloque: rutaComponente }`. Cada componente debe cumplir el [contrato de bloques](#contrato-de-componentes). |
+| `blocks`      | Array de schemas. Cada schema se importa desde su componente (`import { schema as heroSchema } from './src/components/Hero.astro'`). Cada componente debe exportar `schema` con `defineBlockSchema(definition, import.meta.url)`. Ver [contrato de bloques](#contrato-de-componentes). |
 
 ---
 
@@ -163,10 +162,10 @@ Devuelve un array de ítems: `{ name: string, path: string, children?: Array<...
 
 ## Contrato de componentes
 
-Cada bloque registrado en `components` debe:
+Cada bloque debe:
 
 1. Importar `defineBlockSchema` desde `astro-blocks/contract`.
-2. Exportar un `schema` con las props editables (tipo y etiqueta).
+2. Exportar un `schema` con `defineBlockSchema(definition, import.meta.url)`. La definición incluye `name` (nombre del bloque), `icon` (opcional; nombre de icono Lucide para el selector), `key` (opcional; clave del tipo) e `items` (props editables con `type`, `label`, `required?`, `options?` para select).
 
 **Ejemplo:**
 
@@ -174,11 +173,17 @@ Cada bloque registrado en `components` debe:
 ---
 import { defineBlockSchema } from 'astro-blocks/contract';
 
-export const schema = defineBlockSchema({
-  title: { type: 'string', label: 'Título' },
-  subtitle: { type: 'text', label: 'Subtítulo' },
-});
-
+export const schema = defineBlockSchema(
+  {
+    name: 'Hero',
+    icon: 'Layout',
+    items: {
+      title: { type: 'string', label: 'Título', required: true },
+      subtitle: { type: 'text', label: 'Subtítulo' },
+    },
+  },
+  import.meta.url
+);
 const { title = '', subtitle = '' } = Astro.props;
 ---
 <section>
@@ -187,7 +192,22 @@ const { title = '', subtitle = '' } = Astro.props;
 </section>
 ```
 
+En la config del plugin se importa el schema y se pasa en `blocks: [heroSchema, ...]`. Ver más abajo el apartado [Editor de bloques](#editor-de-bloques).
+
 **Tipos de prop:** `string`, `text`, `number`, `boolean`, `image`, `link`, `select`.
+
+---
+
+## Editor de bloques
+
+Al editar una página en **Contenido → Páginas**, el modal de detalle incluye el **editor de bloques**: lista reordenable por arrastre, botón para añadir bloques (modal de selección de tipo), y por cada bloque un acordeón con el formulario de sus props. No se puede guardar si faltan props obligatorias; se permite guardar una página sin bloques (`blocks: []`).
+
+- **Columna izquierda:** pestañas **Información** (título, slug, indexable) y **SEO** (título SEO, descripción, canonical, imagen, nofollow). El tab SEO solo se muestra si la página es indexable.
+- **Columna derecha:** lista de bloques con arrastre para reordenar, botones para expandir/colapsar, duplicar y eliminar cada bloque.
+
+<p align="center">
+  <img src="img/page_editor.jpg" alt="Editor de bloques en el modal de página" width="860" style="border-radius:8px" />
+</p>
 
 ---
 

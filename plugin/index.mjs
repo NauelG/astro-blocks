@@ -7,6 +7,7 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { COMPONENT_PATH_KEY } from '../contract/index.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmsDir = path.resolve(__dirname, '..');
@@ -19,29 +20,88 @@ function getProjectRoot(config) {
   return process.cwd();
 }
 
+/**
+ * Serialize schema for schemaMap (name, icon, items only; no internal path).
+ * @param {import('../contract/index.mjs').BlockSchema} schema
+ * @returns {{ name: string, icon?: string, items: Record<string, import('../contract/index.mjs').PropDef> }}
+ */
+function serializeSchemaForRuntime(schema) {
+  return {
+    name: schema.name,
+    ...(schema.icon !== undefined && { icon: schema.icon }),
+    items: schema.items || {},
+  };
+}
+
 async function generateRuntime(projectRoot, options) {
   const layoutPath = options.layoutPath || './src/layouts/Layout.astro';
-  const components = options.components || {};
-  const rel = (p) => {
-    const from = path.join(projectRoot, '.astro-blocks');
-    return path.relative(from, path.resolve(projectRoot, p)).replace(/\\/g, '/');
+  const blocks = Array.isArray(options.blocks) ? options.blocks : [];
+
+  const astroBlocksDir = path.join(projectRoot, '.astro-blocks');
+
+  const relFromAstroBlocks = (absolutePath) => {
+    const normalized = path.isAbsolute(absolutePath) ? absolutePath : path.resolve(projectRoot, absolutePath);
+    return path.relative(astroBlocksDir, normalized).replace(/\\/g, '/');
   };
-  const layoutRel = rel(layoutPath);
-  const lines = [
+
+  const layoutAbs = path.resolve(projectRoot, layoutPath);
+  const layoutRel = relFromAstroBlocks(layoutAbs);
+
+  const blockEntries = [];
+  const seenKeys = new Set();
+
+  for (let i = 0; i < blocks.length; i++) {
+    const schema = blocks[i];
+    const componentPathUrl = schema[COMPONENT_PATH_KEY];
+    if (componentPathUrl === undefined || componentPathUrl === null || String(componentPathUrl).trim() === '') {
+      const name = schema.name || `block at index ${i}`;
+      throw new Error(
+        `[astro-blocks] Block schema for "${name}" is missing component path. Use defineBlockSchema(definition, import.meta.url) in the component.`
+      );
+    }
+
+    const resolvedPath =
+      typeof componentPathUrl === 'string' && componentPathUrl.startsWith('file:')
+        ? fileURLToPath(componentPathUrl)
+        : path.resolve(projectRoot, String(componentPathUrl));
+
+    const key = typeof schema.key === 'string' && schema.key.trim() ? schema.key.trim() : path.basename(resolvedPath, '.astro');
+    if (seenKeys.has(key)) {
+      throw new Error(`[astro-blocks] Duplicate block key: ${key}. Use schema.key to disambiguate or rename the component file.`);
+    }
+    seenKeys.add(key);
+
+    const relPath = relFromAstroBlocks(resolvedPath);
+    const varName = key.replace(/-/g, '_').replace(/\s/g, '_') || `block_${i}`;
+    blockEntries.push({ key, varName, relPath, schema });
+  }
+
+  const schemaMapLines = blockEntries.map((e) => {
+    const serialized = serializeSchemaForRuntime(e.schema);
+    return `  ${JSON.stringify(e.key)}: ${JSON.stringify(serialized)},`;
+  });
+
+  const runtimeLines = [
     `import Layout from ${JSON.stringify(layoutRel)};`,
-    ...Object.entries(components).map(
-      ([key, compPath]) => `import ${key.replace(/-/g, '_')} from ${JSON.stringify(rel(compPath))};`
-    ),
+    ...blockEntries.map((e) => `import * as ${e.varName} from ${JSON.stringify(e.relPath)};`),
     'export { Layout };',
     'export const componentMap = {',
-    ...Object.entries(components).map(
-      ([key]) => `  ${JSON.stringify(key)}: ${key.replace(/-/g, '_')},`
-    ),
+    ...blockEntries.map((e) => `  ${JSON.stringify(e.key)}: ${e.varName}.default,`),
+    '};',
+    'export const schemaMap = {',
+    ...schemaMapLines,
     '};',
   ];
-  const outDir = path.join(projectRoot, '.astro-blocks');
-  await fs.mkdir(outDir, { recursive: true });
-  await fs.writeFile(path.join(outDir, 'runtime.mjs'), lines.join('\n'), 'utf-8');
+
+  const schemaMapOnlyLines = [
+    'export const schemaMap = {',
+    ...schemaMapLines,
+    '};',
+  ];
+
+  await fs.mkdir(astroBlocksDir, { recursive: true });
+  await fs.writeFile(path.join(astroBlocksDir, 'runtime.mjs'), runtimeLines.join('\n'), 'utf-8');
+  await fs.writeFile(path.join(astroBlocksDir, 'schema-map.mjs'), schemaMapOnlyLines.join('\n'), 'utf-8');
 }
 
 export default function astroBlocks(options = {}) {
@@ -62,12 +122,13 @@ export default function astroBlocks(options = {}) {
         } catch {
           // no index.astro, no conflict
         }
+
+        if (!Array.isArray(options.blocks)) {
+          throw new Error('[astro-blocks] options.blocks is required and must be an array (e.g. blocks: [heroSchema, ...]).');
+        }
+
         await generateRuntime(projectRoot, options);
 
-        // Astro 6: output 'hybrid' was removed; use output: 'static' (default) with prerender per route.
-        // Do not override user's output.
-
-        // Use entrypoint path inside project's node_modules so Vite resolves imports from there (works with file: / npm link)
         const resolveCms = (file) => path.join(projectRoot, 'node_modules', 'astro-blocks', 'routes', file);
 
         config.vite = config.vite || {};
@@ -75,14 +136,12 @@ export default function astroBlocks(options = {}) {
         config.vite.resolve.preserveSymlinks = true;
         config.vite.resolve.alias = config.vite.resolve.alias || {};
         config.vite.resolve.alias['astro-blocks-runtime'] = path.join(projectRoot, '.astro-blocks', 'runtime.mjs');
-        // Alias CMS UI deps to project's node_modules so they resolve when entrypoints are outside project (file: / link)
         try {
           const picoResolved = require.resolve('@picocss/pico/package.json', { paths: [projectRoot] });
           const animateResolved = require.resolve('animate.css/package.json', { paths: [projectRoot] });
           config.vite.resolve.alias['@picocss/pico'] = path.dirname(picoResolved);
           config.vite.resolve.alias['animate.css'] = path.dirname(animateResolved);
         } catch (_) {}
-        // Ensure dev server watches the CMS package so style/layout changes apply without restart
         config.vite.server = config.vite.server || {};
         config.vite.server.watch = config.vite.server.watch || {};
         const ignored = Array.isArray(config.vite.server.watch.ignored) ? [...config.vite.server.watch.ignored] : [];

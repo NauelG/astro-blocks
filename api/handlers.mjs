@@ -6,8 +6,9 @@ Licensed under the Business Source License 1.1
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { SignJWT, jwtVerify } from 'jose';
-import { getUploadsDir, getDataPath, getDataDir } from '../utils/paths.mjs';
+import { getUploadsDir, getDataPath, getDataDir, getProjectRoot } from '../utils/paths.mjs';
 import * as data from './data.mjs';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.CMS_JWT_SECRET || 'cms-jwt-secret-change-me');
@@ -218,8 +219,113 @@ export async function handleGetPages() {
   return Response.json(pagesData);
 }
 
+/**
+ * Load schemaMap from project .astro-blocks/schema-map.mjs (no .astro imports).
+ * Returns { schemaMap } or { error, missing }.
+ */
+async function loadSchemaMap() {
+  const projectRoot = getProjectRoot();
+  const schemaMapPath = path.join(projectRoot, '.astro-blocks', 'schema-map.mjs');
+  try {
+    const schemaMapUrl = pathToFileURL(schemaMapPath).href;
+    const mod = await import(schemaMapUrl);
+    const schemaMap = mod.schemaMap || {};
+    const missing = Object.entries(schemaMap)
+      .filter(([, v]) => v === undefined)
+      .map(([k]) => k);
+    if (missing.length > 0) return { error: 'Missing block schema', missing };
+    return { schemaMap };
+  } catch (e) {
+    return { error: 'Failed to load block schemas', missing: [] };
+  }
+}
+
+/** Serialize schema for API (name, icon, items only). */
+function serializeSchema(schema) {
+  if (!schema || typeof schema !== 'object') return null;
+  return {
+    name: schema.name,
+    ...(schema.icon !== undefined && { icon: schema.icon }),
+    items: schema.items && typeof schema.items === 'object' ? schema.items : {},
+  };
+}
+
+export async function handleGetBlockSchemas() {
+  const result = await loadSchemaMap();
+  if (result.error) {
+    return new Response(
+      JSON.stringify({ error: result.error, missing: result.missing || [] }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+  const schemaMap = result.schemaMap;
+  const serialized = {};
+  for (const [key, schema] of Object.entries(schemaMap)) {
+    if (schema) serialized[key] = serializeSchema(schema);
+  }
+  return Response.json(serialized);
+}
+
+/**
+ * Validate blocks against schemaMap. Returns null if valid, or { message } if invalid.
+ */
+function validateBlocks(schemaMap, blocks) {
+  if (!Array.isArray(blocks) || blocks.length === 0) return null;
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    const type = block && typeof block === 'object' ? block.type : undefined;
+    if (typeof type !== 'string' || type.trim() === '') {
+      return { message: `Block at index ${i}: missing or invalid type.` };
+    }
+    const schema = schemaMap[type];
+    if (!schema || !schema.items) {
+      return { message: `Block at index ${i}: unknown type "${type}".` };
+    }
+    const props = block.props && typeof block.props === 'object' ? block.props : {};
+    const items = schema.items;
+    for (const [propName, def] of Object.entries(items)) {
+      if (!def || def.required !== true) continue;
+      const value = props[propName];
+      if (value === undefined || value === null) {
+        return { message: `Block "${schema.name}" (index ${i}): required prop "${propName}" is missing.` };
+      }
+      if (def.type === 'string' || def.type === 'text') {
+        if (typeof value !== 'string' || value.trim() === '') {
+          return { message: `Block "${schema.name}" (index ${i}): required prop "${propName}" must be non-empty.` };
+        }
+      }
+      if (def.type === 'number' && (typeof value !== 'number' || Number.isNaN(value))) {
+        return { message: `Block "${schema.name}" (index ${i}): required prop "${propName}" must be a valid number.` };
+      }
+    }
+  }
+  return null;
+}
+
 export async function handlePostPages(request) {
-  const body = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid body' }), { status: 400 });
+  }
+  const blocks = body.blocks;
+  if (blocks !== undefined && (!Array.isArray(blocks) || blocks.length > 0)) {
+    const result = await loadSchemaMap();
+    if (result.error) {
+      return new Response(
+        JSON.stringify({ error: result.error, missing: result.missing || [] }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    const validation = validateBlocks(result.schemaMap, blocks);
+    if (validation) {
+      return new Response(JSON.stringify({ error: validation.message }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  }
   const pagesData = await data.loadPages();
   const id = data.generateId();
   const now = new Date().toISOString();
@@ -228,7 +334,7 @@ export async function handlePostPages(request) {
     slug: body.slug ?? '/',
     status: body.status ?? 'draft',
     title: body.title ?? 'Untitled',
-    blocks: body.blocks ?? [],
+    blocks: Array.isArray(body.blocks) ? body.blocks : [],
     seo: body.seo ?? {},
     indexable: body.indexable !== false,
     publishedAt: body.status === 'published' ? now : null,
@@ -242,10 +348,32 @@ export async function handlePostPages(request) {
 }
 
 export async function handlePutPage(id, request) {
-  const body = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid body' }), { status: 400 });
+  }
   const pagesData = await data.loadPages();
   const idx = (pagesData.pages || []).findIndex((p) => p.id === id);
   if (idx === -1) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+  const blocks = body.blocks;
+  if (blocks !== undefined && (!Array.isArray(blocks) || blocks.length > 0)) {
+    const result = await loadSchemaMap();
+    if (result.error) {
+      return new Response(
+        JSON.stringify({ error: result.error, missing: result.missing || [] }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    const validation = validateBlocks(result.schemaMap, blocks);
+    if (validation) {
+      return new Response(JSON.stringify({ error: validation.message }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  }
   const now = new Date().toISOString();
   const existing = pagesData.pages[idx];
   const page = {

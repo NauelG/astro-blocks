@@ -9,16 +9,18 @@ Licensed under the Business Source License 1.1
  * Misma estructura y diseño que los formularios de la lista (cms-card, cms-form-actions).
  * Uso: incluir en la página de listado; abrir/cerrar con dialog.showModal() / dialog.close().
  * El título se puede actualizar por JS (ej. "Nueva página" / "Editar página").
+ * large: modal casi a pantalla completa (para formularios con mucho contenido, ej. página con bloques).
  */
 interface Props {
   id: string;
   title?: string;
+  large?: boolean;
 }
-const { id, title = '' } = Astro.props;
+const { id, title = '', large = false } = Astro.props;
 const titleId = id + '-title';
 ---
 
-<dialog id={id} class="cms-detail-modal" aria-labelledby={titleId}>
+<dialog id={id} class:list={['cms-detail-modal', large && 'cms-detail-modal--large']} aria-labelledby={titleId}>
   <div class="cms-detail-modal-panel" role="document">
     <h2 id={titleId} class="cms-detail-modal-title" data-detail-modal-title>{title}</h2>
     <div class="cms-detail-modal-body">

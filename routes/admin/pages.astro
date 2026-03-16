@@ -72,73 +72,105 @@ function slugStr(p: { slug?: string | string[] }) {
     </div>
   </div>
 
-  <DetailModal id="page-detail-modal" title="Página">
-    <form id="page-detail-form" class="cms-form">
+  <DetailModal id="page-detail-modal" title="Página" large>
+    <form id="page-detail-form" class="cms-form cms-page-detail-form">
       <input type="hidden" id="page-detail-id" name="id" value="" />
-      <div class="cms-field">
-        <label for="page-detail-title">Título</label>
-        <input type="text" id="page-detail-title" name="title" required />
-      </div>
-      <div class="cms-field">
-        <label for="page-detail-slug">Slug</label>
-        <input type="text" id="page-detail-slug" name="slug" placeholder="/ o /about" />
-      </div>
-      <div class="cms-field">
-        <label for="page-detail-status">Estado</label>
-        <select name="status" id="page-detail-status">
-          <option value="draft">Borrador</option>
-          <option value="published">Publicado</option>
-        </select>
-      </div>
-      <div class="cms-field" style="display: flex; align-items: center; gap: 0.5rem;">
-        <input type="checkbox" name="indexable" id="page-detail-indexable" checked />
-        <label for="page-detail-indexable" style="margin-bottom: 0;">Indexable</label>
-      </div>
-      <p id="page-detail-seo-hidden-hint" class="cms-muted cms-hidden" style="font-size: 0.75rem; margin-top: -0.5rem;">
-        Las páginas no indexables no aparecen en el sitemap y llevan meta noindex. Los campos SEO no se utilizan.
-      </p>
-      <div id="page-detail-seo-fields" class="cms-stack">
-        <div class="cms-field">
-          <label for="page-detail-seo-title">Título SEO</label>
-          <input type="text" id="page-detail-seo-title" name="seo-title" placeholder="50–60 caracteres" />
-        </div>
-        <div class="cms-field">
-          <label for="page-detail-seo-description">Descripción</label>
-          <textarea id="page-detail-seo-description" name="seo-description" rows="2" placeholder="150–160 caracteres"></textarea>
-        </div>
-        <div class="cms-field">
-          <label for="page-detail-seo-canonical">URL canónica</label>
-          <input type="text" id="page-detail-seo-canonical" name="seo-canonical" placeholder="Dejar vacío para usar la URL de la página" />
-        </div>
-        <div class="cms-field">
-          <label>Imagen (og:image / twitter:image)</label>
-          <div class="cms-seo-image-field">
-            <input type="hidden" id="page-detail-seo-image" name="seo-image" value="" />
-            <div id="page-detail-seo-image-preview" class="cms-seo-image-preview">
-              <img id="page-detail-seo-image-thumb" class="cms-seo-image-thumb cms-hidden" alt="" />
-              <span id="page-detail-seo-image-empty" class="cms-seo-image-empty">Sin imagen</span>
+      <div class="cms-page-detail-layout">
+        <div class="cms-page-detail-col cms-page-detail-col--info">
+          <div class="cms-page-detail-tabs" role="tablist" aria-label="Secciones del formulario">
+            <button type="button" role="tab" aria-selected="true" id="page-detail-tab-info" aria-controls="page-detail-panel-info" class="cms-page-detail-tab cms-page-detail-tab--active">Información</button>
+            <button type="button" role="tab" aria-selected="false" id="page-detail-tab-seo" aria-controls="page-detail-panel-seo" class="cms-page-detail-tab">SEO</button>
+          </div>
+          <div id="page-detail-panel-info" role="tabpanel" aria-labelledby="page-detail-tab-info" class="cms-page-detail-tabpanel cms-page-detail-tabpanel--active">
+            <div class="cms-field">
+              <label for="page-detail-title">Título</label>
+              <input type="text" id="page-detail-title" name="title" required />
             </div>
-            <div class="cms-seo-image-actions">
-              <button type="button" id="page-detail-seo-image-upload" class="cms-btn cms-btn-secondary">Subir imagen</button>
-              <button type="button" id="page-detail-seo-image-remove" class="cms-btn cms-btn-secondary cms-hidden" aria-label="Eliminar imagen">Eliminar</button>
+            <div class="cms-field">
+              <label for="page-detail-slug">Slug</label>
+              <input type="text" id="page-detail-slug" name="slug" placeholder="/ o /about" />
+            </div>
+            <input type="hidden" name="status" id="page-detail-status" value="draft" />
+            <div class="cms-field cms-field-indexable" style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" name="indexable" id="page-detail-indexable" checked />
+              <label for="page-detail-indexable" style="margin-bottom: 0;">Indexable</label>
+            </div>
+            <p id="page-detail-seo-hidden-hint" class="cms-muted cms-hidden" style="font-size: 0.75rem; margin-top: 0.5rem; margin-bottom: 0;">
+              Las páginas no indexables no aparecen en el sitemap y llevan meta noindex. Los campos SEO no se utilizan.
+            </p>
+          </div>
+          <div id="page-detail-panel-seo" role="tabpanel" aria-labelledby="page-detail-tab-seo" class="cms-page-detail-tabpanel">
+          <div id="page-detail-seo-fields" class="cms-stack">
+            <div class="cms-field">
+              <label for="page-detail-seo-title">Título SEO</label>
+              <input type="text" id="page-detail-seo-title" name="seo-title" placeholder="50–60 caracteres" />
+            </div>
+            <div class="cms-field">
+              <label for="page-detail-seo-description">Descripción</label>
+              <textarea id="page-detail-seo-description" name="seo-description" rows="2" placeholder="150–160 caracteres"></textarea>
+            </div>
+            <div class="cms-field">
+              <label for="page-detail-seo-canonical">URL canónica</label>
+              <input type="text" id="page-detail-seo-canonical" name="seo-canonical" placeholder="Dejar vacío para usar la URL de la página" />
+            </div>
+            <div class="cms-field">
+              <label>Imagen (og:image / twitter:image)</label>
+              <div class="cms-seo-image-field">
+                <input type="hidden" id="page-detail-seo-image" name="seo-image" value="" />
+                <div id="page-detail-seo-image-preview" class="cms-seo-image-preview">
+                  <img id="page-detail-seo-image-thumb" class="cms-seo-image-thumb cms-hidden" alt="" />
+                  <span id="page-detail-seo-image-empty" class="cms-seo-image-empty">Sin imagen</span>
+                </div>
+                <div class="cms-seo-image-actions">
+                  <button type="button" id="page-detail-seo-image-upload" class="cms-btn cms-btn-secondary">Subir imagen</button>
+                  <button type="button" id="page-detail-seo-image-remove" class="cms-btn cms-btn-secondary cms-hidden" aria-label="Eliminar imagen">Eliminar</button>
+                </div>
+              </div>
+              <input type="file" id="page-detail-seo-image-file" accept="image/*" class="cms-hidden" />
+            </div>
+            <div class="cms-field" style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="checkbox" name="seo-nofollow" id="page-detail-seo-nofollow" />
+              <label for="page-detail-seo-nofollow" style="margin-bottom: 0;">Añadir nofollow</label>
             </div>
           </div>
-          <input type="file" id="page-detail-seo-image-file" accept="image/*" class="cms-hidden" />
+          </div>
         </div>
-        <div class="cms-field" style="display: flex; align-items: center; gap: 0.5rem;">
-          <input type="checkbox" name="seo-nofollow" id="page-detail-seo-nofollow" />
-          <label for="page-detail-seo-nofollow" style="margin-bottom: 0;">Añadir nofollow</label>
+        <div class="cms-page-detail-col cms-page-detail-col--blocks">
+          <div class="cms-field">
+            <label>Bloques</label>
+            <div id="page-detail-blocks-section" class="cms-blocks-section">
+              <p id="page-detail-blocks-empty" class="cms-muted cms-blocks-empty">Ningún bloque. Añade bloques para construir el contenido de la página.</p>
+              <ul id="page-detail-blocks-list" class="cms-blocks-list" aria-label="Lista de bloques"></ul>
+              <button type="button" id="page-detail-blocks-add" class="cms-btn cms-btn-secondary">Añadir bloque</button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="cms-field">
-        <label for="page-detail-blocks">Blocks (JSON)</label>
-        <textarea name="blocks" id="page-detail-blocks" class="cms-input-monospace" rows="8">[]</textarea>
       </div>
     </form>
     <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="page-detail-modal">Cancelar</button>
-    <button type="submit" form="page-detail-form" class="cms-btn cms-btn-primary" id="page-detail-submit" slot="actions-right">Guardar</button>
+    <div class="cms-cluster" slot="actions-right" style="gap: 0.5rem;">
+      <button type="button" class="cms-btn cms-btn-publish" id="page-detail-publish-btn" aria-label="Guardar y publicar">Publicar</button>
+      <button type="button" class="cms-btn cms-btn-unpublish cms-hidden" id="page-detail-unpublish-btn" aria-label="Guardar y pasar a borrador">A borrador</button>
+      <button type="submit" form="page-detail-form" class="cms-btn cms-btn-primary" id="page-detail-submit">Guardar</button>
+    </div>
   </DetailModal>
 
+  <dialog id="page-detail-block-select-modal" class="cms-detail-modal" aria-labelledby="page-detail-block-select-title">
+    <div class="cms-detail-modal-panel" role="document">
+      <h2 id="page-detail-block-select-title" class="cms-detail-modal-title">Seleccionar tipo de bloque</h2>
+      <div class="cms-detail-modal-body">
+        <ul id="page-detail-block-select-list" class="cms-blocks-select-list"></ul>
+      </div>
+      <div class="cms-detail-modal-actions cms-form-actions">
+        <button type="button" class="cms-btn cms-btn-secondary" data-close-modal="page-detail-block-select-modal">Cancelar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    import Sortable from 'sortablejs';
+    (window as typeof window & { Sortable: typeof Sortable }).Sortable = Sortable;
+  </script>
   <script is:inline>
     (function() {
       var dialog = document.getElementById('page-detail-modal');
@@ -147,6 +179,8 @@ function slugStr(p: { slug?: string | string[] }) {
       var idInput = document.getElementById('page-detail-id');
       var submitBtn = document.getElementById('page-detail-submit');
       var newBtn = document.getElementById('cms-page-new-btn');
+      var schemaMap = null;
+      var blocksList = [];
 
       function getToken() { try { return (window.getCmsToken && window.getCmsToken()) || ''; } catch (e) { return ''; } }
       function closeModal() { if (dialog) dialog.close(); }
@@ -154,14 +188,39 @@ function slugStr(p: { slug?: string | string[] }) {
 
       function setFormTitle(label, submitLabel) {
         if (titleEl) titleEl.textContent = label;
-        if (submitBtn) submitBtn.textContent = submitLabel;
+        if (submitBtn) submitBtn.textContent = submitLabel || 'Guardar';
+      }
+      function updateStatusButtons() {
+        var statusSelect = form && form.querySelector('#page-detail-status');
+        var publishBtn = document.getElementById('page-detail-publish-btn');
+        var unpublishBtn = document.getElementById('page-detail-unpublish-btn');
+        if (!statusSelect || !publishBtn || !unpublishBtn) return;
+        var isPublished = statusSelect.value === 'published';
+        if (isPublished) {
+          unpublishBtn.classList.remove('cms-hidden');
+          publishBtn.classList.add('cms-hidden');
+        } else {
+          publishBtn.classList.remove('cms-hidden');
+          unpublishBtn.classList.add('cms-hidden');
+        }
       }
 
       function toggleSeoVisibility(visible) {
         var seoFields = document.getElementById('page-detail-seo-fields');
         var hint = document.getElementById('page-detail-seo-hidden-hint');
+        var tabSeoEl = document.getElementById('page-detail-tab-seo');
         if (seoFields) seoFields.classList.toggle('cms-hidden', !visible);
         if (hint) hint.classList.toggle('cms-hidden', visible);
+        if (tabSeoEl) tabSeoEl.classList.toggle('cms-hidden', !visible);
+        if (!visible && tabSeoEl && tabSeoEl.classList.contains('cms-page-detail-tab--active')) {
+          var tabInfoEl = document.getElementById('page-detail-tab-info');
+          var panelInfoEl = document.getElementById('page-detail-panel-info');
+          var panelSeoEl = document.getElementById('page-detail-panel-seo');
+          if (tabInfoEl) { tabInfoEl.classList.add('cms-page-detail-tab--active'); tabInfoEl.setAttribute('aria-selected', 'true'); }
+          if (tabSeoEl) { tabSeoEl.classList.remove('cms-page-detail-tab--active'); tabSeoEl.setAttribute('aria-selected', 'false'); }
+          if (panelInfoEl) panelInfoEl.classList.add('cms-page-detail-tabpanel--active');
+          if (panelSeoEl) panelSeoEl.classList.remove('cms-page-detail-tabpanel--active');
+        }
       }
 
       function updateSeoImagePreview(url) {
@@ -182,6 +241,130 @@ function slugStr(p: { slug?: string | string[] }) {
         if (uploadBtn) uploadBtn.textContent = hasImage ? 'Cambiar' : 'Subir imagen';
       }
 
+      function fetchBlockSchemas() {
+        var token = getToken();
+        return fetch('/cms/api/block-schemas', { headers: { 'Authorization': 'Bearer ' + token } })
+          .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('block-schemas failed')); });
+      }
+      function escapeHtml(s) {
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+      }
+      var trashIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+      var copyIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+      var chevronDownSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+      var chevronUpSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>';
+      var sortableBlocks = null;
+      function renderBlocksList() {
+        window.__cmsPageBlocksList = blocksList;
+        var list = document.getElementById('page-detail-blocks-list');
+        var emptyEl = document.getElementById('page-detail-blocks-empty');
+        var addBtn = document.getElementById('page-detail-blocks-add');
+        if (!list) return;
+        list.innerHTML = '';
+        if (blocksList.length === 0) {
+          if (emptyEl) emptyEl.classList.remove('cms-hidden');
+          list.classList.add('cms-hidden');
+          if (sortableBlocks) { sortableBlocks.destroy(); sortableBlocks = null; }
+          return;
+        }
+        if (emptyEl) emptyEl.classList.add('cms-hidden');
+        list.classList.remove('cms-hidden');
+        blocksList.forEach(function(block, idx) {
+          var schema = schemaMap && schemaMap[block.type];
+          var name = (schema && schema.name) ? schema.name : block.type;
+          var li = document.createElement('li');
+          li.className = 'cms-block-item';
+          li.setAttribute('data-index', String(idx));
+          li.innerHTML =
+            '<div class="cms-block-item-header">' +
+            '<span class="cms-drag-handle" aria-label="Arrastrar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg></span>' +
+            '<span class="cms-block-item-name">' + escapeHtml(name) + '</span>' +
+            '<button type="button" class="cms-block-item-toggle" aria-expanded="false" aria-label="Expandir" data-index="' + idx + '">' + chevronDownSvg + '</button>' +
+            '<button type="button" class="cms-block-item-duplicate" aria-label="Duplicar bloque" data-index="' + idx + '">' + copyIconSvg + '</button>' +
+            '<button type="button" class="cms-table-btn-delete cms-block-item-delete" aria-label="Eliminar bloque" data-index="' + idx + '">' + trashIconSvg + '</button>' +
+            '</div>' +
+            '<div class="cms-block-item-body cms-hidden"></div>';
+          list.appendChild(li);
+          var body = li.querySelector('.cms-block-item-body');
+          if (schema && schema.items && body) {
+            var f = '<div class="cms-stack cms-block-item-fields">';
+            for (var p in schema.items) {
+              var def = schema.items[p];
+              if (!def || !def.label) continue;
+              var v = (block.props && block.props[p]) !== undefined ? block.props[p] : '';
+              var fid = 'page-block-' + idx + '-' + p;
+              if (def.type === 'text') f += '<div class="cms-field"><label for="' + fid + '">' + escapeHtml(def.label) + '</label><textarea id="' + fid + '" data-idx="' + idx + '" data-prop="' + escapeHtml(p) + '" class="cms-input" rows="2">' + escapeHtml(String(v)) + '</textarea></div>';
+              else if (def.type === 'number') f += '<div class="cms-field"><label for="' + fid + '">' + escapeHtml(def.label) + '</label><input type="number" id="' + fid + '" data-idx="' + idx + '" data-prop="' + escapeHtml(p) + '" class="cms-input" value="' + (typeof v === 'number' && !isNaN(v) ? v : '') + '"></div>';
+              else if (def.type === 'boolean') f += '<div class="cms-field" style="display:flex;align-items:center;gap:0.5rem"><input type="checkbox" id="' + fid + '" data-idx="' + idx + '" data-prop="' + escapeHtml(p) + '" class="cms-input" ' + (v === true || v === 'true' ? 'checked' : '') + '><label for="' + fid + '" style="margin-bottom:0">' + escapeHtml(def.label) + '</label></div>';
+              else if (def.type === 'select') {
+                var opts = (def.options || []).map(function(o) { return '<option value="' + escapeHtml(o) + '"' + (v === o ? ' selected' : '') + '>' + escapeHtml(o) + '</option>'; }).join('');
+                f += '<div class="cms-field"><label for="' + fid + '">' + escapeHtml(def.label) + '</label><select id="' + fid + '" data-idx="' + idx + '" data-prop="' + escapeHtml(p) + '" class="cms-input">' + opts + '</select></div>';
+              } else f += '<div class="cms-field"><label for="' + fid + '">' + escapeHtml(def.label) + '</label><input type="text" id="' + fid + '" data-idx="' + idx + '" data-prop="' + escapeHtml(p) + '" class="cms-input" value="' + escapeHtml(String(v)) + '"></div>';
+            }
+            f += '</div>';
+            body.innerHTML = f;
+          }
+        });
+        list.querySelectorAll('.cms-block-item-fields [data-idx][data-prop]').forEach(function(inp) {
+          inp.addEventListener('input', function() {
+            var idx = parseInt(this.getAttribute('data-idx'), 10);
+            var prop = this.getAttribute('data-prop');
+            if (isNaN(idx) || !blocksList[idx]) return;
+            if (!blocksList[idx].props) blocksList[idx].props = {};
+            blocksList[idx].props[prop] = this.type === 'checkbox' ? this.checked : this.value;
+            window.__cmsPageBlocksList = blocksList;
+          });
+          inp.addEventListener('change', function() {
+            var idx = parseInt(this.getAttribute('data-idx'), 10);
+            var prop = this.getAttribute('data-prop');
+            if (isNaN(idx) || !blocksList[idx]) return;
+            if (!blocksList[idx].props) blocksList[idx].props = {};
+            blocksList[idx].props[prop] = this.type === 'checkbox' ? this.checked : this.value;
+            window.__cmsPageBlocksList = blocksList;
+          });
+        });
+        list.querySelectorAll('.cms-block-item-toggle').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = parseInt(btn.getAttribute('data-index'), 10);
+            var li = btn.closest('.cms-block-item');
+            var body = li && li.querySelector('.cms-block-item-body');
+            var isOpen = body && !body.classList.contains('cms-hidden');
+            list.querySelectorAll('.cms-block-item-body').forEach(function(b) { b.classList.add('cms-hidden'); });
+            list.querySelectorAll('.cms-block-item-toggle').forEach(function(b) { b.setAttribute('aria-expanded', 'false'); b.innerHTML = chevronDownSvg; });
+            if (!isOpen && body) { body.classList.remove('cms-hidden'); btn.setAttribute('aria-expanded', 'true'); btn.innerHTML = chevronUpSvg; }
+          });
+        });
+        list.querySelectorAll('.cms-block-item-duplicate').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = parseInt(btn.getAttribute('data-index'), 10);
+            if (idx < 0 || !blocksList[idx]) return;
+            var copy = JSON.parse(JSON.stringify(blocksList[idx]));
+            blocksList.splice(idx + 1, 0, copy);
+            window.__cmsPageBlocksList = blocksList;
+            renderBlocksList();
+          });
+        });
+        list.querySelectorAll('.cms-block-item-delete').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = parseInt(btn.getAttribute('data-index'), 10);
+            if (idx >= 0) { blocksList.splice(idx, 1); renderBlocksList(); }
+          });
+        });
+        if (window['Sortable']) {
+          if (sortableBlocks) sortableBlocks.destroy();
+          sortableBlocks = window['Sortable'].create(list, { handle: '.cms-drag-handle', ghostClass: 'cms-dragging', onEnd: function(evt) {
+            var from = evt.oldIndex, to = evt.newIndex;
+            if (from === to) return;
+            var b = blocksList[from];
+            blocksList.splice(from, 1);
+            blocksList.splice(to, 0, b);
+            window.__cmsPageBlocksList = blocksList;
+          } });
+        }
+      }
+
       function openNew() {
         if (idInput) idInput.value = '';
         if (form) {
@@ -189,7 +372,6 @@ function slugStr(p: { slug?: string | string[] }) {
           form.slug.value = '/';
           form.status.value = 'draft';
           form.querySelector('#page-detail-indexable').checked = true;
-          form.querySelector('#page-detail-blocks').value = '[]';
           form.querySelector('#page-detail-seo-title').value = '';
           form.querySelector('#page-detail-seo-description').value = '';
           form.querySelector('#page-detail-seo-canonical').value = '';
@@ -197,8 +379,28 @@ function slugStr(p: { slug?: string | string[] }) {
           form.querySelector('#page-detail-seo-nofollow').checked = false;
           toggleSeoVisibility(true);
         }
-        setFormTitle('Nueva página', 'Crear');
-        openModal();
+        blocksList = [];
+        window.__cmsPageBlocksList = blocksList;
+        if (schemaMap) {
+          renderBlocksList();
+          setFormTitle('Nueva página', 'Guardar');
+          updateStatusButtons();
+          openModal();
+        } else {
+          fetchBlockSchemas().then(function(m) {
+            schemaMap = m;
+            renderBlocksList();
+            setFormTitle('Nueva página', 'Guardar');
+            updateStatusButtons();
+            openModal();
+          }).catch(function() {
+            if (document.getElementById('page-detail-blocks-add')) document.getElementById('page-detail-blocks-add').disabled = true;
+            renderBlocksList();
+            setFormTitle('Nueva página', 'Guardar');
+            updateStatusButtons();
+            openModal();
+          });
+        }
       }
 
       function openEdit(id) {
@@ -216,7 +418,6 @@ function slugStr(p: { slug?: string | string[] }) {
               form.slug.value = page.slug === '/' || (Array.isArray(page.slug) && !page.slug.length) ? '/' : (Array.isArray(page.slug) ? '/' + page.slug.join('/') : page.slug);
               form.status.value = page.status || 'draft';
               form.querySelector('#page-detail-indexable').checked = page.indexable !== false;
-              form.querySelector('#page-detail-blocks').value = JSON.stringify(page.blocks || [], null, 2);
               form.querySelector('#page-detail-seo-title').value = seo.title || '';
               form.querySelector('#page-detail-seo-description').value = seo.description || '';
               form.querySelector('#page-detail-seo-canonical').value = seo.canonical || '';
@@ -224,8 +425,21 @@ function slugStr(p: { slug?: string | string[] }) {
               form.querySelector('#page-detail-seo-nofollow').checked = !!seo.nofollow;
               toggleSeoVisibility(page.indexable !== false);
             }
-            setFormTitle('Editar página', 'Guardar');
-            openModal();
+            blocksList = Array.isArray(page.blocks) ? JSON.parse(JSON.stringify(page.blocks)) : [];
+            window.__cmsPageBlocksList = blocksList;
+            function doneEdit() {
+              renderBlocksList();
+              setFormTitle('Editar página', 'Guardar');
+              updateStatusButtons();
+              openModal();
+            }
+            if (schemaMap) doneEdit();
+            else {
+              fetchBlockSchemas().then(function(m) { schemaMap = m; doneEdit(); }).catch(function() {
+                if (document.getElementById('page-detail-blocks-add')) document.getElementById('page-detail-blocks-add').disabled = true;
+                doneEdit();
+              });
+            }
           });
       }
 
@@ -245,6 +459,25 @@ function slugStr(p: { slug?: string | string[] }) {
 
       var indexableCheck = form && form.querySelector('#page-detail-indexable');
       if (indexableCheck) indexableCheck.addEventListener('change', function() { toggleSeoVisibility(this.checked); });
+
+      var tabInfo = document.getElementById('page-detail-tab-info');
+      var tabSeo = document.getElementById('page-detail-tab-seo');
+      var panelInfo = document.getElementById('page-detail-panel-info');
+      var panelSeo = document.getElementById('page-detail-panel-seo');
+      function switchToInfoTab() {
+        if (tabInfo) { tabInfo.classList.add('cms-page-detail-tab--active'); tabInfo.setAttribute('aria-selected', 'true'); }
+        if (tabSeo) { tabSeo.classList.remove('cms-page-detail-tab--active'); tabSeo.setAttribute('aria-selected', 'false'); }
+        if (panelInfo) panelInfo.classList.add('cms-page-detail-tabpanel--active');
+        if (panelSeo) panelSeo.classList.remove('cms-page-detail-tabpanel--active');
+      }
+      function switchToSeoTab() {
+        if (tabSeo) { tabSeo.classList.add('cms-page-detail-tab--active'); tabSeo.setAttribute('aria-selected', 'true'); }
+        if (tabInfo) { tabInfo.classList.remove('cms-page-detail-tab--active'); tabInfo.setAttribute('aria-selected', 'false'); }
+        if (panelSeo) panelSeo.classList.add('cms-page-detail-tabpanel--active');
+        if (panelInfo) panelInfo.classList.remove('cms-page-detail-tabpanel--active');
+      }
+      if (tabInfo) tabInfo.addEventListener('click', switchToInfoTab);
+      if (tabSeo) tabSeo.addEventListener('click', switchToSeoTab);
 
       var imageUploadBtn = document.getElementById('page-detail-seo-image-upload');
       var imageFileInput = document.getElementById('page-detail-seo-image-file');
@@ -287,6 +520,17 @@ function slugStr(p: { slug?: string | string[] }) {
         });
       }
 
+      var publishBtn = document.getElementById('page-detail-publish-btn');
+      var unpublishBtn = document.getElementById('page-detail-unpublish-btn');
+      if (publishBtn && form) publishBtn.addEventListener('click', function() {
+        var statusEl = form.querySelector('#page-detail-status');
+        if (statusEl) { statusEl.value = 'published'; form.requestSubmit(); }
+      });
+      if (unpublishBtn && form) unpublishBtn.addEventListener('click', function() {
+        var statusEl = form.querySelector('#page-detail-status');
+        if (statusEl) { statusEl.value = 'draft'; form.requestSubmit(); }
+      });
+
       if (newBtn) newBtn.addEventListener('click', openNew);
       document.querySelectorAll('.cms-page-edit').forEach(function(btn) {
         btn.addEventListener('click', function() { openEdit(btn.getAttribute('data-id')); });
@@ -294,6 +538,35 @@ function slugStr(p: { slug?: string | string[] }) {
       document.querySelectorAll('.cms-page-delete').forEach(function(btn) {
         btn.addEventListener('click', function() { deletePage(btn.getAttribute('data-id')); });
       });
+
+      var blockSelectModal = document.getElementById('page-detail-block-select-modal');
+      var blockSelectList = document.getElementById('page-detail-block-select-list');
+      var addBlockBtn = document.getElementById('page-detail-blocks-add');
+      if (addBlockBtn) addBlockBtn.addEventListener('click', function() {
+        if (!schemaMap || !blockSelectList) return;
+        blockSelectList.innerHTML = '';
+        for (var key in schemaMap) {
+          var s = schemaMap[key];
+          if (!s) continue;
+          var li = document.createElement('li');
+          li.className = 'cms-blocks-select-item';
+          li.setAttribute('data-type', key);
+          li.textContent = s.name || key;
+          li.addEventListener('click', function() {
+            var type = this.getAttribute('data-type');
+            if (type) { blocksList.push({ type: type, props: {} }); renderBlocksList(); }
+            if (blockSelectModal) blockSelectModal.close();
+          });
+          blockSelectList.appendChild(li);
+        }
+        if (blockSelectModal) blockSelectModal.showModal();
+      });
+      if (blockSelectModal) {
+        blockSelectModal.addEventListener('click', function(e) {
+          if (e.target.getAttribute('data-close-modal') === 'page-detail-block-select-modal' || e.target === blockSelectModal) blockSelectModal.close();
+        });
+        blockSelectModal.addEventListener('cancel', function() { blockSelectModal.close(); });
+      }
 
       dialog.addEventListener('click', function(e) {
         if (e.target.getAttribute && e.target.getAttribute('data-close-modal') === 'page-detail-modal') closeModal();
@@ -303,10 +576,33 @@ function slugStr(p: { slug?: string | string[] }) {
 
       if (form) form.addEventListener('submit', function(e) {
         e.preventDefault();
+        var blocks = window.__cmsPageBlocksList || [];
+        if (schemaMap && blocks.length > 0) {
+          for (var bi = 0; bi < blocks.length; bi++) {
+            var bl = blocks[bi];
+            var sch = schemaMap[bl.type];
+            if (!sch || !sch.items) {
+              window.cmsAlert({ message: 'Bloque en posición ' + (bi + 1) + ': tipo desconocido.', title: 'No se puede guardar' });
+              return;
+            }
+            var props = bl.props || {};
+            for (var propName in sch.items) {
+              var def = sch.items[propName];
+              if (!def || def.required !== true) continue;
+              var val = props[propName];
+              if (val === undefined || val === null) {
+                window.cmsAlert({ message: 'El bloque "' + (sch.name || bl.type) + '" requiere el campo "' + (def.label || propName) + '".', title: 'No se puede guardar' });
+                return;
+              }
+              if ((def.type === 'string' || def.type === 'text') && (typeof val !== 'string' || val.trim() === '')) {
+                window.cmsAlert({ message: 'El bloque "' + (sch.name || bl.type) + '" requiere el campo "' + (def.label || propName) + '" (no vacío).', title: 'No se puede guardar' });
+                return;
+              }
+            }
+          }
+        }
         var token = getToken();
         var id = idInput && idInput.value ? idInput.value.trim() : '';
-        var blocks = [];
-        try { blocks = JSON.parse(form.querySelector('#page-detail-blocks').value || '[]'); } catch (_) {}
         var seo = {
           title: (form.querySelector('#page-detail-seo-title') && form.querySelector('#page-detail-seo-title').value) || undefined,
           description: (form.querySelector('#page-detail-seo-description') && form.querySelector('#page-detail-seo-description').value) || undefined,
