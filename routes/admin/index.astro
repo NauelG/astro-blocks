@@ -4,33 +4,172 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
+import fs from 'node:fs/promises';
 import AdminLayout from './layout.astro';
-import { loadSite } from '../../api/data.mjs';
-import { loadPages, getPublishedPages } from '../../api/data.mjs';
+import { Globe, FileText, Menu, Users, Upload, Plus, Settings, RefreshCw, ExternalLink } from '@lucide/astro';
+import { loadSite, loadPages, getPublishedPages, loadMenus, loadUsers } from '../../api/data.mjs';
+import { getUploadsDir } from '../../utils/paths.mjs';
+
 const site = await loadSite();
 const pagesData = await loadPages();
+const menusData = await loadMenus();
+const usersData = await loadUsers();
+
+const allPages = pagesData.pages || [];
 const published = getPublishedPages(pagesData);
-const draft = (pagesData.pages || []).filter((p) => p.status === 'draft');
+const drafts = allPages.filter((p) => p.status === 'draft');
+const menus = menusData.menus || [];
+const users = usersData.users || [];
+
+const uploadCount = await (async () => {
+  try {
+    const entries = await fs.readdir(getUploadsDir(), { withFileTypes: true });
+    return entries.filter((e) => e.isFile()).length;
+  } catch {
+    return 0;
+  }
+})();
+
+const recentPages = [...allPages]
+  .sort((a, b) => {
+    const da = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const db = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+    return db - da;
+  })
+  .slice(0, 5);
 ---
 
-<AdminLayout site={site} title="CMS Dashboard">
-  <div class="cms-stack">
+<AdminLayout site={site} title="Dashboard">
+  <div class="cms-stack cms-dashboard">
+
+    <!-- Header -->
     <div class="cms-page-header">
-      <h1 class="cms-title">Dashboard</h1>
-    </div>
-    <div class="cms-grid-cards">
-      <div class="cms-card">
-        <p class="cms-muted">Publicadas</p>
-        <p style="font-size: 1.5rem; font-weight: 700; color: var(--cms-primary); margin: 0;">{published.length}</p>
+      <div>
+        <h1 class="cms-title">Dashboard</h1>
+        {site.siteName && <p class="cms-dashboard-subtitle">{site.siteName}</p>}
       </div>
-      <div class="cms-card">
-        <p class="cms-muted">Borradores</p>
-        <p style="font-size: 1.5rem; font-weight: 700; color: var(--cms-secondary); margin: 0;">{draft.length}</p>
+      <a href="/cms/pages" class="cms-btn cms-btn-primary">
+        <Plus size={13} />
+        <span>Nueva página</span>
+      </a>
+    </div>
+
+    <!-- Main grid: left (stats + recent) | right (quick actions + site link) -->
+    <div class="cms-dashboard-grid">
+
+      <!-- Left column: stats row + recent pages -->
+      <div class="cms-dashboard-left">
+
+        <div class="cms-dashboard-stats">
+          <div class="cms-card cms-dashboard-stat">
+            <div class="cms-stat-icon-wrap">
+              <Globe size={14} />
+            </div>
+            <p class="cms-stat-value cms-stat-value--primary">{published.length}</p>
+            <p class="cms-stat-label">Publicadas</p>
+          </div>
+          <div class="cms-card cms-dashboard-stat">
+            <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
+              <FileText size={14} />
+            </div>
+            <p class="cms-stat-value">{drafts.length}</p>
+            <p class="cms-stat-label">Borradores</p>
+          </div>
+          <div class="cms-card cms-dashboard-stat">
+            <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
+              <Menu size={14} />
+            </div>
+            <p class="cms-stat-value">{menus.length}</p>
+            <p class="cms-stat-label">Menús</p>
+          </div>
+          <div class="cms-card cms-dashboard-stat" data-cms-owner-only>
+            <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
+              <Users size={14} />
+            </div>
+            <p class="cms-stat-value">{users.length}</p>
+            <p class="cms-stat-label">Usuarios</p>
+          </div>
+          <div class="cms-card cms-dashboard-stat">
+            <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
+              <Upload size={14} />
+            </div>
+            <p class="cms-stat-value">{uploadCount}</p>
+            <p class="cms-stat-label">Archivos</p>
+          </div>
+        </div>
+
+        <!-- Recent pages -->
+        <div class="cms-card cms-card--no-padding cms-dashboard-recent">
+          <div class="cms-dashboard-block-header">
+            <span class="cms-dashboard-block-title">Páginas recientes</span>
+            <a href="/cms/pages" class="cms-dashboard-block-link">Ver todas</a>
+          </div>
+          {recentPages.length === 0 ? (
+            <p class="cms-dashboard-empty">Aún no hay páginas creadas.</p>
+          ) : (
+            <table class="cms-table cms-dashboard-recent-table">
+              <tbody>
+                {recentPages.map((page) => (
+                  <tr>
+                    <td class="cms-dashboard-recent-title">{page.title || '(sin título)'}</td>
+                    <td class="cms-table-cell-monospace cms-dashboard-recent-slug">{'/' + (page.slug || '').replace(/^\/+/, '')}</td>
+                    <td class="cms-dashboard-recent-status">
+                      <span class={`cms-badge ${page.status === 'published' ? 'cms-badge-success' : 'cms-badge-neutral'}`}>
+                        {page.status === 'published' ? 'Publicada' : 'Borrador'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+      </div>
+
+      <!-- Right column: quick actions + site link -->
+      <div class="cms-dashboard-right">
+
+        <!-- Quick actions -->
+        <div class="cms-card cms-dashboard-quick">
+          <p class="cms-dashboard-block-title">Acciones rápidas</p>
+          <div class="cms-dashboard-actions">
+            <a href="/cms/pages" class="cms-dashboard-action-item">
+              <Plus size={14} />
+              <span>Nueva página</span>
+            </a>
+            <a href="/cms/pages" class="cms-dashboard-action-item">
+              <FileText size={14} />
+              <span>Gestionar páginas</span>
+            </a>
+            <a href="/cms/menus" class="cms-dashboard-action-item">
+              <Menu size={14} />
+              <span>Menús</span>
+            </a>
+            <a href="/cms/settings" class="cms-dashboard-action-item" data-cms-owner-only>
+              <Settings size={14} />
+              <span>Ajustes del sitio</span>
+            </a>
+            <a href="/cms/rebuild" class="cms-dashboard-action-item">
+              <RefreshCw size={14} />
+              <span>Regenerar sitio</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Site external link -->
+        {site.baseUrl && (
+          <div class="cms-card cms-dashboard-site-link">
+            <p class="cms-dashboard-site-label">Sitio web</p>
+            <a href={site.baseUrl} target="_blank" rel="noopener noreferrer" class="cms-dashboard-external-link">
+              <ExternalLink size={13} />
+              <span>{site.baseUrl.replace(/^https?:\/\//, '')}</span>
+            </a>
+          </div>
+        )}
+
       </div>
     </div>
-    <div class="cms-cluster">
-      <a href="/cms/pages/new" class="cms-btn cms-btn-primary">Nueva página</a>
-      <a href="/cms/pages" class="cms-btn cms-btn-secondary">Editar páginas</a>
-    </div>
+
   </div>
 </AdminLayout>

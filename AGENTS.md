@@ -52,12 +52,179 @@ Al añadir rutas nuevas del panel o de la API, mantener estos prefijos y actuali
 
 ---
 
-## 3. Estilos del panel (Pico CSS, Animate.css, tema white-label)
+## 3. Estilos del panel (Pico CSS, Animate.css, tema white-label y design system)
 
 - **Tailwind eliminado.** El panel no usa Tailwind ni ninguna integración de estilos inyectada desde el plugin.
 - **Base UI:** Pico CSS (`@picocss/pico`). Se importa en `routes/admin/layout.astro` junto con Animate.css y `styles/cms-admin.css`. Orden: Pico → Animate.css → cms-admin.css para que los overrides del CMS tengan prioridad.
-- **Tema:** En el layout se inyectan en `<body class="cms-root">` las variables `--cms-primary` y `--cms-secondary` desde `site.primaryColor` y `site.secondaryColor` (Settings). En `cms-admin.css`, `.cms-root` redefine `--pico-primary` (y variantes) con `var(--cms-primary)` para que Pico use el color del tema. Todo el panel debe usar esas variables o clases `.cms-*` para mantener white-label.
-- **styles/cms-admin.css:** Overrides de Pico, layout (`.cms-wrap`, `.cms-sidebar`, `.cms-main`, `.cms-nav`, `.cms-topbar`, `.cms-login-wrap`), componentes (`.cms-card`, `.cms-btn`, `.cms-table`, `.cms-field`, `.cms-badge`), utilidades (`.cms-stack`, `.cms-cluster`, `.cms-title`, `.cms-muted`, `.cms-hidden`), animaciones (`.cms-animate-in`), Sortable (`.cms-dragging`, `.cms-drag-handle`), dropzone (`.cms-dropzone`, `.cms-dropzone--active`). **Formularios:** `.cms-form-actions` con `.cms-form-actions-left` (ej. Volver) y `.cms-form-actions-right` (Guardar, etc.); botones con misma altura (`height: 2rem`), alineados; primario sin borde, secundario/ghost con borde; diseño compacto (`.cms-field` con menor margen y fuente 0.75rem). **Modal de detalle:** usar el componente `routes/admin/components/DetailModal.astro` para crear/editar entidades; estilos `.cms-detail-modal`, `.cms-detail-modal-panel`, `.cms-detail-modal-title`, `.cms-detail-modal-body`, `.cms-detail-modal-actions` (misma línea que `.cms-form-actions`). El modal recibe `id`, `title` (opcional; se puede actualizar por JS), slot por defecto (formulario), `slot="actions-left"` (ej. Cancelar) y `slot="actions-right"` (ej. Guardar/Crear). Cerrar con `dialog.close()`; botón de cancelar con `data-close-modal="id-del-dialog"`. **Tablas:** mismo lenguaje de diseño en todas las tablas: todas las celdas con el mismo `font-size` (0.75rem). Primera columna (`.cms-table-actions`): solo botón editar (icono lápiz, `.cms-table-btn-edit`, aria-label="Editar"). Última columna (`.cms-table-actions-delete`): solo botón eliminar (icono papelera, `.cms-table-btn-delete`, rojo, aria-label="Eliminar"), alineado a la derecha. Iconos Lucide: Pencil, Trash2. **Confirmación destructiva:** no usar `confirm()` nativo; usar el componente `routes/admin/components/ConfirmDialog.astro` y `window.cmsConfirm({ message, confirmLabel?, cancelLabel? })`, que devuelve una `Promise<boolean>`. **Avisos:** no usar `alert()` nativo; usar el componente `routes/admin/components/AlertDialog.astro` y `window.cmsAlert({ message, title?, okLabel? })`, que devuelve `Promise<void>`. Criterio general: no utilizar nunca `alert()` ni `confirm()` nativos de HTML en el panel; usar siempre los diálogos del CMS (cmsConfirm, cmsAlert). El diálogo usa el mismo patrón que el modal de detalle: `<dialog>` a pantalla completa con fondo transparente y `::backdrop`; contenido en un panel centrado (`.cms-confirm-panel`) con borde, sombra y padding. Para reordenar listas: Sortable.js con `ghostClass: 'cms-dragging'`. Para upload: simple-dropzone con `cms-dropzone`. **Tips informativos:** cuando se quieran mostrar tips o información contextual en una pantalla del panel, seguir el estilo de la página de menús: una card en la parte superior con clase `.cms-menus-info-card`, icono de bombilla (Lightbulb de `@lucide/astro`) al inicio y el texto dentro de un bloque `.cms-menus-info-body` para que fluya en párrafo; tipografía 8px y estilos asociados en `cms-admin.css` (`.cms-menus-info-text`, `.cms-menus-info-icon`).
+- **Tema white-label:** En el layout se inyectan en `<body class="cms-root">` las variables `--cms-primary` y `--cms-secondary` desde `site.primaryColor` y `site.secondaryColor` (Settings). En `cms-admin.css`, `.cms-root` redefine `--pico-primary` (y variantes) con `var(--cms-primary)` para que Pico use el color del tema.
+
+### 3.1. Principios del design system
+
+El panel debe seguir siempre estos principios visuales:
+
+- **90% neutro, 10% color de acento.** El color configurable (`--cms-primary`) es un acento, no el color dominante del layout.
+- **White-label real:** el panel debe verse correcto con cualquier color primario configurable. No diseñar pensando en un azul fijo.
+- **Superficies planas:** evitar elevaciones fuertes; usar superficies claras, bordes suaves y sombras muy ligeras.
+- **Jerarquía por capas:** distinguir visualmente fondo de app, superficie de contenido y superficies de componentes (cards, tablas, modales), sin abusar del color.
+- **Compacto pero profesional:** el panel está pensado para uso frecuente; mantener densidad alta, especialmente en tablas y formularios.
+- **Decoración sutil:** se permite cierta personalidad visual, pero siempre funcional y contenida. No convertir el panel en una interfaz de marketing.
+
+### 3.2. Reglas de color y superficies
+
+- **Usar `--cms-primary` solo como acento** en:
+  - botones primarios
+  - item activo de sidebar
+  - focus states de inputs
+  - pequeños acentos interactivos
+- **No usar `--cms-primary`** en:
+  - fondos grandes del layout
+  - cabeceras de tabla
+  - fondos de cards
+  - fondos de modales
+  - superficies principales del panel
+- **Colores semánticos independientes del tema:**
+  - éxito/publicado → verde suave
+  - borrador/neutro → gris suave
+  - archivado/aviso → ámbar suave
+  - destructivo → rojo refinado
+- El layout debe apoyarse principalmente en neutros:
+  - fondo de app ligeramente gris
+  - cards y paneles en blanco o casi blanco
+  - bordes suaves
+  - hover states muy sutiles
+
+### 3.3. `styles/cms-admin.css`
+
+`cms-admin.css` es la fuente de verdad del design system del panel. Las mejoras visuales del admin deben implementarse preferentemente aquí.
+
+Clases base del sistema:
+
+- **Layout:** `.cms-wrap`, `.cms-sidebar`, `.cms-main`, `.cms-nav`, `.cms-topbar`, `.cms-footer`, `.cms-login-wrap`
+- **Superficies y componentes:** `.cms-card`, `.cms-table`, `.cms-btn`, `.cms-field`, `.cms-badge`
+- **Utilidades:** `.cms-stack`, `.cms-cluster`, `.cms-title`, `.cms-muted`, `.cms-hidden`
+- **Animaciones:** `.cms-animate-in`
+- **Drag & drop:** `.cms-dragging`, `.cms-drag-handle`
+- **Upload:** `.cms-dropzone`, `.cms-dropzone--active`
+
+### 3.4. Sidebar y topbar
+
+- **Sidebar:** debe ser una superficie neutra, separada del contenido por borde sutil.
+- El item activo debe usar `--cms-primary` de forma **suave**:
+  - tinte leve de fondo
+  - texto/icono con color primario
+  - sin “pill” gigante ni bloque excesivamente decorativo
+- Hover de navegación: sutil, sin grandes contrastes.
+- **Topbar:** fondo claro, borde inferior sutil, espaciado limpio; debe verse integrada en el shell, no como una barra decorativa.
+- **Dropdown de perfil:** panel limpio, borde suave, sombra ligera, mismo lenguaje visual que cards y modales.
+
+### 3.5. Botones
+
+- **Botones siempre flat:** no usar degradados en ningún botón.
+- Jerarquía estándar:
+  - **Primario:** fondo sólido con `--cms-primary`, texto claro
+  - **Secundario:** neutro con borde o fondo muy suave
+  - **Ghost:** mínimo, sin peso excesivo
+  - **Danger:** rojo refinado, no estridente
+- Todos los botones deben compartir:
+  - radio consistente
+  - altura consistente
+  - padding consistente
+  - transición de hover/focus sutil
+- En formularios usar `.cms-form-actions`, `.cms-form-actions-left` y `.cms-form-actions-right`.
+
+### 3.6. Formularios
+
+- Los formularios del panel deben ser **compactos y limpios**.
+- Campos con `.cms-field`, espaciado controlado y tipografía contenida.
+- Inputs, textarea y select deben compartir:
+  - borde suave
+  - radio consistente
+  - padding compacto
+  - focus state con `--cms-primary`
+- El focus visual debe reforzar usabilidad, no protagonismo decorativo.
+- Mantener consistencia entre formularios de páginas, menús, usuarios, ajustes y modales.
+
+### 3.7. Cards y paneles
+
+- Las cards deben ser **planas**, con:
+  - fondo claro
+  - borde suave
+  - sombra mínima, casi imperceptible
+- No usar elevaciones agresivas ni estilos tipo template genérico.
+- El contraste entre card y fondo debe venir más del borde y de la jerarquía del layout que de la sombra.
+
+### 3.8. Modales y diálogos
+
+- **Componente de detalle:** usar siempre `routes/admin/components/DetailModal.astro` para crear/editar entidades.
+- El panel del modal (`.cms-detail-modal-panel`) debe seguir el mismo criterio visual que `.cms-card`:
+  - superficie clara
+  - borde suave
+  - sombra ligera
+  - padding consistente
+- El modal debe tener:
+  - cabecera clara
+  - separación visual razonable con el body
+  - acciones compactas y bien alineadas
+- **Confirmaciones y avisos:** nunca usar `confirm()` ni `alert()` nativos. Usar siempre:
+  - `window.cmsConfirm(...)`
+  - `window.cmsAlert(...)`
+
+### 3.9. Tablas (lenguaje de diseño unificado)
+
+- Las tablas son un elemento central del CMS. Deben ser:
+  - compactas
+  - legibles
+  - consistentes
+  - de aspecto profesional
+- **Tipografía:** todas las celdas con `font-size: 0.75rem`.
+- **Cabecera:** fondo ligeramente diferenciado del body, texto algo más marcado que el texto secundario, con jerarquía clara.
+- **Hover de fila:** sutil; suficiente para dar vida a la tabla sin romper su densidad.
+- **Columnas de acciones:**
+  - primera columna → solo editar
+  - última columna → solo eliminar
+- **Iconos:** Pencil y Trash2 de `@lucide/astro`; mantener tamaño y grosor consistentes.
+- **Celdas técnicas:** usar `.cms-table-cell-monospace` para slugs o valores similares.
+- **Indicador indexable:** usar `.cms-indexable-dot`.
+- **Densidad:** la tabla compacta es la referencia. Si en el futuro se quiere soportar una variante más cómoda, debe hacerse como extensión explícita (por ejemplo, clase de densidad), manteniendo la compacta como default.
+
+### 3.10. Dashboard
+
+El dashboard debe seguir el mismo design system, pero con reglas específicas:
+
+- No debe parecer un panel de analítica ni un dashboard financiero.
+- Debe ser una **pantalla de control del CMS**, no una pantalla decorativa.
+- Debe aprovechar mejor el espacio horizontal y estructurarse por bloques:
+  - cabecera
+  - acciones rápidas
+  - métricas compactas
+  - bloques útiles (por ejemplo, páginas recientes / accesos rápidos)
+- No inventar métricas o gráficos sin datos reales.
+- Las cards del dashboard deben seguir el mismo criterio:
+  - fondo claro
+  - borde suave
+  - sombra mínima
+  - sin fondos de icono exagerados
+- El color primario configurable debe usarse solo como acento, también en dashboard.
+
+### 3.11. Tips y bloques informativos
+
+- Cuando se quiera mostrar información contextual o tips, seguir el patrón de la página de menús:
+  - card superior
+  - icono al inicio
+  - texto fluido dentro de `.cms-menus-info-body`
+- Mantener estilo informativo, no promocional.
+
+### 3.12. Qué NO hacer nunca en el panel
+
+- No introducir Tailwind ni frameworks visuales nuevos.
+- No usar degradados en botones.
+- No diseñar contra un color fijo; el sistema es white-label.
+- No abusar de sombras, blur o glassmorphism.
+- No convertir el admin en una landing page.
+- No romper la compacidad de tablas y formularios sin una razón clara.
+- No crear estilos ad hoc para cada pantalla si pueden resolverse dentro del sistema compartido.
+
+---
 
 ## 4. Archivos clave
 
@@ -115,6 +282,7 @@ Al añadir rutas nuevas del panel o de la API, mantener estos prefijos y actuali
 - **Nuevo tipo de prop en el contrato:** en `contract/index.mjs` (y tipos en `contract/index.d.mts`) añadir el tipo; en el panel, si hay UI generada por schema, soportar el nuevo tipo.
 - **Cambio de prefijo de rutas:** buscar y reemplazar `/cms` y `/cms/api` en plugin, admin, robots-get.mjs y README; en el catchall ajustar `getPathSegments` (p. ej. `slice(2)` para `/cms/api/...`).
 - **Al entregar cambios en el paquete:** no hacer bump de versión ni entrada en CHANGELOG hasta que la versión se dé por cerrada (ver sección 12). En el momento en que se pida hacer el commit, previamente se actualiza la versión en `package.json` y se añade la entrada en `CHANGELOG.md`.
+-  **Toda nueva pantalla o componente del panel** debe reutilizar el design system existente en `cms-admin.css`. Antes de crear clases nuevas, revisar si el caso encaja en `.cms-card`, `.cms-table`, `.cms-btn`, `.cms-field`, `.cms-badge`, `.cms-stack`, `.cms-cluster` o variantes existentes. Cualquier nueva clase visual debe mantener las reglas del sistema: white-label real, superficies planas, bordes suaves, sombras mínimas, color primario como acento y densidad compacta.
 
 ---
 

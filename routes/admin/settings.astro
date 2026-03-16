@@ -20,9 +20,12 @@ const secondaryHex = toFullHex(site.secondaryColor, '#666666');
 
 <AdminLayout site={site} title="Ajustes">
   <div class="cms-stack">
-    <h1 class="cms-title">Ajustes del sitio</h1>
-    <div class="cms-card">
-      <form id="settings-form" class="cms-form">
+    <div class="cms-page-header">
+      <h1 class="cms-title">Ajustes del sitio</h1>
+    </div>
+    <form id="settings-form" class="cms-stack">
+      <div class="cms-settings-section">
+        <p class="cms-settings-section-title">Información del sitio</p>
         <div class="cms-field">
           <label for="siteName">Nombre del sitio</label>
           <input type="text" id="siteName" name="siteName" value={site.siteName} />
@@ -39,27 +42,30 @@ const secondaryHex = toFullHex(site.secondaryColor, '#666666');
           <label for="logo">Logo (URL)</label>
           <input type="text" id="logo" name="logo" value={site.logo} />
         </div>
+      </div>
+      <div class="cms-settings-section">
+        <p class="cms-settings-section-title">Apariencia (white-label)</p>
         <div class="cms-field">
-          <label for="primaryColor">Color primario (white-label)</label>
+          <label for="primaryColor">Color primario</label>
           <div class="cms-color-field">
             <input type="color" id="primaryColor-picker" value={primaryHex} title="Elegir color" />
             <input type="text" id="primaryColor" name="primaryColor" value={site.primaryColor} placeholder="#333" maxlength="7" />
           </div>
         </div>
         <div class="cms-field">
-          <label for="secondaryColor">Color secundario (white-label)</label>
+          <label for="secondaryColor">Color secundario</label>
           <div class="cms-color-field">
             <input type="color" id="secondaryColor-picker" value={secondaryHex} title="Elegir color" />
             <input type="text" id="secondaryColor" name="secondaryColor" value={site.secondaryColor} placeholder="#666" maxlength="7" />
           </div>
         </div>
-        <div class="cms-form-actions">
-          <div class="cms-form-actions-right">
-            <button type="submit" class="cms-btn cms-btn-primary">Guardar</button>
-          </div>
+      </div>
+      <div class="cms-form-actions" style="border-top: none; padding-top: 0; margin-top: 0;">
+        <div class="cms-form-actions-right">
+          <button type="submit" class="cms-btn cms-btn-primary">Guardar ajustes</button>
         </div>
-      </form>
-    </div>
+      </div>
+    </form>
   </div>
   <script>
     (function() {

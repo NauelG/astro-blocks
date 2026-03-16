@@ -12,18 +12,23 @@ const site = await loadSite();
 
 <AdminLayout site={site} title="Regenerar sitio">
   <div class="cms-stack">
-    <h1 class="cms-title">Regenerar sitio</h1>
+    <div class="cms-page-header">
+      <h1 class="cms-title">Regenerar sitio</h1>
+    </div>
+    <div class="cms-info-callout">
+      <div class="cms-info-callout-body">
+        <p class="cms-info-callout-title">¿Cuándo usar esta acción?</p>
+        <p>
+          Al regenerar el sitio se vuelven a generar todas las páginas HTML, recursos estáticos y metadatos (sitemap, etc.) con el contenido y la configuración actuales. Es equivalente a ejecutar un build completo del proyecto (por ejemplo <code class="cms-code">npm run build</code>).
+        </p>
+        <p>
+          Úsalo cuando hayas guardado cambios en páginas, menús o ajustes y quieras que el sitio público refleje esas actualizaciones. La operación puede tardar unos segundos.
+        </p>
+      </div>
+    </div>
     <div class="cms-card">
-      <p class="cms-muted cms-rebuild-intro">
-        Al regenerar el sitio se vuelven a generar todas las páginas HTML, recursos estáticos y metadatos (sitemap, etc.) con el contenido y la configuración actuales. Es la misma acción que ejecutar un build completo del proyecto (por ejemplo <code class="cms-code">npm run build</code>).
-      </p>
-      <p class="cms-muted cms-rebuild-intro">
-        Úsalo cuando hayas guardado cambios en páginas, menús o ajustes y quieras que el sitio público se actualice. La operación puede tardar unos segundos según el tamaño del sitio.
-      </p>
-      <div class="cms-form-actions">
-        <div class="cms-form-actions-right">
-          <button type="button" id="rebuild-confirm-btn" class="cms-btn cms-btn-primary">Regenerar sitio</button>
-        </div>
+      <div class="cms-rebuild-action">
+        <button type="button" id="rebuild-confirm-btn" class="cms-btn cms-btn-primary">Regenerar sitio</button>
       </div>
     </div>
   </div>

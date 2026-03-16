@@ -9,6 +9,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.7.0] - 2026-03-16
+
+### Added
+
+- **Dashboard rediseñado:** nueva estructura en dos columnas (`cms-dashboard-grid`) con fila de métricas compactas (total/publicadas/borradores/menús), bloque de páginas recientes con tabla inline y badge de estado, bloque de acciones rápidas y card con enlace externo al sitio web.
+- **Estilos del dashboard (`cms-admin.css`):** nuevas clases `.cms-dashboard`, `.cms-dashboard-stats`, `.cms-dashboard-stat`, `.cms-dashboard-grid`, `.cms-dashboard-left/right`, `.cms-dashboard-block-header`, `.cms-dashboard-block-title`, `.cms-dashboard-block-link`, `.cms-dashboard-recent-table`, `.cms-dashboard-actions`, `.cms-dashboard-action-item`, `.cms-dashboard-site-link`, `.cms-dashboard-external-link`. Layout responsivo: dos columnas en escritorio, columna única reordenada en móvil.
+
+### Changed
+
+- **AGENTS.md §3:** sección "Estilos del panel" expandida con design system completo: 12 subsecciones (principios, reglas de color, `cms-admin.css`, sidebar/topbar, botones, formularios, cards, modales, tablas, dashboard, tips y qué NO hacer). Sustituye el párrafo monolítico anterior.
+
+---
+
 ## [0.6.2] - 2026-03-15
 
 ### Added
