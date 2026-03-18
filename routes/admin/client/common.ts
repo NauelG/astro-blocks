@@ -10,6 +10,7 @@ type CmsWindow = Window & typeof globalThis & {
   getCmsUser?: () => CmsUser;
   cmsAlert?: (options: { title?: string; message: string }) => Promise<unknown> | unknown;
   cmsConfirm?: (options: { message: string; confirmLabel?: string }) => Promise<boolean>;
+  cmsToast?: (options: { title?: string; message: string; tone?: 'success' | 'error' | 'info' }) => void;
 };
 
 export function getCmsWindow(): CmsWindow {
@@ -68,6 +69,15 @@ export async function showConfirm(message: string, confirmLabel = 'Confirmar'): 
   return confirm(message);
 }
 
+export function showToast(message: string, tone: 'success' | 'error' | 'info' = 'info', title?: string): void {
+  const api = getCmsWindow().cmsToast;
+  if (api) {
+    api({ title, message, tone });
+    return;
+  }
+  console.info(message);
+}
+
 export function openDialog(dialog: HTMLDialogElement | null): void {
   dialog?.showModal();
 }
@@ -80,4 +90,17 @@ export function escapeHtml(value: string): string {
   const div = document.createElement('div');
   div.textContent = value;
   return div.innerHTML;
+}
+
+export function formatDisplayDate(value?: string | null): string {
+  if (!value) return 'Sin fecha';
+  try {
+    return new Date(value).toLocaleDateString(undefined, {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return value;
+  }
 }

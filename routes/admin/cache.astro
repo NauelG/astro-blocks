@@ -12,20 +12,30 @@ const site = await loadSite();
 
 <AdminLayout site={site} title="Caché">
   <div class="cms-stack">
-    <div class="cms-page-header">
-      <h1 class="cms-title">Caché</h1>
-    </div>
-    <div class="cms-info-callout">
-      <div class="cms-info-callout-body">
-        <p class="cms-info-callout-title">¿Cuándo usar esta acción?</p>
-        <p>
-          <strong>Invalidar toda la caché</strong> purga la caché SSR del sitio público gestionado por AstroBlocks para que las siguientes peticiones se vuelvan a renderizar con contenido fresco.
+    <div class="cms-page-intro">
+      <div class="cms-page-intro-copy">
+        <span class="cms-page-eyebrow">Operaciones</span>
+        <div class="cms-page-header">
+          <h1 class="cms-title">Gestión de caché pública</h1>
+        </div>
+        <p class="cms-page-lead">
+          Invalida la caché SSR del sitio cuando necesites forzar contenido fresco sin esperar a la expiración natural del runtime.
         </p>
       </div>
     </div>
-    <div class="cms-card">
-      <div class="cms-rebuild-action">
-        <button type="button" id="cache-invalidate-btn" class="cms-btn cms-btn-primary">Invalidar toda la caché</button>
+    <div class="cms-cache-grid">
+      <div class="cms-card cms-cache-card">
+        <div class="cms-cache-card-copy">
+          <span class="cms-cache-card-kicker">SSR cache</span>
+          <h2 class="cms-cache-card-title">Invalidación manual de caché</h2>
+          <p class="cms-cache-card-text">
+            Purga la caché SSR del sitio público para forzar una nueva renderización con contenido fresco.
+          </p>
+          <p class="cms-cache-card-note">Úsalo solo cuando hayas publicado cambios importantes y necesites verlos reflejados al momento.</p>
+        </div>
+        <div class="cms-cache-card-action">
+          <button type="button" id="cache-invalidate-btn" class="cms-btn cms-btn-primary">Invalidar toda la caché</button>
+        </div>
       </div>
     </div>
   </div>
@@ -51,7 +61,7 @@ const site = await loadSite();
           const res = await fetch(url, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
           const payload = await readPayload(res);
           if (res.ok) {
-            await window.cmsAlert({ message: payload.message || successMessage, title: successTitle });
+            window.cmsToast?.({ title: successTitle, message: payload.message || successMessage, tone: 'success' });
           } else {
             const detail = payload.detail || payload.error || 'La operación ha fallado.';
             const exitCode = payload.exitCode !== undefined && payload.exitCode !== null ? ` (exit code ${payload.exitCode})` : '';

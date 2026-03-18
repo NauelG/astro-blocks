@@ -9,6 +9,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.10.0-alpha.1] - 2026-03-18
+
+### Added
+
+- **Block editor section in README:** nueva sección dedicada al editor de bloques como funcionalidad principal del producto, con captura actualizada del `page editor`.
+- **Criterios de release y diseño en AGENTS:** reglas explícitas para topbar mínima, sidebar sobrio, toolbars secundarias, dashboard sin bloques redundantes, builders compactos, limpieza de CSS obsoleto y uso de versiones `alpha` con tags de git.
+
+### Changed
+
+- **Rediseño del admin:** shell, dashboard, listados, formularios, botones, topbar, sidebar y tablas se compactan y alinean hacia una dirección visual más SaaS/CMS, sin cambiar contratos públicos ni añadir dependencias.
+- **Dashboard:** nueva composición operativa con resumen principal, métricas compactas, acciones rápidas, actividad reciente y card de sitio/branding; se elimina la card redundante de estado del workspace.
+- **Listados y toolbars:** barras de búsqueda y filtros pasan a ser elementos secundarios y más discretos; tablas y acciones mantienen mayor densidad visual y mejor legibilidad.
+- **Editor de páginas:** tarjetas de bloque y selector de bloques simplificados; se eliminan chips/pseudo-iconos irrelevantes y se refuerza el enfoque builder compacto.
+- **Editor de menús:** builder rediseñado con items principales colapsables, submenús inline, apertura más robusta del detalle y menor ruido visual general.
+- **Página de caché:** simplificada a una única card operativa con una sola acción principal y menos información redundante.
+- **Assets y documentación pública:** `dashboard.png` y `page_editor.png` se convierten a `.jpg`, y la documentación pública pasa a referenciar los nuevos assets.
+
+### Fixed
+
+- **Dropdown de usuario:** correcciones de interacción, z-index, hover/focus y posicionamiento para que funcione de forma consistente en desktop y responsive.
+- **Responsive de topbar:** menú hamburguesa visible, estructura móvil más limpia y menor desorden visual en pantallas estrechas.
+- **Menú lateral:** restaurado `text-decoration: none` para evitar subrayado accidental en los enlaces de navegación.
+
 ## [0.9.0] - 2026-03-18
 
 ### Added

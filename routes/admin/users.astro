@@ -13,9 +13,36 @@ const site = await loadSite();
 
 <AdminLayout site={site} title="Usuarios">
   <div class="cms-stack">
-    <div class="cms-page-header">
-      <h1 class="cms-title">Usuarios</h1>
-      <button type="button" id="cms-users-add-btn" class="cms-btn cms-btn-primary">Añadir usuario</button>
+    <div class="cms-page-intro">
+      <div class="cms-page-intro-copy">
+        <span class="cms-page-eyebrow">Equipo</span>
+        <div class="cms-page-header">
+          <h1 class="cms-title">Accesos y roles del panel</h1>
+        </div>
+        <p class="cms-page-lead">
+          Administra los usuarios del CMS, controla quién puede editar el contenido y mantén el acceso del proyecto bajo una jerarquía clara.
+        </p>
+      </div>
+      <div class="cms-page-actions">
+        <button type="button" id="cms-users-add-btn" class="cms-btn cms-btn-primary">Añadir usuario</button>
+      </div>
+    </div>
+    <div class="cms-toolbar">
+      <div class="cms-toolbar-group">
+        <div class="cms-field cms-toolbar-search">
+          <input type="search" id="cms-users-search" placeholder="Buscar por email" />
+        </div>
+        <div class="cms-field">
+          <select id="cms-users-role-filter" aria-label="Filtrar por rol">
+            <option value="all">Todos los roles</option>
+            <option value="owner">Propietarios</option>
+            <option value="user">Usuarios</option>
+          </select>
+        </div>
+      </div>
+      <div class="cms-toolbar-meta">
+        <span class="cms-results-count" id="cms-users-count">0 usuarios</span>
+      </div>
     </div>
     <p id="cms-users-error" class="cms-muted cms-hidden" role="alert"></p>
     <p id="cms-users-loading" class="cms-muted">Cargando…</p>
@@ -33,6 +60,13 @@ const site = await loadSite();
           </thead>
           <tbody id="cms-users-tbody"></tbody>
         </table>
+      </div>
+      <div id="cms-users-empty" class="cms-empty-state cms-hidden" style="margin: 1rem;">
+        <p class="cms-empty-state-title">No hay usuarios que coincidan</p>
+        <p class="cms-empty-state-text">Prueba otra búsqueda o crea un nuevo usuario para ampliar el acceso al panel.</p>
+        <div class="cms-empty-state-actions">
+          <button type="button" class="cms-btn cms-btn-primary" data-open-users-new>Añadir usuario</button>
+        </div>
       </div>
     </div>
   </div>
@@ -69,7 +103,7 @@ const site = await loadSite();
         function initWithUser(u) {
           if (!u || u.role !== 'owner') { if (typeof window !== 'undefined') window.location.href = '/cms'; return; }
           if (window.getCmsUser && !window.getCmsUser()) try { sessionStorage.setItem('cms-user', JSON.stringify(u)); } catch (_) {}
-          initPage(token, u);
+          initPage(token);
         }
         if (user) { initWithUser(user); return; }
         fetch('/cms/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
@@ -77,12 +111,16 @@ const site = await loadSite();
           .then(function(data) { initWithUser(data ? data.user : null); })
           .catch(function() { initWithUser(null); });
       }
-      function initPage(token, user) {
+      function initPage(token) {
         var headers = function() { return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }; };
         var loadingEl = document.getElementById('cms-users-loading');
         var listWrap = document.getElementById('cms-users-list-wrap');
         var tbody = document.getElementById('cms-users-tbody');
         var errorEl = document.getElementById('cms-users-error');
+        var countEl = document.getElementById('cms-users-count');
+        var emptyEl = document.getElementById('cms-users-empty');
+        var searchInput = document.getElementById('cms-users-search');
+        var roleFilter = document.getElementById('cms-users-role-filter');
         var dialog = document.getElementById('user-detail-modal');
         var form = document.getElementById('user-detail-form');
         var titleEl = dialog && dialog.querySelector('[data-detail-modal-title]');
@@ -92,13 +130,14 @@ const site = await loadSite();
         var passwordInput = document.getElementById('user-detail-password');
         var roleSelect = document.getElementById('user-detail-role');
         var submitBtn = document.getElementById('user-detail-submit');
+        var usersState = [];
 
         function setError(msg) {
           if (errorEl) { errorEl.textContent = msg || ''; errorEl.classList.toggle('cms-hidden', !msg); }
         }
         function formatDate(iso) {
-          if (!iso) return '—';
-          try { return new Date(iso).toLocaleDateString(undefined, { dateStyle: 'short' }); } catch (e) { return iso; }
+          if (!iso) return 'Sin fecha';
+          try { return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }); } catch (e) { return iso; }
         }
         function closeModal() { if (dialog) dialog.close(); }
         function openModal() { if (dialog) dialog.showModal(); }
@@ -106,7 +145,19 @@ const site = await loadSite();
           if (titleEl) titleEl.textContent = label;
           if (submitBtn) submitBtn.textContent = submitLabel;
         }
-
+        function getFilteredUsers() {
+          var query = searchInput && searchInput.value ? searchInput.value.trim().toLowerCase() : '';
+          var role = roleFilter && roleFilter.value ? roleFilter.value : 'all';
+          return usersState.filter(function(entry) {
+            var matchesQuery = !query || (entry.email || '').toLowerCase().indexOf(query) !== -1;
+            var matchesRole = role === 'all' || entry.role === role;
+            return matchesQuery && matchesRole;
+          });
+        }
+        function updateMeta(list) {
+          if (countEl) countEl.textContent = list.length + ' usuarios';
+          if (emptyEl) emptyEl.classList.toggle('cms-hidden', list.length > 0);
+        }
         function openNew() {
           if (idInput) idInput.value = '';
           if (emailInput) { emailInput.value = ''; emailInput.disabled = false; }
@@ -116,7 +167,6 @@ const site = await loadSite();
           setFormTitle('Nuevo usuario', 'Crear');
           openModal();
         }
-
         function openEdit(u) {
           if (!u) return;
           if (idInput) idInput.value = u.id;
@@ -130,21 +180,32 @@ const site = await loadSite();
 
         var pencilSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
         var trashSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
-        function renderRow(u, ownerCount) {
-          var tr = document.createElement('tr');
-          var canDelete = u.role !== 'owner' || ownerCount > 1;
-          var deleteBtn = canDelete
-            ? '<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="' + u.id + '" aria-label="Eliminar">' + trashSvg + '</button>'
-            : '<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="' + u.id + '" disabled aria-label="Eliminar" title="No se puede eliminar al único propietario">' + trashSvg + '</button>';
-          tr.innerHTML =
-            '<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-user-edit" data-id="' + u.id + '" aria-label="Editar">' + pencilSvg + '</button></td>' +
-            '<td>' + (u.email || '') + '</td>' +
-            '<td><span class="cms-badge ' + (u.role === 'owner' ? 'cms-badge-success' : 'cms-badge-neutral') + '">' + (u.role === 'owner' ? 'Propietario' : 'Usuario') + '</span></td>' +
-            '<td>' + formatDate(u.createdAt) + '</td>' +
-            '<td class="cms-table-actions-delete">' + deleteBtn + '</td>';
-          return tr;
+        function renderUsers() {
+          var list = getFilteredUsers();
+          var ownerCount = usersState.filter(function(entry) { return entry.role === 'owner'; }).length;
+          if (tbody) tbody.innerHTML = '';
+          if (listWrap) listWrap.classList.remove('cms-hidden');
+          updateMeta(list);
+          list.forEach(function(u) {
+            if (!tbody) return;
+            var tr = document.createElement('tr');
+            var canDelete = u.role !== 'owner' || ownerCount > 1;
+            tr.innerHTML =
+              '<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-user-edit" data-id="' + u.id + '" aria-label="Editar">' + pencilSvg + '</button></td>' +
+              '<td>' + (u.email || '') + '</td>' +
+              '<td><span class="cms-badge ' + (u.role === 'owner' ? 'cms-badge-success' : 'cms-badge-neutral') + '">' + (u.role === 'owner' ? 'Propietario' : 'Usuario') + '</span></td>' +
+              '<td>' + formatDate(u.createdAt) + '</td>' +
+              '<td class="cms-table-actions-delete">' +
+                (canDelete
+                  ? '<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="' + u.id + '" aria-label="Eliminar">' + trashSvg + '</button>'
+                  : '<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="' + u.id + '" disabled aria-label="Eliminar" title="No se puede eliminar al único propietario">' + trashSvg + '</button>') +
+              '</td>';
+            tbody.appendChild(tr);
+            tr.querySelector('.cms-user-edit').addEventListener('click', function() { openEdit(u); });
+            var delBtn = tr.querySelector('.cms-user-delete');
+            if (delBtn && !delBtn.disabled) delBtn.addEventListener('click', function() { deleteUser(u.id); });
+          });
         }
-
         function loadUsers() {
           setError('');
           if (loadingEl) loadingEl.classList.remove('cms-hidden');
@@ -157,27 +218,15 @@ const site = await loadSite();
             })
             .then(function(data) {
               if (!data) return;
+              usersState = data.users || [];
               if (loadingEl) loadingEl.classList.add('cms-hidden');
-              if (listWrap) listWrap.classList.remove('cms-hidden');
-              var users = data.users || [];
-              var ownerCount = users.filter(function(u) { return u.role === 'owner'; }).length;
-              if (tbody) {
-                tbody.innerHTML = '';
-                users.forEach(function(u) {
-                  var row = renderRow(u, ownerCount);
-                  tbody.appendChild(row);
-                  row.querySelector('.cms-user-edit').addEventListener('click', function() { openEdit(u); });
-                  var delBtn = row.querySelector('.cms-user-delete');
-                  if (!delBtn.disabled) delBtn.addEventListener('click', function() { deleteUser(u.id); });
-                });
-              }
+              renderUsers();
             })
             .catch(function(err) {
               if (loadingEl) loadingEl.classList.add('cms-hidden');
               setError(err.message || 'Error al cargar');
             });
         }
-
         function deleteUser(id) {
           if (!id) return;
           window.cmsConfirm({ message: '¿Eliminar este usuario?', confirmLabel: 'Eliminar' }).then(function(ok) {
@@ -185,7 +234,11 @@ const site = await loadSite();
             setError('');
             fetch('/cms/api/users/' + id, { method: 'DELETE', headers: headers() })
               .then(function(r) {
-                if (r.status === 204) { loadUsers(); return; }
+                if (r.status === 204) {
+                  window.cmsToast && window.cmsToast({ title: 'Usuarios', message: 'Usuario eliminado.', tone: 'success' });
+                  loadUsers();
+                  return;
+                }
                 return r.json().then(function(data) { throw new Error(data.error || 'Error al eliminar'); });
               })
               .catch(function(err) { setError(err.message || 'Error al eliminar'); });
@@ -193,6 +246,9 @@ const site = await loadSite();
         }
 
         document.getElementById('cms-users-add-btn').addEventListener('click', openNew);
+        document.querySelector('[data-open-users-new]')?.addEventListener('click', openNew);
+        searchInput?.addEventListener('input', renderUsers);
+        roleFilter?.addEventListener('change', renderUsers);
 
         if (dialog) {
           dialog.addEventListener('click', function(e) {
@@ -219,6 +275,7 @@ const site = await loadSite();
               .then(function(res) {
                 if (!res.ok) throw new Error(res.data.error || 'Error al guardar');
                 closeModal();
+                window.cmsToast && window.cmsToast({ title: 'Usuarios', message: 'Usuario actualizado.', tone: 'success' });
                 loadUsers();
               })
               .catch(function(err) { setError(err.message || 'Error al guardar'); });
@@ -228,6 +285,7 @@ const site = await loadSite();
               .then(function(res) {
                 if (!res.ok) throw new Error(res.data.error || 'Error al crear');
                 closeModal();
+                window.cmsToast && window.cmsToast({ title: 'Usuarios', message: 'Usuario creado.', tone: 'success' });
                 loadUsers();
               })
               .catch(function(err) { setError(err.message || 'Error al crear'); });

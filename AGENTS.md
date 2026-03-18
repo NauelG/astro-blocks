@@ -58,7 +58,7 @@ lib/astro-blocks/
 
 Al añadir rutas nuevas del panel o de la API, mantener estos prefijos y actualizar enlaces y `fetch()` en los .astro del admin.
 
-**Estructura del panel:** `layout.astro` incluye topbar (logo/título + perfil con dropdown “Salir”), sidebar con menú agrupado (Dashboard; Contenido: Páginas, Menús; Configuración: Ajustes, Caché), y **footer fijo** (`.cms-footer`) con el logo de AstroBlocks (`img/blocks_logo.jpg`, optimizado con `astro:assets`), nombre y versión. El contenido hace scroll entre topbar y footer. Iconos con `@lucide/astro`. La pantalla `/cms/cache` se usa para invalidación total de caché; no lanza builds ni va en el formulario de edición de página.
+**Estructura del panel:** `layout.astro` incluye topbar mínima y contextual (título de vista, pill del sitio si aplica, CTA `Ver sitio` y perfil con dropdown reducido a acciones realmente necesarias, actualmente `Salir`), sidebar con menú agrupado (Dashboard; Contenido: Páginas, Menús; Configuración: Ajustes, Caché), y **footer fijo** (`.cms-footer`) con el logo de AstroBlocks (`img/blocks_logo.jpg`, optimizado con `astro:assets`), nombre y versión. El contenido hace scroll entre topbar y footer. Iconos con `@lucide/astro`. El branding lateral debe mantenerse deliberadamente sobrio: logo + texto `Content platform`, sin duplicar el nombre del producto. La pantalla `/cms/cache` se usa para invalidación total de caché; no lanza builds ni va en el formulario de edición de página.
 
 ---
 
@@ -78,6 +78,8 @@ El panel debe seguir siempre estos principios visuales:
 - **Jerarquía por capas:** distinguir visualmente fondo de app, superficie de contenido y superficies de componentes (cards, tablas, modales), sin abusar del color.
 - **Compacto pero profesional:** el panel está pensado para uso frecuente; mantener densidad alta, especialmente en tablas y formularios.
 - **Decoración sutil:** se permite cierta personalidad visual, pero siempre funcional y contenida. No convertir el panel en una interfaz de marketing.
+- **Diseño por sustracción:** ante la duda, quitar antes que añadir. Evitar información duplicada, cards redundantes, labels repetidas y bloques que compitan entre sí sin aportar claridad.
+- **Jerarquía tranquila:** topbar, toolbars, tips y bloques auxiliares deben sentirse secundarios respecto al contenido principal; no deben tener el mismo peso visual que una card operativa o una tabla.
 
 ### 3.2. Reglas de color y superficies
 
@@ -124,8 +126,12 @@ Clases base del sistema:
   - texto/icono con color primario
   - sin “pill” gigante ni bloque excesivamente decorativo
 - Hover de navegación: sutil, sin grandes contrastes.
+- **Branding del sidebar:** mantenerlo mínimo. El patrón actual de referencia es logo + `Content platform`; no duplicar ahí el nombre `AstroBlocks` si ya está presente en otros contextos del shell.
 - **Topbar:** fondo claro, borde inferior sutil, espaciado limpio; debe verse integrada en el shell, no como una barra decorativa.
+- **Topbar mínima:** no repetir marca o contexto ya visible en la navegación. La topbar no debe mostrar información redundante como una segunda línea de producto o acciones duplicadas.
+- **Acción `Ver sitio`:** debe existir en un único punto principal de navegación contextual. Si ya está en topbar o en acciones de página, no duplicarla en el dropdown de perfil.
 - **Dropdown de perfil:** panel limpio, borde suave, sombra ligera, mismo lenguaje visual que cards y modales.
+- **Dropdown de perfil:** mantenerlo corto. Debe contener solo acciones de sesión o perfil; no usarlo como segundo menú de navegación.
 
 ### 3.5. Botones
 
@@ -140,6 +146,7 @@ Clases base del sistema:
   - altura consistente
   - padding consistente
   - transición de hover/focus sutil
+- En la dirección actual del producto, los botones deben ser ligeramente compactos: evitar alturas “grandes de marketing” o CTAs sobredimensionados.
 - En formularios usar `.cms-form-actions`, `.cms-form-actions-left` y `.cms-form-actions-right`.
 
 ### 3.6. Formularios
@@ -153,6 +160,7 @@ Clases base del sistema:
   - focus state con `--cms-primary`
 - El focus visual debe reforzar usabilidad, no protagonismo decorativo.
 - Mantener consistencia entre formularios de páginas, menús, usuarios, ajustes y modales.
+- En builders o formularios repetitivos (por ejemplo, editor de menús), preferir edición inline compacta frente a stacks largos de labels repetidas cuando la semántica siga siendo clara.
 
 ### 3.7. Cards y paneles
 
@@ -197,6 +205,18 @@ Clases base del sistema:
 - **Indicador indexable:** usar `.cms-indexable-dot`.
 - **Densidad:** la tabla compacta es la referencia. Si en el futuro se quiere soportar una variante más cómoda, debe hacerse como extensión explícita (por ejemplo, clase de densidad), manteniendo la compacta como default.
 
+### 3.9.1. Toolbars de listados
+
+- La barra de búsqueda/filtros de los listados es un elemento **secundario**, no una cabecera protagonista.
+- Debe ser más ligera que las cards principales:
+  - menor contraste
+  - menor tamaño tipográfico
+  - menor altura de controles
+  - menos padding y separación
+- El buscador no debe ocupar más ancho del necesario ni parecer un formulario principal.
+- Los `select` deben mostrar claramente su affordance, pero sin ganar demasiado peso visual.
+- El contador de resultados debe ser discreto.
+
 ### 3.10. Dashboard
 
 El dashboard debe seguir el mismo design system, pero con reglas específicas:
@@ -209,12 +229,21 @@ El dashboard debe seguir el mismo design system, pero con reglas específicas:
   - métricas compactas
   - bloques útiles (por ejemplo, páginas recientes / accesos rápidos)
 - No inventar métricas o gráficos sin datos reales.
+- Si un bloque no aporta capacidad operativa clara, eliminarlo en lugar de rellenar el dashboard con contexto redundante.
+- Evitar cards de “estado” demasiado narrativas si ya existen métricas y acciones que explican el estado del proyecto.
 - Las cards del dashboard deben seguir el mismo criterio:
   - fondo claro
   - borde suave
   - sombra mínima
   - sin fondos de icono exagerados
 - El color primario configurable debe usarse solo como acento, también en dashboard.
+- La referencia actual es un dashboard compacto con:
+  - una card principal de resumen
+  - métricas compactas
+  - acciones rápidas
+  - actividad reciente
+  - una card secundaria de sitio y branding
+- No volver a introducir una card equivalente a “Estado del workspace” salvo que exista una necesidad real y nuevos datos que la justifiquen.
 
 ### 3.11. Tips y bloques informativos
 
@@ -223,8 +252,21 @@ El dashboard debe seguir el mismo design system, pero con reglas específicas:
   - icono al inicio
   - texto fluido dentro de `.cms-menus-info-body`
 - Mantener estilo informativo, no promocional.
+- Si una pantalla puede resolverse con una única card operativa clara, preferir eso a combinar varios bloques informativos con contenido parcialmente repetido. La página de caché es referencia de este criterio.
 
-### 3.12. Qué NO hacer nunca en el panel
+### 3.12. Builders: páginas y menús
+
+- **Editor de páginas:** es la funcionalidad principal del producto y debe seguir siendo un builder compacto y legible.
+- En las tarjetas de bloque:
+  - priorizar nombre + resumen + acciones
+  - evitar “pseudo-iconos” o chips de letras que no aporten significado real
+  - mantener acciones pequeñas y discretas
+- El selector de bloques debe ser sobrio y compacto; no convertirlo en una galería decorativa.
+- **Editor de menús:** debe sentirse como una estructura editable clara, no como una tabla recargada ni un formulario expandido por defecto.
+- Los ítems de menú deben mostrarse colapsados por defecto con un resumen breve y expansión puntual.
+- Los submenús deben representarse como filas inline compactas, con drag handle, nombre, ruta y eliminar; evitar mini-cards o cabeceras internas innecesarias.
+
+### 3.13. Qué NO hacer nunca en el panel
 
 - No introducir Tailwind ni frameworks visuales nuevos.
 - No usar degradados en botones.
@@ -233,6 +275,19 @@ El dashboard debe seguir el mismo design system, pero con reglas específicas:
 - No convertir el admin en una landing page.
 - No romper la compacidad de tablas y formularios sin una razón clara.
 - No crear estilos ad hoc para cada pantalla si pueden resolverse dentro del sistema compartido.
+- No duplicar información entre topbar, sidebar, dropdowns y acciones de página.
+- No introducir nuevamente bloques informativos redundantes “por completar” una pantalla.
+- No dejar reglas viejas y nuevas conviviendo para el mismo selector en `cms-admin.css` si el estilo anterior ya no forma parte del diseño final.
+- No dejar cambios colaterales en el playground o datos de ejemplo cuando no formen parte explícita de la iteración.
+
+### 3.14. Mantenibilidad del front
+
+- `cms-admin.css` debe mantenerse como fuente de verdad, pero no como acumulador de capas muertas. Cuando una iteración sustituya reglas anteriores de shell, navegación, topbar o builders, limpiar las definiciones antiguas ya pisadas.
+- Si un módulo cliente del admin crece con grandes strings HTML repetidos, extraer helpers pequeños de render antes de seguir ampliándolo. La prioridad es mejorar legibilidad sin cambiar el comportamiento.
+- Antes de cerrar una iteración visual importante:
+  - comprobar que no quedan selectores obsoletos sin uso
+  - comprobar que no hay cambios de datos incidentales en playgrounds
+  - pasar al menos `npm run typecheck` y `npm test`
 
 ---
 
@@ -277,6 +332,7 @@ El dashboard debe seguir el mismo design system, pero con reglas específicas:
 - **Componente:** Usar `routes/admin/components/DetailModal.astro`. Props: `id` (id del `<dialog>`), `title` (opcional). Slots: contenido por defecto (formulario con clase `cms-form`, campos con `cms-field`), `slot="actions-left"` (ej. botón Cancelar con `data-close-modal="id"`), `slot="actions-right"` (botón Guardar/Crear; puede usar `form="id-del-form"` si el form está en el slot por defecto).
 - **Comportamiento:** Al abrir para **crear**: vaciar el formulario, poner título ej. "Nueva entidad", botón "Crear". Al abrir para **editar**: cargar datos (p. ej. `GET /cms/api/entidad` y localizar por id), rellenar el formulario, título "Editar entidad", botón "Guardar". Cerrar con `dialog.close()`; al enviar el form, llamar a la API (POST o PUT), cerrar modal y refrescar lista (o `location.reload()`).
 - **Formulario de página (SEO):** Campos predefinidos (título SEO, descripción, canonical, imagen con botón "Subir imagen", nofollow). El bloque de campos SEO (`#page-detail-seo-fields`) se muestra u oculta según el checkbox "Indexable"; si no indexable, se muestra el hint `#page-detail-seo-hidden-hint`. En PUT, el body envía `seo` como objeto; el handler hace merge con `existing.seo` para preservar claves extra.
+- **Editor de bloques:** El builder de página debe mantener la jerarquía actual: metadata/SEO por un lado y lista de bloques por otro. Las tarjetas de bloque deben ser compactas, con resumen visible, sin adornos innecesarios y con affordance claro para expandir, duplicar, eliminar y reordenar.
 - **Estilos:** El panel del modal (`.cms-detail-modal-panel`) sigue el mismo criterio que `.cms-card` (borde, sombra, padding). Los botones y campos usan `.cms-form-actions`, `.cms-btn`, `.cms-field` como en el resto del panel.
 
 ## 8. Tablas (lenguaje de diseño unificado)
@@ -293,7 +349,7 @@ El dashboard debe seguir el mismo design system, pero con reglas específicas:
 - **Nueva pantalla del panel (listado + detalle):** crear `routes/admin/nombre.astro` con la tabla/listado y un **DetailModal** para crear/editar; inyectar en el plugin `injectRoute({ pattern: '/cms/nombre', entrypoint: ... })`, enlazar desde `layout.astro`. No crear páginas separadas para "nuevo" o "editar"; usar siempre el modal en la misma pantalla que el listado. **Tablas:** seguir el lenguaje de diseño unificado (sección 8): primera columna solo editar (lápiz), última columna solo eliminar (papelera roja) si aplica; font-size 0.75rem; para eliminar usar `window.cmsConfirm`. Ver `pages.astro` y `users.astro` como referencia.
 - **Nueva pantalla sin listado (ej. ajustes o caché):** crear `routes/admin/nombre.astro` sin modal (ej. `settings.astro`, `cache.astro`).
 - **Nuevo endpoint API:** en `handlers.ts` añadir la función; en `routes/api/catchall.ts` despachar por método y segmentos; en el admin usar `fetch('/cms/api/...')`.
-- **Menús:** Estructura en `data/menus.json`: `{ menus: [ { id, name, selector, items } ] }`; cada ítem tiene `name`, `path` y opcionalmente `children` (submenús anidados). API: GET/POST `/cms/api/menus`, PUT/DELETE `/cms/api/menus/:id`. Selector: solo `[a-zA-Z0-9_-]`, único. Ruta obligatoria en todos los ítems; validación en cliente y API. Reordenación de ítems y submenús con Sortable.js (`ghostClass: 'cms-dragging'`, handle `.cms-drag-handle`). `getMenu(selector)` devuelve ítems con `children` para el sitio.
+- **Menús:** Estructura en `data/menus.json`: `{ menus: [ { id, name, selector, items } ] }`; cada ítem tiene `name`, `path` y opcionalmente `children` (submenús anidados). API: GET/POST `/cms/api/menus`, PUT/DELETE `/cms/api/menus/:id`. Selector: solo `[a-zA-Z0-9_-]`, único. Ruta obligatoria en todos los ítems; validación en cliente y API. Reordenación de ítems y submenús con Sortable.js (`ghostClass: 'cms-dragging'`, handle `.cms-drag-handle`). `getMenu(selector)` devuelve ítems con `children` para el sitio. La UI del builder debe seguir la dirección actual: tarjetas resumidas y colapsables para ítems principales, submenús inline y máxima compacidad visual compatible con claridad.
 - **Nuevo tipo de prop en el contrato:** en `contract/index.ts` y `types/index.ts` añadir el tipo; en el panel, si hay UI generada por schema, soportar el nuevo tipo.
 - **Cambio de prefijo de rutas:** buscar y reemplazar `/cms` y `/cms/api` en plugin, admin, robots-get.ts y README; en el catchall ajustar `getPathSegments` (p. ej. `slice(2)` para `/cms/api/...`).
 - **Al entregar cambios en el paquete:** no hacer bump de versión ni entrada en CHANGELOG hasta que la versión se dé por cerrada (ver sección 12). En el momento en que se pida hacer el commit, previamente se actualiza la versión en `package.json` y se añade la entrada en `CHANGELOG.md`.
@@ -351,13 +407,25 @@ El README debe mantenerse **100% orientado al consumidor**. Al actualizarlo o am
 
 ### Versionado y CHANGELOG
 
+- **Estado actual de release:** Mientras AstroBlocks no esté estabilizado ni publicado en npm, las versiones deben tratarse como **prereleases internas**.
+- **Formato de versión actual:** usar `0.x.y-alpha.N`.
+  - Ejemplos: `0.9.0-alpha.1`, `0.9.0-alpha.2`, `0.10.0-alpha.1`.
+  - `patch` para fixes, refinamientos visuales, docs o ajustes menores.
+  - `minor` para nuevas capacidades o cambios amplios de UX/flujo.
+  - Mantener sufijo `alpha.N` mientras el producto siga moviéndose con libertad en diseño, UX o contratos.
 - **Cuándo actualizar:** No se crea la versión ni la entrada en el CHANGELOG hasta que la versión se dé por **cerrada** y se decida hacer el commit. Durante el desarrollo o al entregar cambios, el agente no debe hacer bump de versión ni tocar el CHANGELOG. En el momento en que el usuario pida **hacer el commit**, previamente se hace: (1) incrementar `version` en `package.json`, (2) añadir la entrada en `CHANGELOG.md`; después se realiza el commit. Ver también sección 10 (compatibilidad: sin fallback).
-- **Versión:** al cerrar versión, incrementar `version` en `package.json` según semver: *patch* (0.0.X) para docs, fixes o cambios menores; *minor* (0.X.0) para nuevas funcionalidades compatibles; *major* (X.0.0) para cambios incompatibles.
+- **Checklist de cierre de versión:** Antes de cerrar una versión, comprobar:
+  - que el alcance de la iteración está realmente terminado
+  - que `npm run typecheck` pasa
+  - que `npm test` pasa
+  - que no quedan cambios incidentales en playgrounds o datos de ejemplo
+  - que el resultado está validado funcional y visualmente
 - **CHANGELOG:** Formato [Keep a Changelog](https://keepachangelog.com/en/1.0.0/):
   - Nueva entrada al **inicio** del archivo, bajo el título "Changelog".
   - Encabezado: `## [X.Y.Z] - AAAA-MM-DD`.
   - Bloques `### Added`, `### Changed`, `### Fixed`, `### Removed` según corresponda.
   - Descripción breve y clara de cada cambio; enlaces a archivos o secciones si ayuda.
+- **Fases futuras:** pasar a `beta` cuando la arquitectura y UX principal estén bastante cerradas; usar `rc` cuando solo se esperen fixes antes de estable; `1.0.0` cuando se quiera compromiso real de estabilidad.
 
 ---
 
@@ -384,6 +452,15 @@ Formato de la primera línea: `<tipo>[ámbito opcional]: <descripción>`.
 
 - **Reviewed-by:** Todo commit debe incluir en el footer el trailer `Reviewed-by: <nombre> <email>`, donde nombre y email son los del **usuario Git que ejecuta** el commit (`git config user.name`, `git config user.email`). Identifica a la persona que revisa/ejecuta el cambio.
 - **Sin etiquetas del agente:** No añadir en los commits ninguna etiqueta ni meta-etiqueta que identifique al agente o herramienta que generó el código (p. ej. Co-authored-by de un bot, "Generated-by", "Agent: …"). El historial refleja solo autores humanos y el Reviewed-by del usuario que ejecuta.
+
+### Tags de git
+
+- Aunque AstroBlocks no esté publicado todavía en npm, **sí deben crearse tags de git** al cerrar cada versión.
+- **Formato del tag:** `vX.Y.Z-alpha.N` mientras el proyecto siga en alpha.
+  - Ejemplo: `v0.9.0-alpha.1`
+- **Momento de creación:** el tag se crea justo después del commit de release, no antes.
+- **Criterio:** solo taggear versiones realmente cerradas, con `package.json` y `CHANGELOG.md` ya actualizados y la validación técnica completada.
+- **npm:** Hasta próximo aviso, no asumir publicación en npm como parte del cierre de versión. El flujo oficial sigue siendo `npm pack` + playground local, y los tags sirven como hitos internos de release.
 
 ---
 

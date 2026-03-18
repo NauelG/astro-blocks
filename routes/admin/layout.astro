@@ -8,7 +8,7 @@ import { Image } from 'astro:assets';
 import '@picocss/pico/css/pico.min.css';
 import 'animate.css';
 import '../../styles/cms-admin.css';
-import { LayoutDashboard, FileText, Menu, Settings, RefreshCw, User, LogOut, Users } from '@lucide/astro';
+import { LayoutDashboard, FileText, Menu, Settings, RefreshCw, User, LogOut, Users, ExternalLink } from '@lucide/astro';
 import ConfirmDialog from './components/ConfirmDialog.astro';
 import AlertDialog from './components/AlertDialog.astro';
 import pkg from '../../package.json' with { type: 'json' };
@@ -68,23 +68,53 @@ function isActive(href: string) {
       </div>
       <div id="admin-content" class="cms-hidden cms-panel">
         <header class="cms-topbar" role="banner">
-          <div class="cms-topbar-brand">
-            {site.logo ? <img src={site.logo} alt="" class="cms-topbar-logo" /> : <span class="cms-topbar-title">Panel</span>}
-          </div>
-          <div class="cms-topbar-profile">
-            <button type="button" class="cms-topbar-profile-trigger" id="cms-profile-trigger" aria-haspopup="true" aria-expanded="false" aria-label="Menú de usuario">
-              <User class="cms-topbar-profile-icon" size={14} />
-            </button>
-            <div class="cms-topbar-dropdown" id="cms-profile-dropdown" role="menu">
-              <button type="button" class="cms-topbar-dropdown-item" id="cms-logout-btn" role="menuitem">
-                <LogOut class="cms-topbar-dropdown-icon" size={14} />
-                <span>Salir</span>
+          <div class="cms-topbar-shell">
+            <div class="cms-topbar-context">
+              <button
+                type="button"
+                class="cms-topbar-nav-toggle"
+                id="cms-sidebar-toggle"
+                aria-label="Abrir navegación"
+                aria-expanded="false"
+                aria-controls="cms-sidebar"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
+                  <path d="M4 7h16" />
+                  <path d="M4 12h16" />
+                  <path d="M4 17h16" />
+                </svg>
+              </button>
+              <div class="cms-topbar-brand">
+                <div class="cms-topbar-heading-row">
+                  <span class="cms-topbar-title">{title}</span>
+                  {site.siteName && <span class="cms-topbar-site-pill">{site.siteName}</span>}
+                </div>
+              </div>
+            </div>
+            <div class="cms-topbar-actions">
+              {site.baseUrl && (
+                <a href={site.baseUrl} target="_blank" rel="noopener noreferrer" class="cms-btn cms-btn-secondary cms-topbar-site-link">
+                  <ExternalLink size={13} />
+                  <span>Ver sitio</span>
+                </a>
+              )}
+            </div>
+            <div class="cms-topbar-profile">
+              <button type="button" class="cms-topbar-profile-trigger" id="cms-profile-trigger" aria-haspopup="true" aria-expanded="false" aria-label="Menú de usuario">
+                <User class="cms-topbar-profile-icon" size={14} />
               </button>
             </div>
           </div>
         </header>
         <div class="cms-panel-body">
-          <aside class="cms-sidebar">
+          <button type="button" class="cms-sidebar-overlay" id="cms-sidebar-overlay" aria-hidden="true" tabindex="-1"></button>
+          <aside class="cms-sidebar" id="cms-sidebar">
+            <div class="cms-sidebar-brand">
+              <Image src={blocksLogo} width={32} height={32} alt="" class="cms-sidebar-brand-logo" />
+              <div class="cms-sidebar-brand-copy">
+                <span class="cms-sidebar-brand-eyebrow">Content platform</span>
+              </div>
+            </div>
             <nav class="cms-nav" aria-label="Panel">
               <a href="/cms" class={`cms-nav-link ${isActive('/cms') ? 'cms-nav-link--active' : ''}`}>
                 <LayoutDashboard class="cms-nav-icon" size={16} />
@@ -124,13 +154,25 @@ function isActive(href: string) {
         </div>
         <footer class="cms-footer" role="contentinfo">
           <Image src={blocksLogo} width={12} height={12} alt="" class="cms-footer-logo" />
-          <span class="cms-footer-name">AstroBlocks</span>
+          <span class="cms-footer-name">AstroBlocks CMS</span>
           <span class="cms-footer-version">v{cmsVersion}</span>
         </footer>
       </div>
     </div>
     <ConfirmDialog />
     <AlertDialog />
+    <div class="cms-topbar-dropdown" id="cms-profile-dropdown" role="menu">
+      <div class="cms-topbar-dropdown-label">
+        <span class="cms-topbar-dropdown-label-title">{site.siteName || 'AstroBlocks'}</span>
+        <span class="cms-topbar-dropdown-label-text" id="cms-profile-email">Sesión del panel</span>
+      </div>
+      <div class="cms-topbar-dropdown-divider"></div>
+      <button type="button" class="cms-topbar-dropdown-item" id="cms-logout-btn" data-profile-action="logout" role="menuitem">
+        <LogOut class="cms-topbar-dropdown-icon" size={14} />
+        <span>Salir</span>
+      </button>
+    </div>
+    <div id="cms-toast-region" class="cms-toast-region" aria-live="polite" aria-atomic="true"></div>
     <script>
       (function() {
         if (typeof document === 'undefined') return;
@@ -145,6 +187,15 @@ function isActive(href: string) {
         const emailInput = document.getElementById('cms-email-input');
         const passwordInput = document.getElementById('cms-password-input');
         const loginError = document.getElementById('cms-login-error');
+        const profileEmail = document.getElementById('cms-profile-email');
+        function setProfileEmail(user: { email?: string; role?: string } | null) {
+          if (!profileEmail) return;
+          if (!user?.email) {
+            profileEmail.textContent = 'Sesión del panel';
+            return;
+          }
+          profileEmail.textContent = user.role === 'owner' ? `${user.email} · Owner` : user.email;
+        }
         function show(hasToken: boolean) {
           if (loginForm) loginForm.classList.toggle('cms-hidden', hasToken);
           if (adminContent) adminContent.classList.toggle('cms-hidden', !hasToken);
@@ -186,6 +237,7 @@ function isActive(href: string) {
               .then((data) => {
                 if (data?.user) {
                   try { sessionStorage.setItem('cms-user', JSON.stringify(data.user)); } catch (_) {}
+                  setProfileEmail(data.user);
                 }
                 document.querySelectorAll('[data-cms-owner-only]').forEach((el) => {
                   (el as HTMLElement).style.display = data?.user?.role === 'owner' ? '' : 'none';
@@ -195,10 +247,12 @@ function isActive(href: string) {
           } else if (token) {
             const raw = sessionStorage.getItem('cms-user');
             const user = raw ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : null;
+            setProfileEmail(user);
             document.querySelectorAll('[data-cms-owner-only]').forEach((el) => {
               (el as HTMLElement).style.display = user?.role === 'owner' ? '' : 'none';
             });
           } else {
+            setProfileEmail(null);
             fetch('/cms/api/auth/status')
               .then((r) => r.ok ? r.json() : { hasUsers: true, logo: '', siteName: 'CMS' })
               .then((data) => setAuthScreen(!!data.hasUsers, data.logo || '', data.siteName || 'AstroBlocks'))
@@ -248,17 +302,52 @@ function isActive(href: string) {
     <script>
       (function() {
         if (typeof document === 'undefined') return;
+        const toastRegion = document.getElementById('cms-toast-region');
+        let toastTimer = 0;
+        (window as unknown as {
+          cmsToast?: (options: { title?: string; message: string; tone?: 'success' | 'error' | 'info' }) => void;
+        }).cmsToast = function(options) {
+          if (!toastRegion || !options?.message) return;
+          toastRegion.innerHTML = '';
+          const toast = document.createElement('div');
+          toast.className = `cms-toast cms-toast--${options.tone || 'info'}`;
+          toast.innerHTML =
+            `<strong class="cms-toast-title">${options.title || 'Aviso'}</strong>` +
+            `<p class="cms-toast-message"></p>`;
+          const messageEl = toast.querySelector('.cms-toast-message');
+          if (messageEl) messageEl.textContent = options.message;
+          toastRegion.appendChild(toast);
+          requestAnimationFrame(() => toast.classList.add('cms-toast--visible'));
+          window.clearTimeout(toastTimer);
+          toastTimer = window.setTimeout(function() {
+            toast.classList.remove('cms-toast--visible');
+            window.setTimeout(function() {
+              if (toast.parentElement === toastRegion) toast.remove();
+            }, 180);
+          }, 2800);
+        };
         function initProfileDropdown() {
           const trigger = document.getElementById('cms-profile-trigger');
           const dropdown = document.getElementById('cms-profile-dropdown');
-          const logoutBtn = document.getElementById('cms-logout-btn');
+          const sidebar = document.getElementById('cms-sidebar');
+          const overlay = document.getElementById('cms-sidebar-overlay');
+          const sidebarToggle = document.getElementById('cms-sidebar-toggle');
           if (!trigger || !dropdown) return;
           const triggerEl = trigger;
           const dropdownEl = dropdown;
+          const sidebarEl = sidebar;
+          const overlayEl = overlay;
+          const sidebarToggleEl = sidebarToggle;
+          function updateDropdownPosition() {
+            const rect = triggerEl.getBoundingClientRect();
+            dropdownEl.style.top = Math.round(rect.bottom + 10) + 'px';
+            dropdownEl.style.left = Math.round(rect.right - dropdownEl.offsetWidth) + 'px';
+          }
           function isOpen() {
             return dropdownEl.classList.contains('cms-topbar-dropdown--open');
           }
           function open() {
+            updateDropdownPosition();
             dropdownEl.classList.add('cms-topbar-dropdown--open');
             triggerEl.setAttribute('aria-expanded', 'true');
           }
@@ -266,23 +355,62 @@ function isActive(href: string) {
             dropdownEl.classList.remove('cms-topbar-dropdown--open');
             triggerEl.setAttribute('aria-expanded', 'false');
           }
+          function openSidebar() {
+            if (!sidebarEl || !overlayEl || !sidebarToggleEl) return;
+            sidebarEl.classList.add('cms-sidebar--open');
+            overlayEl.classList.add('cms-sidebar-overlay--visible');
+            sidebarToggleEl.setAttribute('aria-expanded', 'true');
+            document.body.classList.add('cms-sidebar-open');
+          }
+          function closeSidebar() {
+            if (!sidebarEl || !overlayEl || !sidebarToggleEl) return;
+            sidebarEl.classList.remove('cms-sidebar--open');
+            overlayEl.classList.remove('cms-sidebar-overlay--visible');
+            sidebarToggleEl.setAttribute('aria-expanded', 'false');
+            document.body.classList.remove('cms-sidebar-open');
+          }
           function toggle(e: Event) {
             e.preventDefault();
             e.stopPropagation();
             if (isOpen()) close(); else open();
           }
           triggerEl.addEventListener('click', toggle);
+          dropdownEl.addEventListener('click', function(e) {
+            const origin = e.target instanceof Element ? e.target : null;
+            const target = origin ? origin.closest('[data-profile-action]') : null;
+            if (target instanceof Element) {
+              const action = target.getAttribute('data-profile-action');
+              if (action === 'logout') {
+                e.preventDefault();
+                e.stopPropagation();
+                close();
+                try { sessionStorage.removeItem('cms-token'); sessionStorage.removeItem('cms-user'); } catch (err) {}
+                location.href = '/cms';
+                return;
+              }
+            }
+            e.stopPropagation();
+          });
           document.addEventListener('click', function(e: MouseEvent) {
             const target = e.target instanceof Node ? e.target : null;
             if (!isOpen() || !target) return;
             if (!dropdownEl.contains(target) && !triggerEl.contains(target)) close();
           });
-          if (logoutBtn) {
-            logoutBtn.addEventListener('click', function() {
-              try { sessionStorage.removeItem('cms-token'); sessionStorage.removeItem('cms-user'); } catch (err) {}
-              location.reload();
-            });
-          }
+          sidebarToggleEl?.addEventListener('click', function() {
+            if (sidebarEl?.classList.contains('cms-sidebar--open')) closeSidebar();
+            else openSidebar();
+          });
+          overlayEl?.addEventListener('click', closeSidebar);
+          window.addEventListener('resize', function() {
+            if (isOpen()) updateDropdownPosition();
+            if (window.innerWidth > 980) closeSidebar();
+          });
+          window.addEventListener('scroll', function() {
+            if (isOpen()) updateDropdownPosition();
+          }, true);
+          document.addEventListener('keydown', function(e: KeyboardEvent) {
+            if (e.key === 'Escape' && isOpen()) close();
+          });
         }
         if (document.readyState === 'loading') {
           document.addEventListener('DOMContentLoaded', initProfileDropdown);

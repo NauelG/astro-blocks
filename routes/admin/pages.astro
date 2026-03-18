@@ -11,6 +11,7 @@ import { loadPages, loadSite } from '../../api/data.js';
 const site = await loadSite();
 const pagesData = await loadPages();
 const pages = pagesData.pages || [];
+const publishedCount = pages.filter((page) => page.status === 'published').length;
 function slugStr(p: { slug?: string | string[] }) {
   if (p.slug === '/' || (Array.isArray(p.slug) && !p.slug.length)) return '/';
   return Array.isArray(p.slug) ? '/' + p.slug.join('/') : p.slug;
@@ -19,12 +20,39 @@ function slugStr(p: { slug?: string | string[] }) {
 
 <AdminLayout site={site} title="Páginas">
   <div class="cms-stack">
-    <div class="cms-page-header">
-      <h1 class="cms-title">Páginas</h1>
-      <button type="button" id="cms-page-new-btn" class="cms-btn cms-btn-primary">Nueva página</button>
+    <div class="cms-page-intro">
+      <div class="cms-page-intro-copy">
+        <span class="cms-page-eyebrow">Contenido</span>
+        <div class="cms-page-header">
+          <h1 class="cms-title">Biblioteca editorial</h1>
+        </div>
+        <p class="cms-page-lead">
+          Gestiona borradores, páginas publicadas e indexabilidad desde una única vista. El editor mantiene el foco en contenido, SEO y bloques.
+        </p>
+      </div>
+      <div class="cms-page-actions">
+        <button type="button" id="cms-page-new-btn" class="cms-btn cms-btn-primary">Nueva página</button>
+      </div>
+    </div>
+    <div class="cms-toolbar">
+      <div class="cms-toolbar-group">
+        <div class="cms-field cms-toolbar-search">
+          <input type="search" id="cms-pages-search" placeholder="Buscar por título o slug" />
+        </div>
+        <div class="cms-field">
+          <select id="cms-pages-status-filter" aria-label="Filtrar por estado">
+            <option value="all">Todos los estados</option>
+            <option value="published">Publicadas</option>
+            <option value="draft">Borradores</option>
+          </select>
+        </div>
+      </div>
+      <div class="cms-toolbar-meta">
+        <span class="cms-results-count" id="cms-pages-count">{pages.length} páginas · {publishedCount} publicadas</span>
+      </div>
     </div>
     <div class="cms-card cms-card--no-padding">
-      <div class="cms-table-wrap">
+      <div class="cms-table-wrap" id="cms-pages-table-wrap">
         <table class="cms-table">
           <thead>
             <tr>
@@ -36,7 +64,7 @@ function slugStr(p: { slug?: string | string[] }) {
               <th class="cms-table-actions-delete"></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="cms-pages-tbody">
             {pages.map((p: { id: string; title: string; slug?: string | string[]; status: string; indexable?: boolean }) => (
               <tr>
                 <td class="cms-table-actions">
@@ -67,6 +95,13 @@ function slugStr(p: { slug?: string | string[] }) {
             ))}
           </tbody>
         </table>
+      </div>
+      <div id="cms-pages-empty" class:list={['cms-empty-state', pages.length > 0 && 'cms-hidden']} style="margin: 1rem;">
+        <p class="cms-empty-state-title">No hay páginas que mostrar</p>
+        <p class="cms-empty-state-text">Crea una nueva página o ajusta la búsqueda para volver a ver resultados.</p>
+        <div class="cms-empty-state-actions">
+          <button type="button" class="cms-btn cms-btn-primary" data-open-page-new>Crear página</button>
+        </div>
       </div>
     </div>
   </div>
@@ -158,7 +193,7 @@ function slugStr(p: { slug?: string | string[] }) {
     <div class="cms-detail-modal-panel" role="document">
       <h2 id="page-detail-block-select-title" class="cms-detail-modal-title">Seleccionar tipo de bloque</h2>
       <div class="cms-detail-modal-body">
-        <ul id="page-detail-block-select-list" class="cms-blocks-select-list"></ul>
+        <ul id="page-detail-block-select-list" class="cms-blocks-select-list cms-blocks-select-grid"></ul>
       </div>
       <div class="cms-detail-modal-actions cms-form-actions">
         <button type="button" class="cms-btn cms-btn-secondary" data-close-modal="page-detail-block-select-modal">Cancelar</button>

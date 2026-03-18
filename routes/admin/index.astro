@@ -6,7 +6,7 @@ Licensed under the Business Source License 1.1
 
 import fs from 'node:fs/promises';
 import AdminLayout from './layout.astro';
-import { Globe, FileText, Menu, Users, Upload, Plus, Settings, RefreshCw, ExternalLink } from '@lucide/astro';
+import { Globe, FileText, Menu, Users, Upload, Plus, Settings, RefreshCw, ExternalLink, ShieldCheck, Clock3 } from '@lucide/astro';
 import { loadSite, loadPages, getPublishedPages, loadMenus, loadUsers } from '../../api/data.js';
 import { getUploadsDir } from '../../utils/paths.js';
 import { slugToPath } from '../../utils/slug.js';
@@ -19,6 +19,7 @@ const usersData = await loadUsers();
 const allPages = pagesData.pages || [];
 const published = getPublishedPages(pagesData);
 const drafts = allPages.filter((p) => p.status === 'draft');
+const indexablePages = allPages.filter((p) => p.indexable !== false).length;
 const menus = menusData.menus || [];
 const users = usersData.users || [];
 
@@ -38,28 +39,59 @@ const recentPages = [...allPages]
     return db - da;
   })
   .slice(0, 5);
+
+const lastUpdatedPage = recentPages[0];
 ---
 
 <AdminLayout site={site} title="Dashboard">
   <div class="cms-stack cms-dashboard">
-
-    <!-- Header -->
-    <div class="cms-page-header">
-      <div>
-        <h1 class="cms-title">Dashboard</h1>
-        {site.siteName && <p class="cms-dashboard-subtitle">{site.siteName}</p>}
+    <div class="cms-page-intro">
+      <div class="cms-page-intro-copy">
+        <span class="cms-page-eyebrow">Control center</span>
+        <div class="cms-page-header">
+          <h1 class="cms-title">Dashboard</h1>
+        </div>
+        <p class="cms-page-lead">
+          Vista general del contenido, la navegación y el estado del proyecto para trabajar con rapidez y sin ruido visual.
+        </p>
       </div>
-      <a href="/cms/pages" class="cms-btn cms-btn-primary">
-        <Plus size={13} />
-        <span>Nueva página</span>
-      </a>
+      <div class="cms-page-actions">
+        {site.baseUrl && (
+          <a href={site.baseUrl} target="_blank" rel="noopener noreferrer" class="cms-btn cms-btn-secondary">
+            <ExternalLink size={13} />
+            <span>Ver sitio</span>
+          </a>
+        )}
+        <a href="/cms/pages" class="cms-btn cms-btn-primary">
+          <Plus size={13} />
+          <span>Nueva página</span>
+        </a>
+      </div>
     </div>
 
-    <!-- Main grid: left (stats + recent) | right (quick actions + site link) -->
-    <div class="cms-dashboard-grid">
-
-      <!-- Left column: stats row + recent pages -->
-      <div class="cms-dashboard-left">
+    <div class="cms-dashboard-shell">
+      <div class="cms-dashboard-primary">
+        <div class="cms-card cms-dashboard-lead-card">
+          <div class="cms-dashboard-lead-top">
+            <span class="cms-dashboard-kicker">{site.siteName || 'AstroBlocks'}</span>
+            <h2 class="cms-dashboard-lead-title">Resumen operativo del CMS</h2>
+            <p class="cms-dashboard-lead-text">
+              Todo el contenido, la navegación y el branding del proyecto desde un panel compacto y fácil de escanear.
+            </p>
+          </div>
+          <div class="cms-dashboard-lead-bottom">
+            <div class="cms-dashboard-meta">
+              <span class="cms-dashboard-meta-pill">
+                <ShieldCheck size={12} />
+                <span>{indexablePages} indexables</span>
+              </span>
+              <span class="cms-dashboard-meta-pill">
+                <Clock3 size={12} />
+                <span>{lastUpdatedPage ? `Última edición: ${lastUpdatedPage.title}` : 'Sin actividad reciente'}</span>
+              </span>
+            </div>
+          </div>
+        </div>
 
         <div class="cms-dashboard-stats">
           <div class="cms-card cms-dashboard-stat">
@@ -99,14 +131,19 @@ const recentPages = [...allPages]
           </div>
         </div>
 
-        <!-- Recent pages -->
         <div class="cms-card cms-card--no-padding cms-dashboard-recent">
           <div class="cms-dashboard-block-header">
-            <span class="cms-dashboard-block-title">Páginas recientes</span>
-            <a href="/cms/pages" class="cms-dashboard-block-link">Ver todas</a>
+            <span class="cms-dashboard-block-title">Actividad reciente</span>
+            <a href="/cms/pages" class="cms-dashboard-block-link">Ir a páginas</a>
           </div>
           {recentPages.length === 0 ? (
-            <p class="cms-dashboard-empty">Aún no hay páginas creadas.</p>
+            <div class="cms-empty-state" style="margin: 1rem;">
+              <p class="cms-empty-state-title">Todavía no hay páginas creadas</p>
+              <p class="cms-empty-state-text">Crea la primera página para empezar a poblar el sitio y activar el flujo editorial del CMS.</p>
+              <div class="cms-empty-state-actions">
+                <a href="/cms/pages" class="cms-btn cms-btn-primary">Crear primera página</a>
+              </div>
+            </div>
           ) : (
             <table class="cms-table cms-dashboard-recent-table">
               <tbody>
@@ -125,52 +162,61 @@ const recentPages = [...allPages]
             </table>
           )}
         </div>
-
       </div>
 
-      <!-- Right column: quick actions + site link -->
-      <div class="cms-dashboard-right">
-
-        <!-- Quick actions -->
-        <div class="cms-card cms-dashboard-quick">
-          <p class="cms-dashboard-block-title">Acciones rápidas</p>
-          <div class="cms-dashboard-actions">
-            <a href="/cms/pages" class="cms-dashboard-action-item">
-              <Plus size={14} />
-              <span>Nueva página</span>
+      <div class="cms-dashboard-secondary">
+        <div class="cms-card cms-dashboard-actions-card">
+          <h2 class="cms-dashboard-section-title">Acciones rápidas</h2>
+          <p class="cms-dashboard-section-copy">Accesos directos a las tareas más frecuentes del panel.</p>
+          <div class="cms-dashboard-action-grid">
+            <a href="/cms/pages" class="cms-dashboard-action-card">
+              <span class="cms-dashboard-action-icon"><Plus size={14} /></span>
+              <span class="cms-dashboard-action-title">Nueva página</span>
+              <p class="cms-dashboard-action-text">Crear y editar contenido.</p>
             </a>
-            <a href="/cms/pages" class="cms-dashboard-action-item">
-              <FileText size={14} />
-              <span>Gestionar páginas</span>
+            <a href="/cms/menus" class="cms-dashboard-action-card">
+              <span class="cms-dashboard-action-icon"><Menu size={14} /></span>
+              <span class="cms-dashboard-action-title">Menús</span>
+              <p class="cms-dashboard-action-text">Gestionar navegación.</p>
             </a>
-            <a href="/cms/menus" class="cms-dashboard-action-item">
-              <Menu size={14} />
-              <span>Menús</span>
+            <a href="/cms/settings" class="cms-dashboard-action-card" data-cms-owner-only>
+              <span class="cms-dashboard-action-icon"><Settings size={14} /></span>
+              <span class="cms-dashboard-action-title">Ajustes</span>
+              <p class="cms-dashboard-action-text">White-label y branding.</p>
             </a>
-            <a href="/cms/settings" class="cms-dashboard-action-item" data-cms-owner-only>
-              <Settings size={14} />
-              <span>Ajustes del sitio</span>
-            </a>
-            <a href="/cms/cache" class="cms-dashboard-action-item">
-              <RefreshCw size={14} />
-              <span>Invalidar caché</span>
+            <a href="/cms/cache" class="cms-dashboard-action-card">
+              <span class="cms-dashboard-action-icon"><RefreshCw size={14} /></span>
+              <span class="cms-dashboard-action-title">Caché</span>
+              <p class="cms-dashboard-action-text">Invalidar SSR.</p>
             </a>
           </div>
         </div>
 
-        <!-- Site external link -->
-        {site.baseUrl && (
-          <div class="cms-card cms-dashboard-site-link">
-            <p class="cms-dashboard-site-label">Sitio web</p>
+        <div class="cms-card cms-dashboard-site-card">
+          <h2 class="cms-dashboard-section-title">Sitio y branding</h2>
+          <p class="cms-dashboard-section-copy">Referencia rápida del proyecto y acceso al sitio público.</p>
+          <div class="cms-dashboard-meta">
+            <span class="cms-dashboard-meta-pill">
+              <span>{site.siteName || 'Proyecto sin nombre'}</span>
+            </span>
+            <span class="cms-dashboard-meta-pill">
+              <ShieldCheck size={12} />
+              <span>{site.primaryColor || '#333'}</span>
+            </span>
+          </div>
+          {site.baseUrl ? (
             <a href={site.baseUrl} target="_blank" rel="noopener noreferrer" class="cms-dashboard-external-link">
               <ExternalLink size={13} />
               <span>{site.baseUrl.replace(/^https?:\/\//, '')}</span>
             </a>
-          </div>
-        )}
-
+          ) : (
+            <div class="cms-empty-state">
+              <p class="cms-empty-state-title">Falta la URL base</p>
+              <p class="cms-empty-state-text">Define la URL base en ajustes para mejorar el contexto del panel y del SEO.</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
-
   </div>
 </AdminLayout>

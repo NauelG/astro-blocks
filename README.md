@@ -14,7 +14,7 @@ Licensed under the Business Source License 1.1
 </p>
 
 <p align="center">
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.9.0-blue" alt="version" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.10.0--alpha.1-blue" alt="version" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="alpha" />
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js" alt="Node 18+" /></a>
   <a href="https://astro.build"><img src="https://img.shields.io/badge/Astro-6+-FF5D01?logo=astro" alt="Astro 6+" /></a>
@@ -33,6 +33,21 @@ Licensed under the Business Source License 1.1
 
 <p align="center">
   <img src="img/dashboard.jpg" alt="AstroBlocks dashboard" width="860" style="border-radius:8px" />
+</p>
+
+---
+
+## Block Editor
+
+The page editor is the core of AstroBlocks. It is designed as a compact block builder so content, SEO and structure can be managed from a single workflow.
+
+- **Block-first editing:** pages are built by stacking your own Astro components as CMS blocks.
+- **Compact builder UI:** block cards show the most relevant context first and keep advanced editing one step away.
+- **SEO and content together:** title, slug, indexability and SEO metadata live in the same editing surface.
+- **Ordering without friction:** blocks can be reordered, duplicated and removed directly from the editor.
+
+<p align="center">
+  <img src="img/page_editor.jpg" alt="AstroBlocks page editor" width="860" style="border-radius:8px" />
 </p>
 
 ---
@@ -63,7 +78,7 @@ npm install @astrojs/node
 Use this when you want to validate a locally built package:
 
 ```bash
-npm install /absolute/path/to/astro-blocks-0.9.0.tgz
+npm install /absolute/path/to/astro-blocks-0.10.0-alpha.1.tgz
 ```
 
 The tarball flow is documented in [LOCAL_PACKAGE_TESTING.md](./LOCAL_PACKAGE_TESTING.md).

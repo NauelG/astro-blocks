@@ -16,15 +16,35 @@ const menus = menusData.menus ?? [];
 
 <AdminLayout site={site} title="Menús">
   <div class="cms-stack">
-    <div class="cms-page-header">
-      <h1 class="cms-title">Menús</h1>
-      <button type="button" id="cms-menu-new-btn" class="cms-btn cms-btn-primary">Nuevo menú</button>
+    <div class="cms-page-intro">
+      <div class="cms-page-intro-copy">
+        <span class="cms-page-eyebrow">Navegación</span>
+        <div class="cms-page-header">
+          <h1 class="cms-title">Arquitectura de menús</h1>
+        </div>
+        <p class="cms-page-lead">
+          Organiza la navegación del sitio como una estructura clara y reutilizable. Cada menú tiene un selector único y puede contener subniveles sin perder legibilidad.
+        </p>
+      </div>
+      <div class="cms-page-actions">
+        <button type="button" id="cms-menu-new-btn" class="cms-btn cms-btn-primary">Nuevo menú</button>
+      </div>
     </div>
     <div class="cms-card cms-menus-info-card">
       <p class="cms-menus-info-text">
         <Lightbulb size={14} class="cms-menus-info-icon" aria-hidden="true" />
         <span class="cms-menus-info-body">Cada menú se identifica por su <strong>selector</strong> (ej. <code>main</code>, <code>footer</code>). En el código del sitio se obtienen sus ítems con <code>getMenu('selector')</code> desde <code>astro-blocks/getMenu</code>; el resultado es un array de enlaces (<code>name</code>, <code>path</code>) que puedes usar en el layout o en componentes para renderizar la navegación. Los ítems pueden tener submenús anidados (<code>children</code>) para desplegables o listas anidadas.</span>
       </p>
+    </div>
+    <div class="cms-toolbar">
+      <div class="cms-toolbar-group">
+        <div class="cms-field cms-toolbar-search">
+          <input type="search" id="cms-menus-search" placeholder="Buscar por nombre o selector" />
+        </div>
+      </div>
+      <div class="cms-toolbar-meta">
+        <span class="cms-results-count" id="cms-menus-count">{menus.length} menús</span>
+      </div>
     </div>
     <div class="cms-card cms-card--no-padding">
       <div class="cms-table-wrap">
@@ -37,7 +57,7 @@ const menus = menusData.menus ?? [];
               <th class="cms-table-actions-delete"></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="cms-menus-tbody">
             {menus.map((m) => (
               <tr>
                 <td class="cms-table-actions">
@@ -57,39 +77,38 @@ const menus = menusData.menus ?? [];
           </tbody>
         </table>
       </div>
+      <div id="cms-menus-empty" class:list={['cms-empty-state', menus.length > 0 && 'cms-hidden']} style="margin: 1rem;">
+        <p class="cms-empty-state-title">No hay menús disponibles</p>
+        <p class="cms-empty-state-text">Crea un menú para empezar a controlar la navegación del sitio desde el panel.</p>
+        <div class="cms-empty-state-actions">
+          <button type="button" class="cms-btn cms-btn-primary" data-open-menu-new>Crear menú</button>
+        </div>
+      </div>
     </div>
   </div>
 
   <DetailModal id="menu-detail-modal" title="Menú">
-    <form id="menu-detail-form" class="cms-form">
+    <form id="menu-detail-form" class="cms-form cms-menu-detail-form">
       <input type="hidden" id="menu-detail-id" name="id" value="" />
-      <div class="cms-field">
-        <label for="menu-detail-name">Nombre</label>
-        <input type="text" id="menu-detail-name" name="name" placeholder="Ej. Menú principal" />
-      </div>
-      <div class="cms-field">
-        <label for="menu-detail-selector">Selector</label>
-        <input type="text" id="menu-detail-selector" name="selector" placeholder="main, footer..." />
-        <p id="menu-detail-selector-hint" class="cms-muted cms-hidden" style="font-size: 0.75rem; margin-top: 0.25rem;"></p>
+      <div class="cms-menu-detail-head">
+        <div class="cms-field">
+          <label for="menu-detail-name">Nombre</label>
+          <input type="text" id="menu-detail-name" name="name" placeholder="Ej. Menú principal" />
+        </div>
+        <div class="cms-field">
+          <label for="menu-detail-selector">Selector</label>
+          <input type="text" id="menu-detail-selector" name="selector" placeholder="main, footer..." />
+          <p id="menu-detail-selector-hint" class="cms-muted cms-hidden" style="font-size: 0.75rem; margin-top: 0.25rem;"></p>
+        </div>
       </div>
       <div class="cms-field">
         <label>Elementos del menú</label>
-        <div class="cms-stack" style="margin-top: 0.5rem;">
-          <button type="button" id="menu-detail-add-item" class="cms-btn cms-btn-secondary">Añadir elemento</button>
-          <div class="cms-table-wrap">
-            <table class="cms-table">
-              <thead>
-                <tr>
-                  <th class="cms-table-actions" style="width: 2rem;"></th>
-                  <th>Nombre</th>
-                  <th>Ruta</th>
-                  <th>Submenús</th>
-                  <th class="cms-table-actions-delete"></th>
-                </tr>
-              </thead>
-              <tbody id="menu-detail-items-tbody"></tbody>
-            </table>
+        <div class="cms-menu-builder" style="margin-top: 0.5rem;">
+          <div class="cms-page-actions">
+            <button type="button" id="menu-detail-add-item" class="cms-btn cms-btn-secondary">Añadir elemento</button>
           </div>
+          <div id="menu-detail-items-list" class="cms-menu-builder-list"></div>
+          <p id="menu-detail-empty" class="cms-menu-builder-empty">Aún no hay elementos. Añade enlaces principales y, si hace falta, submenús anidados.</p>
         </div>
       </div>
       <p id="menu-detail-error" class="cms-muted cms-hidden" role="alert" style="color: var(--pico-del-color); font-size: 0.75rem;"></p>

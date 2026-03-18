@@ -5,10 +5,12 @@ Licensed under the Business Source License 1.1
 
 import Sortable, { type SortableEvent } from 'sortablejs';
 import type { BlockInstance, Page, SchemaMap, SeoData } from '../../../types/index.js';
-import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, getCmsToken, openDialog, showAlert, showConfirm } from './common.js';
+import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, getCmsToken, openDialog, showAlert, showConfirm, showToast } from './common.js';
 
 const trashIconSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+const pencilIconSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
 const copyIconSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
 const chevronDownSvg =
@@ -30,6 +32,11 @@ export function initPageEditor(): void {
   const statusInput = document.getElementById('page-detail-status') as HTMLInputElement | null;
   const titleInput = document.getElementById('page-detail-title') as HTMLInputElement | null;
   const slugInput = document.getElementById('page-detail-slug') as HTMLInputElement | null;
+  const pagesTbody = document.getElementById('cms-pages-tbody') as HTMLTableSectionElement | null;
+  const pagesCount = document.getElementById('cms-pages-count');
+  const pagesEmpty = document.getElementById('cms-pages-empty');
+  const pagesSearch = document.getElementById('cms-pages-search') as HTMLInputElement | null;
+  const pagesStatusFilter = document.getElementById('cms-pages-status-filter') as HTMLSelectElement | null;
   const indexableInput = document.getElementById('page-detail-indexable') as HTMLInputElement | null;
   const seoTitleInput = document.getElementById('page-detail-seo-title') as HTMLInputElement | null;
   const seoDescriptionInput = document.getElementById('page-detail-seo-description') as HTMLTextAreaElement | null;
@@ -61,6 +68,7 @@ export function initPageEditor(): void {
   let schemaMap: SchemaMap | null = null;
   let blocksList: BlockInstance[] = [];
   let sortableBlocks: Sortable | null = null;
+  let pagesState: Page[] = [];
 
   function setFormTitle(label: string, submitLabel = 'Guardar'): void {
     if (titleEl) titleEl.textContent = label;
@@ -119,6 +127,84 @@ export function initPageEditor(): void {
     return input.value;
   }
 
+  function pageSlugToText(page: Pick<Page, 'slug'>): string {
+    return page.slug === '/' || (Array.isArray(page.slug) && page.slug.length === 0)
+      ? '/'
+      : Array.isArray(page.slug)
+        ? `/${page.slug.join('/')}`
+        : page.slug;
+  }
+
+  function blockSummary(block: BlockInstance): string {
+    const values = Object.values(block.props || {})
+      .map((entry) => (typeof entry === 'string' ? entry.trim() : String(entry ?? '').trim()))
+      .filter(Boolean)
+      .slice(0, 2);
+    return values.length > 0 ? values.join(' · ') : 'Configura las propiedades de este bloque';
+  }
+
+  function filteredPages(): Page[] {
+    const query = pagesSearch?.value.trim().toLowerCase() || '';
+    const status = pagesStatusFilter?.value || 'all';
+    return pagesState.filter((page) => {
+      const matchesQuery =
+        !query ||
+        page.title.toLowerCase().includes(query) ||
+        pageSlugToText(page).toLowerCase().includes(query);
+      const matchesStatus = status === 'all' || page.status === status;
+      return matchesQuery && matchesStatus;
+    });
+  }
+
+  function bindPageRowEvents(): void {
+    pagesTbody?.querySelectorAll<HTMLElement>('.cms-page-edit').forEach((button) => {
+      button.addEventListener('click', () => {
+        const id = button.getAttribute('data-id');
+        if (id) void openEdit(id);
+      });
+    });
+    pagesTbody?.querySelectorAll<HTMLElement>('.cms-page-delete').forEach((button) => {
+      button.addEventListener('click', () => {
+        const id = button.getAttribute('data-id');
+        if (id) void deletePage(id);
+      });
+    });
+  }
+
+  function renderPagesTable(): void {
+    if (!pagesTbody) return;
+    const list = filteredPages();
+    pagesTbody.innerHTML = list
+      .map((page) => {
+        const isPublished = page.status === 'published';
+        const slug = pageSlugToText(page);
+        return (
+          '<tr>' +
+          `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-page-edit" data-id="${escapeHtml(page.id)}" aria-label="Editar">${pencilIconSvg}</button></td>` +
+          `<td>${escapeHtml(page.title || '(sin título)')}</td>` +
+          `<td class="cms-table-cell-monospace">${escapeHtml(slug)}</td>` +
+          `<td><span class="cms-badge ${isPublished ? 'cms-badge-success' : 'cms-badge-neutral'}">${escapeHtml(isPublished ? 'Publicada' : 'Borrador')}</span></td>` +
+          `<td><span class="cms-indexable-dot cms-indexable-dot--${page.indexable !== false ? 'yes' : 'no'}" role="img" aria-label="${page.indexable !== false ? 'Indexable' : 'No indexable'}"></span></td>` +
+          `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-page-delete" data-id="${escapeHtml(page.id)}" aria-label="Eliminar">${trashIconSvg}</button></td>` +
+          '</tr>'
+        );
+      })
+      .join('');
+
+    const publishedCount = pagesState.filter((page) => page.status === 'published').length;
+    if (pagesCount) pagesCount.textContent = `${list.length} páginas · ${publishedCount} publicadas`;
+    pagesEmpty?.classList.toggle('cms-hidden', list.length > 0);
+    bindPageRowEvents();
+  }
+
+  async function refreshPages(): Promise<void> {
+    const data = await fetchJson<PagesResponse>('/cms/api/pages', {
+      headers: { Authorization: `Bearer ${getCmsToken()}` },
+    });
+    pagesState = data.pages || [];
+    renderPagesTable();
+  }
+
   function renderBlocksList(): void {
     blockList.innerHTML = '';
 
@@ -136,13 +222,17 @@ export function initPageEditor(): void {
     blocksList.forEach((block, index) => {
       const schema = schemaMap?.[block.type];
       const name = schema?.name || block.type;
+      const summary = blockSummary(block);
       const li = document.createElement('li');
       li.className = 'cms-block-item';
       li.dataset.index = String(index);
       li.innerHTML =
         '<div class="cms-block-item-header">' +
         '<span class="cms-drag-handle" aria-label="Arrastrar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg></span>' +
+        '<div class="cms-block-item-meta">' +
         `<span class="cms-block-item-name">${escapeHtml(name)}</span>` +
+        `<span class="cms-block-item-summary">${escapeHtml(summary)}</span>` +
+        '</div>' +
         `<button type="button" class="cms-block-item-toggle" aria-expanded="false" aria-label="Expandir" data-index="${index}">${chevronDownSvg}</button>` +
         `<button type="button" class="cms-block-item-duplicate" aria-label="Duplicar bloque" data-index="${index}">${copyIconSvg}</button>` +
         `<button type="button" class="cms-table-btn-delete cms-block-item-delete" aria-label="Eliminar bloque" data-index="${index}">${trashIconSvg}</button>` +
@@ -196,6 +286,8 @@ export function initPageEditor(): void {
         if (Number.isNaN(index) || !propName || !blocksList[index]) return;
         blocksList[index].props ||= {};
         blocksList[index].props[propName] = parseFieldValue(input);
+        const summaryEl = blockList.querySelector<HTMLElement>(`.cms-block-item[data-index="${index}"] .cms-block-item-summary`);
+        if (summaryEl) summaryEl.textContent = blockSummary(blocksList[index]);
       };
 
       input.addEventListener('input', syncValue);
@@ -229,6 +321,7 @@ export function initPageEditor(): void {
         const copy = JSON.parse(JSON.stringify(blocksList[index])) as BlockInstance;
         blocksList.splice(index + 1, 0, copy);
         renderBlocksList();
+        showToast('Bloque duplicado.', 'info', 'Editor');
       });
     });
 
@@ -238,6 +331,7 @@ export function initPageEditor(): void {
         if (index >= 0) {
           blocksList.splice(index, 1);
           renderBlocksList();
+          showToast('Bloque eliminado.', 'info', 'Editor');
         }
       });
     });
@@ -293,10 +387,8 @@ export function initPageEditor(): void {
   }
 
   async function openEdit(id: string): Promise<void> {
-    const data = await fetchJson<PagesResponse>('/cms/api/pages', {
-      headers: { Authorization: `Bearer ${getCmsToken()}` },
-    });
-    const page = data.pages.find((entry) => entry.id === id);
+    if (pagesState.length === 0) await refreshPages();
+    const page = pagesState.find((entry) => entry.id === id);
     if (!page) return;
 
     if (idInput) idInput.value = page.id;
@@ -338,7 +430,8 @@ export function initPageEditor(): void {
         headers: { Authorization: `Bearer ${getCmsToken()}` },
       });
       if (response.status !== 204) throw new Error('Error al eliminar');
-      location.reload();
+      await refreshPages();
+      showToast('Página eliminada correctamente.', 'success', 'Páginas');
     } catch {
       await showAlert('Error al eliminar', 'Error');
     }
@@ -440,25 +533,18 @@ export function initPageEditor(): void {
       });
 
       closeDialog(dialog);
-      location.reload();
+      await refreshPages();
+      showToast(id ? 'Página actualizada correctamente.' : 'Página creada correctamente.', 'success', 'Páginas');
     } catch {
       await showAlert('Error al guardar', 'Error');
     }
   }
 
   newBtn?.addEventListener('click', () => void openNew());
-  document.querySelectorAll<HTMLElement>('.cms-page-edit').forEach((button) => {
-    button.addEventListener('click', () => {
-      const id = button.getAttribute('data-id');
-      if (id) void openEdit(id);
-    });
-  });
-  document.querySelectorAll<HTMLElement>('.cms-page-delete').forEach((button) => {
-    button.addEventListener('click', () => {
-      const id = button.getAttribute('data-id');
-      if (id) void deletePage(id);
-    });
-  });
+  document.querySelector<HTMLElement>('[data-open-page-new]')?.addEventListener('click', () => void openNew());
+  bindPageRowEvents();
+  pagesSearch?.addEventListener('input', renderPagesTable);
+  pagesStatusFilter?.addEventListener('change', renderPagesTable);
 
   indexableInput?.addEventListener('change', () => toggleSeoVisibility(indexableInput.checked));
   tabInfo?.addEventListener('click', switchToInfoTab);
@@ -495,11 +581,15 @@ export function initPageEditor(): void {
       const li = document.createElement('li');
       li.className = 'cms-blocks-select-item';
       li.dataset.type = type;
-      li.textContent = schema.name || type;
+      const fieldsCount = Object.keys(schema.items || {}).length;
+      li.innerHTML =
+        `<span class="cms-blocks-select-item-title">${escapeHtml(schema.name || type)}</span>` +
+        `<p class="cms-blocks-select-item-text">${fieldsCount} campo${fieldsCount === 1 ? '' : 's'} configurables</p>`;
       li.addEventListener('click', () => {
         blocksList.push({ type, props: {} });
         renderBlocksList();
         closeDialog(blockSelectModal);
+        showToast(`Bloque "${schema.name || type}" añadido.`, 'success', 'Editor');
       });
       blockSelectList.appendChild(li);
     }
@@ -525,4 +615,6 @@ export function initPageEditor(): void {
     event.preventDefault();
     void submitForm();
   });
+
+  void refreshPages();
 }

@@ -23,13 +23,13 @@ npm run pack:local
 This generates a file like:
 
 ```text
-astro-blocks-0.9.0.tgz
+astro-blocks-0.10.0-alpha.1.tgz
 ```
 
 ## 3. Install it in an Astro project
 
 ```bash
-npm install /absolute/path/to/astro-blocks-0.9.0.tgz
+npm install /absolute/path/to/astro-blocks-0.10.0-alpha.1.tgz
 ```
 
 ## 4. Validate the consumer project
@@ -56,7 +56,7 @@ After changing AstroBlocks again:
 ```bash
 npm run build
 npm run pack:local
-npm install /absolute/path/to/new/astro-blocks-0.9.0.tgz
+npm install /absolute/path/to/new/astro-blocks-0.10.0-alpha.1.tgz
 ```
 
 ## 6. Remove the local tarball package
