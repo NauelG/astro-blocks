@@ -9,6 +9,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.9.0] - 2026-03-18
+
+### Added
+
+- **TypeScript build and typed distribution:** el paquete migra a TypeScript, compila a `dist/` con `tsc` y publica JS + declaraciones tipadas con subpath exports para `astro-blocks`, `astro-blocks/contract` y `astro-blocks/getMenu`.
+- **DX de mantenimiento:** nuevo workspace con `playgrounds/basic`, validación local con `npm pack`, scripts dedicados para build, playground y empaquetado, y guía separada en `DEVELOPING.md` y `LOCAL_PACKAGE_TESTING.md`.
+- **Render público SSR con cache experimental de Astro:** modo alpha por defecto con invalidación selectiva por path al editar páginas, invalidación global por tags al tocar menús/ajustes y endpoint `POST /cms/api/cache/invalidate`.
+
+### Changed
+
+- **Documentación:** README reescrito para consumidores, imports recomendados documentados y notas claras sobre `experimental.cache.provider`, `memoryCache()` y el comportamiento de la cache en `dev`.
+- **Panel del CMS:** la acción de gestión de cache vive en `/cms/cache` y la pantalla interna pasa a `routes/admin/cache.astro`, alineando nombre, ruta y propósito.
+- **Admin internals:** scripts inline grandes de páginas y menús extraídos a módulos cliente compartidos, con mejor separación de responsabilidades.
+
+### Removed
+
+- **Rebuild manual del sitio desde el CMS:** se elimina la acción que lanzaba builds del proyecto desde el panel; la pantalla de `/cms/cache` queda dedicada únicamente a invalidación de cache.
+
 ## [0.8.0] - 2026-03-16
 
 ### Added

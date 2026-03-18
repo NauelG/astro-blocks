@@ -1,0 +1,16 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+interface Props {
+  type: string;
+}
+
+const { type } = Astro.props;
+---
+
+<div style="border: 2px dashed #e53e3e; background: #fff5f5; color: #c53030; padding: 1rem; margin: 0.5rem 0; border-radius: 6px; font-family: monospace; font-size: 0.85rem;">
+  <strong>[astro-blocks]</strong> Unknown block type: <code>{type}</code>
+</div>

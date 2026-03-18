@@ -1,0 +1,35 @@
+{
+  "pages": [
+    {
+      "id": "home-page",
+      "slug": "/",
+      "status": "published",
+      "title": "Home",
+      "blocks": [
+        {
+          "type": "Hero",
+          "props": {
+            "title": "Block-first content editing for Astro.",
+            "subtitle": "This playground validates the packaged plugin, routes and block contract end to end."
+          }
+        },
+        {
+          "type": "Hero",
+          "props": {
+            "title": "demo 2",
+            "subtitle": "demo"
+          }
+        }
+      ],
+      "seo": {
+        "title": "AstroBlocks Playground",
+        "description": "A local Astro playground used to validate the packaged AstroBlocks plugin.",
+        "nofollow": false
+      },
+      "indexable": true,
+      "publishedAt": "2026-03-17T00:00:00.000Z",
+      "createdAt": "2026-03-17T00:00:00.000Z",
+      "updatedAt": "2026-03-17T17:54:55.232Z"
+    }
+  ]
+}

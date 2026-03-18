@@ -7,8 +7,9 @@ Licensed under the Business Source License 1.1
 import fs from 'node:fs/promises';
 import AdminLayout from './layout.astro';
 import { Globe, FileText, Menu, Users, Upload, Plus, Settings, RefreshCw, ExternalLink } from '@lucide/astro';
-import { loadSite, loadPages, getPublishedPages, loadMenus, loadUsers } from '../../api/data.mjs';
-import { getUploadsDir } from '../../utils/paths.mjs';
+import { loadSite, loadPages, getPublishedPages, loadMenus, loadUsers } from '../../api/data.js';
+import { getUploadsDir } from '../../utils/paths.js';
+import { slugToPath } from '../../utils/slug.js';
 
 const site = await loadSite();
 const pagesData = await loadPages();
@@ -112,7 +113,7 @@ const recentPages = [...allPages]
                 {recentPages.map((page) => (
                   <tr>
                     <td class="cms-dashboard-recent-title">{page.title || '(sin título)'}</td>
-                    <td class="cms-table-cell-monospace cms-dashboard-recent-slug">{'/' + (page.slug || '').replace(/^\/+/, '')}</td>
+                    <td class="cms-table-cell-monospace cms-dashboard-recent-slug">{slugToPath(page.slug)}</td>
                     <td class="cms-dashboard-recent-status">
                       <span class={`cms-badge ${page.status === 'published' ? 'cms-badge-success' : 'cms-badge-neutral'}`}>
                         {page.status === 'published' ? 'Publicada' : 'Borrador'}
@@ -150,9 +151,9 @@ const recentPages = [...allPages]
               <Settings size={14} />
               <span>Ajustes del sitio</span>
             </a>
-            <a href="/cms/rebuild" class="cms-dashboard-action-item">
+            <a href="/cms/cache" class="cms-dashboard-action-item">
               <RefreshCw size={14} />
-              <span>Regenerar sitio</span>
+              <span>Invalidar caché</span>
             </a>
           </div>
         </div>

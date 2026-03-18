@@ -1,0 +1,12 @@
+{
+  "siteName": "AstroBlocks Playground",
+  "baseUrl": "http://localhost:4321",
+  "favicon": "/favicon.svg",
+  "logo": "",
+  "primaryColor": "#8f5b33",
+  "secondaryColor": "#5e4635",
+  "seo": {
+    "defaultTitle": "AstroBlocks Playground",
+    "defaultDescription": "A local consumer project for validating AstroBlocks."
+  }
+}

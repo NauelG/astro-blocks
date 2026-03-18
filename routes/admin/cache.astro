@@ -1,0 +1,76 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+export const prerender = false;
+import AdminLayout from './layout.astro';
+import { loadSite } from '../../api/data.js';
+const site = await loadSite();
+---
+
+<AdminLayout site={site} title="Caché">
+  <div class="cms-stack">
+    <div class="cms-page-header">
+      <h1 class="cms-title">Caché</h1>
+    </div>
+    <div class="cms-info-callout">
+      <div class="cms-info-callout-body">
+        <p class="cms-info-callout-title">¿Cuándo usar esta acción?</p>
+        <p>
+          <strong>Invalidar toda la caché</strong> purga la caché SSR del sitio público gestionado por AstroBlocks para que las siguientes peticiones se vuelvan a renderizar con contenido fresco.
+        </p>
+      </div>
+    </div>
+    <div class="cms-card">
+      <div class="cms-rebuild-action">
+        <button type="button" id="cache-invalidate-btn" class="cms-btn cms-btn-primary">Invalidar toda la caché</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function() {
+      const invalidateBtn = document.getElementById('cache-invalidate-btn');
+
+      async function readPayload(res) {
+        const text = await res.text();
+        if (!text) return {};
+        try {
+          return JSON.parse(text);
+        } catch {
+          return { detail: text };
+        }
+      }
+
+      async function runAction(btn, url, successTitle, successMessage, errorTitle) {
+        if (!btn) return;
+        btn.disabled = true;
+        const token = (typeof window !== 'undefined' && window.getCmsToken) ? window.getCmsToken() : '';
+        try {
+          const res = await fetch(url, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+          const payload = await readPayload(res);
+          if (res.ok) {
+            await window.cmsAlert({ message: payload.message || successMessage, title: successTitle });
+          } else {
+            const detail = payload.detail || payload.error || 'La operación ha fallado.';
+            const exitCode = payload.exitCode !== undefined && payload.exitCode !== null ? ` (exit code ${payload.exitCode})` : '';
+            await window.cmsAlert({ message: `${detail}${exitCode}`, title: errorTitle });
+          }
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      invalidateBtn?.addEventListener('click', async () => {
+        await runAction(
+          invalidateBtn,
+          '/cms/api/cache/invalidate',
+          'Invalidar caché',
+          'Caché invalidada correctamente.',
+          'Error al invalidar caché'
+        );
+      });
+    })();
+  </script>
+</AdminLayout>

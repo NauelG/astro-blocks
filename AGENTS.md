@@ -14,24 +14,34 @@ Documento de referencia para iteraciones futuras sobre el CMS. Describe la estru
 ```
 lib/astro-blocks/
 ├── plugin/           # Integración Astro (injectRoute, runtime, config)
-│   ├── index.mjs     # Entry del plugin; hook astro:config:setup
-│   └── index.d.mts   # Tipos (AstroBlocksOptions)
+│   └── index.ts      # Entry del plugin; hook astro:config:setup
 ├── contract/         # Contrato de componentes (defineBlockSchema)
+│   └── index.ts
 ├── api/              # Capa de datos y handlers HTTP
+│   ├── data.ts
+│   └── handlers.ts
 ├── routes/           # Entrypoints inyectados (no están en src/pages)
-│   ├── admin/        # Panel: layout.astro, components/, index, pages, users, settings, menus, rebuild
+│   ├── admin/        # Panel: layout.astro, components/, index, pages, users, settings, menus, cache
 │   │   └── components/
 │   │       ├── DetailModal.astro   # Modal reutilizable para crear/editar (mismo diseño que formularios)
 │   │       ├── ConfirmDialog.astro # Diálogo de confirmación (overlay + panel centrado); expone window.cmsConfirm()
 │   │       └── AlertDialog.astro    # Diálogo de aviso (mismo estilo); expone window.cmsAlert()
-│   └── api/          # catchall.mjs, sitemap-get.mjs, robots-get.mjs
+│   │   └── client/   # Helpers cliente compartidos y módulos para scripts del admin
+│   └── api/          # catchall.ts
 ├── styles/           # Estilos del panel (white-label)
 │   └── cms-admin.css # Overrides Pico, layout, footer (.cms-footer, .cms-footer-logo), componentes, .cms-detail-modal, .cms-dragging, .cms-dropzone
 ├── img/              # Assets del paquete (logo para footer y README)
-│   └── blocks_logo.png
-├── utils/
-├── package.json      # dependencies: @picocss/pico, animate.css, sortablejs, simple-dropzone
-├── README.md
+│   └── blocks_logo.jpg
+├── utils/            # Utilidades compartidas (bloques, slugs, paths, menús)
+├── types/            # Tipos compartidos del dominio
+├── scripts/          # Build local del paquete
+├── dist/             # Artefacto distribuible generado por tsc + copia de assets
+├── playgrounds/
+│   └── basic/        # Proyecto Astro consumidor para validar el paquete
+├── package.json      # exports tipados a dist/, scripts y workspaces
+├── README.md         # Solo consumidor
+├── DEVELOPING.md     # Solo mantenedor del paquete
+├── LOCAL_PACKAGE_TESTING.md # Flujo temporal para probar el tarball local
 └── AGENTS.md
 ```
 
@@ -41,14 +51,14 @@ lib/astro-blocks/
 
 ## 2. Rutas y prefijos
 
-- **Panel:** todo bajo **`/cms`**: `/cms`, `/cms/pages`, `/cms/users`, `/cms/settings`, `/cms/menus`, `/cms/rebuild`. El detalle (crear/editar) se hace en modal en la propia lista, no hay rutas `/new` ni `/[id]`.
-- **API:** bajo **`/cms/api`**: `/cms/api/pages`, `/cms/api/pages/[id]`, `/cms/api/site`, `/cms/api/menus`, `/cms/api/upload`, `/cms/api/rebuild`.
-- **Páginas del sitio:** ruta inyectada **`/[...slug]`** (entrypoint `routes/page.astro`); home = slug vacío o `/`.
+- **Panel:** todo bajo **`/cms`**: `/cms`, `/cms/pages`, `/cms/users`, `/cms/settings`, `/cms/menus`, `/cms/cache`. El detalle (crear/editar) se hace en modal en la propia lista, no hay rutas `/new` ni `/[id]`.
+- **API:** bajo **`/cms/api`**: `/cms/api/pages`, `/cms/api/pages/[id]`, `/cms/api/site`, `/cms/api/menus`, `/cms/api/upload`, `/cms/api/cache/invalidate`.
+- **Páginas del sitio:** ruta inyectada **`/[...slug]`**. En alpha, el modo por defecto es SSR con cache experimental de Astro (`routes/page.astro`). Si el consumidor fuerza `publicRendering: 'static'`, el plugin inyecta `routes/page-static.astro`. Home = slug vacío o `/`.
 - **Sitemap / robots:** `/sitemap-index.xml`, `/robots.txt` (endpoints con `prerender = false`).
 
 Al añadir rutas nuevas del panel o de la API, mantener estos prefijos y actualizar enlaces y `fetch()` en los .astro del admin.
 
-**Estructura del panel:** `layout.astro` incluye topbar (logo/título + perfil con dropdown “Salir”), sidebar con menú agrupado (Dashboard; Contenido: Páginas, Menús; Configuración: Ajustes, Regenerar sitio), y **footer fijo** (`.cms-footer`) con el logo de AstroBlocks (`img/blocks_logo.png`, optimizado con `astro:assets`), nombre y versión. El contenido hace scroll entre topbar y footer. Iconos con `@lucide/astro`. La acción “Regenerar sitio” es una página dedicada (`/cms/rebuild`, `admin/rebuild.astro`) con texto explicativo y botón que llama a `POST /cms/api/rebuild`; no va en el formulario de edición de página.
+**Estructura del panel:** `layout.astro` incluye topbar (logo/título + perfil con dropdown “Salir”), sidebar con menú agrupado (Dashboard; Contenido: Páginas, Menús; Configuración: Ajustes, Caché), y **footer fijo** (`.cms-footer`) con el logo de AstroBlocks (`img/blocks_logo.jpg`, optimizado con `astro:assets`), nombre y versión. El contenido hace scroll entre topbar y footer. Iconos con `@lucide/astro`. La pantalla `/cms/cache` se usa para invalidación total de caché; no lanza builds ni va en el formulario de edición de página.
 
 ---
 
@@ -230,13 +240,17 @@ El dashboard debe seguir el mismo design system, pero con reglas específicas:
 
 | Archivo | Responsabilidad |
 |--------|------------------|
-| `plugin/index.mjs` | Genera `.astro-blocks/runtime.mjs`, inyecta rutas, define alias `astro-blocks-runtime`, `ASTRO_BLOCKS_PROJECT_ROOT`. No inyecta integraciones de CSS. |
-| `api/data.mjs` | Lee/escribe `data/pages.json`, `data/site.json`, `data/menus.json`. `ensureDefaultFiles()` crea `data/` y JSON por defecto si no existen. |
-| `api/handlers.mjs` | Lógica de cada endpoint: auth con `CMS_SECRET`, CRUD páginas/site/menus, upload a `public/uploads`, rebuild (`npm run build`). |
-| `routes/api/catchall.mjs` | Despacha por método y path (segmentos tras `/cms/api/`). `getPathSegments` usa `pathname.split('/').filter(Boolean).slice(2)`. |
-| `routes/page.astro` | `getStaticPaths` desde `data/pages.json` (solo `status === 'published'`). Render con layout y `componentMap` del runtime; props SEO al layout. Convierte `seo.image` relativa a URL absoluta con `site.baseUrl`. |
-| `routes/robots-get.mjs` | Genera `robots.txt` con `Disallow: /cms`, líneas `Disallow` por cada página publicada y no indexable (excepto home), y `Sitemap`. |
-| `utils/paths.mjs` | Resolución de `projectRoot`, `data/`, `public/uploads`, directorio del paquete (para entrypoints). |
+| `plugin/index.ts` | Genera `.astro-blocks/runtime.mjs`, inyecta rutas, define alias `astro-blocks-runtime`, `ASTRO_BLOCKS_PROJECT_ROOT`. No inyecta integraciones de CSS. |
+| `api/data.ts` | Lee/escribe `data/pages.json`, `data/site.json`, `data/menus.json`. `ensureDefaultFiles()` crea `data/` y JSON por defecto si no existen. |
+| `api/handlers.ts` | Lógica de cada endpoint: auth con `CMS_SECRET`, CRUD páginas/site/menus, upload a `public/uploads` e invalidación de caché. |
+| `routes/api/catchall.ts` | Despacha por método y path (segmentos tras `/cms/api/`). `getPathSegments` usa `pathname.split('/').filter(Boolean).slice(2)`. |
+| `routes/page.astro` | Ruta pública SSR por defecto en alpha. Lee `data/pages.json` en cada request, aplica `Astro.cache.set(...)` si la cache experimental está activa, resuelve la página publicada por slug y renderiza con layout + `componentMap`. |
+| `routes/page-static.astro` | Variante estática para `publicRendering: 'static'`; usa `getStaticPaths()` y mantiene el flujo prerenderizado tradicional. |
+| `routes/robots-get.ts` | Genera `robots.txt` con `Disallow: /cms`, líneas `Disallow` por cada página publicada y no indexable (excepto home), y `Sitemap`. |
+| `utils/paths.ts` | Resolución de `projectRoot`, `data/`, `public/uploads`, directorio del paquete (para entrypoints). |
+| `utils/blocks.ts` | Resolución de keys de bloque, serialización de schemas y validación compartida de bloques. |
+| `utils/slug.ts` | Normalización de slugs, canonical y SEO derivado para el render público. |
+| `scripts/build.mjs` | Build del paquete: copia assets/`.astro` a `dist/` y compila TypeScript con `tsc`. |
 
 ---
 
@@ -252,8 +266,8 @@ El dashboard debe seguir el mismo design system, pero con reglas específicas:
 ## 6. Pre-render vs server
 
 - **Astro 6:** `output: 'static'`. Las rutas con `export const prerender = false` se sirven en el servidor (requieren adapter, p. ej. `@astrojs/node`).
-- **Pre-render:** `page.astro` (páginas del sitio), y en el build actual también las pantallas estáticas del admin (index, pages, pages-new, settings, menus).
-- **Server:** `routes/admin/pages-[id].astro`, `routes/admin/rebuild.astro`, `routes/api/catchall.mjs`, `sitemap-get.mjs`, `robots-get.mjs` tienen `prerender = false`. Si se quiere listado/dashboard siempre actualizados, añadir `prerender = false` a esos .astro del admin.
+- **Pre-render:** en el build actual, las pantallas estáticas del admin que no declaran `prerender = false`, y opcionalmente `routes/page-static.astro` si el consumidor fuerza `publicRendering: 'static'`.
+- **Server:** en alpha, `routes/page.astro` es la referencia por defecto para páginas públicas. También usan `prerender = false` `routes/admin/cache.astro` (inyectada como `/cms/cache`), `routes/api/catchall.ts`, `sitemap-get.ts`, `robots-get.ts`, `uploads-get.ts`, `routes/admin/menus.astro` y `routes/admin/users.astro`.
 
 ---
 
@@ -277,11 +291,11 @@ El dashboard debe seguir el mismo design system, pero con reglas específicas:
 ## 9. Extender el CMS (checklist para agentes)
 
 - **Nueva pantalla del panel (listado + detalle):** crear `routes/admin/nombre.astro` con la tabla/listado y un **DetailModal** para crear/editar; inyectar en el plugin `injectRoute({ pattern: '/cms/nombre', entrypoint: ... })`, enlazar desde `layout.astro`. No crear páginas separadas para "nuevo" o "editar"; usar siempre el modal en la misma pantalla que el listado. **Tablas:** seguir el lenguaje de diseño unificado (sección 8): primera columna solo editar (lápiz), última columna solo eliminar (papelera roja) si aplica; font-size 0.75rem; para eliminar usar `window.cmsConfirm`. Ver `pages.astro` y `users.astro` como referencia.
-- **Nueva pantalla sin listado (ej. ajustes):** crear `routes/admin/nombre.astro` sin modal (ej. `settings.astro`, `rebuild.astro`).
-- **Nuevo endpoint API:** en `handlers.mjs` añadir la función; en `routes/api/catchall.mjs` despachar por método y segmentos; en el admin usar `fetch('/cms/api/...')`.
+- **Nueva pantalla sin listado (ej. ajustes o caché):** crear `routes/admin/nombre.astro` sin modal (ej. `settings.astro`, `cache.astro`).
+- **Nuevo endpoint API:** en `handlers.ts` añadir la función; en `routes/api/catchall.ts` despachar por método y segmentos; en el admin usar `fetch('/cms/api/...')`.
 - **Menús:** Estructura en `data/menus.json`: `{ menus: [ { id, name, selector, items } ] }`; cada ítem tiene `name`, `path` y opcionalmente `children` (submenús anidados). API: GET/POST `/cms/api/menus`, PUT/DELETE `/cms/api/menus/:id`. Selector: solo `[a-zA-Z0-9_-]`, único. Ruta obligatoria en todos los ítems; validación en cliente y API. Reordenación de ítems y submenús con Sortable.js (`ghostClass: 'cms-dragging'`, handle `.cms-drag-handle`). `getMenu(selector)` devuelve ítems con `children` para el sitio.
-- **Nuevo tipo de prop en el contrato:** en `contract/index.mjs` (y tipos en `contract/index.d.mts`) añadir el tipo; en el panel, si hay UI generada por schema, soportar el nuevo tipo.
-- **Cambio de prefijo de rutas:** buscar y reemplazar `/cms` y `/cms/api` en plugin, admin, robots-get.mjs y README; en el catchall ajustar `getPathSegments` (p. ej. `slice(2)` para `/cms/api/...`).
+- **Nuevo tipo de prop en el contrato:** en `contract/index.ts` y `types/index.ts` añadir el tipo; en el panel, si hay UI generada por schema, soportar el nuevo tipo.
+- **Cambio de prefijo de rutas:** buscar y reemplazar `/cms` y `/cms/api` en plugin, admin, robots-get.ts y README; en el catchall ajustar `getPathSegments` (p. ej. `slice(2)` para `/cms/api/...`).
 - **Al entregar cambios en el paquete:** no hacer bump de versión ni entrada en CHANGELOG hasta que la versión se dé por cerrada (ver sección 12). En el momento en que se pida hacer el commit, previamente se actualiza la versión en `package.json` y se añade la entrada en `CHANGELOG.md`.
 -  **Toda nueva pantalla o componente del panel** debe reutilizar el design system existente en `cms-admin.css`. Antes de crear clases nuevas, revisar si el caso encaja en `.cms-card`, `.cms-table`, `.cms-btn`, `.cms-field`, `.cms-badge`, `.cms-stack`, `.cms-cluster` o variantes existentes. Cualquier nueva clase visual debe mantener las reglas del sistema: white-label real, superficies planas, bordes suaves, sombras mínimas, color primario como acento y densidad compacta.
 
@@ -303,12 +317,37 @@ El diseño completo (requisitos, data en raíz, contrato, borrador/publicado, SE
 
 ### Estilo del README (`README.md`)
 
-El README debe mantenerse **moderno y listo para repositorio público**. Al actualizarlo o ampliarlo:
+El README debe mantenerse **100% orientado al consumidor**. Al actualizarlo o ampliarlo:
 
-- **Cabecera:** logo centrado (`img/blocks_logo.png`, ancho ~160px), título H1 centrado, tagline en una línea. **Badges** en una fila: versión del proyecto (enlazando a `CHANGELOG.md`; ej. `https://img.shields.io/badge/version-X.Y.Z-blue`), badge de estado (ej. alpha) si aplica, Node ≥18, Astro 6+ (shields.io). Al hacer bump de versión en `package.json`, actualizar también el número en el badge de versión del README.
-- **Estructura:** sección **Características** al inicio (viñetas cortas). Luego **Requisitos** (tabla), **Instalación** (local / npm), **Configuración rápida** (bloque de código completo). Opciones del plugin y carpeta `data/` en **tablas**. Resto en secciones concisas con código cuando aplique.
+- **Cabecera:** logo centrado (`img/blocks_logo.jpg`, ancho ~160px), título H1 centrado, tagline en una línea. **Badges** en una fila: versión del proyecto (enlazando a `CHANGELOG.md`; ej. `https://img.shields.io/badge/version-X.Y.Z-blue`), badge de estado (ej. alpha) si aplica, Node ≥18, Astro 6+ (shields.io). Al hacer bump de versión en `package.json`, actualizar también el número en el badge de versión del README.
+- **Estructura:** sección **Características** al inicio (viñetas cortas). Luego **Requisitos** (tabla), **Instalación** (npm / tarball local), **Configuración rápida** (bloque de código completo) y **Recommended Imports**. Opciones del plugin y carpeta `data/` en **tablas**. Resto en secciones concisas con código cuando aplique.
 - **Formato:** separadores `---` entre bloques, tablas para listas de opciones/archivos/requisitos, negrita y cursiva para resaltar. Sin párrafos largos; preferir listas y tablas.
 - **Contenido:** si se añaden opciones del plugin, rutas del panel, archivos en `data/` o endpoints de API, actualizar README (tablas y texto) para que la documentación pública siga al día.
+- **No mezclar audiencias:** notas de build, playground, `npm pack` o mantenimiento interno deben ir a `DEVELOPING.md` o `LOCAL_PACKAGE_TESTING.md`, no al README.
+
+### Guía del mantenedor
+
+- `DEVELOPING.md` es la guía del mantenedor del paquete.
+- `LOCAL_PACKAGE_TESTING.md` describe cómo compilar, empaquetar con `npm pack` e instalar el tarball en un proyecto Astro limpio.
+- No convertir `AGENTS.md` en sustituto de esas guías; `AGENTS.md` es operativo para agentes, no documentación para consumidores.
+
+### Tooling y DX
+
+- El flujo oficial de desarrollo del paquete usa **TypeScript + `tsc` + `dist/`**.
+- El flujo oficial de validación del artefacto distribuible usa **`npm pack`**.
+- Hay un **playground** en `playgrounds/basic` para validar el paquete desde un proyecto Astro real.
+- En alpha, la dirección preferida del producto es **`publicRendering: 'server'` + cache experimental de Astro**.
+- AstroBlocks no implementa una cache propia; usa `Astro.cache` y `context.cache`.
+- Tags estándar de cache:
+  - `astro-blocks`
+  - `astro-blocks:pages`
+  - `astro-blocks:page:<id>`
+  - `astro-blocks:path:<path>`
+  - `astro-blocks:menus`
+  - `astro-blocks:site`
+  - `astro-blocks:global`
+- No documentar ni recomendar `file:` como flujo principal de desarrollo o validación.
+- No usar alias `@` en imports internos del paquete. Mantener imports internos **relativos**.
 
 ### Versionado y CHANGELOG
 

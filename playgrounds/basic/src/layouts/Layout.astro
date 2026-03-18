@@ -1,0 +1,118 @@
+---
+import { getMenu } from 'astro-blocks/getMenu';
+
+const {
+  title = 'AstroBlocks Playground',
+  description = '',
+  canonical = '',
+  noindex = false,
+  site = {},
+  seo = {},
+} = Astro.props;
+
+const menu = await getMenu('main');
+const robots = noindex ? (seo?.nofollow ? 'noindex, nofollow' : 'noindex') : seo?.nofollow ? 'index, nofollow' : null;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    {canonical && <link rel="canonical" href={canonical} />}
+    {robots && <meta name="robots" content={robots} />}
+    {seo?.image && <meta property="og:image" content={seo.image} />}
+    <style>
+      :root {
+        color-scheme: light;
+        --surface: #f8f5ef;
+        --paper: #ffffff;
+        --ink: #1b120d;
+        --muted: #6d5b4f;
+        --line: #e8e0d3;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Instrument Serif", Georgia, serif;
+        background: radial-gradient(circle at top, #fffaf0 0%, var(--surface) 55%, #efe7d9 100%);
+        color: var(--ink);
+      }
+
+      a { color: inherit; text-decoration: none; }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        backdrop-filter: blur(16px);
+        background: rgba(248, 245, 239, 0.78);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .shell {
+        width: min(100%, 72rem);
+        margin: 0 auto;
+        padding: 1rem 1.5rem;
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .brand {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+
+      .brand strong {
+        font-size: 1.1rem;
+      }
+
+      .brand span {
+        font-family: system-ui, sans-serif;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .links {
+        display: flex;
+        gap: 1rem;
+        font-family: system-ui, sans-serif;
+        font-size: 0.95rem;
+      }
+
+      footer {
+        padding: 3rem 1.5rem 4rem;
+        color: var(--muted);
+        font-family: system-ui, sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="shell nav">
+        <a href="/" class="brand">
+          <strong>{site.siteName || 'AstroBlocks Playground'}</strong>
+          <span>Consumer DX validation project</span>
+        </a>
+        <nav class="links">
+          {menu.map((item) => <a href={item.path}>{item.name}</a>)}
+          <a href="/cms">CMS</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="shell">
+      Built to validate `astro-blocks` as a consumer would install and use it.
+    </footer>
+  </body>
+</html>

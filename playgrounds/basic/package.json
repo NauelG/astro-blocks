@@ -1,0 +1,13 @@
+{
+  "name": "astro-blocks-playground",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build"
+  },
+  "dependencies": {
+    "@astrojs/node": "^10.0.0",
+    "astro": "^6.0.5"
+  }
+}

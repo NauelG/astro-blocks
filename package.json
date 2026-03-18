@@ -1,14 +1,34 @@
 {
   "name": "astro-blocks",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
-  "main": "./plugin/index.mjs",
+  "main": "./dist/plugin/index.js",
   "exports": {
-    ".": "./plugin/index.mjs",
-    "./contract": "./contract/index.mjs",
-    "./getMenu": "./utils/getMenu.mjs"
+    ".": {
+      "types": "./dist/plugin/index.d.ts",
+      "import": "./dist/plugin/index.js"
+    },
+    "./contract": {
+      "types": "./dist/contract/index.d.ts",
+      "import": "./dist/contract/index.js"
+    },
+    "./getMenu": {
+      "types": "./dist/utils/getMenu.d.ts",
+      "import": "./dist/utils/getMenu.js"
+    }
   },
-  "types": "./plugin/index.d.mts",
+  "types": "./dist/plugin/index.d.ts",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test tests/*.test.js",
+    "prepare:playground": "npm run build && node scripts/install-playground-package.mjs",
+    "dev:playground": "npm run prepare:playground && npm run dev --workspace astro-blocks-playground",
+    "build:playground": "npm run prepare:playground && npm run build --workspace astro-blocks-playground",
+    "pack:local": "node scripts/pack-local.mjs",
+    "prepack": "npm run build"
+  },
   "dependencies": {
     "@lucide/astro": "^0.577.0",
     "@picocss/pico": "^2.0.0",
@@ -17,17 +37,19 @@
     "simple-dropzone": "^0.8.0",
     "sortablejs": "^1.15.0"
   },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "astro": "^6.0.5",
+    "typescript": "^5.8.0"
+  },
   "peerDependencies": {
     "astro": "^6.0.0"
   },
   "files": [
-    "plugin",
-    "contract",
-    "routes",
-    "api",
-    "utils",
-    "styles",
-    "img"
+    "dist"
+  ],
+  "workspaces": [
+    "playgrounds/*"
   ],
   "engines": {
     "node": ">=18.0.0"

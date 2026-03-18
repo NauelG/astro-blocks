@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 */
 
 import AdminLayout from './layout.astro';
-import { loadSite } from '../../api/data.mjs';
+import { loadSite } from '../../api/data.js';
 const site = await loadSite();
 function toFullHex(val: string | undefined, fallback: string) {
   if (!val || !val.startsWith('#')) return fallback;

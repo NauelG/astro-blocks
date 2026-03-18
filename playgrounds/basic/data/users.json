@@ -1,0 +1,11 @@
+{
+  "users": [
+    {
+      "id": "rsc6msrzmqmmuwucgx",
+      "email": "ngomez@mod.es",
+      "passwordHash": "lyYefnv0kYhWH05AdsqLFw==:1a/kIc9S/letP4+hHykgvKjsto4eYDoLVf7FjOI8ITDpKZCpfkq3vEAIgP2AZg/bK74x3jrm0nx+LPGC1bYC4A==",
+      "role": "owner",
+      "createdAt": "2026-03-17T17:52:50.337Z"
+    }
+  ]
+}

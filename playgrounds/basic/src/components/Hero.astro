@@ -1,0 +1,16 @@
+---
+interface Props {
+  title: string;
+  subtitle?: string;
+}
+
+const { title, subtitle } = Astro.props;
+---
+
+<section style="padding: 4rem 1.5rem; max-width: 72rem; margin: 0 auto;">
+  <div style="background: linear-gradient(135deg, #f4f1e8 0%, #ffffff 100%); border: 1px solid #e7dfcf; border-radius: 20px; padding: 3rem;">
+    <p style="margin: 0; font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: #7d5a3d;">AstroBlocks Playground</p>
+    <h1 style="margin: 0.75rem 0 0; font-size: clamp(2.5rem, 7vw, 4.75rem); line-height: 0.95; color: #261a12;">{title}</h1>
+    {subtitle && <p style="max-width: 36rem; margin: 1rem 0 0; font-size: 1.1rem; color: #4e4036;">{subtitle}</p>}
+  </div>
+</section>

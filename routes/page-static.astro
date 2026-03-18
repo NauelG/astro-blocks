@@ -1,0 +1,45 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+import { getPublishedPages, loadPages, loadSite, pageToSlugParam } from '../api/data.js';
+import { resolvePageSeo } from '../utils/slug.js';
+import { Layout, componentMap } from 'astro-blocks-runtime';
+import BlockFallback from './BlockFallback.astro';
+
+export async function getStaticPaths() {
+  const projectRoot = import.meta.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
+  process.env.ASTRO_BLOCKS_PROJECT_ROOT = projectRoot;
+  const pagesData = await loadPages();
+  const published = getPublishedPages(pagesData);
+  return published.map((page) => ({
+    params: { slug: pageToSlugParam(page) },
+    props: { page },
+  }));
+}
+
+const { page } = Astro.props;
+const site = await loadSite();
+const { title, description, canonical, noindex, seo } = resolvePageSeo(site, page);
+const blocks = page.blocks || [];
+---
+
+<Layout
+  title={title}
+  description={description}
+  canonical={canonical}
+  noindex={noindex}
+  site={site}
+  seo={seo}
+>
+  {blocks.map((block) => {
+    const Comp = componentMap[block.type];
+    if (!Comp) {
+      console.warn(`[astro-blocks] Unknown block type "${block.type}" – no component mapped.`);
+      return import.meta.env.DEV ? <BlockFallback type={block.type} /> : null;
+    }
+    return <Comp {...(block.props || {})} />;
+  })}
+</Layout>
