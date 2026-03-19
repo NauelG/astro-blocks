@@ -1,4 +1,6 @@
 ---
+import { getI18nMeta } from 'astro-blocks/getI18nMeta';
+import { getLanguages } from 'astro-blocks/getLanguages';
 import { getMenu } from 'astro-blocks/getMenu';
 
 const {
@@ -6,16 +8,28 @@ const {
   description = '',
   canonical = '',
   noindex = false,
+  i18n,
   site = {},
   seo = {},
 } = Astro.props;
 
-const menu = await getMenu('main');
+const { languages, defaultLocale } = await getLanguages();
+const activeLocale = i18n?.locale || defaultLocale;
+const i18nMeta = getI18nMeta(i18n, { baseUrl: site?.baseUrl });
+const menu = await getMenu('main', { locale: activeLocale });
 const robots = noindex ? (seo?.nofollow ? 'noindex, nofollow' : 'noindex') : seo?.nofollow ? 'index, nofollow' : null;
+
+const languageLinks = languages.map((language) => ({
+  ...language,
+  href:
+    i18n?.alternates?.find((entry) => entry.locale === language.code)?.path ||
+    (language.code === defaultLocale ? '/' : `/${language.code}`),
+  active: language.code === activeLocale,
+}));
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={i18nMeta?.htmlLang || activeLocale || 'en'}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -24,6 +38,13 @@ const robots = noindex ? (seo?.nofollow ? 'noindex, nofollow' : 'noindex') : seo
     {canonical && <link rel="canonical" href={canonical} />}
     {robots && <meta name="robots" content={robots} />}
     {seo?.image && <meta property="og:image" content={seo.image} />}
+    {i18nMeta?.alternates.map((entry) => (
+      <link rel="alternate" hreflang={entry.hrefLang} href={entry.href} />
+    ))}
+    {i18nMeta?.ogLocale && <meta property="og:locale" content={i18nMeta.ogLocale} />}
+    {i18nMeta?.ogLocaleAlternate.map((entry) => (
+      <meta property="og:locale:alternate" content={entry} />
+    ))}
     <style>
       :root {
         color-scheme: light;
@@ -83,9 +104,31 @@ const robots = noindex ? (seo?.nofollow ? 'noindex, nofollow' : 'noindex') : seo
 
       .links {
         display: flex;
-        gap: 1rem;
+        align-items: center;
+        gap: 0.75rem;
         font-family: system-ui, sans-serif;
         font-size: 0.95rem;
+      }
+
+      .locale-links {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-left: 0.75rem;
+        padding-left: 0.75rem;
+        border-left: 1px solid var(--line);
+      }
+
+      .locale-link {
+        font-size: 0.82rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .locale-link--active {
+        color: var(--ink);
+        font-weight: 600;
       }
 
       footer {
@@ -105,6 +148,17 @@ const robots = noindex ? (seo?.nofollow ? 'noindex, nofollow' : 'noindex') : seo
         <nav class="links">
           {menu.map((item) => <a href={item.path}>{item.name}</a>)}
           <a href="/cms">CMS</a>
+          <span class="locale-links">
+            {languageLinks.map((language) => (
+              <a
+                href={language.href}
+                class:list={['locale-link', language.active && 'locale-link--active']}
+                aria-current={language.active ? 'page' : undefined}
+              >
+                {language.code}
+              </a>
+            ))}
+          </span>
         </nav>
       </div>
     </header>

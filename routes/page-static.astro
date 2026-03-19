@@ -4,26 +4,64 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-import { getPublishedPages, loadPages, loadSite, pageToSlugParam } from '../api/data.js';
-import { resolvePageSeo } from '../utils/slug.js';
-import { Layout, componentMap } from 'astro-blocks-runtime';
+import { getDefaultLocale, getPageLocaleViewStrict, getPageSlugStrict, getPageStatusStrict, getPublishedPagesStrict, loadLanguages, loadPages, loadSite, pageToSlugParam } from '../api/data.js';
+import { localizeBlockPropsForRender } from '../utils/block-props.js';
+import { buildLocalizedPath, resolvePageSeo, slugToPath } from '../utils/slug.js';
+import { normalizeLocaleCode } from '../utils/localization.js';
+import { Layout, componentMap, schemaMap as runtimeSchemaMap } from 'astro-blocks-runtime';
 import BlockFallback from './BlockFallback.astro';
 
 export async function getStaticPaths() {
   const projectRoot = import.meta.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
   process.env.ASTRO_BLOCKS_PROJECT_ROOT = projectRoot;
-  const pagesData = await loadPages();
-  const published = getPublishedPages(pagesData);
-  return published.map((page) => ({
-    params: { slug: pageToSlugParam(page) },
-    props: { page },
-  }));
+
+  const [pagesData, languagesData] = await Promise.all([loadPages(), loadLanguages()]);
+  const defaultLocale = getDefaultLocale(languagesData);
+  const enabledLocales = languagesData.languages.filter((language) => language.enabled !== false).map((language) => normalizeLocaleCode(language.code));
+
+  const paths: Array<{ params: { slug: string }; props: { page: unknown; locale: string; defaultLocale: string; enabledLocales: string[] } }> = [];
+
+  for (const locale of enabledLocales) {
+    const published = getPublishedPagesStrict(pagesData, locale);
+    for (const page of published) {
+      const view = getPageLocaleViewStrict(page, locale);
+      const localizedPath = buildLocalizedPath(view.slug, locale, defaultLocale);
+      paths.push({
+        params: { slug: pageToSlugParam({ slug: localizedPath }) },
+        props: { page, locale, defaultLocale, enabledLocales },
+      });
+    }
+  }
+
+  return paths;
 }
 
-const { page } = Astro.props;
+const { page, locale, defaultLocale, enabledLocales } = Astro.props;
 const site = await loadSite();
-const { title, description, canonical, noindex, seo } = resolvePageSeo(site, page);
-const blocks = page.blocks || [];
+const localeKeys = new Set((enabledLocales || []).map((entry: string) => normalizeLocaleCode(entry)));
+const view = getPageLocaleViewStrict(page, locale);
+const localizedSlug = buildLocalizedPath(view.slug, locale, defaultLocale);
+const i18n = {
+  locale,
+  defaultLocale,
+  alternates: (enabledLocales || [])
+    .filter((entryLocale: string) => getPageStatusStrict(page, entryLocale) === 'published')
+    .map((entryLocale: string) => ({
+      locale: entryLocale,
+      path: slugToPath(buildLocalizedPath(getPageSlugStrict(page, entryLocale) || '/', entryLocale, defaultLocale)),
+    })),
+};
+const localizedPage = {
+  ...view,
+  slug: localizedSlug,
+  blocks: (view.blocks || []).map((block) => ({
+    type: block.type,
+    props: localizeBlockPropsForRender(block.props || {}, block.type, runtimeSchemaMap, locale, defaultLocale, localeKeys),
+  })),
+};
+
+const { title, description, canonical, noindex, seo } = resolvePageSeo(site, localizedPage);
+const blocks = localizedPage.blocks || [];
 ---
 
 <Layout
@@ -33,6 +71,7 @@ const blocks = page.blocks || [];
   noindex={noindex}
   site={site}
   seo={seo}
+  i18n={i18n}
 >
   {blocks.map((block) => {
     const Comp = componentMap[block.type];

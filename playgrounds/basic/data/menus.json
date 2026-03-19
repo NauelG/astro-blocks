@@ -4,12 +4,28 @@
       "id": "main-menu",
       "name": "Main menu",
       "selector": "main",
-      "items": [
-        {
-          "name": "Home",
-          "path": "/"
-        }
-      ]
+      "items": {
+        "es": [
+          {
+            "name": "Inicio",
+            "path": "/"
+          },
+          {
+            "name": "Contacto",
+            "path": "/contacto"
+          }
+        ],
+        "en": [
+          {
+            "name": "Home",
+            "path": "/en"
+          },
+          {
+            "name": "Contact",
+            "path": "/en/contact"
+          }
+        ]
+      }
     }
   ]
 }

@@ -11,8 +11,33 @@ import type { APIContext } from 'astro';
 import { SignJWT, jwtVerify } from 'jose';
 import { getGlobalCachePaths, getGlobalCacheTags, getPageCachePath, getPageCacheTags } from '../utils/cache.js';
 import { validateBlocks } from '../utils/blocks.js';
+import {
+  getDefaultLanguageCode,
+  getLocalizedValue,
+  isLocalizedMapValue,
+  isSchemaPropLocalizable,
+  normalizeLocaleCode,
+  setLocalizedValue,
+} from '../utils/localization.js';
+import { joinSlugSegments, slugToPath, splitSlugSegments } from '../utils/slug.js';
 import { getProjectRoot, getUploadsDir, resolveUploadPath } from '../utils/paths.js';
-import type { AuthResult, AuthUser, BlockInstance, Menu, MenuItem, Page, PagesData, SchemaMap, SeoData, Site, User } from '../types/index.js';
+import type {
+  AuthResult,
+  AuthUser,
+  BlockInstance,
+  ContentLanguage,
+  LanguagesData,
+  Menu,
+  MenuItem,
+  Page,
+  PageLocaleView,
+  PageStatus,
+  PagesData,
+  SchemaMap,
+  SeoData,
+  Site,
+  User,
+} from '../types/index.js';
 import * as data from './data.js';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.CMS_JWT_SECRET || 'cms-jwt-secret-change-me');
@@ -25,6 +50,91 @@ function jsonError(message: string, status = 400, extra?: Record<string, unknown
     status,
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+function normalizeSlugInput(rawSlug: unknown): string | string[] {
+  if (Array.isArray(rawSlug)) {
+    const parts = rawSlug.map(String).map((entry) => entry.trim()).filter(Boolean);
+    return joinSlugSegments(parts);
+  }
+
+  const raw = String(rawSlug ?? '/').trim();
+  if (!raw || raw === '/') return '/';
+
+  const parts = splitSlugSegments(raw);
+  return joinSlugSegments(parts);
+}
+
+function normalizeStatus(value: unknown): PageStatus {
+  return value === 'published' || value === 'archived' || value === 'draft' ? value : 'draft';
+}
+
+function normalizePageSeo(input: unknown): SeoData {
+  if (!input || typeof input !== 'object') return {};
+  const seo = input as Partial<SeoData>;
+  return {
+    ...(typeof seo.title === 'string' && seo.title.trim() ? { title: seo.title.trim() } : {}),
+    ...(typeof seo.description === 'string' && seo.description.trim() ? { description: seo.description.trim() } : {}),
+    ...(typeof seo.canonical === 'string' && seo.canonical.trim() ? { canonical: seo.canonical.trim() } : {}),
+    ...(typeof seo.image === 'string' && seo.image.trim() ? { image: seo.image.trim() } : {}),
+    ...(seo.nofollow !== undefined ? { nofollow: Boolean(seo.nofollow) } : {}),
+  };
+}
+
+function normalizeLocaleFromRequest(request: Request, languagesData: LanguagesData): string {
+  const url = new URL(request.url);
+  const queryLocale = normalizeLocaleCode(url.searchParams.get('locale'));
+  const headerLocale = normalizeLocaleCode(request.headers.get('x-cms-locale'));
+  const defaultLocale = getDefaultLanguageCode(languagesData);
+  const locale = queryLocale || headerLocale || defaultLocale;
+  return data.ensureLocaleAvailable(locale, languagesData);
+}
+
+function resolveLocaleFromBody(
+  body: Record<string, unknown>,
+  request: Request,
+  languagesData: LanguagesData
+): string {
+  const bodyLocale = normalizeLocaleCode(typeof body.locale === 'string' ? body.locale : '');
+  return data.ensureLocaleAvailable(bodyLocale || normalizeLocaleFromRequest(request, languagesData), languagesData);
+}
+
+function normalizeLanguageCode(code: string): string {
+  return normalizeLocaleCode(code);
+}
+
+function getLanguageLocaleKeys(languagesData: LanguagesData): Set<string> {
+  return new Set(
+    (languagesData.languages || [])
+      .map((language) => normalizeLanguageCode(language.code))
+      .filter(Boolean)
+  );
+}
+
+function ensureEnabledDefaultLanguage(
+  languages: ContentLanguage[],
+  preferredCode?: string,
+  fallbackToFirst = false
+): ContentLanguage[] {
+  if (!Array.isArray(languages) || languages.length === 0) return languages;
+
+  let defaultCode = normalizeLanguageCode(preferredCode || '');
+  if (!defaultCode) {
+    const currentDefault = languages.find((language) => language.isDefault && language.enabled !== false);
+    defaultCode = normalizeLanguageCode(currentDefault?.code || '');
+  }
+  if (!defaultCode) {
+    const firstEnabled = languages.find((language) => language.enabled !== false);
+    defaultCode = normalizeLanguageCode(firstEnabled?.code || '');
+  }
+  if (!defaultCode && fallbackToFirst) {
+    defaultCode = normalizeLanguageCode(languages[0]?.code || '');
+  }
+
+  return languages.map((language) => ({
+    ...language,
+    isDefault: defaultCode ? normalizeLanguageCode(language.code) === defaultCode : false,
+  }));
 }
 
 async function invalidateCachePath(cache: AstroCache | null | undefined, pathname: string): Promise<boolean> {
@@ -60,6 +170,8 @@ async function invalidateGlobalContentCache(cache: AstroCache | null | undefined
 
 async function invalidatePageContentCache(
   cache: AstroCache | null | undefined,
+  locale: string,
+  defaultLocale: string,
   currentPage?: Pick<Page, 'id' | 'slug'> | null,
   previousPage?: Pick<Page, 'id' | 'slug'> | null
 ): Promise<void> {
@@ -68,8 +180,8 @@ async function invalidatePageContentCache(
 
   for (const page of [currentPage, previousPage]) {
     if (!page) continue;
-    paths.add(getPageCachePath(page));
-    for (const tag of getPageCacheTags(page)) tags.add(tag);
+    paths.add(getPageCachePath(page, locale, defaultLocale));
+    for (const tag of getPageCacheTags(page, locale, defaultLocale)) tags.add(tag);
   }
 
   for (const pathname of paths) {
@@ -87,22 +199,6 @@ async function parseJsonBody<T>(request: Request): Promise<{ data: T | null; err
   }
 }
 
-async function deleteById<T extends { id: string }, TKey extends string, TContainer extends Record<TKey, T[]>>(
-  load: () => Promise<TContainer>,
-  save: (data: TContainer) => Promise<void>,
-  listKey: TKey,
-  id: string
-): Promise<Response> {
-  const loaded = await load();
-  const list = (loaded[listKey] ?? []) as T[];
-  const filtered = list.filter((item) => item.id !== id);
-
-  if (filtered.length === list.length) return jsonError('Not found', 404);
-
-  await save({ ...loaded, [listKey]: filtered } as TContainer);
-  return new Response(null, { status: 204 });
-}
-
 function scryptAsync(password: string, salt: crypto.BinaryLike, keylen: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     crypto.scrypt(password, salt, keylen, (error, derived) => {
@@ -110,35 +206,6 @@ function scryptAsync(password: string, salt: crypto.BinaryLike, keylen: number):
       else resolve(derived as Buffer);
     });
   });
-}
-
-function normalizePageSeo(input: unknown): SeoData {
-  if (!input || typeof input !== 'object') return {};
-  const seo = input as Partial<SeoData>;
-  return {
-    ...(typeof seo.title === 'string' && seo.title.trim() ? { title: seo.title.trim() } : {}),
-    ...(typeof seo.description === 'string' && seo.description.trim() ? { description: seo.description.trim() } : {}),
-    ...(typeof seo.canonical === 'string' && seo.canonical.trim() ? { canonical: seo.canonical.trim() } : {}),
-    ...(typeof seo.image === 'string' && seo.image.trim() ? { image: seo.image.trim() } : {}),
-    ...(seo.nofollow !== undefined ? { nofollow: Boolean(seo.nofollow) } : {}),
-  };
-}
-
-function normalizePageInput(
-  body: Record<string, unknown>,
-  existing?: PagesData['pages'][number]
-): Pick<Page, 'slug' | 'status' | 'title' | 'blocks' | 'indexable' | 'seo'> {
-  const rawSlug = body.slug !== undefined ? body.slug : existing?.slug ?? '/';
-  const slug = Array.isArray(rawSlug) ? rawSlug.map(String) : String(rawSlug || '/');
-  const rawStatus = typeof body.status === 'string' ? body.status : existing?.status ?? 'draft';
-  const status: Page['status'] =
-    rawStatus === 'published' || rawStatus === 'archived' || rawStatus === 'draft' ? rawStatus : 'draft';
-  const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : existing?.title ?? 'Untitled';
-  const blocks = Array.isArray(body.blocks) ? (body.blocks as BlockInstance[]) : existing?.blocks ?? [];
-  const seo = body.seo !== undefined ? normalizePageSeo(body.seo) : existing?.seo ?? {};
-  const indexable = body.indexable !== undefined ? Boolean(body.indexable) : existing?.indexable ?? true;
-
-  return { slug, status, title, blocks, seo, indexable };
 }
 
 function validateMenuItemsPaths(items: unknown): string | null {
@@ -176,6 +243,199 @@ function normalizeMenuPayload(body: Record<string, unknown>) {
     selector: typeof body.selector === 'string' ? body.selector.trim() : '',
     items: Array.isArray(body.items) ? (body.items as MenuItem[]) : [],
   };
+}
+
+function validateLocalePrefixConflict(
+  slug: string | string[],
+  locale: string,
+  defaultLocale: string,
+  languagesData: LanguagesData
+): string | null {
+  if (locale !== defaultLocale) return null;
+
+  const segments = splitSlugSegments(slug);
+  if (segments.length === 0) return null;
+
+  const first = normalizeLocaleCode(segments[0]);
+  if (!first) return null;
+
+  const enabledLocales = languagesData.languages
+    .filter((language) => language.enabled !== false)
+    .map((language) => normalizeLocaleCode(language.code))
+    .filter(Boolean);
+
+  if (enabledLocales.includes(first) && first !== defaultLocale) {
+    return `El slug no puede comenzar con "${first}" porque está reservado para prefijos de idioma.`;
+  }
+
+  return null;
+}
+
+function hasDuplicateSlug(pages: Page[], id: string | null, locale: string, defaultLocale: string, slug: string | string[]): boolean {
+  const nextPath = slugToPath(slug);
+
+  return pages.some((entry) => {
+    if (id && entry.id === id) return false;
+    const currentPath = slugToPath(data.getPageSlug(entry, locale, defaultLocale));
+    return currentPath === nextPath;
+  });
+}
+
+function localizeSeoPayload(
+  current: Page['seo'] | undefined,
+  locale: string,
+  payloadSeo: SeoData
+): Page['seo'] {
+  const next = { ...(current || {}) };
+
+  if (payloadSeo.title !== undefined) next.title = setLocalizedValue(next.title, locale, payloadSeo.title);
+  if (payloadSeo.description !== undefined) next.description = setLocalizedValue(next.description, locale, payloadSeo.description);
+  if (payloadSeo.canonical !== undefined) next.canonical = setLocalizedValue(next.canonical, locale, payloadSeo.canonical);
+  if (payloadSeo.image !== undefined) next.image = setLocalizedValue(next.image, locale, payloadSeo.image);
+  if (payloadSeo.nofollow !== undefined) next.nofollow = setLocalizedValue(next.nofollow, locale, Boolean(payloadSeo.nofollow));
+
+  return next;
+}
+
+function projectBlockProps(
+  block: BlockInstance,
+  schemaMap: SchemaMap | null,
+  locale: string,
+  localeKeys: Set<string>
+): Record<string, unknown> {
+  const output: Record<string, unknown> = {};
+  const schemaItems = schemaMap?.[block.type]?.items || {};
+  const normalizedLocale = normalizeLocaleCode(locale);
+
+  for (const [propName, rawValue] of Object.entries(block.props || {})) {
+    const def = schemaItems[propName];
+    const localizable = isSchemaPropLocalizable(def);
+
+    if (localizable && isLocalizedMapValue(rawValue, localeKeys)) {
+      output[propName] = rawValue[normalizedLocale];
+      continue;
+    }
+
+    if (isLocalizedMapValue(rawValue, localeKeys)) {
+      output[propName] = rawValue[normalizedLocale];
+      continue;
+    }
+
+    output[propName] = rawValue;
+  }
+
+  return output;
+}
+
+function mergeBlockPropsForLocale(
+  existingBlock: BlockInstance | undefined,
+  incomingBlock: BlockInstance,
+  schemaMap: SchemaMap | null,
+  locale: string,
+  localeKeys: Set<string>
+): BlockInstance {
+  const schemaItems = schemaMap?.[incomingBlock.type]?.items || {};
+  const output: Record<string, unknown> = {};
+  const incomingProps = incomingBlock.props || {};
+
+  for (const [propName, value] of Object.entries(incomingProps)) {
+    const def = schemaItems[propName];
+    const shouldLocalize = isSchemaPropLocalizable(def);
+
+    if (shouldLocalize) {
+      const existingValue = existingBlock?.props?.[propName];
+      const localized = isLocalizedMapValue(existingValue, localeKeys) ? { ...existingValue } : {};
+      localized[locale] = value;
+      output[propName] = localized;
+      continue;
+    }
+
+    output[propName] = value;
+  }
+
+  for (const [propName, existingValue] of Object.entries(existingBlock?.props || {})) {
+    if (Object.prototype.hasOwnProperty.call(output, propName)) continue;
+    output[propName] = existingValue;
+  }
+
+  return {
+    type: incomingBlock.type,
+    props: output,
+  };
+}
+
+function projectPageForLocale(
+  page: Page,
+  locale: string,
+  defaultLocale: string,
+  schemaMap: SchemaMap | null,
+  localeKeys: Set<string>
+): PageLocaleView {
+  const view = data.getPageLocaleView(page, locale, defaultLocale);
+  return {
+    ...view,
+    blocks: (page.blocks || []).map((block) => ({
+      type: block.type,
+      props: projectBlockProps(block, schemaMap, locale, localeKeys),
+    })),
+  };
+}
+
+function removeLocaleFromLocalizedMap<T>(map: Record<string, T> | undefined, locale: string): Record<string, T> | undefined {
+  if (!map || typeof map !== 'object') return map;
+  const next = { ...map };
+  delete next[locale];
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function removeLocaleFromPage(page: Page, locale: string, schemaMap: SchemaMap | null, localeKeys: Set<string>): Page | null {
+  const next: Page = {
+    ...page,
+    title: removeLocaleFromLocalizedMap(page.title, locale) || {},
+    slug: removeLocaleFromLocalizedMap(page.slug, locale) || {},
+    status: removeLocaleFromLocalizedMap(page.status, locale) || {},
+    indexable: removeLocaleFromLocalizedMap(page.indexable, locale),
+    publishedAt: removeLocaleFromLocalizedMap(page.publishedAt, locale),
+    seo: {
+      title: removeLocaleFromLocalizedMap(page.seo?.title, locale),
+      description: removeLocaleFromLocalizedMap(page.seo?.description, locale),
+      canonical: removeLocaleFromLocalizedMap(page.seo?.canonical, locale),
+      image: removeLocaleFromLocalizedMap(page.seo?.image, locale),
+      nofollow: removeLocaleFromLocalizedMap(page.seo?.nofollow, locale),
+    },
+    blocks: (page.blocks || []).map((block) => {
+      const schemaItems = schemaMap?.[block.type]?.items || {};
+      const props: Record<string, unknown> = {};
+
+      for (const [propName, value] of Object.entries(block.props || {})) {
+        const def = schemaItems[propName];
+        const shouldLocalize = isSchemaPropLocalizable(def) || isLocalizedMapValue(value, localeKeys);
+
+        if (!shouldLocalize) {
+          props[propName] = value;
+          continue;
+        }
+
+        if (!isLocalizedMapValue(value, localeKeys)) {
+          props[propName] = value;
+          continue;
+        }
+
+        const localized = { ...value };
+        delete localized[locale];
+        if (Object.keys(localized).length > 0) props[propName] = localized;
+      }
+
+      return {
+        type: block.type,
+        props,
+      };
+    }),
+  };
+
+  const remainingLocales = Object.keys(next.status || {});
+  if (remainingLocales.length === 0) return null;
+  return next;
 }
 
 async function loadSchemaMap(): Promise<{ schemaMap?: SchemaMap; error?: string; missing?: string[] }> {
@@ -394,8 +654,153 @@ export async function handleDeleteUser(id: string, authUser?: AuthUser | null): 
   return new Response(null, { status: 204 });
 }
 
-export async function handleGetPages(): Promise<Response> {
-  return Response.json(await data.loadPages());
+export async function handleGetLanguages(): Promise<Response> {
+  return Response.json(await data.loadLanguages());
+}
+
+export async function handlePostLanguages(request: Request, context: HandlerContext = {}): Promise<Response> {
+  const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
+  if (error || !body) return error as Response;
+
+  const languagesData = await data.loadLanguages();
+  const code = normalizeLanguageCode(typeof body.code === 'string' ? body.code : '');
+  const label = typeof body.label === 'string' && body.label.trim() ? body.label.trim() : code;
+  const enabled = body.enabled !== false;
+  const isDefault = body.isDefault === true;
+
+  if (!code) return jsonError('El código de idioma es obligatorio.');
+  if (!/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(code)) {
+    return jsonError('Código de idioma no válido. Usa formato como "es" o "pt-br".');
+  }
+
+  if (languagesData.languages.some((language) => normalizeLanguageCode(language.code) === code)) {
+    return jsonError('Ya existe un idioma con ese código.');
+  }
+
+  const newLanguage: ContentLanguage = { code, label, enabled, isDefault };
+  languagesData.languages.push(newLanguage);
+
+  if (isDefault) {
+    languagesData.languages = ensureEnabledDefaultLanguage(languagesData.languages, code);
+  }
+
+  if (!languagesData.languages.some((language) => language.isDefault && language.enabled !== false)) {
+    languagesData.languages = ensureEnabledDefaultLanguage(languagesData.languages);
+  }
+
+  await data.saveLanguages(languagesData);
+  await invalidateGlobalContentCache(context.cache);
+  return Response.json(newLanguage);
+}
+
+export async function handlePutLanguage(code: string, request: Request, context: HandlerContext = {}): Promise<Response> {
+  const normalizedCode = normalizeLanguageCode(code);
+  const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
+  if (error || !body) return error as Response;
+
+  const languagesData = await data.loadLanguages();
+  const index = languagesData.languages.findIndex((language) => normalizeLanguageCode(language.code) === normalizedCode);
+  if (index === -1) return jsonError('Not found', 404);
+
+  const current = languagesData.languages[index];
+  const next: ContentLanguage = {
+    ...current,
+    label: typeof body.label === 'string' && body.label.trim() ? body.label.trim() : current.label,
+    enabled: body.enabled === undefined ? current.enabled : Boolean(body.enabled),
+    isDefault: body.isDefault === undefined ? current.isDefault : Boolean(body.isDefault),
+  };
+
+  languagesData.languages[index] = next;
+
+  if (next.isDefault) {
+    languagesData.languages = ensureEnabledDefaultLanguage(languagesData.languages, next.code);
+  }
+
+  if (!languagesData.languages.some((language) => language.enabled !== false)) {
+    return jsonError('Debe existir al menos un idioma habilitado.');
+  }
+
+  if (!languagesData.languages.some((language) => language.isDefault && language.enabled !== false)) {
+    languagesData.languages = ensureEnabledDefaultLanguage(languagesData.languages);
+  }
+
+  await data.saveLanguages(languagesData);
+  await invalidateGlobalContentCache(context.cache);
+  return Response.json(languagesData.languages[index]);
+}
+
+export async function handleDeleteLanguage(code: string, context: HandlerContext = {}): Promise<Response> {
+  const normalizedCode = normalizeLanguageCode(code);
+
+  const [languagesData, pagesData, menusData, schemaResult] = await Promise.all([
+    data.loadLanguages(),
+    data.loadPages(),
+    data.loadMenus(),
+    loadSchemaMap(),
+  ]);
+
+  const languageIndex = languagesData.languages.findIndex((language) => normalizeLanguageCode(language.code) === normalizedCode);
+  if (languageIndex === -1) return jsonError('Not found', 404);
+  if (languagesData.languages.length <= 1) return jsonError('No se puede eliminar el último idioma.');
+
+  const localeKeys = getLanguageLocaleKeys(languagesData);
+
+  const affectedPages = pagesData.pages.filter((page) => {
+    return Object.prototype.hasOwnProperty.call(page.status || {}, normalizedCode);
+  }).length;
+
+  const affectedMenus = menusData.menus.filter((menu) => {
+    return Object.prototype.hasOwnProperty.call(menu.items || {}, normalizedCode);
+  }).length;
+
+  pagesData.pages = pagesData.pages
+    .map((page) => removeLocaleFromPage(page, normalizedCode, schemaResult.schemaMap || null, localeKeys))
+    .filter(Boolean) as Page[];
+
+  menusData.menus = menusData.menus
+    .map((menu) => {
+      const items = { ...(menu.items || {}) };
+      delete items[normalizedCode];
+      if (Object.keys(items).length === 0) return null;
+      return { ...menu, items };
+    })
+    .filter(Boolean) as Menu[];
+
+  languagesData.languages.splice(languageIndex, 1);
+
+  if (!languagesData.languages.some((language) => language.isDefault && language.enabled !== false)) {
+    languagesData.languages = ensureEnabledDefaultLanguage(languagesData.languages, undefined, true);
+  }
+
+  await Promise.all([
+    data.savePages(pagesData),
+    data.saveMenus(menusData),
+    data.saveLanguages(languagesData),
+  ]);
+
+  await invalidateGlobalContentCache(context.cache);
+
+  return Response.json({
+    ok: true,
+    deletedLocale: normalizedCode,
+    affectedPages,
+    affectedMenus,
+  });
+}
+
+export async function handleGetPages(request: Request): Promise<Response> {
+  const [pagesData, languagesData, schemaResult] = await Promise.all([
+    data.loadPages(),
+    data.loadLanguages(),
+    loadSchemaMap(),
+  ]);
+
+  const defaultLocale = getDefaultLanguageCode(languagesData);
+  const locale = normalizeLocaleFromRequest(request, languagesData);
+  const localeKeys = getLanguageLocaleKeys(languagesData);
+
+  const pages = pagesData.pages.map((page) => projectPageForLocale(page, locale, defaultLocale, schemaResult.schemaMap || null, localeKeys));
+  return Response.json({ pages, locale, defaultLocale });
 }
 
 export async function handleGetBlockSchemas(): Promise<Response> {
@@ -412,62 +817,129 @@ export async function handlePostPages(request: Request, context: HandlerContext 
   const blocksError = await ensureValidBlocks(body.blocks);
   if (blocksError) return blocksError;
 
-  const pagesData = await data.loadPages();
-  const now = new Date().toISOString();
-  const normalized = normalizePageInput(body);
+  const [pagesData, languagesData, schemaResult] = await Promise.all([
+    data.loadPages(),
+    data.loadLanguages(),
+    loadSchemaMap(),
+  ]);
 
-  const page = {
+  const defaultLocale = getDefaultLanguageCode(languagesData);
+  const locale = resolveLocaleFromBody(body, request, languagesData);
+
+  const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Untitled';
+  const slug = normalizeSlugInput(body.slug);
+  const status = normalizeStatus(body.status);
+  const indexable = body.indexable !== undefined ? Boolean(body.indexable) : true;
+  const seo = normalizePageSeo(body.seo);
+  const blocks = Array.isArray(body.blocks) ? (body.blocks as BlockInstance[]) : [];
+
+  if (hasDuplicateSlug(pagesData.pages, null, locale, defaultLocale, slug)) {
+    return jsonError('Ya existe una página con ese slug para este idioma.');
+  }
+
+  const conflictError = validateLocalePrefixConflict(slug, locale, defaultLocale, languagesData);
+  if (conflictError) return jsonError(conflictError);
+
+  const localeKeys = getLanguageLocaleKeys(languagesData);
+  const now = new Date().toISOString();
+
+  const page: Page = {
     id: data.generateId(),
-    ...normalized,
-    publishedAt: normalized.status === 'published' ? now : null,
+    title: setLocalizedValue({}, locale, title),
+    slug: setLocalizedValue({}, locale, slug),
+    status: setLocalizedValue({}, locale, status),
+    indexable: setLocalizedValue({}, locale, indexable),
+    seo: localizeSeoPayload(undefined, locale, seo),
+    blocks: blocks.map((block) => mergeBlockPropsForLocale(undefined, block, schemaResult.schemaMap || null, locale, localeKeys)),
+    publishedAt: setLocalizedValue({}, locale, status === 'published' ? now : null),
     createdAt: now,
     updatedAt: now,
   };
 
   pagesData.pages.push(page);
   await data.savePages(pagesData);
-  await invalidatePageContentCache(context.cache, page);
-  return Response.json(page);
+  await invalidatePageContentCache(context.cache, locale, defaultLocale, page);
+
+  return Response.json(projectPageForLocale(page, locale, defaultLocale, schemaResult.schemaMap || null, localeKeys));
 }
 
 export async function handlePutPage(id: string, request: Request, context: HandlerContext = {}): Promise<Response> {
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
-  const pagesData = await data.loadPages();
-  const index = pagesData.pages.findIndex((page) => page.id === id);
-  if (index === -1) return jsonError('Not found', 404);
-
   const blocksError = await ensureValidBlocks(body.blocks);
   if (blocksError) return blocksError;
 
-  const existing = pagesData.pages[index];
-  const normalized = normalizePageInput(body, existing);
-  const now = new Date().toISOString();
+  const [pagesData, languagesData, schemaResult] = await Promise.all([
+    data.loadPages(),
+    data.loadLanguages(),
+    loadSchemaMap(),
+  ]);
 
-  const page = {
-    ...existing,
-    ...normalized,
-    seo: body.seo !== undefined ? { ...(existing.seo || {}), ...normalized.seo } : existing.seo,
-    updatedAt: now,
-    publishedAt: normalized.status === 'published' ? existing.publishedAt || now : existing.publishedAt,
-  };
-
-  pagesData.pages[index] = page;
-  await data.savePages(pagesData);
-  await invalidatePageContentCache(context.cache, page, existing);
-  return Response.json(page);
-}
-
-export async function handleDeletePage(id: string, context: HandlerContext = {}): Promise<Response> {
-  const pagesData = await data.loadPages();
   const index = pagesData.pages.findIndex((page) => page.id === id);
   if (index === -1) return jsonError('Not found', 404);
+
+  const defaultLocale = getDefaultLanguageCode(languagesData);
+  const locale = resolveLocaleFromBody(body, request, languagesData);
+
+  const existing = pagesData.pages[index];
+  const existingView = data.getPageLocaleView(existing, locale, defaultLocale);
+
+  const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : existingView.title || 'Untitled';
+  const slug = body.slug !== undefined ? normalizeSlugInput(body.slug) : existingView.slug;
+  const status = body.status !== undefined ? normalizeStatus(body.status) : existingView.status;
+  const indexable = body.indexable !== undefined ? Boolean(body.indexable) : existingView.indexable !== false;
+  const seo = body.seo !== undefined ? normalizePageSeo(body.seo) : existingView.seo || {};
+
+  if (hasDuplicateSlug(pagesData.pages, id, locale, defaultLocale, slug)) {
+    return jsonError('Ya existe una página con ese slug para este idioma.');
+  }
+
+  const conflictError = validateLocalePrefixConflict(slug, locale, defaultLocale, languagesData);
+  if (conflictError) return jsonError(conflictError);
+
+  const localeKeys = getLanguageLocaleKeys(languagesData);
+  const now = new Date().toISOString();
+
+  const nextBlocks =
+    Array.isArray(body.blocks)
+      ? (body.blocks as BlockInstance[]).map((block, blockIndex) =>
+          mergeBlockPropsForLocale(existing.blocks?.[blockIndex], block, schemaResult.schemaMap || null, locale, localeKeys)
+        )
+      : existing.blocks;
+
+  const nextPage: Page = {
+    ...existing,
+    title: setLocalizedValue(existing.title, locale, title),
+    slug: setLocalizedValue(existing.slug, locale, slug),
+    status: setLocalizedValue(existing.status, locale, status),
+    indexable: setLocalizedValue(existing.indexable, locale, indexable),
+    seo: localizeSeoPayload(existing.seo, locale, seo),
+    blocks: nextBlocks,
+    publishedAt: setLocalizedValue(existing.publishedAt, locale, status === 'published' ? getLocalizedValue(existing.publishedAt, locale, defaultLocale) || now : getLocalizedValue(existing.publishedAt, locale, defaultLocale) || null),
+    updatedAt: now,
+  };
+
+  pagesData.pages[index] = nextPage;
+  await data.savePages(pagesData);
+  await invalidatePageContentCache(context.cache, locale, defaultLocale, nextPage, existing);
+
+  return Response.json(projectPageForLocale(nextPage, locale, defaultLocale, schemaResult.schemaMap || null, localeKeys));
+}
+
+export async function handleDeletePage(id: string, request: Request, context: HandlerContext = {}): Promise<Response> {
+  const [pagesData, languagesData] = await Promise.all([data.loadPages(), data.loadLanguages()]);
+
+  const index = pagesData.pages.findIndex((page) => page.id === id);
+  if (index === -1) return jsonError('Not found', 404);
+
+  const locale = normalizeLocaleFromRequest(request, languagesData);
+  const defaultLocale = getDefaultLanguageCode(languagesData);
 
   const deletedPage = pagesData.pages[index];
   pagesData.pages.splice(index, 1);
   await data.savePages(pagesData);
-  await invalidatePageContentCache(context.cache, null, deletedPage);
+  await invalidatePageContentCache(context.cache, locale, defaultLocale, null, deletedPage);
   return new Response(null, { status: 204 });
 }
 
@@ -486,8 +958,16 @@ export async function handlePutSite(request: Request, context: HandlerContext = 
   return Response.json(site);
 }
 
-export async function handleGetMenus(): Promise<Response> {
-  return Response.json(await data.loadMenus());
+export async function handleGetMenus(request: Request): Promise<Response> {
+  const [menusData, languagesData] = await Promise.all([data.loadMenus(), data.loadLanguages()]);
+  const defaultLocale = getDefaultLanguageCode(languagesData);
+  const locale = normalizeLocaleFromRequest(request, languagesData);
+
+  return Response.json({
+    menus: menusData.menus.map((menu) => data.getMenuLocaleView(menu, locale, defaultLocale)),
+    locale,
+    defaultLocale,
+  });
 }
 
 export async function handlePostMenus(request: Request, context: HandlerContext = {}): Promise<Response> {
@@ -495,7 +975,8 @@ export async function handlePostMenus(request: Request, context: HandlerContext 
   if (error || !body) return error as Response;
 
   const payload = normalizeMenuPayload(body);
-  const menusData = await data.loadMenus();
+  const [menusData, languagesData] = await Promise.all([data.loadMenus(), data.loadLanguages()]);
+  const locale = resolveLocaleFromBody(body, request, languagesData);
 
   const selectorError = validateMenuSelector(menusData, payload.selector, null);
   if (selectorError) return jsonError(selectorError);
@@ -507,13 +988,17 @@ export async function handlePostMenus(request: Request, context: HandlerContext 
     id: data.generateId(),
     name: payload.name || 'Menú',
     selector: payload.selector || 'menu',
-    items: payload.items,
+    items: {
+      [locale]: payload.items,
+    },
   };
 
   menusData.menus.push(newMenu);
   await data.saveMenus(menusData);
   await invalidateGlobalContentCache(context.cache);
-  return Response.json(newMenu);
+
+  const defaultLocale = getDefaultLanguageCode(languagesData);
+  return Response.json(data.getMenuLocaleView(newMenu, locale, defaultLocale));
 }
 
 export async function handlePutMenu(id: string, request: Request, context: HandlerContext = {}): Promise<Response> {
@@ -521,9 +1006,11 @@ export async function handlePutMenu(id: string, request: Request, context: Handl
   if (error || !body) return error as Response;
 
   const payload = normalizeMenuPayload(body);
-  const menusData = await data.loadMenus();
+  const [menusData, languagesData] = await Promise.all([data.loadMenus(), data.loadLanguages()]);
   const index = menusData.menus.findIndex((menu) => menu.id === id);
   if (index === -1) return jsonError('Not found', 404);
+
+  const locale = resolveLocaleFromBody(body, request, languagesData);
 
   const selectorError = validateMenuSelector(menusData, payload.selector, id);
   if (selectorError) return jsonError(selectorError);
@@ -531,17 +1018,23 @@ export async function handlePutMenu(id: string, request: Request, context: Handl
   const pathError = validateMenuItemsPaths(payload.items);
   if (pathError) return jsonError(pathError);
 
+  const current = menusData.menus[index];
   const updated: Menu = {
-    id: menusData.menus[index].id,
-    name: payload.name || 'Menú',
-    selector: payload.selector || 'menu',
-    items: payload.items,
+    ...current,
+    name: payload.name || current.name || 'Menú',
+    selector: payload.selector || current.selector || 'menu',
+    items: {
+      ...(current.items || {}),
+      [locale]: payload.items,
+    },
   };
 
   menusData.menus[index] = updated;
   await data.saveMenus(menusData);
   await invalidateGlobalContentCache(context.cache);
-  return Response.json(updated);
+
+  const defaultLocale = getDefaultLanguageCode(languagesData);
+  return Response.json(data.getMenuLocaleView(updated, locale, defaultLocale));
 }
 
 export async function handleDeleteMenu(id: string, context: HandlerContext = {}): Promise<Response> {
@@ -574,7 +1067,7 @@ export async function handleUpload(request: Request): Promise<Response> {
   const filename = `${token}-${base}${extension}`;
   await fs.writeFile(path.join(dir, filename), Buffer.from(buffer));
 
-  return Response.json({ url: `/uploads/${subdir}/${filename}`.replace(/\/+/g, '/') });
+  return Response.json({ url: `/uploads/${subdir}/${filename}`.replace(/\/+/, '/') });
 }
 
 export async function handleDeleteUpload(request: Request): Promise<Response> {

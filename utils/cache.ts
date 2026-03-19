@@ -4,7 +4,8 @@ Licensed under the Business Source License 1.1
 */
 
 import type { Page } from '../types/index.js';
-import { slugToPath } from './slug.js';
+import { buildLocalizedPath, slugToPath } from './slug.js';
+import { normalizeLocaleCode } from './localization.js';
 
 export const CACHE_NAMESPACE = 'astro-blocks';
 export const CACHE_TAGS = {
@@ -23,13 +24,43 @@ function uniqueStrings(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
 }
 
+function localizedSlugFromPage(page: Pick<Page, 'slug'>, locale?: string, defaultLocale?: string): string | string[] {
+  const rawSlug = page.slug as unknown;
+
+  if (typeof rawSlug === 'string' || Array.isArray(rawSlug)) return rawSlug;
+
+  if (!rawSlug || typeof rawSlug !== 'object') return '/';
+
+  const map = rawSlug as Record<string, string | string[]>;
+  const normalizedLocale = normalizeLocaleCode(locale);
+  const normalizedDefault = normalizeLocaleCode(defaultLocale);
+
+  if (normalizedLocale && map[normalizedLocale] !== undefined) return map[normalizedLocale];
+  if (normalizedDefault && map[normalizedDefault] !== undefined) return map[normalizedDefault];
+
+  const first = Object.keys(map)[0];
+  return first ? map[first] : '/';
+}
+
 export function getPathCacheTag(pathname: string): string {
   return `${CACHE_NAMESPACE}:path:${pathname}`;
 }
 
-export function getPageCachePath(page: Pick<Page, 'slug'> | string | string[]): string {
-  if (typeof page === 'string' || Array.isArray(page)) return slugToPath(page);
-  return slugToPath(page.slug);
+export function getPageCachePath(
+  page: Pick<Page, 'slug'> | string | string[],
+  locale?: string,
+  defaultLocale?: string
+): string {
+  const normalizedLocale = normalizeLocaleCode(locale);
+  const normalizedDefault = normalizeLocaleCode(defaultLocale);
+
+  const basePath =
+    typeof page === 'string' || Array.isArray(page)
+      ? slugToPath(page)
+      : slugToPath(localizedSlugFromPage(page, normalizedLocale, normalizedDefault));
+
+  if (!normalizedLocale || normalizedLocale === normalizedDefault) return basePath;
+  return buildLocalizedPath(basePath, normalizedLocale, normalizedDefault);
 }
 
 export function getGlobalCacheTags(): string[] {
@@ -40,12 +71,17 @@ export function getGlobalCachePaths(): string[] {
   return [CACHE_PATHS.sitemap, CACHE_PATHS.robots];
 }
 
-export function getPageCacheTags(page: Pick<Page, 'id' | 'slug'>): string[] {
-  const pagePath = getPageCachePath(page);
+export function getPageCacheTags(
+  page: Pick<Page, 'id' | 'slug'>,
+  locale?: string,
+  defaultLocale?: string
+): string[] {
+  const pagePath = getPageCachePath(page, locale, defaultLocale);
   return uniqueStrings([
     ...getGlobalCacheTags(),
     CACHE_TAGS.pages,
     `${CACHE_NAMESPACE}:page:${page.id}`,
+    ...(locale ? [`${CACHE_NAMESPACE}:locale:${normalizeLocaleCode(locale)}`] : []),
     getPathCacheTag(pagePath),
   ]);
 }

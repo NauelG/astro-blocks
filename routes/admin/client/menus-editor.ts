@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 import Sortable from 'sortablejs';
 import type { Menu, MenuItem, MenusData } from '../../../types/index.js';
-import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, getCmsToken, openDialog, showAlert, showConfirm, showToast } from './common.js';
+import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, getActiveContentLocale, openDialog, showAlert, showConfirm, showToast } from './common.js';
 
 const SELECTOR_REGEX = /^[a-zA-Z0-9_-]+$/;
 const dragHandleSvg =
@@ -51,6 +51,10 @@ export function initMenusEditor(): void {
   let expandedItemIndex: number | null = null;
   let sortableMain: Sortable | null = null;
   const sortableChildren: Sortable[] = [];
+
+  function localeHintHtml(): string {
+    return `<span class="cms-locale-hint cms-locale-hint--inline">(${escapeHtml(getActiveContentLocale('es'))})</span>`;
+  }
 
   function setError(message = ''): void {
     if (!errorEl) return;
@@ -116,8 +120,19 @@ export function initMenusEditor(): void {
     return `<button type="button" class="cms-table-btn-delete ${className}"${dataAttribute} aria-label="${ariaLabel}">${trashSvg}</button>`;
   }
 
-  function renderMenuTextInput(className: string, ariaLabel: string, placeholder: string, value: string): string {
-    return `<input type="text" class="cms-input ${className}" aria-label="${ariaLabel}" placeholder="${placeholder}" value="${escapeHtml(value)}" />`;
+  function renderMenuTextInput(
+    className: string,
+    ariaLabel: string,
+    placeholder: string,
+    value: string,
+    localizable = false
+  ): string {
+    const localeSuffix = localizable ? ` (${getActiveContentLocale('es')})` : '';
+    const inputHtml =
+      `<input type="text" class="cms-input ${className}" aria-label="${escapeHtml(ariaLabel + localeSuffix)}" placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(value)}" />`;
+
+    if (!localizable) return inputHtml;
+    return `<div class="cms-inline-localizable-field">${inputHtml}${localeHintHtml()}</div>`;
   }
 
   function renderMenuSummary(name: string, path: string, emptyLabel: string): string {
@@ -128,8 +143,8 @@ export function initMenusEditor(): void {
     return (
       `<div class="menu-child-row" data-item-index="${itemIndex}" data-child-index="${childIndex}">` +
       renderMenuDragHandle() +
-      renderMenuTextInput('menu-child-name', 'Nombre del submenú', 'Nombre del submenú', child.name ?? '') +
-      renderMenuTextInput('menu-child-path', 'Ruta del submenú', '/ruta', child.path ?? '') +
+      renderMenuTextInput('menu-child-name', 'Nombre del submenú', 'Nombre del submenú', child.name ?? '', true) +
+      renderMenuTextInput('menu-child-path', 'Ruta del submenú', '/ruta', child.path ?? '', true) +
       renderMenuDeleteButton('menu-child-delete', 'Eliminar') +
       '</div>'
     );
@@ -154,12 +169,12 @@ export function initMenusEditor(): void {
       '</div>' +
       `<div class="cms-menu-card-body${isOpen ? '' : ' cms-hidden'}">` +
       '<div class="cms-menu-card-inline-fields">' +
-      renderMenuTextInput('menu-item-name', 'Nombre del elemento', 'Nombre del elemento', item.name ?? '') +
-      renderMenuTextInput('menu-item-path', 'Ruta del elemento', '/ruta', item.path ?? '') +
+      renderMenuTextInput('menu-item-name', 'Nombre del elemento', 'Nombre del elemento', item.name ?? '', true) +
+      renderMenuTextInput('menu-item-path', 'Ruta del elemento', '/ruta', item.path ?? '', true) +
       '</div>' +
       '<div class="cms-menu-card-children">' +
       '<div class="cms-menu-card-children-head">' +
-      '<span class="cms-menu-card-children-title">Submenús</span>' +
+      `<span class="cms-menu-card-children-title">Submenús ${localeHintHtml()}</span>` +
       `<button type="button" class="cms-btn cms-btn-secondary menu-add-child-btn" data-item-index="${itemIndex}">Añadir submenú</button>` +
       '</div>' +
       `<div class="menu-children-list" id="menu-children-${itemIndex}">${childrenHtml}</div>` +
@@ -331,9 +346,14 @@ export function initMenusEditor(): void {
     menusEmpty?.classList.toggle('cms-hidden', list.length > 0);
   }
 
+  function localeQuery(): string {
+    const locale = getActiveContentLocale('');
+    return locale ? `?locale=${encodeURIComponent(locale)}` : '';
+  }
+
   async function refreshMenus(): Promise<void> {
-    const data = await fetchJson<MenusData>('/cms/api/menus', {
-      headers: { Authorization: `Bearer ${getCmsToken()}` },
+    const data = await fetchJson<MenusData>(`/cms/api/menus${localeQuery()}`, {
+      headers: authHeaders(false),
     });
     menusState = data.menus || [];
     renderMenusTable();
@@ -363,7 +383,7 @@ export function initMenusEditor(): void {
     }
 
     const id = idInput?.value.trim() || '';
-    const payload = { name: name || 'Menú', selector, items: currentMenu.items };
+    const payload = { name: name || 'Menú', selector, items: currentMenu.items, locale: getActiveContentLocale('') || undefined };
 
     try {
       await fetchOk(id ? `/cms/api/menus/${encodeURIComponent(id)}` : '/cms/api/menus', {
@@ -386,7 +406,7 @@ export function initMenusEditor(): void {
     try {
       const response = await fetch(`/cms/api/menus/${encodeURIComponent(id)}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${getCmsToken()}` },
+        headers: authHeaders(false),
       });
       if (response.status !== 204) throw new Error('Error al eliminar');
       await refreshMenus();
@@ -436,6 +456,10 @@ export function initMenusEditor(): void {
     }
   });
   dialog.addEventListener('cancel', () => closeDialog(dialog));
+
+  window.addEventListener('cms:content-locale-change', () => {
+    void refreshMenus();
+  });
 
   renderBuilder();
   void refreshMenus();

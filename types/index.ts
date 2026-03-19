@@ -10,6 +10,7 @@ export interface PropDef {
   label: string;
   required?: boolean;
   options?: string[];
+  localizable?: boolean;
 }
 
 export interface BlockDefinition {
@@ -31,6 +32,8 @@ export interface SerializedSchema {
 
 export type SchemaMap = Record<string, SerializedSchema>;
 
+export type LocalizedValueMap<T> = Record<string, T>;
+
 export interface BlockInstance {
   type: string;
   props: Record<string, unknown>;
@@ -44,11 +47,35 @@ export interface SeoData {
   nofollow?: boolean;
 }
 
+export interface LocalizedSeoData {
+  title?: LocalizedValueMap<string>;
+  description?: LocalizedValueMap<string>;
+  canonical?: LocalizedValueMap<string>;
+  image?: LocalizedValueMap<string>;
+  nofollow?: LocalizedValueMap<boolean>;
+}
+
+export type PageStatus = 'published' | 'draft' | 'archived';
+
 export interface Page {
   id: string;
+  title: LocalizedValueMap<string>;
+  slug: LocalizedValueMap<string | string[]>;
+  status: LocalizedValueMap<PageStatus>;
+  indexable?: LocalizedValueMap<boolean>;
+  seo?: LocalizedSeoData;
+  blocks: BlockInstance[];
+  publishedAt?: LocalizedValueMap<string | null>;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PageLocaleView {
+  id: string;
+  locale: string;
   title: string;
   slug: string | string[];
-  status: 'published' | 'draft' | 'archived';
+  status: PageStatus;
   indexable?: boolean;
   seo?: SeoData;
   blocks: BlockInstance[];
@@ -72,6 +99,9 @@ export interface Site {
     defaultTitle: string;
     defaultDescription: string;
   };
+  i18n?: {
+    routingStrategy?: PublicRoutingStrategy;
+  };
   [key: string]: unknown;
 }
 
@@ -85,11 +115,30 @@ export interface Menu {
   id: string;
   name: string;
   selector: string;
+  items: LocalizedValueMap<MenuItem[]>;
+}
+
+export interface MenuLocaleView {
+  id: string;
+  locale: string;
+  name: string;
+  selector: string;
   items: MenuItem[];
 }
 
 export interface MenusData {
   menus: Menu[];
+}
+
+export interface ContentLanguage {
+  code: string;
+  label: string;
+  enabled: boolean;
+  isDefault?: boolean;
+}
+
+export interface LanguagesData {
+  languages: ContentLanguage[];
 }
 
 export interface User {
@@ -114,6 +163,8 @@ export interface AuthResult {
   user: AuthUser;
 }
 
+export type PublicRoutingStrategy = 'path-prefix' | 'subdomain' | 'domain';
+
 export interface AstroBlocksOptions {
   layoutPath?: string;
   blocks: BlockSchema[];
@@ -122,5 +173,8 @@ export interface AstroBlocksOptions {
     enabled?: boolean;
     maxAge?: number;
     swr?: number;
+  };
+  i18n?: {
+    routingStrategy?: PublicRoutingStrategy;
   };
 }

@@ -4,8 +4,9 @@ Licensed under the Business Source License 1.1
 */
 
 import Sortable, { type SortableEvent } from 'sortablejs';
-import type { BlockInstance, Page, SchemaMap, SeoData } from '../../../types/index.js';
-import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, getCmsToken, openDialog, showAlert, showConfirm, showToast } from './common.js';
+import type { BlockInstance, SchemaMap, SeoData } from '../../../types/index.js';
+import { isSchemaPropLocalizable } from '../../../utils/localization.js';
+import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, getActiveContentLocale, openDialog, showAlert, showConfirm, showToast } from './common.js';
 
 const trashIconSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
@@ -18,8 +19,22 @@ const chevronDownSvg =
 const chevronUpSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>';
 
+type CmsPage = {
+  id: string;
+  locale: string;
+  title: string;
+  slug: string | string[];
+  status: 'published' | 'draft' | 'archived';
+  indexable?: boolean;
+  seo?: SeoData;
+  blocks: BlockInstance[];
+  publishedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 interface PagesResponse {
-  pages: Page[];
+  pages: CmsPage[];
 }
 
 export function initPageEditor(): void {
@@ -68,7 +83,37 @@ export function initPageEditor(): void {
   let schemaMap: SchemaMap | null = null;
   let blocksList: BlockInstance[] = [];
   let sortableBlocks: Sortable | null = null;
-  let pagesState: Page[] = [];
+  let pagesState: CmsPage[] = [];
+
+  function withLocaleHint(label: string, localizable = true): string {
+    if (!localizable) return escapeHtml(label);
+    return `${escapeHtml(label)} <span class="cms-locale-hint">(${escapeHtml(getActiveContentLocale('es'))})</span>`;
+  }
+
+  function annotateStaticLocalizedLabels(): void {
+    const localizedForIds = [
+      'page-detail-title',
+      'page-detail-slug',
+      'page-detail-indexable',
+      'page-detail-seo-title',
+      'page-detail-seo-description',
+      'page-detail-seo-canonical',
+      'page-detail-seo-nofollow',
+    ];
+
+    localizedForIds.forEach((forId) => {
+      const label = document.querySelector<HTMLLabelElement>(`#page-detail-form label[for="${forId}"]`);
+      if (!label) return;
+      if (!label.dataset.baseLabel) label.dataset.baseLabel = (label.textContent || '').trim();
+      label.innerHTML = withLocaleHint(label.dataset.baseLabel || '', true);
+    });
+
+    const imageLabel = document.querySelector<HTMLLabelElement>('#page-detail-seo-fields .cms-field label:not([for])');
+    if (imageLabel) {
+      if (!imageLabel.dataset.baseLabel) imageLabel.dataset.baseLabel = (imageLabel.textContent || '').trim();
+      imageLabel.innerHTML = withLocaleHint(imageLabel.dataset.baseLabel || '', true);
+    }
+  }
 
   function setFormTitle(label: string, submitLabel = 'Guardar'): void {
     if (titleEl) titleEl.textContent = label;
@@ -127,7 +172,7 @@ export function initPageEditor(): void {
     return input.value;
   }
 
-  function pageSlugToText(page: Pick<Page, 'slug'>): string {
+  function pageSlugToText(page: Pick<CmsPage, 'slug'>): string {
     return page.slug === '/' || (Array.isArray(page.slug) && page.slug.length === 0)
       ? '/'
       : Array.isArray(page.slug)
@@ -143,7 +188,7 @@ export function initPageEditor(): void {
     return values.length > 0 ? values.join(' · ') : 'Configura las propiedades de este bloque';
   }
 
-  function filteredPages(): Page[] {
+  function filteredPages(): CmsPage[] {
     const query = pagesSearch?.value.trim().toLowerCase() || '';
     const status = pagesStatusFilter?.value || 'all';
     return pagesState.filter((page) => {
@@ -154,6 +199,11 @@ export function initPageEditor(): void {
       const matchesStatus = status === 'all' || page.status === status;
       return matchesQuery && matchesStatus;
     });
+  }
+
+  function localeQuery(): string {
+    const locale = getActiveContentLocale('es');
+    return locale ? `?locale=${encodeURIComponent(locale)}` : '';
   }
 
   function bindPageRowEvents(): void {
@@ -198,8 +248,8 @@ export function initPageEditor(): void {
   }
 
   async function refreshPages(): Promise<void> {
-    const data = await fetchJson<PagesResponse>('/cms/api/pages', {
-      headers: { Authorization: `Bearer ${getCmsToken()}` },
+    const data = await fetchJson<PagesResponse>(`/cms/api/pages${localeQuery()}`, {
+      headers: authHeaders(false),
     });
     pagesState = data.pages || [];
     renderPagesTable();
@@ -249,18 +299,18 @@ export function initPageEditor(): void {
         const fieldId = `page-block-${index}-${propName}`;
 
         if (def.type === 'text') {
-          fieldsHtml += `<div class="cms-field"><label for="${fieldId}">${escapeHtml(def.label)}</label><textarea id="${fieldId}" data-idx="${index}" data-prop="${escapeHtml(propName)}" class="cms-input" rows="2">${escapeHtml(String(value))}</textarea></div>`;
+          fieldsHtml += `<div class="cms-field"><label for="${fieldId}">${withLocaleHint(def.label, isSchemaPropLocalizable(def))}</label><textarea id="${fieldId}" data-idx="${index}" data-prop="${escapeHtml(propName)}" class="cms-input" rows="2">${escapeHtml(String(value))}</textarea></div>`;
           continue;
         }
 
         if (def.type === 'number') {
           const numericValue = typeof value === 'number' && !Number.isNaN(value) ? value : '';
-          fieldsHtml += `<div class="cms-field"><label for="${fieldId}">${escapeHtml(def.label)}</label><input type="number" id="${fieldId}" data-idx="${index}" data-prop="${escapeHtml(propName)}" class="cms-input" value="${numericValue}"></div>`;
+          fieldsHtml += `<div class="cms-field"><label for="${fieldId}">${withLocaleHint(def.label, isSchemaPropLocalizable(def))}</label><input type="number" id="${fieldId}" data-idx="${index}" data-prop="${escapeHtml(propName)}" class="cms-input" value="${numericValue}"></div>`;
           continue;
         }
 
         if (def.type === 'boolean') {
-          fieldsHtml += `<div class="cms-field" style="display:flex;align-items:center;gap:0.5rem"><input type="checkbox" id="${fieldId}" data-idx="${index}" data-prop="${escapeHtml(propName)}" class="cms-input" ${(value === true || value === 'true') ? 'checked' : ''}><label for="${fieldId}" style="margin-bottom:0">${escapeHtml(def.label)}</label></div>`;
+          fieldsHtml += `<div class="cms-field" style="display:flex;align-items:center;gap:0.5rem"><input type="checkbox" id="${fieldId}" data-idx="${index}" data-prop="${escapeHtml(propName)}" class="cms-input" ${(value === true || value === 'true') ? 'checked' : ''}><label for="${fieldId}" style="margin-bottom:0">${withLocaleHint(def.label, isSchemaPropLocalizable(def))}</label></div>`;
           continue;
         }
 
@@ -268,11 +318,11 @@ export function initPageEditor(): void {
           const options = (def.options || [])
             .map((option) => `<option value="${escapeHtml(option)}"${value === option ? ' selected' : ''}>${escapeHtml(option)}</option>`)
             .join('');
-          fieldsHtml += `<div class="cms-field"><label for="${fieldId}">${escapeHtml(def.label)}</label><select id="${fieldId}" data-idx="${index}" data-prop="${escapeHtml(propName)}" class="cms-input">${options}</select></div>`;
+          fieldsHtml += `<div class="cms-field"><label for="${fieldId}">${withLocaleHint(def.label, isSchemaPropLocalizable(def))}</label><select id="${fieldId}" data-idx="${index}" data-prop="${escapeHtml(propName)}" class="cms-input">${options}</select></div>`;
           continue;
         }
 
-        fieldsHtml += `<div class="cms-field"><label for="${fieldId}">${escapeHtml(def.label)}</label><input type="text" id="${fieldId}" data-idx="${index}" data-prop="${escapeHtml(propName)}" class="cms-input" value="${escapeHtml(String(value))}"></div>`;
+        fieldsHtml += `<div class="cms-field"><label for="${fieldId}">${withLocaleHint(def.label, isSchemaPropLocalizable(def))}</label><input type="text" id="${fieldId}" data-idx="${index}" data-prop="${escapeHtml(propName)}" class="cms-input" value="${escapeHtml(String(value))}"></div>`;
       }
 
       fieldsHtml += '</div>';
@@ -354,7 +404,7 @@ export function initPageEditor(): void {
 
     try {
       schemaMap = await fetchJson<SchemaMap>('/cms/api/block-schemas', {
-        headers: { Authorization: `Bearer ${getCmsToken()}` },
+        headers: authHeaders(false),
       });
     } catch {
       if (addBlockBtn) addBlockBtn.disabled = true;
@@ -379,6 +429,7 @@ export function initPageEditor(): void {
 
   async function openNew(): Promise<void> {
     resetFormForNew();
+    annotateStaticLocalizedLabels();
     await loadSchemaMap();
     renderBlocksList();
     setFormTitle('Nueva página', 'Guardar');
@@ -413,6 +464,7 @@ export function initPageEditor(): void {
     toggleSeoVisibility(page.indexable !== false);
 
     blocksList = Array.isArray(page.blocks) ? JSON.parse(JSON.stringify(page.blocks)) : [];
+    annotateStaticLocalizedLabels();
     await loadSchemaMap();
     renderBlocksList();
     setFormTitle('Editar página', 'Guardar');
@@ -427,7 +479,7 @@ export function initPageEditor(): void {
     try {
       const response = await fetch(`/cms/api/pages/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${getCmsToken()}` },
+        headers: authHeaders(false),
       });
       if (response.status !== 204) throw new Error('Error al eliminar');
       await refreshPages();
@@ -443,7 +495,7 @@ export function initPageEditor(): void {
 
     const data = await fetchJson<{ url?: string }>('/cms/api/upload', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${getCmsToken()}` },
+      headers: authHeaders(false),
       body: formData,
     });
 
@@ -517,6 +569,7 @@ export function initPageEditor(): void {
 
     const id = idInput?.value?.trim() || '';
     const payload = {
+      locale: getActiveContentLocale('es') || undefined,
       title: titleInput?.value || 'Untitled',
       slug: slugInput?.value || '/',
       status: statusInput?.value || 'draft',
@@ -611,6 +664,12 @@ export function initPageEditor(): void {
   });
   dialog.addEventListener('cancel', () => closeDialog(dialog));
 
+  annotateStaticLocalizedLabels();
+  window.addEventListener('cms:content-locale-change', () => {
+    annotateStaticLocalizedLabels();
+    renderBlocksList();
+    void refreshPages();
+  });
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     void submitForm();

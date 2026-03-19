@@ -3,10 +3,13 @@
   "baseUrl": "http://localhost:4321",
   "favicon": "/favicon.svg",
   "logo": "",
-  "primaryColor": "#8f5b33",
-  "secondaryColor": "#5e4635",
+  "primaryColor": "#333333",
+  "secondaryColor": "#666666",
   "seo": {
     "defaultTitle": "AstroBlocks Playground",
-    "defaultDescription": "A local consumer project for validating AstroBlocks."
+    "defaultDescription": "Playground consumer para validar AstroBlocks con páginas, menús y contenido multi idioma."
+  },
+  "i18n": {
+    "routingStrategy": "path-prefix"
   }
 }

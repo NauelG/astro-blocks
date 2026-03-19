@@ -1,6 +1,6 @@
 {
   "name": "astro-blocks",
-  "version": "0.10.0-alpha.1",
+  "version": "0.11.0-alpha.1",
   "type": "module",
   "main": "./dist/plugin/index.js",
   "exports": {
@@ -15,6 +15,14 @@
     "./getMenu": {
       "types": "./dist/utils/getMenu.d.ts",
       "import": "./dist/utils/getMenu.js"
+    },
+    "./getLanguages": {
+      "types": "./dist/utils/getLanguages.d.ts",
+      "import": "./dist/utils/getLanguages.js"
+    },
+    "./getI18nMeta": {
+      "types": "./dist/utils/getI18nMeta.d.ts",
+      "import": "./dist/utils/getI18nMeta.js"
     }
   },
   "types": "./dist/plugin/index.d.ts",

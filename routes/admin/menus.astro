@@ -8,10 +8,12 @@ export const prerender = false;
 import AdminLayout from './layout.astro';
 import DetailModal from './components/DetailModal.astro';
 import { Pencil, Trash2, Lightbulb } from '@lucide/astro';
-import { loadMenus, loadSite } from '../../api/data.js';
+import { getDefaultLocale, getMenuLocaleView, loadLanguages, loadMenus, loadSite } from '../../api/data.js';
 const site = await loadSite();
 const menusData = await loadMenus();
-const menus = menusData.menus ?? [];
+const languagesData = await loadLanguages();
+const defaultLocale = getDefaultLocale(languagesData);
+const menus = (menusData.menus ?? []).map((menu) => getMenuLocaleView(menu, defaultLocale, defaultLocale));
 ---
 
 <AdminLayout site={site} title="Menús">

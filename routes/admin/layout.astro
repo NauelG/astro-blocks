@@ -8,7 +8,7 @@ import { Image } from 'astro:assets';
 import '@picocss/pico/css/pico.min.css';
 import 'animate.css';
 import '../../styles/cms-admin.css';
-import { LayoutDashboard, FileText, Menu, Settings, RefreshCw, User, LogOut, Users, ExternalLink } from '@lucide/astro';
+import { LayoutDashboard, FileText, Menu, Settings, RefreshCw, User, LogOut, Users, ExternalLink, Languages } from '@lucide/astro';
 import ConfirmDialog from './components/ConfirmDialog.astro';
 import AlertDialog from './components/AlertDialog.astro';
 import pkg from '../../package.json' with { type: 'json' };
@@ -92,6 +92,12 @@ function isActive(href: string) {
               </div>
             </div>
             <div class="cms-topbar-actions">
+              <div class="cms-topbar-locale">
+                <label for="cms-content-locale-select" class="cms-hidden">Idioma de contenido</label>
+                <select id="cms-content-locale-select" aria-label="Idioma de contenido">
+                  <option value="">Cargando…</option>
+                </select>
+              </div>
               {site.baseUrl && (
                 <a href={site.baseUrl} target="_blank" rel="noopener noreferrer" class="cms-btn cms-btn-secondary cms-topbar-site-link">
                   <ExternalLink size={13} />
@@ -141,6 +147,10 @@ function isActive(href: string) {
                   <Users class="cms-nav-icon" size={16} />
                   <span>Usuarios</span>
                 </a>
+                <a href="/cms/languages" class={`cms-nav-link ${isActive('/cms/languages') ? 'cms-nav-link--active' : ''}`} data-cms-owner-only>
+                  <Languages class="cms-nav-icon" size={16} />
+                  <span>Idiomas</span>
+                </a>
                 <a href="/cms/cache" class={`cms-nav-link ${isActive('/cms/cache') ? 'cms-nav-link--active' : ''}`}>
                   <RefreshCw class="cms-nav-icon" size={16} />
                   <span>Caché</span>
@@ -165,6 +175,13 @@ function isActive(href: string) {
       <div class="cms-topbar-dropdown-label">
         <span class="cms-topbar-dropdown-label-title">{site.siteName || 'AstroBlocks'}</span>
         <span class="cms-topbar-dropdown-label-text" id="cms-profile-email">Sesión del panel</span>
+      </div>
+      <div class="cms-topbar-dropdown-divider"></div>
+      <div class="cms-field" style="padding: 0 0.75rem 0.5rem;">
+        <label for="cms-ui-locale-select" style="font-size: 0.6875rem; margin-bottom: 0.25rem;">Idioma del panel</label>
+        <select id="cms-ui-locale-select" aria-label="Idioma del panel">
+          <option value="es">Español</option>
+        </select>
       </div>
       <div class="cms-topbar-dropdown-divider"></div>
       <button type="button" class="cms-topbar-dropdown-item" id="cms-logout-btn" data-profile-action="logout" role="menuitem">
@@ -289,7 +306,12 @@ function isActive(href: string) {
       })();
     </script>
     <script>
-      (window as unknown as { getCmsToken: () => string; getCmsUser: () => { id: string; email: string; role: string } | null }).getCmsToken = function() {
+      (window as unknown as {
+        getCmsToken: () => string;
+        getCmsUser: () => { id: string; email: string; role: string } | null;
+        getCmsContentLocale: () => string;
+        setCmsContentLocale: (locale: string) => void;
+      }).getCmsToken = function() {
         try { return sessionStorage.getItem('cms-token') || ''; } catch (e) { return ''; }
       };
       (window as unknown as { getCmsUser: () => { id: string; email: string; role: string } | null }).getCmsUser = function() {
@@ -298,6 +320,363 @@ function isActive(href: string) {
           return raw ? JSON.parse(raw) : null;
         } catch (e) { return null; }
       };
+      (window as unknown as { getCmsContentLocale: () => string }).getCmsContentLocale = function() {
+        try { return sessionStorage.getItem('cms-content-locale') || ''; } catch (e) { return ''; }
+      };
+      (window as unknown as { setCmsContentLocale: (locale: string) => void }).setCmsContentLocale = function(locale: string) {
+        try { sessionStorage.setItem('cms-content-locale', locale); } catch (e) {}
+      };
+      (function() {
+        if (typeof document === 'undefined') return;
+
+        const UI_LOCALES = [{ code: 'es', label: 'Español' }];
+        const cmsWindow = window as unknown as {
+          getCmsToken?: () => string;
+          setCmsContentLocale?: (locale: string) => void;
+          refreshCmsContentLocaleSelector?: () => Promise<void>;
+        };
+
+        function initUiLocaleSelector() {
+          const select = document.getElementById('cms-ui-locale-select') as HTMLSelectElement | null;
+          if (!select) return;
+
+          const allowed = new Set(UI_LOCALES.map((entry) => entry.code));
+          const stored = (() => { try { return sessionStorage.getItem('cms-ui-locale') || ''; } catch (_) { return ''; } })();
+          const selected = allowed.has(stored) ? stored : UI_LOCALES[0].code;
+
+          select.innerHTML = UI_LOCALES.map((entry) => `<option value="${entry.code}">${entry.label}</option>`).join('');
+          select.value = selected;
+          try { sessionStorage.setItem('cms-ui-locale', selected); } catch (_) {}
+
+          select.addEventListener('change', () => {
+            const next = select.value;
+            if (!allowed.has(next)) return;
+            try { sessionStorage.setItem('cms-ui-locale', next); } catch (_) {}
+          });
+        }
+
+        async function initContentLocaleSelector() {
+          const select = document.getElementById('cms-content-locale-select') as HTMLSelectElement | null;
+          if (!select) return;
+
+          const token = cmsWindow.getCmsToken?.() || '';
+          if (!token) {
+            select.innerHTML = '<option value="">—</option>';
+            select.disabled = true;
+            select.onchange = null;
+            return;
+          }
+
+          try {
+            const response = await fetch('/cms/api/languages', {
+              headers: { Authorization: 'Bearer ' + token },
+            });
+            if (!response.ok) throw new Error('Failed to load languages');
+            const payload = await response.json();
+            const languages = (payload.languages || []).filter((entry: { enabled?: boolean }) => entry.enabled !== false);
+            if (!Array.isArray(languages) || languages.length === 0) {
+              select.innerHTML = '<option value="">—</option>';
+              select.disabled = true;
+              return;
+            }
+
+            const defaultLanguage =
+              languages.find((entry: { isDefault?: boolean }) => entry.isDefault) ||
+              languages[0];
+
+            const stored = (() => { try { return sessionStorage.getItem('cms-content-locale') || ''; } catch (_) { return ''; } })();
+            const availableCodes = new Set(languages.map((entry: { code: string }) => entry.code));
+            const selected = availableCodes.has(stored) ? stored : defaultLanguage.code;
+
+            select.innerHTML = languages
+              .map((entry: { code: string; label?: string }) => `<option value="${entry.code}">${entry.label || entry.code}</option>`)
+              .join('');
+            select.value = selected;
+            select.disabled = false;
+            cmsWindow.setCmsContentLocale?.(selected);
+
+            select.onchange = () => {
+              const next = select.value;
+              if (!availableCodes.has(next)) return;
+              try { sessionStorage.setItem('cms-content-locale', next); } catch (_) {}
+              cmsWindow.setCmsContentLocale?.(next);
+              window.dispatchEvent(new CustomEvent('cms:content-locale-change', { detail: { locale: next } }));
+            };
+          } catch {
+            select.innerHTML = '<option value="">—</option>';
+            select.disabled = true;
+            select.onchange = null;
+          }
+        }
+
+        cmsWindow.refreshCmsContentLocaleSelector = initContentLocaleSelector;
+        window.addEventListener('cms:languages-updated', () => {
+          void initContentLocaleSelector();
+        });
+
+        const run = () => {
+          initUiLocaleSelector();
+          void initContentLocaleSelector();
+        };
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', run);
+        } else {
+          run();
+        }
+      })();
+    </script>
+    <script>
+      (function() {
+        if (typeof document === 'undefined') return;
+
+        type ManagedSelect = {
+          select: HTMLSelectElement;
+          shell: HTMLDivElement;
+          trigger: HTMLButtonElement;
+          label: HTMLSpanElement;
+          menu: HTMLDivElement;
+          observer: MutationObserver;
+          closeMenu: () => void;
+          syncFromSelect: () => void;
+          lastValue: string;
+          lastSignature: string;
+          lastDisabled: boolean;
+        };
+
+        const managed = new Map<HTMLSelectElement, ManagedSelect>();
+        let openSelect: ManagedSelect | null = null;
+
+        function getOptionSignature(select: HTMLSelectElement): string {
+          return Array.from(select.options)
+            .map((option) => `${option.value}\u0001${option.textContent || ''}\u0001${option.disabled ? '1' : '0'}`)
+            .join('\u0002');
+        }
+
+        function setTriggerLabel(entry: ManagedSelect): void {
+          const selected = entry.select.options[entry.select.selectedIndex] || entry.select.options[0];
+          entry.label.textContent = selected?.textContent?.trim() || 'Seleccionar';
+        }
+
+        function syncActiveOption(entry: ManagedSelect): void {
+          const selectedValue = entry.select.value;
+          entry.menu.querySelectorAll('.cms-select-option').forEach((node) => {
+            const item = node as HTMLButtonElement;
+            const active = item.dataset.value === selectedValue;
+            item.classList.toggle('cms-select-option--active', active);
+            item.setAttribute('aria-selected', active ? 'true' : 'false');
+          });
+        }
+
+        function closeMenu(entry: ManagedSelect): void {
+          entry.shell.classList.remove('cms-select--open');
+          entry.trigger.setAttribute('aria-expanded', 'false');
+          if (openSelect === entry) openSelect = null;
+        }
+
+        function openMenu(entry: ManagedSelect): void {
+          if (entry.select.disabled) return;
+          if (openSelect && openSelect !== entry) closeMenu(openSelect);
+          entry.shell.classList.add('cms-select--open');
+          entry.trigger.setAttribute('aria-expanded', 'true');
+          openSelect = entry;
+        }
+
+        function renderOptions(entry: ManagedSelect): void {
+          entry.menu.innerHTML = '';
+
+          Array.from(entry.select.options).forEach((option) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'cms-select-option';
+            item.dataset.value = option.value;
+            item.role = 'option';
+            item.disabled = option.disabled;
+            item.textContent = option.textContent || option.value;
+
+            item.addEventListener('click', (event) => {
+              event.preventDefault();
+              if (option.disabled) return;
+              entry.select.value = option.value;
+              entry.select.dispatchEvent(new Event('change', { bubbles: true }));
+              closeMenu(entry);
+            });
+
+            entry.menu.appendChild(item);
+          });
+
+          setTriggerLabel(entry);
+          syncActiveOption(entry);
+          entry.trigger.disabled = entry.select.disabled;
+          entry.shell.classList.toggle('cms-select--disabled', entry.select.disabled);
+          entry.lastValue = entry.select.value;
+          entry.lastSignature = getOptionSignature(entry.select);
+          entry.lastDisabled = entry.select.disabled;
+        }
+
+        function syncFromSelect(entry: ManagedSelect): void {
+          const nextSignature = getOptionSignature(entry.select);
+          const nextValue = entry.select.value;
+          const nextDisabled = entry.select.disabled;
+
+          if (nextSignature !== entry.lastSignature || nextDisabled !== entry.lastDisabled) {
+            renderOptions(entry);
+            return;
+          }
+
+          if (nextValue !== entry.lastValue) {
+            entry.lastValue = nextValue;
+            setTriggerLabel(entry);
+            syncActiveOption(entry);
+          }
+        }
+
+        function enhanceSelect(select: HTMLSelectElement): void {
+          if (!select || select.dataset.cmsSelectEnhanced === 'true') return;
+          if (select.multiple || Number(select.size || 1) > 1) return;
+          if (!select.parentElement) return;
+
+          const shell = document.createElement('div');
+          shell.className = 'cms-select';
+
+          select.parentElement.insertBefore(shell, select);
+          shell.appendChild(select);
+          select.classList.add('cms-select-native');
+          select.dataset.cmsSelectEnhanced = 'true';
+
+          const trigger = document.createElement('button');
+          trigger.type = 'button';
+          trigger.className = 'cms-select-trigger';
+          trigger.setAttribute('aria-haspopup', 'listbox');
+          trigger.setAttribute('aria-expanded', 'false');
+
+          const label = document.createElement('span');
+          label.className = 'cms-select-trigger-label';
+
+          const caret = document.createElement('span');
+          caret.className = 'cms-select-trigger-caret';
+          caret.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.25 6.25L8 10l3.75-3.75" /></svg>';
+
+          trigger.appendChild(label);
+          trigger.appendChild(caret);
+
+          const menu = document.createElement('div');
+          menu.className = 'cms-select-menu';
+          menu.role = 'listbox';
+
+          shell.appendChild(trigger);
+          shell.appendChild(menu);
+
+          const entry: ManagedSelect = {
+            select,
+            shell,
+            trigger,
+            label,
+            menu,
+            observer: new MutationObserver(() => {}),
+            closeMenu: () => closeMenu(entry),
+            syncFromSelect: () => syncFromSelect(entry),
+            lastValue: select.value,
+            lastSignature: '',
+            lastDisabled: select.disabled,
+          };
+
+          trigger.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (shell.classList.contains('cms-select--open')) closeMenu(entry);
+            else openMenu(entry);
+          });
+
+          select.addEventListener('change', () => {
+            syncFromSelect(entry);
+          });
+
+          entry.observer = new MutationObserver(() => {
+            renderOptions(entry);
+          });
+          entry.observer.observe(select, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['disabled', 'label'],
+          });
+
+          renderOptions(entry);
+          managed.set(select, entry);
+        }
+
+        function enhanceSelects(root: ParentNode = document): void {
+          if (!(root instanceof Element || root instanceof Document || root instanceof DocumentFragment)) return;
+
+          if (root instanceof HTMLSelectElement) {
+            enhanceSelect(root);
+            return;
+          }
+
+          if (root instanceof Element && root.matches('select')) {
+            enhanceSelect(root as HTMLSelectElement);
+          }
+
+          root.querySelectorAll('select').forEach((node) => enhanceSelect(node as HTMLSelectElement));
+        }
+
+        function closeOpenIfOutside(target: EventTarget | null): void {
+          if (!openSelect || !(target instanceof Node)) return;
+          if (openSelect.shell.contains(target)) return;
+          closeMenu(openSelect);
+        }
+
+        function cleanupDisconnected(): void {
+          for (const [select, entry] of managed.entries()) {
+            if (document.contains(select)) continue;
+            if (openSelect === entry) openSelect = null;
+            entry.observer.disconnect();
+            managed.delete(select);
+          }
+        }
+
+        (window as unknown as { initCmsSelects?: (root?: ParentNode) => void }).initCmsSelects = enhanceSelects;
+
+        document.addEventListener('click', (event) => closeOpenIfOutside(event.target));
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && openSelect) closeMenu(openSelect);
+        });
+
+        window.addEventListener('resize', () => {
+          if (openSelect) closeMenu(openSelect);
+        });
+        window.addEventListener('scroll', () => {
+          if (openSelect) closeMenu(openSelect);
+        }, true);
+
+        const mountObserver = new MutationObserver((records) => {
+          for (const record of records) {
+            for (const node of Array.from(record.addedNodes)) {
+              if (!(node instanceof Element)) continue;
+              enhanceSelects(node);
+            }
+          }
+        });
+
+        const start = () => {
+          enhanceSelects(document);
+          if (document.body) {
+            mountObserver.observe(document.body, { childList: true, subtree: true });
+          }
+
+          window.setInterval(() => {
+            cleanupDisconnected();
+            managed.forEach((entry) => entry.syncFromSelect());
+          }, 220);
+        };
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', start, { once: true });
+        } else {
+          start();
+        }
+      })();
     </script>
     <script>
       (function() {

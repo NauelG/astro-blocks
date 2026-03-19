@@ -2,34 +2,115 @@
   "pages": [
     {
       "id": "home-page",
-      "slug": "/",
-      "status": "published",
-      "title": "Home",
+      "title": {
+        "es": "Inicio",
+        "en": "Home"
+      },
+      "slug": {
+        "es": "/",
+        "en": "/"
+      },
+      "status": {
+        "es": "published",
+        "en": "published"
+      },
+      "indexable": {
+        "es": true,
+        "en": true
+      },
+      "seo": {
+        "title": {
+          "es": "AstroBlocks Playground",
+          "en": "AstroBlocks Playground"
+        },
+        "description": {
+          "es": "Playground consumer para validar páginas y bloques localizados en AstroBlocks.",
+          "en": "Consumer playground to validate localized pages and blocks in AstroBlocks."
+        },
+        "canonical": {},
+        "image": {},
+        "nofollow": {
+          "es": false,
+          "en": false
+        }
+      },
       "blocks": [
         {
           "type": "Hero",
           "props": {
-            "title": "Block-first content editing for Astro.",
-            "subtitle": "This playground validates the packaged plugin, routes and block contract end to end."
-          }
-        },
-        {
-          "type": "Hero",
-          "props": {
-            "title": "demo 2",
-            "subtitle": "demo"
+            "title": {
+              "es": "Contenido por locale sin duplicar páginas",
+              "en": "Locale-aware content without page duplication"
+            },
+            "subtitle": {
+              "es": "Este ejemplo muestra slugs, menús y metadatos i18n trabajando juntos en un proyecto consumidor.",
+              "en": "This sample shows localized slugs, menus and i18n metadata working together in a consumer project."
+            }
           }
         }
       ],
-      "seo": {
-        "title": "AstroBlocks Playground",
-        "description": "A local Astro playground used to validate the packaged AstroBlocks plugin.",
-        "nofollow": false
+      "publishedAt": {
+        "es": "2026-03-19T10:00:00.000Z",
+        "en": "2026-03-19T10:00:00.000Z"
       },
-      "indexable": true,
-      "publishedAt": "2026-03-17T00:00:00.000Z",
-      "createdAt": "2026-03-17T00:00:00.000Z",
-      "updatedAt": "2026-03-17T17:54:55.232Z"
+      "createdAt": "2026-03-19T10:00:00.000Z",
+      "updatedAt": "2026-03-19T10:00:00.000Z"
+    },
+    {
+      "id": "contact-page",
+      "title": {
+        "es": "Contacto",
+        "en": "Contact"
+      },
+      "slug": {
+        "es": "/contacto",
+        "en": "/contact"
+      },
+      "status": {
+        "es": "published",
+        "en": "published"
+      },
+      "indexable": {
+        "es": true,
+        "en": true
+      },
+      "seo": {
+        "title": {
+          "es": "Contacto | AstroBlocks Playground",
+          "en": "Contact | AstroBlocks Playground"
+        },
+        "description": {
+          "es": "Página de ejemplo con slug localizado en castellano e inglés.",
+          "en": "Sample page with localized slug in Spanish and English."
+        },
+        "canonical": {},
+        "image": {},
+        "nofollow": {
+          "es": false,
+          "en": false
+        }
+      },
+      "blocks": [
+        {
+          "type": "Hero",
+          "props": {
+            "title": {
+              "es": "Página localizada",
+              "en": "Localized page"
+            },
+            "subtitle": {
+              "es": "Comprueba que /contacto y /en/contact resuelven el mismo documento con variantes por idioma.",
+              "en": "Check that /contacto and /en/contact resolve the same document with per-locale variants."
+            }
+          }
+        }
+      ],
+      "publishedAt": {
+        "es": "2026-03-19T10:00:00.000Z",
+        "en": "2026-03-19T10:00:00.000Z"
+      },
+      "createdAt": "2026-03-19T10:00:00.000Z",
+      "updatedAt": "2026-03-19T10:00:00.000Z"
     }
   ]
 }

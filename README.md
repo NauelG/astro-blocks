@@ -14,7 +14,7 @@ Licensed under the Business Source License 1.1
 </p>
 
 <p align="center">
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.10.0--alpha.1-blue" alt="version" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.11.0--alpha.1-blue" alt="version" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="alpha" />
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js" alt="Node 18+" /></a>
   <a href="https://astro.build"><img src="https://img.shields.io/badge/Astro-6+-FF5D01?logo=astro" alt="Astro 6+" /></a>
@@ -92,11 +92,15 @@ Keep imports split by responsibility:
 ```ts
 import astroBlocks from 'astro-blocks';
 import { defineBlockSchema } from 'astro-blocks/contract';
+import { getI18nMeta } from 'astro-blocks/getI18nMeta';
+import { getLanguages } from 'astro-blocks/getLanguages';
 import { getMenu } from 'astro-blocks/getMenu';
 ```
 
 - `astro-blocks` is the Astro integration entrypoint.
 - `astro-blocks/contract` is the public block-schema contract.
+- `astro-blocks/getI18nMeta` builds `hreflang`, `html lang` and OpenGraph locale metadata from AstroBlocks i18n context.
+- `astro-blocks/getLanguages` reads configured content languages for locale switchers.
 - `astro-blocks/getMenu` is the runtime helper for reading menu items inside your site.
 
 ---
@@ -176,24 +180,34 @@ Your layout receives these props:
 | `noindex` | Whether the page is non-indexable |
 | `site` | Data from `data/site.json` |
 | `seo` | Final SEO object, including absolute `image` when present |
+| `i18n` | i18n context for the current page (`locale`, `defaultLocale`, `alternates`) |
 
 Example:
 
 ```astro
 ---
 import { getMenu } from 'astro-blocks/getMenu';
+import { getI18nMeta } from 'astro-blocks/getI18nMeta';
 
-const { title, description, canonical, noindex, seo } = Astro.props;
+const { title, description, canonical, noindex, seo, site, i18n } = Astro.props;
 const menu = await getMenu('main');
+const i18nMeta = getI18nMeta(i18n, { baseUrl: site?.baseUrl });
 ---
 
-<html lang="en">
+<html lang={i18nMeta?.htmlLang || 'en'}>
   <head>
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     {canonical && <link rel="canonical" href={canonical} />}
     {noindex && <meta name="robots" content={seo?.nofollow ? 'noindex, nofollow' : 'noindex'} />}
     {seo?.image && <meta property="og:image" content={seo.image} />}
+    {i18nMeta?.alternates.map((entry) => (
+      <link rel="alternate" hreflang={entry.hrefLang} href={entry.href} />
+    ))}
+    {i18nMeta?.ogLocale && <meta property="og:locale" content={i18nMeta.ogLocale} />}
+    {i18nMeta?.ogLocaleAlternate.map((entry) => (
+      <meta property="og:locale:alternate" content={entry} />
+    ))}
   </head>
   <body>
     <nav>
@@ -203,6 +217,8 @@ const menu = await getMenu('main');
   </body>
 </html>
 ```
+
+> In SSR mode (`publicRendering: 'server'`), AstroBlocks uses `Accept-Language` on `/` to redirect to a non-default enabled locale when available. If no match exists, it serves the default locale.
 
 ---
 
@@ -215,6 +231,7 @@ AstroBlocks creates and reads these files in the **consumer project root**:
 | `data/pages.json` | Pages, slug, status, blocks, `indexable`, SEO |
 | `data/site.json` | Site name, base URL, favicon, logo, colors, default SEO |
 | `data/menus.json` | Menus and nested menu items |
+| `data/languages.json` | Content languages (`code`, `label`, `enabled`, `isDefault`) |
 | `data/users.json` | CMS users |
 | `public/uploads/` | Uploaded files |
 
@@ -231,6 +248,7 @@ You can version these files in your project repository if that fits your workflo
 | `/cms/menus` | Menus |
 | `/cms/settings` | Site settings |
 | `/cms/users` | Users |
+| `/cms/languages` | Content languages |
 | `/cms/cache` | Invalidate AstroBlocks cache |
 
 API routes are available under `/cms/api/*`.
@@ -243,7 +261,7 @@ API routes are available under `/cms/api/*`.
 ---
 import { getMenu } from 'astro-blocks/getMenu';
 
-const mainMenu = await getMenu('main');
+const mainMenu = await getMenu('main', { locale: 'es' });
 ---
 
 <nav>
@@ -265,6 +283,26 @@ type MenuItem = {
 
 ---
 
+## Languages In Your Site
+
+```astro
+---
+import { getLanguages } from 'astro-blocks/getLanguages';
+
+const { languages, defaultLocale } = await getLanguages();
+---
+
+<nav>
+  {languages.map((language) => (
+    <a href={language.code === defaultLocale ? '/' : `/${language.code}`}>
+      {language.label}
+    </a>
+  ))}
+</nav>
+```
+
+---
+
 ## Plugin Options
 
 | Option | Description |
@@ -273,6 +311,7 @@ type MenuItem = {
 | `blocks` | Array of block schemas imported from your `.schema.ts` files |
 | `publicRendering` | `'server'` by default in alpha. Use `'static'` to opt back into prerendered public pages |
 | `cache` | Cache behavior for SSR public pages. Enabled by default in alpha when the consumer configures an Astro cache provider |
+| `i18n.routingStrategy` | Public routing contract for localized paths (`'path-prefix'` in this alpha) |
 
 ### Cache Provider
 

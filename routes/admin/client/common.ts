@@ -8,6 +8,7 @@ type CmsUser = { id: string; email: string; role: string } | null;
 type CmsWindow = Window & typeof globalThis & {
   getCmsToken?: () => string;
   getCmsUser?: () => CmsUser;
+  getCmsContentLocale?: () => string;
   cmsAlert?: (options: { title?: string; message: string }) => Promise<unknown> | unknown;
   cmsConfirm?: (options: { message: string; confirmLabel?: string }) => Promise<boolean>;
   cmsToast?: (options: { title?: string; message: string; tone?: 'success' | 'error' | 'info' }) => void;
@@ -19,16 +20,53 @@ export function getCmsWindow(): CmsWindow {
 
 export function getCmsToken(): string {
   try {
-    return getCmsWindow().getCmsToken?.() || '';
+    const fromWindow = getCmsWindow().getCmsToken?.() || '';
+    if (fromWindow) return fromWindow;
+  } catch {
+    // ignore getter issues
+  }
+
+  try {
+    return sessionStorage.getItem('cms-token') || '';
   } catch {
     return '';
   }
 }
 
+export function getCmsContentLocale(): string {
+  try {
+    const select = document.getElementById('cms-content-locale-select') as HTMLSelectElement | null;
+    const selected = select?.value?.trim();
+    if (selected) return selected;
+  } catch {
+    // ignore DOM access issues
+  }
+
+  try {
+    const fromWindow = getCmsWindow().getCmsContentLocale?.() || '';
+    if (fromWindow) return fromWindow;
+  } catch {
+    // ignore getter issues
+  }
+
+  try {
+    return sessionStorage.getItem('cms-content-locale') || '';
+  } catch {
+    return '';
+  }
+}
+
+export function getActiveContentLocale(fallback = 'es'): string {
+  const locale = (getCmsContentLocale() || '').trim().toLowerCase();
+  return locale || fallback;
+}
+
 export function authHeaders(contentType = true): HeadersInit {
+  const locale = getCmsContentLocale();
   return {
     ...(contentType ? { 'Content-Type': 'application/json' } : {}),
     Authorization: `Bearer ${getCmsToken()}`,
+    ...(locale ? { 'x-cms-locale': locale } : {}),
   };
 }
 

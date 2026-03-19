@@ -20,6 +20,7 @@ import {
 test('getPageCachePath normalizes homepage and nested slugs', () => {
   assert.equal(getPageCachePath({ slug: '/' }), '/');
   assert.equal(getPageCachePath({ slug: ['docs', 'intro'] }), '/docs/intro');
+  assert.equal(getPageCachePath({ slug: { es: '/about', en: '/about' } }, 'en', 'es'), '/en/about');
 });
 
 test('getPageCacheTags includes id, path and global tags', () => {

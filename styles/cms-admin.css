@@ -689,6 +689,39 @@ Licensed under the Business Source License 1.1
   line-height: 1.25;
 }
 
+.cms-locale-hint {
+  display: inline;
+  margin-left: 0.2rem;
+  font-size: 0.55rem;
+  font-weight: 500;
+  color: var(--cms-text-xmuted, #9ca3af);
+  letter-spacing: 0;
+}
+
+.cms-locale-hint--inline {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0;
+  font-size: 0.5rem;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cms-inline-localizable-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.cms-inline-localizable-field .cms-input {
+  margin-bottom: 0;
+  width: 100%;
+  min-width: 0;
+}
+
 .cms-field input[type="text"],
 .cms-field input[type="password"],
 .cms-field input[type="email"],
@@ -710,6 +743,142 @@ Licensed under the Business Source License 1.1
   outline: none;
   border-color: var(--cms-primary, #333);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--cms-primary, #333) 25%, transparent);
+}
+
+.cms-select {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+.cms-select-native {
+  position: absolute !important;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cms-select-trigger {
+  position: relative;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.3125rem 0.5rem;
+  border: 1px solid #c2cad8;
+  border-radius: var(--cms-radius-sm, 0.375rem);
+  background: #fff;
+  color: var(--cms-text-body, #1f2937);
+  font-size: 0.71875rem;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--cms-transition), box-shadow var(--cms-transition), background var(--cms-transition);
+}
+
+.cms-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--cms-primary, #333);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cms-primary, #333) 25%, transparent);
+}
+
+.cms-select-trigger-label {
+  flex: 1;
+  min-width: 0;
+  padding-right: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cms-select-trigger-caret {
+  position: absolute;
+  right: 0.45rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 0.875rem;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.cms-select-trigger-caret svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cms-select-menu {
+  position: absolute;
+  top: calc(100% + 0.28rem);
+  left: 0;
+  right: 0;
+  max-height: 14rem;
+  padding: 0.22rem;
+  background: var(--cms-surface, #fff);
+  border: 1px solid var(--cms-border, #e3e8f0);
+  border-radius: var(--cms-radius-sm, 0.375rem);
+  box-shadow: var(--cms-shadow-md);
+  overflow: auto;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-3px);
+  transition: opacity var(--cms-transition), transform var(--cms-transition), visibility var(--cms-transition);
+  z-index: 1400;
+  pointer-events: none;
+}
+
+.cms-select--open .cms-select-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.cms-select-option {
+  width: 100%;
+  margin: 0;
+  padding: 0.35rem 0.45rem;
+  border: none;
+  border-radius: 0.3125rem;
+  background: transparent;
+  color: var(--cms-text-body, #1f2937);
+  font-size: 0.71875rem;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--cms-transition), color var(--cms-transition);
+}
+
+.cms-select-option:hover {
+  background: color-mix(in srgb, var(--cms-primary, #333) 8%, var(--cms-surface-alt, #f7f8fc));
+  color: var(--cms-text-strong, #111827);
+}
+
+.cms-select-option--active {
+  background: color-mix(in srgb, var(--cms-primary, #333) 12%, #fff);
+  color: var(--cms-primary, #333);
+}
+
+.cms-select-option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cms-select--disabled .cms-select-trigger {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 /* Checkbox: tamaño y cursor; el estado :checked lo estiliza Pico con --pico-primary-background */
@@ -2167,6 +2336,7 @@ Licensed under the Business Source License 1.1
   -webkit-backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--cms-shell-border);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75), 0 10px 24px rgba(15, 23, 42, 0.04);
+  z-index: 1100;
 }
 
 .cms-topbar-shell {
@@ -2257,16 +2427,54 @@ Licensed under the Business Source License 1.1
   min-width: 0;
 }
 
+.cms-topbar-locale {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 7rem;
+}
+
+.cms-topbar-locale .cms-select {
+  width: 100%;
+}
+
+.cms-topbar-locale .cms-select--open {
+  z-index: 1400;
+}
+
+.cms-topbar-locale select,
+.cms-topbar-locale .cms-select-trigger {
+  margin: 0;
+  width: 100%;
+  min-width: 0;
+  height: 1.85rem;
+  padding: 0 1.6rem 0 0.52rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--cms-border);
+  background: rgba(255, 255, 255, 0.95);
+  font-size: 0.6875rem;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.cms-topbar-locale .cms-select-trigger {
+  justify-content: space-between;
+  font-size: 0.6875rem;
+}
+
 .cms-topbar-site-link {
+  height: 1.85rem;
+  padding: 0 0.58rem;
   gap: 0.45rem;
   border-color: var(--cms-border);
   background: rgba(255, 255, 255, 0.9);
 }
 
 .cms-topbar-profile-trigger {
-  width: 2.1rem;
-  height: 2.1rem;
-  border-radius: 0.72rem;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.62rem;
   border-width: 1px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.96) 100%);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
@@ -3628,7 +3836,16 @@ Licensed under the Business Source License 1.1
   }
 
   .cms-topbar-actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .cms-topbar-site-link {
     display: none;
+  }
+
+  .cms-topbar-locale {
+    min-width: 5.75rem;
   }
 
   .cms-topbar-nav-toggle,

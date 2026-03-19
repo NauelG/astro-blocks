@@ -9,6 +9,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.11.0-alpha.1] - 2026-03-19
+
+### Added
+
+- **Multi-language content model:** nuevo archivo `data/languages.json`, gestión de idiomas de contenido desde `/cms/languages` y soporte para documento único con campos localizables por locale en páginas, bloques y menús.
+- **API y helpers públicos para i18n:** nuevo CRUD `/cms/api/languages`, helper `getLanguages()` para leer idiomas configurados desde el proyecto consumidor y helper `getI18nMeta()` para generar `html lang`, `hreflang`, `x-default` y metadatos Open Graph por idioma.
+- **Cobertura de tests para i18n:** nuevos tests para localización, helpers públicos, localización estricta en plano público y props de bloques localizables.
+
+### Changed
+
+- **Contrato de bloques:** `PropDef` incorpora `localizable?: boolean` para marcar explícitamente qué campos string/text se traducen por locale.
+- **Admin multi idioma:** topbar con selector de idioma de contenido, separación entre idioma de interfaz y de contenido, labels sutiles por locale en todos los campos localizables y edición localizada también en builders de bloques y menús.
+- **Routing público:** MVP de rutas localizadas con estrategia `prefix-except-default` sobre path, manteniendo el contrato preparado para extenderse más adelante sin exponer aún subdominio o dominio.
+- **Playground y README:** ejemplos actualizados para reflejar la nueva versión, incluyendo layout consumidor con `getI18nMeta()`, uso de `getLanguages()` y menús consumidos por locale.
+- **Dashboard y shell del CMS:** el dashboard pasa a mostrar idiomas en lugar de usuarios y se refinan dropdowns, selector de locale y affordances del topbar para encajar mejor con el design system actual.
+
+### Fixed
+
+- **Sin fallback público implícito entre idiomas:** páginas, menús, sitemap, robots y alternates ya no reutilizan silenciosamente el `defaultLocale` cuando falta contenido en el locale solicitado.
+- **Detección de idioma del navegador en SSR:** `/` usa `Accept-Language` para redirigir al locale no default cuando existe contenido publicado y ahora añade `Vary: Accept-Language` para evitar respuestas cacheadas incorrectamente.
+- **Sincronización del locale activo en el admin:** correcciones en refresco, tablas, labels de formularios, builders y selector del topbar para que el idioma seleccionado se mantenga y se refleje de forma consistente.
+
 ## [0.10.0-alpha.1] - 2026-03-18
 
 ### Added

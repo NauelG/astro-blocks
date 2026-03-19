@@ -7,10 +7,12 @@ Licensed under the Business Source License 1.1
 import AdminLayout from './layout.astro';
 import DetailModal from './components/DetailModal.astro';
 import { Pencil, Trash2 } from '@lucide/astro';
-import { loadPages, loadSite } from '../../api/data.js';
+import { getDefaultLocale, getPageLocaleView, loadLanguages, loadPages, loadSite } from '../../api/data.js';
 const site = await loadSite();
 const pagesData = await loadPages();
-const pages = pagesData.pages || [];
+const languagesData = await loadLanguages();
+const defaultLocale = getDefaultLocale(languagesData);
+const pages = (pagesData.pages || []).map((page) => getPageLocaleView(page, defaultLocale, defaultLocale));
 const publishedCount = pages.filter((page) => page.status === 'published').length;
 function slugStr(p: { slug?: string | string[] }) {
   if (p.slug === '/' || (Array.isArray(p.slug) && !p.slug.length)) return '/';

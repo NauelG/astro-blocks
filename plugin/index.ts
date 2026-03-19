@@ -24,6 +24,9 @@ type ResolvedPluginOptions = AstroBlocksOptions & {
     maxAge: number;
     swr: number;
   };
+  i18n: {
+    routingStrategy: 'path-prefix' | 'subdomain' | 'domain';
+  };
 };
 
 function getProjectRoot(config?: { root?: string | URL }): string {
@@ -78,6 +81,8 @@ async function generateRuntime(projectRoot: string, options: AstroBlocksOptions)
 }
 
 function resolveOptions(options: AstroBlocksOptions): ResolvedPluginOptions {
+  const routingStrategy = options.i18n?.routingStrategy || 'path-prefix';
+
   return {
     ...options,
     publicRendering: options.publicRendering === 'static' ? 'static' : 'server',
@@ -85,6 +90,9 @@ function resolveOptions(options: AstroBlocksOptions): ResolvedPluginOptions {
       enabled: options.cache?.enabled ?? true,
       maxAge: options.cache?.maxAge ?? DEFAULT_CACHE_MAX_AGE,
       swr: options.cache?.swr ?? DEFAULT_CACHE_SWR,
+    },
+    i18n: {
+      routingStrategy,
     },
   };
 }
@@ -115,6 +123,13 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
 
         if (!Array.isArray(resolvedOptions.blocks)) {
           throw new Error('[astro-blocks] options.blocks is required and must be an array (e.g. blocks: [heroSchema, ...]).');
+        }
+
+        if (resolvedOptions.i18n.routingStrategy !== 'path-prefix') {
+          console.warn(
+            `[astro-blocks] i18n.routingStrategy="${resolvedOptions.i18n.routingStrategy}" is not available in this alpha. Falling back to "path-prefix".`
+          );
+          resolvedOptions.i18n.routingStrategy = 'path-prefix';
         }
 
         await generateRuntime(projectRoot, resolvedOptions);
@@ -153,6 +168,7 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
         vite.define['import.meta.env.ASTRO_BLOCKS_CACHE_ENABLED'] = JSON.stringify(resolvedOptions.cache.enabled);
         vite.define['import.meta.env.ASTRO_BLOCKS_CACHE_MAX_AGE'] = JSON.stringify(resolvedOptions.cache.maxAge);
         vite.define['import.meta.env.ASTRO_BLOCKS_CACHE_SWR'] = JSON.stringify(resolvedOptions.cache.swr);
+        vite.define['import.meta.env.ASTRO_BLOCKS_ROUTING_STRATEGY'] = JSON.stringify(resolvedOptions.i18n.routingStrategy);
 
         const existingNoExternal = vite.ssr?.noExternal ?? [];
         const cmsNoExternal = ['animate.css', '@picocss/pico'];
@@ -174,6 +190,7 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
         injectRoute({ pattern: '/cms/settings', entrypoint: resolveCms('admin/settings.astro') });
         injectRoute({ pattern: '/cms/cache', entrypoint: resolveCms('admin/cache.astro') });
         injectRoute({ pattern: '/cms/menus', entrypoint: resolveCms('admin/menus.astro') });
+        injectRoute({ pattern: '/cms/languages', entrypoint: resolveCms('admin/languages.astro') });
         injectRoute({ pattern: '/cms/users', entrypoint: resolveCms('admin/users.astro') });
 
         injectRoute({ pattern: '/sitemap-index.xml', entrypoint: resolveCms('sitemap-get.js') });

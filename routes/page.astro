@@ -4,10 +4,12 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-import { getPageBySlug, loadPages, loadSite } from '../api/data.js';
+import { getDefaultLocale, getPageBySlugStrict, getPageLocaleViewStrict, getPageSlugStrict, getPageStatusStrict, loadLanguages, loadPages, loadSite } from '../api/data.js';
 import { getCacheConfig, getPageCacheTags } from '../utils/cache.js';
-import { resolvePageSeo } from '../utils/slug.js';
-import { Layout, componentMap } from 'astro-blocks-runtime';
+import { localizeBlockPropsForRender } from '../utils/block-props.js';
+import { buildLocalizedPath, resolveLocalizedSlug, resolvePageSeo, slugToPath } from '../utils/slug.js';
+import { normalizeLocaleCode, resolvePreferredLocaleFromAcceptLanguage } from '../utils/localization.js';
+import { Layout, componentMap, schemaMap as runtimeSchemaMap } from 'astro-blocks-runtime';
 import BlockFallback from './BlockFallback.astro';
 
 export const prerender = false;
@@ -15,16 +17,38 @@ export const prerender = false;
 const projectRoot = import.meta.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
 process.env.ASTRO_BLOCKS_PROJECT_ROOT = projectRoot;
 
-const pagesData = await loadPages();
-const site = await loadSite();
-const page = getPageBySlug(pagesData, Astro.params.slug ?? '');
+const [pagesData, site, languagesData] = await Promise.all([loadPages(), loadSite(), loadLanguages()]);
+const defaultLocale = getDefaultLocale(languagesData);
+const enabledLocales = languagesData.languages.filter((language) => language.enabled !== false).map((language) => normalizeLocaleCode(language.code));
+const { locale, slug } = resolveLocalizedSlug(Astro.params.slug ?? '', enabledLocales, defaultLocale);
+const requestUrl = new URL(Astro.request.url);
+const isRootRequest = requestUrl.pathname === '/';
+if (isRootRequest) {
+  const preferredLocale = resolvePreferredLocaleFromAcceptLanguage(
+    Astro.request.headers.get('accept-language'),
+    enabledLocales,
+    defaultLocale
+  );
+
+  if (preferredLocale && preferredLocale !== defaultLocale) {
+    const hasPreferredHome = Boolean(getPageBySlugStrict(pagesData, '/', preferredLocale));
+    if (hasPreferredHome) {
+      const targetPath = slugToPath(buildLocalizedPath('/', preferredLocale, defaultLocale));
+      const targetUrl = `${targetPath}${requestUrl.search || ''}`;
+      const response = Astro.redirect(targetUrl, 302);
+      response.headers.set('Vary', 'Accept-Language');
+      return response;
+    }
+  }
+}
+const page = getPageBySlugStrict(pagesData, slug, locale);
 const cacheConfig = getCacheConfig();
 
 if (page && cacheConfig.enabled && Astro.cache.enabled) {
   Astro.cache.set({
     maxAge: cacheConfig.maxAge,
     swr: cacheConfig.swr,
-    tags: getPageCacheTags(page),
+    tags: getPageCacheTags(page, locale, defaultLocale),
   });
 } else {
   Astro.cache.set(false);
@@ -35,8 +59,34 @@ if (!page) {
   Astro.response.statusText = 'Not Found';
 }
 
-const { title, description, canonical, noindex, seo } = page
-  ? resolvePageSeo(site, page)
+const localeKeys = new Set(enabledLocales.map((entry) => normalizeLocaleCode(entry)));
+const view = page ? getPageLocaleViewStrict(page, locale) : null;
+const localizedSlug = view ? buildLocalizedPath(view.slug, locale, defaultLocale) : '/';
+const i18n = page
+  ? {
+      locale,
+      defaultLocale,
+      alternates: enabledLocales
+        .filter((entryLocale) => getPageStatusStrict(page, entryLocale) === 'published')
+        .map((entryLocale) => ({
+          locale: entryLocale,
+          path: slugToPath(buildLocalizedPath(getPageSlugStrict(page, entryLocale) || '/', entryLocale, defaultLocale)),
+        })),
+    }
+  : undefined;
+const localizedPage = view
+  ? {
+      ...view,
+      slug: localizedSlug,
+      blocks: (view.blocks || []).map((block) => ({
+        type: block.type,
+        props: localizeBlockPropsForRender(block.props || {}, block.type, runtimeSchemaMap, locale, defaultLocale, localeKeys),
+      })),
+    }
+  : null;
+
+const { title, description, canonical, noindex, seo } = localizedPage
+  ? resolvePageSeo(site, localizedPage)
   : {
       title: 'Page not found',
       description: '',
@@ -44,7 +94,8 @@ const { title, description, canonical, noindex, seo } = page
       noindex: true,
       seo: {},
     };
-const blocks = page?.blocks || [];
+
+const blocks = localizedPage?.blocks || [];
 ---
 
 <Layout
@@ -54,8 +105,9 @@ const blocks = page?.blocks || [];
   noindex={noindex}
   site={site}
   seo={seo}
+  i18n={i18n}
 >
-  {!page && (
+  {!localizedPage && (
     <section>
       <h1>Page not found</h1>
       <p>The requested page is not available.</p>

@@ -6,22 +6,23 @@ Licensed under the Business Source License 1.1
 
 import fs from 'node:fs/promises';
 import AdminLayout from './layout.astro';
-import { Globe, FileText, Menu, Users, Upload, Plus, Settings, RefreshCw, ExternalLink, ShieldCheck, Clock3 } from '@lucide/astro';
-import { loadSite, loadPages, getPublishedPages, loadMenus, loadUsers } from '../../api/data.js';
+import { Globe, FileText, Menu, Languages, Upload, Plus, Settings, RefreshCw, ExternalLink, ShieldCheck, Clock3 } from '@lucide/astro';
+import { loadSite, loadPages, getDefaultLocale, getPageIndexable, getPageLocaleView, getPageStatus, getPublishedPages, loadLanguages, loadMenus } from '../../api/data.js';
 import { getUploadsDir } from '../../utils/paths.js';
 import { slugToPath } from '../../utils/slug.js';
 
 const site = await loadSite();
 const pagesData = await loadPages();
 const menusData = await loadMenus();
-const usersData = await loadUsers();
+const languagesData = await loadLanguages();
+const defaultLocale = getDefaultLocale(languagesData);
 
 const allPages = pagesData.pages || [];
-const published = getPublishedPages(pagesData);
-const drafts = allPages.filter((p) => p.status === 'draft');
-const indexablePages = allPages.filter((p) => p.indexable !== false).length;
+const published = getPublishedPages(pagesData, defaultLocale, defaultLocale);
+const drafts = allPages.filter((p) => getPageStatus(p, defaultLocale, defaultLocale) === 'draft');
+const indexablePages = allPages.filter((p) => getPageIndexable(p, defaultLocale, defaultLocale) !== false).length;
 const menus = menusData.menus || [];
-const users = usersData.users || [];
+const enabledLanguagesCount = (languagesData.languages || []).filter((language) => language.enabled !== false).length;
 
 const uploadCount = await (async () => {
   try {
@@ -38,7 +39,8 @@ const recentPages = [...allPages]
     const db = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
     return db - da;
   })
-  .slice(0, 5);
+  .slice(0, 5)
+  .map((page) => getPageLocaleView(page, defaultLocale, defaultLocale));
 
 const lastUpdatedPage = recentPages[0];
 ---
@@ -115,12 +117,12 @@ const lastUpdatedPage = recentPages[0];
             <p class="cms-stat-value">{menus.length}</p>
             <p class="cms-stat-label">Menús</p>
           </div>
-          <div class="cms-card cms-dashboard-stat" data-cms-owner-only>
+          <div class="cms-card cms-dashboard-stat">
             <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
-              <Users size={14} />
+              <Languages size={14} />
             </div>
-            <p class="cms-stat-value">{users.length}</p>
-            <p class="cms-stat-label">Usuarios</p>
+            <p class="cms-stat-value">{enabledLanguagesCount}</p>
+            <p class="cms-stat-label">Idiomas</p>
           </div>
           <div class="cms-card cms-dashboard-stat">
             <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
