@@ -9,6 +9,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.11.0-alpha.2] - 2026-03-19
+
+### Changed
+
+- **Admin visual normalization:** unified border radius and spacing in the CMS admin with a shared token contract (`--cms-radius-base`, `--cms-radius-pill`, `--cms-space-*`) to remove mixed sizing across shell, lists and builders.
+- **Design system consistency:** normalized neutral borders and replaced inline spacing/border styles in admin templates and client-rendered markup with reusable classes in `cms-admin.css`.
+- **Toolbar controls:** aligned list toolbar controls to the same visual height and sizing rules, including the custom select trigger used by filters.
+
+### Fixed
+
+- **Page editor block actions:** the delete action now matches the same dimensions as toggle and duplicate actions in block cards.
+
 ## [0.11.0-alpha.1] - 2026-03-19
 
 ### Added

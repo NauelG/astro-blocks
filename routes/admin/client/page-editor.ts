@@ -310,7 +310,7 @@ export function initPageEditor(): void {
         }
 
         if (def.type === 'boolean') {
-          fieldsHtml += `<div class="cms-field" style="display:flex;align-items:center;gap:0.5rem"><input type="checkbox" id="${fieldId}" data-idx="${index}" data-prop="${escapeHtml(propName)}" class="cms-input" ${(value === true || value === 'true') ? 'checked' : ''}><label for="${fieldId}" style="margin-bottom:0">${withLocaleHint(def.label, isSchemaPropLocalizable(def))}</label></div>`;
+          fieldsHtml += `<div class="cms-field cms-field-checkbox"><input type="checkbox" id="${fieldId}" data-idx="${index}" data-prop="${escapeHtml(propName)}" class="cms-input" ${(value === true || value === 'true') ? 'checked' : ''}><label for="${fieldId}" class="cms-label-tight">${withLocaleHint(def.label, isSchemaPropLocalizable(def))}</label></div>`;
           continue;
         }
 

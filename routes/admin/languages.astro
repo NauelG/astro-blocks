@@ -76,7 +76,7 @@ const languages = languagesData.languages || [];
           </tbody>
         </table>
       </div>
-      <div id="cms-languages-empty" class:list={['cms-empty-state', languages.length > 0 && 'cms-hidden']} style="margin: 1rem;">
+      <div id="cms-languages-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', languages.length > 0 && 'cms-hidden']}>
         <p class="cms-empty-state-title">No hay idiomas configurados</p>
         <p class="cms-empty-state-text">Crea al menos un idioma para empezar a editar contenido multi idioma.</p>
       </div>
@@ -95,15 +95,15 @@ const languages = languagesData.languages || [];
         <label for="language-detail-label">Etiqueta</label>
         <input type="text" id="language-detail-label" name="label" placeholder="Español" required />
       </div>
-      <div class="cms-field" style="display:flex; align-items:center; gap:0.5rem;">
+      <div class="cms-field cms-field-checkbox">
         <input type="checkbox" id="language-detail-enabled" name="enabled" checked />
-        <label for="language-detail-enabled" style="margin-bottom:0;">Habilitado</label>
+        <label for="language-detail-enabled" class="cms-label-tight">Habilitado</label>
       </div>
-      <div class="cms-field" style="display:flex; align-items:center; gap:0.5rem;">
+      <div class="cms-field cms-field-checkbox">
         <input type="checkbox" id="language-detail-default" name="isDefault" />
-        <label for="language-detail-default" style="margin-bottom:0;">Predeterminado</label>
+        <label for="language-detail-default" class="cms-label-tight">Predeterminado</label>
       </div>
-      <p class="cms-muted" style="font-size:0.75rem; margin-bottom:0;">
+      <p class="cms-muted cms-hint">
         El idioma predeterminado se sirve sin prefijo en URL. Los demás usan prefijo (ej. <code>/en/...</code>).
       </p>
     </form>

@@ -98,7 +98,7 @@ function slugStr(p: { slug?: string | string[] }) {
           </tbody>
         </table>
       </div>
-      <div id="cms-pages-empty" class:list={['cms-empty-state', pages.length > 0 && 'cms-hidden']} style="margin: 1rem;">
+      <div id="cms-pages-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', pages.length > 0 && 'cms-hidden']}>
         <p class="cms-empty-state-title">No hay páginas que mostrar</p>
         <p class="cms-empty-state-text">Crea una nueva página o ajusta la búsqueda para volver a ver resultados.</p>
         <div class="cms-empty-state-actions">
@@ -127,11 +127,11 @@ function slugStr(p: { slug?: string | string[] }) {
               <input type="text" id="page-detail-slug" name="slug" placeholder="/ o /about" />
             </div>
             <input type="hidden" name="status" id="page-detail-status" value="draft" />
-            <div class="cms-field cms-field-indexable" style="display: flex; align-items: center; gap: 0.5rem;">
+            <div class="cms-field cms-field-indexable cms-field-checkbox">
               <input type="checkbox" name="indexable" id="page-detail-indexable" checked />
-              <label for="page-detail-indexable" style="margin-bottom: 0;">Indexable</label>
+              <label for="page-detail-indexable" class="cms-label-tight">Indexable</label>
             </div>
-            <p id="page-detail-seo-hidden-hint" class="cms-muted cms-hidden" style="font-size: 0.75rem; margin-top: 0.5rem; margin-bottom: 0;">
+            <p id="page-detail-seo-hidden-hint" class="cms-muted cms-hidden cms-hint">
               Las páginas no indexables no aparecen en el sitemap y llevan meta noindex. Los campos SEO no se utilizan.
             </p>
           </div>
@@ -164,9 +164,9 @@ function slugStr(p: { slug?: string | string[] }) {
               </div>
               <input type="file" id="page-detail-seo-image-file" accept="image/*" class="cms-hidden" />
             </div>
-            <div class="cms-field" style="display: flex; align-items: center; gap: 0.5rem;">
+            <div class="cms-field cms-field-checkbox">
               <input type="checkbox" name="seo-nofollow" id="page-detail-seo-nofollow" />
-              <label for="page-detail-seo-nofollow" style="margin-bottom: 0;">Añadir nofollow</label>
+              <label for="page-detail-seo-nofollow" class="cms-label-tight">Añadir nofollow</label>
             </div>
           </div>
           </div>
@@ -184,7 +184,7 @@ function slugStr(p: { slug?: string | string[] }) {
       </div>
     </form>
     <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="page-detail-modal">Cancelar</button>
-    <div class="cms-cluster" slot="actions-right" style="gap: 0.5rem;">
+    <div class="cms-cluster cms-cluster-gap-md" slot="actions-right">
       <button type="button" class="cms-btn cms-btn-publish" id="page-detail-publish-btn" aria-label="Guardar y publicar">Publicar</button>
       <button type="button" class="cms-btn cms-btn-unpublish cms-hidden" id="page-detail-unpublish-btn" aria-label="Guardar y pasar a borrador">A borrador</button>
       <button type="submit" form="page-detail-form" class="cms-btn cms-btn-primary" id="page-detail-submit">Guardar</button>

@@ -48,10 +48,21 @@ Licensed under the Business Source License 1.1
   /* Table */
   --cms-table-head-bg: #f1f3f8;
   /* Radius scale */
-  --cms-radius-sm: 0.375rem;
-  --cms-radius: 0.625rem;
-  --cms-radius-lg: 0.75rem;
-  --cms-btn-radius: 0.4375rem;
+  --cms-radius-base: 0.5rem;
+  --cms-radius-pill: 999px;
+  /* Temporary aliases during migration */
+  --cms-radius-sm: var(--cms-radius-base);
+  --cms-radius: var(--cms-radius-base);
+  --cms-radius-lg: var(--cms-radius-base);
+  --cms-btn-radius: var(--cms-radius-base);
+  /* Spacing scale */
+  --cms-space-0: 0;
+  --cms-space-1: 0.25rem;
+  --cms-space-2: 0.5rem;
+  --cms-space-3: 0.75rem;
+  --cms-space-4: 1rem;
+  --cms-space-6: 1.5rem;
+  --cms-space-8: 2rem;
   /* Shadows — flat, subtle */
   --cms-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
   --cms-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -90,7 +101,7 @@ Licensed under the Business Source License 1.1
 .cms-root select {
   background-color: #fff !important;
   color: #1a1a1a !important;
-  border-color: #c2cad8 !important;
+  border-color: var(--cms-border-strong) !important;
 }
 
 .cms-root input::placeholder,
@@ -287,7 +298,7 @@ Licensed under the Business Source License 1.1
 /* --- Componentes --- */
 .cms-card {
   background: var(--cms-card-bg, #fff);
-  border-radius: var(--cms-radius, 0.5rem);
+  border-radius: var(--cms-radius-base);
   box-shadow: var(--cms-shadow-sm);
   padding: 0.875rem;
   transition: box-shadow var(--cms-transition);
@@ -300,13 +311,13 @@ Licensed under the Business Source License 1.1
 .cms-card--no-padding {
   padding: 0;
   overflow: hidden;
-  border-radius: var(--cms-radius, 0.5rem);
+  border-radius: var(--cms-radius-base);
 }
 
 .cms-code {
   padding: 0.125rem 0.375rem;
   background: var(--cms-surface-alt);
-  border-radius: 0.25rem;
+  border-radius: var(--cms-radius-base);
   font-family: ui-monospace, monospace;
   font-size: 0.8125rem;
 }
@@ -354,10 +365,10 @@ Licensed under the Business Source License 1.1
 
 .cms-input {
   width: 100%;
-  padding: 0.4375rem 0.6875rem;
+  padding: var(--cms-space-2) var(--cms-space-3);
   margin-bottom: 0.375rem;
   border: 1px solid var(--cms-border);
-  border-radius: var(--cms-radius-sm, 0.375rem);
+  border-radius: var(--cms-radius-base);
   font-size: 0.8125rem;
   transition: border-color var(--cms-transition), box-shadow var(--cms-transition);
 }
@@ -373,14 +384,14 @@ Licensed under the Business Source License 1.1
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  padding: 0.3125rem 0.625rem;
+  padding: var(--cms-space-1) var(--cms-space-2);
   font-size: 0.71875rem;
   font-weight: 500;
   line-height: 1.05;
   text-align: center;
   text-decoration: none;
   border: 1px solid transparent;
-  border-radius: var(--cms-btn-radius, 0.4375rem);
+  border-radius: var(--cms-radius-base);
   cursor: pointer;
   box-sizing: border-box;
   outline: none;
@@ -420,7 +431,7 @@ Licensed under the Business Source License 1.1
 
 .cms-btn-secondary:hover {
   background: var(--cms-surface-alt);
-  border-color: #9ca3af;
+  border-color: var(--cms-border-strong);
   color: #111827;
 }
 
@@ -456,7 +467,7 @@ Licensed under the Business Source License 1.1
 
 .cms-btn-ghost:hover {
   background: var(--cms-surface-alt);
-  border-color: #9ca3af;
+  border-color: var(--cms-border-strong);
   color: #111827;
 }
 
@@ -481,7 +492,7 @@ Licensed under the Business Source License 1.1
 /* --- Tablas --- */
 .cms-table-wrap {
   overflow-x: auto;
-  border-radius: var(--cms-radius, 0.5rem);
+  border-radius: var(--cms-radius-base);
   background: var(--cms-card-bg, #fff);
   border: 1px solid var(--cms-border);
 }
@@ -568,7 +579,7 @@ Licensed under the Business Source License 1.1
   min-width: 1.5rem;
   min-height: 1.5rem;
   padding: 0;
-  border-radius: var(--cms-radius-sm, 0.375rem);
+  border-radius: var(--cms-radius-base);
   border: 1px solid var(--cms-border);
   background: var(--cms-surface-alt);
   color: #4b5563;
@@ -631,7 +642,7 @@ Licensed under the Business Source License 1.1
   font-weight: 500;
   line-height: 1;
   vertical-align: middle;
-  border-radius: 9999px;
+  border-radius: var(--cms-radius-pill);
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
@@ -729,9 +740,9 @@ Licensed under the Business Source License 1.1
 .cms-field textarea,
 .cms-field select {
   width: 100%;
-  padding: 0.3125rem 0.5rem;
-  border: 1px solid #c2cad8;
-  border-radius: var(--cms-radius-sm, 0.375rem);
+  padding: var(--cms-space-1) var(--cms-space-2);
+  border: 1px solid var(--cms-border-strong);
+  border-radius: var(--cms-radius-base);
   font-size: 0.71875rem;
   line-height: 1.3;
   transition: border-color var(--cms-transition), box-shadow var(--cms-transition);
@@ -767,9 +778,9 @@ Licensed under the Business Source License 1.1
   justify-content: flex-start;
   gap: 0.5rem;
   margin: 0;
-  padding: 0.3125rem 0.5rem;
-  border: 1px solid #c2cad8;
-  border-radius: var(--cms-radius-sm, 0.375rem);
+  padding: var(--cms-space-1) var(--cms-space-2);
+  border: 1px solid var(--cms-border-strong);
+  border-radius: var(--cms-radius-base);
   background: #fff;
   color: var(--cms-text-body, #1f2937);
   font-size: 0.71875rem;
@@ -828,7 +839,7 @@ Licensed under the Business Source License 1.1
   padding: 0.22rem;
   background: var(--cms-surface, #fff);
   border: 1px solid var(--cms-border, #e3e8f0);
-  border-radius: var(--cms-radius-sm, 0.375rem);
+  border-radius: var(--cms-radius-base);
   box-shadow: var(--cms-shadow-md);
   overflow: auto;
   opacity: 0;
@@ -851,7 +862,7 @@ Licensed under the Business Source License 1.1
   margin: 0;
   padding: 0.35rem 0.45rem;
   border: none;
-  border-radius: 0.3125rem;
+  border-radius: var(--cms-radius-base);
   background: transparent;
   color: var(--cms-text-body, #1f2937);
   font-size: 0.71875rem;
@@ -903,7 +914,7 @@ Licensed under the Business Source License 1.1
   width: 80px;
   height: 80px;
   border: 1px solid var(--cms-border, #e5e7eb);
-  border-radius: 0.25rem;
+  border-radius: var(--cms-radius-base);
   overflow: hidden;
   background: var(--cms-surface-alt, #f8f9fa);
   display: flex;
@@ -930,14 +941,14 @@ Licensed under the Business Source License 1.1
 }
 
 .cms-form-actions {
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
+  margin-top: var(--cms-space-2);
+  padding-top: var(--cms-space-2);
   margin-bottom: 0;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 0.375rem;
+  gap: var(--cms-space-2);
   border-top: 1px solid var(--cms-border, #e5e7eb);
   min-height: 2.5rem;
 }
@@ -945,7 +956,7 @@ Licensed under the Business Source License 1.1
 .cms-form-actions-left,
 .cms-form-actions-right {
   display: flex;
-  gap: 0.375rem;
+  gap: var(--cms-space-2);
   align-items: center;
   min-height: 2rem;
 }
@@ -993,7 +1004,7 @@ Licensed under the Business Source License 1.1
   padding: 0;
   overflow-y: auto;
   background: var(--cms-surface, #fff);
-  border-radius: var(--cms-radius-lg, 0.75rem);
+  border-radius: var(--cms-radius-base);
   box-shadow: var(--cms-shadow-lg);
   border: 1px solid var(--cms-border);
   display: flex;
@@ -1044,7 +1055,7 @@ Licensed under the Business Source License 1.1
   gap: 0.5rem;
   flex-shrink: 0;
   background: var(--cms-surface-alt);
-  border-radius: 0 0 var(--cms-radius-lg, 0.75rem) var(--cms-radius-lg, 0.75rem);
+  border-radius: 0 0 var(--cms-radius-base) var(--cms-radius-base);
 }
 
 .cms-detail-modal-actions .cms-form-actions-left,
@@ -1079,7 +1090,7 @@ Licensed under the Business Source License 1.1
   margin: 0 auto;
   padding: 0;
   background: var(--cms-surface, #fff);
-  border-radius: var(--cms-radius, 0.5rem);
+  border-radius: var(--cms-radius-base);
   box-shadow: var(--cms-shadow-lg);
   border: 1px solid var(--cms-border);
   overflow: hidden;
@@ -1149,7 +1160,7 @@ Licensed under the Business Source License 1.1
   margin: 0 auto;
   padding: 0;
   background: var(--cms-surface, #fff);
-  border-radius: var(--cms-radius, 0.5rem);
+  border-radius: var(--cms-radius-base);
   box-shadow: var(--cms-shadow-lg);
   border: 1px solid var(--cms-border);
   overflow: hidden;
@@ -1200,7 +1211,7 @@ Licensed under the Business Source License 1.1
   height: 1.7rem;
   padding: 0.125rem;
   border: 1px solid var(--cms-border, #e5e7eb);
-  border-radius: 0.375rem;
+  border-radius: var(--cms-radius-base);
   cursor: pointer;
   background: var(--cms-surface, #fff) !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
@@ -1212,12 +1223,12 @@ Licensed under the Business Source License 1.1
 }
 
 .cms-color-field input[type="color"]::-webkit-color-swatch {
-  border-radius: 0.25rem;
+  border-radius: var(--cms-radius-base);
   border: none;
 }
 
 .cms-color-field input[type="color"]::-moz-color-swatch {
-  border-radius: 0.25rem;
+  border-radius: var(--cms-radius-base);
   border: none;
 }
 
@@ -1307,13 +1318,13 @@ Licensed under the Business Source License 1.1
 .cms-menus-info-card code {
   font-size: 1em;
   padding: 0.1em 0.25em;
-  border-radius: 2px;
+  border-radius: var(--cms-radius-base);
 }
 
 /* --- simple-dropzone: zona de subida --- */
 .cms-dropzone {
   border: 2px dashed var(--cms-border, #e5e7eb);
-  border-radius: var(--cms-radius, 0.5rem);
+  border-radius: var(--cms-radius-base);
   padding: 2rem;
   text-align: center;
   background: var(--cms-surface-alt);
@@ -1428,7 +1439,7 @@ Licensed under the Business Source License 1.1
   padding: 0.3rem;
   margin: 0;
   background: var(--cms-surface, #fff);
-  border-radius: var(--cms-radius, 0.5rem);
+  border-radius: var(--cms-radius-base);
   box-shadow: var(--cms-shadow-lg);
   border: 1px solid var(--cms-border);
   visibility: hidden;
@@ -1458,7 +1469,7 @@ Licensed under the Business Source License 1.1
   color: #374151 !important;
   background-color: transparent !important;
   border: none;
-  border-radius: 0.375rem;
+  border-radius: var(--cms-radius-base);
   cursor: pointer;
   transition: background var(--cms-transition), color var(--cms-transition);
   position: relative;
@@ -1512,7 +1523,7 @@ Licensed under the Business Source License 1.1
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  border-radius: var(--cms-radius, 0.625rem);
+  border-radius: var(--cms-radius-base);
   background: color-mix(in srgb, var(--cms-primary, #333) 10%, var(--cms-card-bg, #fff));
   color: var(--cms-primary, #333);
   flex-shrink: 0;
@@ -1546,7 +1557,7 @@ Licensed under the Business Source License 1.1
   padding: 0.875rem 1rem;
   background: var(--cms-surface-alt);
   border: 1px solid var(--cms-border);
-  border-radius: var(--cms-radius, 0.625rem);
+  border-radius: var(--cms-radius-base);
   border-left: 3px solid var(--cms-border-strong);
 }
 
@@ -1597,7 +1608,7 @@ Licensed under the Business Source License 1.1
   padding: 0.875rem;
   background: var(--cms-surface, #fff);
   border: 1px solid var(--cms-border);
-  border-radius: var(--cms-radius, 0.625rem);
+  border-radius: var(--cms-radius-base);
 }
 
 .cms-settings-section + .cms-settings-section {
@@ -1677,6 +1688,38 @@ Licensed under the Business Source License 1.1
   margin-bottom: 0;
   font-weight: 500;
   cursor: pointer;
+}
+
+.cms-label-tight {
+  margin-bottom: 0 !important;
+}
+
+.cms-empty-state--inset {
+  margin: var(--cms-space-4);
+}
+
+.cms-hint {
+  font-size: 0.75rem;
+  margin-top: var(--cms-space-1);
+  margin-bottom: 0;
+}
+
+.cms-hint-error {
+  color: var(--pico-del-color);
+}
+
+.cms-menu-builder-offset {
+  margin-top: var(--cms-space-2);
+}
+
+.cms-form-actions--flush {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.cms-cluster-gap-md {
+  gap: var(--cms-space-2);
 }
 
 /* --- Modal detail: subtle topbar accent on panel header --- */
@@ -1848,7 +1891,7 @@ Licensed under the Business Source License 1.1
   padding: 0.8125rem 0.9375rem 0.6875rem;
   border-bottom: 1px solid var(--cms-border, #e3e8f0);
   background: var(--cms-surface-alt, #f7f8fc);
-  border-radius: var(--cms-radius, 0.625rem) var(--cms-radius, 0.625rem) 0 0;
+  border-radius: var(--cms-radius-base) var(--cms-radius-base) 0 0;
 }
 
 /* Section title inside a card */
@@ -2054,7 +2097,7 @@ Licensed under the Business Source License 1.1
 
 .cms-page-detail-col::-webkit-scrollbar-thumb {
   background: var(--cms-border, #e5e7eb);
-  border-radius: 2px;
+  border-radius: var(--cms-radius-base);
 }
 
 .cms-page-detail-col::-webkit-scrollbar-thumb:hover {
@@ -2168,7 +2211,7 @@ Licensed under the Business Source License 1.1
 
 .cms-block-item {
   border: 1px solid var(--cms-border, #e3e8f0);
-  border-radius: var(--cms-radius-sm, 0.375rem);
+  border-radius: var(--cms-radius-base);
   margin-bottom: 0.5rem;
   background: var(--cms-surface, #fff);
 }
@@ -2198,7 +2241,7 @@ Licensed under the Business Source License 1.1
   height: 1.5rem;
   padding: 0;
   border: 1px solid var(--cms-border-strong, #c5cedd);
-  border-radius: var(--cms-radius-sm, 0.375rem);
+  border-radius: var(--cms-radius-base);
   background: var(--cms-surface-alt, #f7f8fc);
   font-size: 1rem;
   line-height: 1;
@@ -2214,11 +2257,11 @@ Licensed under the Business Source License 1.1
   width: 1.5rem;
   height: 1.5rem;
   padding: 0;
-  border: 1px solid #e0e7ff;
-  border-radius: var(--cms-radius-sm, 0.375rem);
-  background: #eef2ff;
+  border: 1px solid color-mix(in srgb, var(--cms-primary, #333) 16%, var(--cms-border));
+  border-radius: var(--cms-radius-base);
+  background: color-mix(in srgb, var(--cms-primary, #333) 10%, #fff);
   cursor: pointer;
-  color: #6366f1;
+  color: color-mix(in srgb, var(--cms-primary, #333) 85%, #0f172a);
   margin-bottom: 0;
   display: inline-flex;
   align-items: center;
@@ -2226,9 +2269,9 @@ Licensed under the Business Source License 1.1
 }
 
 .cms-block-item-duplicate:hover {
-  background: #e0e7ff;
-  border-color: #c7d2fe;
-  color: #4f46e5;
+  background: color-mix(in srgb, var(--cms-primary, #333) 16%, #fff);
+  border-color: color-mix(in srgb, var(--cms-primary, #333) 24%, var(--cms-border));
+  color: var(--cms-primary, #333);
 }
 
 .cms-block-item-body {
@@ -2265,7 +2308,7 @@ Licensed under the Business Source License 1.1
   padding: 0.625rem 0.875rem;
   font-size: 0.8125rem;
   cursor: pointer;
-  border-radius: var(--cms-radius-sm, 0.375rem);
+  border-radius: var(--cms-radius-base);
   border: 1px solid var(--cms-border, #e5e7eb);
   background: var(--cms-surface, #fff);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -2362,7 +2405,7 @@ Licensed under the Business Source License 1.1
   width: 2.375rem;
   height: 2.375rem;
   border: 1px solid var(--cms-border);
-  border-radius: 0.875rem;
+  border-radius: var(--cms-radius-base);
   background: rgba(255, 255, 255, 0.92);
   color: var(--cms-text-body, #1f2937);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
@@ -2408,7 +2451,7 @@ Licensed under the Business Source License 1.1
   align-items: center;
   max-width: 20rem;
   padding: 0.2rem 0.45rem;
-  border-radius: 999px;
+  border-radius: var(--cms-radius-pill);
   border: 1px solid var(--cms-border);
   background: rgba(255, 255, 255, 0.9);
   color: var(--cms-text-muted, #6b7280);
@@ -2449,7 +2492,7 @@ Licensed under the Business Source License 1.1
   min-width: 0;
   height: 1.85rem;
   padding: 0 1.6rem 0 0.52rem;
-  border-radius: 0.6rem;
+  border-radius: var(--cms-radius-base);
   border: 1px solid var(--cms-border);
   background: rgba(255, 255, 255, 0.95);
   font-size: 0.6875rem;
@@ -2474,7 +2517,7 @@ Licensed under the Business Source License 1.1
 .cms-topbar-profile-trigger {
   width: 1.85rem;
   height: 1.85rem;
-  border-radius: 0.62rem;
+  border-radius: var(--cms-radius-base);
   border-width: 1px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.96) 100%);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
@@ -2483,10 +2526,10 @@ Licensed under the Business Source License 1.1
 .cms-topbar-dropdown {
   min-width: 13rem;
   padding: 0.4rem;
-  border-radius: 1rem;
+  border-radius: var(--cms-radius-base);
   box-shadow: var(--cms-shadow-floating);
   pointer-events: none;
-  border: 1px solid rgba(226, 232, 240, 0.98);
+  border: 1px solid var(--cms-border);
 }
 
 .cms-topbar-dropdown--open {
@@ -2509,6 +2552,15 @@ Licensed under the Business Source License 1.1
   flex-direction: column;
   gap: 0.15rem;
   padding: 0.5rem 0.625rem 0.35rem;
+}
+
+.cms-topbar-dropdown-locale-field {
+  padding: 0 var(--cms-space-3) var(--cms-space-2);
+}
+
+.cms-topbar-dropdown-locale-label {
+  font-size: 0.6875rem;
+  margin-bottom: var(--cms-space-1);
 }
 
 .cms-topbar-dropdown-label-title {
@@ -2542,7 +2594,7 @@ Licensed under the Business Source License 1.1
   max-height: calc(100vh - 1.1rem);
   padding: 0.6rem 0.45rem 0.5rem;
   border: 1px solid var(--cms-shell-border);
-  border-radius: 1rem;
+  border-radius: var(--cms-radius-base);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.92) 100%);
   box-shadow: var(--cms-shadow-soft);
   backdrop-filter: blur(18px);
@@ -2561,7 +2613,7 @@ Licensed under the Business Source License 1.1
 .cms-sidebar-brand-logo {
   width: 1.75rem;
   height: 1.75rem;
-  border-radius: 0.7rem;
+  border-radius: var(--cms-radius-base);
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
 }
 
@@ -2603,7 +2655,7 @@ Licensed under the Business Source License 1.1
 .cms-nav-link {
   margin: 0;
   padding: 0.4rem 0.52rem;
-  border-radius: 0.74rem;
+  border-radius: var(--cms-radius-base);
   font-size: 0.71875rem;
   font-weight: 600;
   line-height: 1.2;
@@ -2626,7 +2678,7 @@ Licensed under the Business Source License 1.1
   left: 0.16rem;
   width: 4px;
   height: 1.2rem;
-  border-radius: 999px;
+  border-radius: var(--cms-radius-pill);
 }
 
 .cms-main {
@@ -2659,8 +2711,8 @@ Licensed under the Business Source License 1.1
 }
 
 .cms-card {
-  border-radius: 0.95rem;
-  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: var(--cms-radius-base);
+  border: 1px solid var(--cms-border);
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.045);
   background: rgba(255, 255, 255, 0.92);
 }
@@ -2721,6 +2773,7 @@ Licensed under the Business Source License 1.1
 }
 
 .cms-toolbar {
+  --cms-toolbar-control-height: 1.75rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2728,7 +2781,7 @@ Licensed under the Business Source License 1.1
   padding: 0.32rem 0.4rem;
   margin-bottom: 0.5rem;
   border: 1px solid color-mix(in srgb, var(--cms-border) 82%, transparent);
-  border-radius: 0.82rem;
+  border-radius: var(--cms-radius-base);
   background: rgba(255, 255, 255, 0.66);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
@@ -2761,25 +2814,33 @@ Licensed under the Business Source License 1.1
   max-width: 13.5rem;
 }
 
-.cms-toolbar-group select,
-.cms-toolbar-search input {
-  margin-bottom: 0;
+.cms-toolbar :is(.cms-toolbar-search input[type="search"], .cms-toolbar-group select, .cms-toolbar-group .cms-select-trigger) {
+  margin: 0 !important;
+  vertical-align: middle;
+  display: block;
+  height: var(--cms-toolbar-control-height) !important;
+  min-height: var(--cms-toolbar-control-height) !important;
+  max-height: var(--cms-toolbar-control-height) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  box-sizing: border-box !important;
+  border-width: 1px !important;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--cms-border) 90%, transparent) !important;
+  border-radius: var(--cms-radius-base) !important;
+  font-size: 0.65625rem !important;
+  line-height: normal !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-color: rgba(255, 255, 255, 0.8) !important;
 }
 
 .cms-toolbar-search input[type="search"] {
-  min-height: 1.75rem;
-  padding: 0.24rem 0.52rem 0.24rem 1.5rem;
-  border-radius: 0.68rem;
-  font-size: 0.65625rem !important;
-  line-height: 1.15;
-  border-color: color-mix(in srgb, var(--cms-border) 90%, transparent) !important;
-  background-color: rgba(255, 255, 255, 0.8) !important;
+  padding: 0 0.52rem 0 1.5rem !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238294b2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: 0.45rem 50%;
   background-size: 0.68rem;
-  appearance: none;
-  -webkit-appearance: none;
 }
 
 .cms-toolbar-search input[type="search"]::placeholder {
@@ -2795,19 +2856,18 @@ Licensed under the Business Source License 1.1
 
 .cms-toolbar-group select {
   min-width: 7.75rem;
-  min-height: 1.75rem;
-  padding: 0.24rem 1.5rem 0.24rem 0.52rem;
-  border-radius: 0.68rem;
-  font-size: 0.65625rem;
-  line-height: 1.15;
-  appearance: none;
-  -webkit-appearance: none;
-  border-color: color-mix(in srgb, var(--cms-border) 90%, transparent) !important;
-  background-color: rgba(255, 255, 255, 0.8) !important;
+  padding: 0 1.5rem 0 0.52rem !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238294b2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: calc(100% - 0.45rem) 50%;
   background-size: 0.68rem;
+}
+
+.cms-toolbar-group .cms-select-trigger {
+  min-width: 7.75rem;
+  width: auto;
+  padding: 0 1.5rem 0 0.52rem !important;
+  justify-content: flex-start;
 }
 
 .cms-results-count {
@@ -2836,7 +2896,7 @@ Licensed under the Business Source License 1.1
 .cms-table-link:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--cms-primary, #333) 24%, transparent);
   outline-offset: 2px;
-  border-radius: 0.3rem;
+  border-radius: var(--cms-radius-base);
 }
 
 .cms-empty-state {
@@ -2846,7 +2906,7 @@ Licensed under the Business Source License 1.1
   gap: 0.55rem;
   padding: 1.15rem;
   border: 1px dashed color-mix(in srgb, var(--cms-primary, #333) 18%, var(--cms-border));
-  border-radius: 1rem;
+  border-radius: var(--cms-radius-base);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.92) 100%);
 }
 
@@ -2873,7 +2933,7 @@ Licensed under the Business Source License 1.1
 
 .cms-table-wrap {
   overflow: auto;
-  border-radius: 1rem;
+  border-radius: var(--cms-radius-base);
 }
 
 .cms-table th {
@@ -2906,8 +2966,8 @@ Licensed under the Business Source License 1.1
 .cms-detail-modal-panel,
 .cms-confirm-panel,
 .cms-alert-panel {
-  border-radius: 1.3rem;
-  border-color: rgba(226, 232, 240, 0.9);
+  border-radius: var(--cms-radius-base);
+  border-color: var(--cms-border);
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.18);
 }
 
@@ -2969,7 +3029,7 @@ Licensed under the Business Source License 1.1
   align-items: center;
   width: fit-content;
   padding: 0.28rem 0.55rem;
-  border-radius: 999px;
+  border-radius: var(--cms-radius-pill);
   border: 1px solid color-mix(in srgb, var(--cms-primary, #333) 16%, var(--cms-border));
   background: color-mix(in srgb, var(--cms-primary, #333) 8%, #fff);
   color: var(--cms-primary, #333);
@@ -3006,7 +3066,7 @@ Licensed under the Business Source License 1.1
   align-items: center;
   gap: 0.35rem;
   padding: 0.3rem 0.52rem;
-  border-radius: 999px;
+  border-radius: var(--cms-radius-pill);
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid var(--cms-border);
   color: var(--cms-text-muted, #6b7280);
@@ -3047,7 +3107,7 @@ Licensed under the Business Source License 1.1
 
 .cms-dashboard-stat {
   padding: 0.75rem;
-  border-radius: 0.9rem;
+  border-radius: var(--cms-radius-base);
   border: 1px solid var(--cms-border);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
@@ -3068,7 +3128,7 @@ Licensed under the Business Source License 1.1
   flex-direction: column;
   gap: 0.3rem;
   padding: 0.65rem;
-  border-radius: 0.9rem;
+  border-radius: var(--cms-radius-base);
   border: 1px solid var(--cms-border);
   background: rgba(255, 255, 255, 0.95);
   text-decoration: none;
@@ -3088,7 +3148,7 @@ Licensed under the Business Source License 1.1
   justify-content: center;
   width: 1.85rem;
   height: 1.85rem;
-  border-radius: 0.8rem;
+  border-radius: var(--cms-radius-base);
   background: color-mix(in srgb, var(--cms-primary, #333) 10%, #fff);
   color: var(--cms-primary, #333);
 }
@@ -3122,7 +3182,7 @@ Licensed under the Business Source License 1.1
 .cms-dashboard-activity-dot {
   width: 0.7rem;
   height: 0.7rem;
-  border-radius: 999px;
+  border-radius: var(--cms-radius-pill);
   background: color-mix(in srgb, var(--cms-primary, #333) 28%, #fff);
   box-shadow: 0 0 0 5px color-mix(in srgb, var(--cms-primary, #333) 9%, transparent);
   margin-top: 0.25rem;
@@ -3157,7 +3217,7 @@ Licensed under the Business Source License 1.1
   width: fit-content;
   padding: 0.55rem 0.72rem;
   border: 1px solid var(--cms-border);
-  border-radius: 0.85rem;
+  border-radius: var(--cms-radius-base);
   background: rgba(255, 255, 255, 0.96);
 }
 
@@ -3170,7 +3230,7 @@ Licensed under the Business Source License 1.1
 .cms-login-card {
   max-width: 26rem;
   padding: 2rem;
-  border-radius: 1.4rem;
+  border-radius: var(--cms-radius-base);
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -3195,7 +3255,7 @@ Licensed under the Business Source License 1.1
   min-width: 16rem;
   max-width: 22rem;
   padding: 0.85rem 0.95rem;
-  border-radius: 1rem;
+  border-radius: var(--cms-radius-base);
   border: 1px solid var(--cms-border);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: var(--cms-shadow-floating);
@@ -3247,7 +3307,7 @@ Licensed under the Business Source License 1.1
 
 .cms-page-detail-tab {
   padding: 0.55rem 0.85rem;
-  border-radius: 0.8rem 0.8rem 0 0;
+  border-radius: var(--cms-radius-base) var(--cms-radius-base) 0 0;
 }
 
 .cms-page-detail-tab--active {
@@ -3256,7 +3316,7 @@ Licensed under the Business Source License 1.1
 
 .cms-seo-image-preview {
   min-height: 8.5rem;
-  border-radius: 1rem;
+  border-radius: var(--cms-radius-base);
   background: linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(241, 245, 249, 0.96) 100%);
 }
 
@@ -3267,7 +3327,7 @@ Licensed under the Business Source License 1.1
 }
 
 .cms-block-item {
-  border-radius: 0.95rem;
+  border-radius: var(--cms-radius-base);
   border: 1px solid var(--cms-border);
   background: rgba(255, 255, 255, 0.96);
   overflow: hidden;
@@ -3304,10 +3364,13 @@ Licensed under the Business Source License 1.1
 }
 
 .cms-block-item-toggle,
-.cms-block-item-duplicate {
+.cms-block-item-duplicate,
+.cms-block-item-delete {
   width: 1.75rem;
   height: 1.75rem;
-  border-radius: 0.65rem;
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  border-radius: var(--cms-radius-base);
 }
 
 .cms-block-item-duplicate {
@@ -3344,7 +3407,7 @@ Licensed under the Business Source License 1.1
   gap: 0.35rem;
   min-height: 5.5rem;
   padding: 0.8rem 0.9rem;
-  border-radius: 0.95rem;
+  border-radius: var(--cms-radius-base);
 }
 
 .cms-blocks-select-item-title {
@@ -3392,7 +3455,7 @@ Licensed under the Business Source License 1.1
   margin: 0;
   padding: 0.8rem 0.9rem;
   border: 1px dashed color-mix(in srgb, var(--cms-border) 92%, transparent);
-  border-radius: 0.9rem;
+  border-radius: var(--cms-radius-base);
   background: rgba(248, 250, 252, 0.9);
   color: var(--cms-text-muted, #6b7280);
   font-size: 0.7rem;
@@ -3405,7 +3468,7 @@ Licensed under the Business Source License 1.1
   gap: 0.45rem;
   padding: 0.62rem 0.7rem;
   border: 1px solid var(--cms-border);
-  border-radius: 0.82rem;
+  border-radius: var(--cms-radius-base);
   background: rgba(255, 255, 255, 0.96);
 }
 
@@ -3467,7 +3530,7 @@ Licensed under the Business Source License 1.1
   display: inline-flex;
   align-items: center;
   padding: 0.18rem 0.45rem;
-  border-radius: 999px;
+  border-radius: var(--cms-radius-pill);
   background: rgba(248, 250, 252, 0.95);
   border: 1px solid color-mix(in srgb, var(--cms-border) 92%, transparent);
   color: var(--cms-text-muted, #6b7280);
@@ -3481,7 +3544,7 @@ Licensed under the Business Source License 1.1
   height: 1.55rem;
   padding: 0;
   border: 1px solid var(--cms-border);
-  border-radius: 0.58rem;
+  border-radius: var(--cms-radius-base);
   background: rgba(248, 250, 252, 0.95);
   color: var(--cms-text-muted, #6b7280);
   display: inline-flex;
@@ -3594,13 +3657,13 @@ Licensed under the Business Source License 1.1
   grid-template-columns: 4.2rem 1fr;
   gap: 0.75rem;
   padding: 0.9rem;
-  border-radius: 1rem;
+  border-radius: var(--cms-radius-base);
   background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
   border: 1px solid var(--cms-border);
 }
 
 .cms-settings-preview-sidebar {
-  border-radius: 0.9rem;
+  border-radius: var(--cms-radius-base);
   background: #ffffff;
   border: 1px solid var(--cms-border);
   padding: 0.55rem;
@@ -3609,7 +3672,7 @@ Licensed under the Business Source License 1.1
 .cms-settings-preview-accent {
   width: 100%;
   height: 0.6rem;
-  border-radius: 999px;
+  border-radius: var(--cms-radius-pill);
   background: var(--cms-primary, #333);
 }
 
@@ -3622,7 +3685,7 @@ Licensed under the Business Source License 1.1
 .cms-settings-preview-content span {
   display: block;
   height: 0.65rem;
-  border-radius: 999px;
+  border-radius: var(--cms-radius-pill);
   background: rgba(148, 163, 184, 0.18);
 }
 
@@ -3650,8 +3713,8 @@ Licensed under the Business Source License 1.1
 .cms-settings-preview-swatch-chip {
   width: 2.4rem;
   height: 2.4rem;
-  border-radius: 0.9rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: var(--cms-radius-base);
+  border: 1px solid var(--cms-border);
 }
 
 .cms-settings-preview-swatch label {
@@ -3690,7 +3753,7 @@ Licensed under the Business Source License 1.1
   align-items: center;
   width: fit-content;
   padding: 0.25rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--cms-radius-pill);
   background: color-mix(in srgb, var(--cms-primary, #333) 8%, #fff);
   color: var(--cms-primary, #333);
   border: 1px solid color-mix(in srgb, var(--cms-primary, #333) 16%, var(--cms-border));
@@ -3728,6 +3791,78 @@ Licensed under the Business Source License 1.1
 
 .cms-sidebar-overlay {
   display: none;
+}
+
+/* ============================================================
+   Visual normalization (spacing + radius + border consistency)
+   ============================================================ */
+
+.cms-topbar {
+  padding: var(--cms-space-2) var(--cms-space-3);
+}
+
+.cms-panel-body {
+  gap: var(--cms-space-2);
+  padding: var(--cms-space-2);
+}
+
+.cms-sidebar {
+  top: var(--cms-space-2);
+  padding: var(--cms-space-2);
+  max-height: calc(100vh - (var(--cms-space-2) * 2));
+}
+
+.cms-sidebar-brand {
+  gap: var(--cms-space-2);
+  padding: 0 var(--cms-space-2) var(--cms-space-2);
+  margin-bottom: var(--cms-space-2);
+}
+
+.cms-nav-group {
+  margin-top: var(--cms-space-2);
+  padding-top: var(--cms-space-2);
+}
+
+.cms-nav-group-title {
+  margin: 0 var(--cms-space-2);
+  padding: 0 0 var(--cms-space-1);
+}
+
+.cms-nav-link {
+  padding: var(--cms-space-2);
+}
+
+.cms-toolbar {
+  gap: var(--cms-space-2);
+  padding: var(--cms-space-1) var(--cms-space-2);
+  margin-bottom: var(--cms-space-2);
+}
+
+.cms-empty-state {
+  gap: var(--cms-space-2);
+  padding: var(--cms-space-4);
+}
+
+.cms-dashboard-shell,
+.cms-dashboard-primary,
+.cms-dashboard-secondary,
+.cms-settings-grid,
+.cms-settings-column {
+  gap: var(--cms-space-3);
+}
+
+.cms-dashboard-actions-card,
+.cms-dashboard-activity,
+.cms-dashboard-recent,
+.cms-dashboard-site-card,
+.cms-menu-card,
+.menu-child-row,
+.cms-cache-card {
+  padding: var(--cms-space-3);
+}
+
+.cms-page-detail-layout {
+  gap: var(--cms-space-6);
 }
 
 @media (max-width: 1080px) {
@@ -3852,7 +3987,7 @@ Licensed under the Business Source License 1.1
   .cms-topbar-profile-trigger {
     width: 2.25rem;
     height: 2.25rem;
-    border-radius: 0.8rem;
+    border-radius: var(--cms-radius-base);
   }
 
   .cms-topbar-profile {

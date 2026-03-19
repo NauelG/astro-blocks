@@ -79,7 +79,7 @@ const menus = (menusData.menus ?? []).map((menu) => getMenuLocaleView(menu, defa
           </tbody>
         </table>
       </div>
-      <div id="cms-menus-empty" class:list={['cms-empty-state', menus.length > 0 && 'cms-hidden']} style="margin: 1rem;">
+      <div id="cms-menus-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', menus.length > 0 && 'cms-hidden']}>
         <p class="cms-empty-state-title">No hay menús disponibles</p>
         <p class="cms-empty-state-text">Crea un menú para empezar a controlar la navegación del sitio desde el panel.</p>
         <div class="cms-empty-state-actions">
@@ -100,12 +100,12 @@ const menus = (menusData.menus ?? []).map((menu) => getMenuLocaleView(menu, defa
         <div class="cms-field">
           <label for="menu-detail-selector">Selector</label>
           <input type="text" id="menu-detail-selector" name="selector" placeholder="main, footer..." />
-          <p id="menu-detail-selector-hint" class="cms-muted cms-hidden" style="font-size: 0.75rem; margin-top: 0.25rem;"></p>
+          <p id="menu-detail-selector-hint" class="cms-muted cms-hidden cms-hint"></p>
         </div>
       </div>
       <div class="cms-field">
         <label>Elementos del menú</label>
-        <div class="cms-menu-builder" style="margin-top: 0.5rem;">
+        <div class="cms-menu-builder cms-menu-builder-offset">
           <div class="cms-page-actions">
             <button type="button" id="menu-detail-add-item" class="cms-btn cms-btn-secondary">Añadir elemento</button>
           </div>
@@ -113,7 +113,7 @@ const menus = (menusData.menus ?? []).map((menu) => getMenuLocaleView(menu, defa
           <p id="menu-detail-empty" class="cms-menu-builder-empty">Aún no hay elementos. Añade enlaces principales y, si hace falta, submenús anidados.</p>
         </div>
       </div>
-      <p id="menu-detail-error" class="cms-muted cms-hidden" role="alert" style="color: var(--pico-del-color); font-size: 0.75rem;"></p>
+      <p id="menu-detail-error" class="cms-muted cms-hidden cms-hint cms-hint-error" role="alert"></p>
     </form>
     <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="menu-detail-modal">Cancelar</button>
     <button type="button" id="menu-detail-submit" class="cms-btn cms-btn-primary" slot="actions-right">Guardar</button>
