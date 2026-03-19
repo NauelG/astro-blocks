@@ -9,6 +9,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.11.0-alpha.3] - 2026-03-19
+
+### Added
+
+- **npm package metadata for Astro listing:** added `description`, `homepage`, `repository`, `bugs`, and `license` fields so AstroBlocks exposes complete metadata for npm consumers and Astro Integrations Library cards.
+- **Discovery and categorization keywords:** added package `keywords` including `astro-integration`, `withastro`, and category-friendly tags (`seo`, `tooling`, `utils`) to improve discoverability and listing classification.
+
 ## [0.11.0-alpha.2] - 2026-03-19
 
 ### Changed
