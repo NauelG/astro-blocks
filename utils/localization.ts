@@ -219,3 +219,80 @@ export function resolvePreferredLocaleFromAcceptLanguage(
 
   return safeDefault;
 }
+
+export function getLocaleFromCookiePreference(
+  cookieValue: string | null | undefined,
+  availableLocalesInput: string[]
+): string | null {
+  const availableLocales = (availableLocalesInput || []).map((entry) => normalizeLocaleCode(entry)).filter(Boolean);
+  const localeSet = new Set(availableLocales);
+  const locale = normalizeLocaleCode(cookieValue);
+  if (!locale) return null;
+  return localeSet.has(locale) ? locale : null;
+}
+
+export function hasSameOriginReferrer(
+  requestUrl: URL,
+  refererValue: string | null | undefined
+): boolean {
+  const raw = String(refererValue || '').trim();
+  if (!raw) return false;
+
+  try {
+    const refererUrl = new URL(raw);
+    return refererUrl.origin === requestUrl.origin;
+  } catch {
+    return false;
+  }
+}
+
+type RootLocaleRedirectSource = 'cookie' | 'accept-language';
+
+export type RootLocaleRedirectResolution = {
+  locale: string;
+  source: RootLocaleRedirectSource;
+};
+
+type ResolveRootLocaleRedirectInput = {
+  requestUrl: URL;
+  referer: string | null | undefined;
+  cookieLocale: string | null | undefined;
+  acceptLanguage: string | null | undefined;
+  availableLocales: string[];
+  defaultLocale: string;
+  hasPublishedHome: (locale: string) => boolean;
+};
+
+export function resolveRootLocaleRedirect(
+  input: ResolveRootLocaleRedirectInput
+): RootLocaleRedirectResolution | null {
+  if (input.requestUrl.pathname !== '/') return null;
+  if (hasSameOriginReferrer(input.requestUrl, input.referer)) return null;
+
+  const availableLocales = (input.availableLocales || []).map((entry) => normalizeLocaleCode(entry)).filter(Boolean);
+  const defaultLocale = normalizeLocaleCode(input.defaultLocale);
+
+  const cookieLocale = getLocaleFromCookiePreference(input.cookieLocale, availableLocales);
+  if (cookieLocale === defaultLocale) return null;
+  if (cookieLocale && cookieLocale !== defaultLocale && input.hasPublishedHome(cookieLocale)) {
+    return {
+      locale: cookieLocale,
+      source: 'cookie',
+    };
+  }
+
+  const preferredLocale = resolvePreferredLocaleFromAcceptLanguage(
+    input.acceptLanguage,
+    availableLocales,
+    defaultLocale
+  );
+
+  if (preferredLocale && preferredLocale !== defaultLocale && input.hasPublishedHome(preferredLocale)) {
+    return {
+      locale: preferredLocale,
+      source: 'accept-language',
+    };
+  }
+
+  return null;
+}

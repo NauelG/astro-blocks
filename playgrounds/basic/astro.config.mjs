@@ -1,6 +1,6 @@
 import { defineConfig, memoryCache } from 'astro/config';
 import node from '@astrojs/node';
-import astroBlocks from 'astro-blocks';
+import astroBlocks from '@astroblocks/astro-blocks';
 import { schema as heroSchema } from './src/components/Hero.schema.ts';
 
 export default defineConfig({

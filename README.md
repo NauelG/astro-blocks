@@ -14,7 +14,7 @@ Licensed under the Business Source License 1.1
 </p>
 
 <p align="center">
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.12.0--alpha.1-blue" alt="version" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.12.0--alpha.2-blue" alt="version" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="alpha" />
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js" alt="Node 18+" /></a>
   <a href="https://astro.build"><img src="https://img.shields.io/badge/Astro-6+-FF5D01?logo=astro" alt="Astro 6+" /></a>
@@ -69,7 +69,7 @@ AstroBlocks alpha defaults to **SSR public pages + Astro experimental cache**. U
 ### From npm
 
 ```bash
-npm install astro-blocks
+npm install @astroblocks/astro-blocks
 npm install @astrojs/node
 ```
 
@@ -78,7 +78,7 @@ npm install @astrojs/node
 Use this when you want to validate a locally built package:
 
 ```bash
-npm install /absolute/path/to/astro-blocks-0.10.0-alpha.1.tgz
+npm install /absolute/path/to/astroblocks-astro-blocks-<version>.tgz
 ```
 
 The tarball flow is documented in [LOCAL_PACKAGE_TESTING.md](./LOCAL_PACKAGE_TESTING.md).
@@ -90,18 +90,18 @@ The tarball flow is documented in [LOCAL_PACKAGE_TESTING.md](./LOCAL_PACKAGE_TES
 Keep imports split by responsibility:
 
 ```ts
-import astroBlocks from 'astro-blocks';
-import { defineBlockSchema } from 'astro-blocks/contract';
-import { getI18nMeta } from 'astro-blocks/getI18nMeta';
-import { getLanguages } from 'astro-blocks/getLanguages';
-import { getMenu } from 'astro-blocks/getMenu';
+import astroBlocks from '@astroblocks/astro-blocks';
+import { defineBlockSchema } from '@astroblocks/astro-blocks/contract';
+import { getI18nMeta } from '@astroblocks/astro-blocks/getI18nMeta';
+import { getLanguages } from '@astroblocks/astro-blocks/getLanguages';
+import { getMenu } from '@astroblocks/astro-blocks/getMenu';
 ```
 
-- `astro-blocks` is the Astro integration entrypoint.
-- `astro-blocks/contract` is the public block-schema contract.
-- `astro-blocks/getI18nMeta` builds `hreflang`, `html lang` and OpenGraph locale metadata from AstroBlocks i18n context.
-- `astro-blocks/getLanguages` reads configured content languages for locale switchers.
-- `astro-blocks/getMenu` is the runtime helper for reading menu items inside your site.
+- `@astroblocks/astro-blocks` is the Astro integration entrypoint.
+- `@astroblocks/astro-blocks/contract` is the public block-schema contract.
+- `@astroblocks/astro-blocks/getI18nMeta` builds `hreflang`, `html lang` and OpenGraph locale metadata from AstroBlocks i18n context.
+- `@astroblocks/astro-blocks/getLanguages` reads configured content languages for locale switchers.
+- `@astroblocks/astro-blocks/getMenu` is the runtime helper for reading menu items inside your site.
 
 ---
 
@@ -112,7 +112,7 @@ import { getMenu } from 'astro-blocks/getMenu';
 ```ts
 import { defineConfig, memoryCache } from 'astro/config';
 import node from '@astrojs/node';
-import astroBlocks from 'astro-blocks';
+import astroBlocks from '@astroblocks/astro-blocks';
 import { schema as heroSchema } from './src/components/Hero.schema.ts';
 
 export default defineConfig({
@@ -153,7 +153,7 @@ const { title, subtitle } = Astro.props;
 ### 3. Define its schema
 
 ```ts
-import { defineBlockSchema } from 'astro-blocks/contract';
+import { defineBlockSchema } from '@astroblocks/astro-blocks/contract';
 
 export const schema = defineBlockSchema(
   {
@@ -186,8 +186,8 @@ Example:
 
 ```astro
 ---
-import { getMenu } from 'astro-blocks/getMenu';
-import { getI18nMeta } from 'astro-blocks/getI18nMeta';
+import { getMenu } from '@astroblocks/astro-blocks/getMenu';
+import { getI18nMeta } from '@astroblocks/astro-blocks/getI18nMeta';
 
 const { title, description, canonical, noindex, seo, site, i18n } = Astro.props;
 const menu = await getMenu('main');
@@ -218,7 +218,7 @@ const i18nMeta = getI18nMeta(i18n, { baseUrl: site?.baseUrl });
 </html>
 ```
 
-> In SSR mode (`publicRendering: 'server'`), AstroBlocks uses `Accept-Language` on `/` to redirect to a non-default enabled locale when available. If no match exists, it serves the default locale.
+> In SSR mode (`publicRendering: 'server'`), AstroBlocks can use `Accept-Language` on `/` to redirect to a non-default enabled locale when available. Locale preference is then persisted with a cookie so users can switch language and keep their chosen locale.
 
 ---
 
@@ -261,7 +261,7 @@ API routes are available under `/cms/api/*`.
 
 ```astro
 ---
-import { getMenu } from 'astro-blocks/getMenu';
+import { getMenu } from '@astroblocks/astro-blocks/getMenu';
 
 const mainMenu = await getMenu('main', { locale: 'es' });
 ---
@@ -289,7 +289,7 @@ type MenuItem = {
 
 ```astro
 ---
-import { getLanguages } from 'astro-blocks/getLanguages';
+import { getLanguages } from '@astroblocks/astro-blocks/getLanguages';
 
 const { languages, defaultLocale } = await getLanguages();
 ---

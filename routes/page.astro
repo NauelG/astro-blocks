@@ -9,7 +9,7 @@ import { getCacheConfig, getGlobalCacheTags, getPageCacheTags, getPathCacheTag }
 import { localizeBlockPropsForRender } from '../utils/block-props.js';
 import { findRedirectByPath, normalizeRedirectPath } from '../utils/redirects.js';
 import { buildLocalizedPath, resolveLocalizedSlug, resolvePageSeo, slugToPath } from '../utils/slug.js';
-import { normalizeLocaleCode, resolvePreferredLocaleFromAcceptLanguage } from '../utils/localization.js';
+import { normalizeLocaleCode, resolveRootLocaleRedirect } from '../utils/localization.js';
 import { Layout, componentMap, schemaMap as runtimeSchemaMap } from 'astro-blocks-runtime';
 import BlockFallback from './BlockFallback.astro';
 
@@ -21,26 +21,41 @@ process.env.ASTRO_BLOCKS_PROJECT_ROOT = projectRoot;
 const [pagesData, site, languagesData, redirectsData] = await Promise.all([loadPages(), loadSite(), loadLanguages(), loadRedirects()]);
 const defaultLocale = getDefaultLocale(languagesData);
 const enabledLocales = languagesData.languages.filter((language) => language.enabled !== false).map((language) => normalizeLocaleCode(language.code));
+const enabledLocaleSet = new Set(enabledLocales);
+const LOCALE_PREFERENCE_COOKIE = 'astroblocks-locale';
+const LOCALE_PREFERENCE_MAX_AGE = 60 * 60 * 24 * 365;
+function persistLocalePreference(localeCode: string): void {
+  const normalizedLocale = normalizeLocaleCode(localeCode);
+  if (!normalizedLocale || !enabledLocaleSet.has(normalizedLocale)) return;
+  Astro.cookies.set(LOCALE_PREFERENCE_COOKIE, normalizedLocale, {
+    path: '/',
+    maxAge: LOCALE_PREFERENCE_MAX_AGE,
+    sameSite: 'lax',
+    httpOnly: true,
+  });
+}
+
 const { locale, slug } = resolveLocalizedSlug(Astro.params.slug ?? '', enabledLocales, defaultLocale);
 const requestUrl = new URL(Astro.request.url);
-const isRootRequest = requestUrl.pathname === '/';
-if (isRootRequest) {
-  const preferredLocale = resolvePreferredLocaleFromAcceptLanguage(
-    Astro.request.headers.get('accept-language'),
-    enabledLocales,
-    defaultLocale
-  );
+const rootRedirect = resolveRootLocaleRedirect({
+  requestUrl,
+  referer: Astro.request.headers.get('referer'),
+  cookieLocale: Astro.cookies.get(LOCALE_PREFERENCE_COOKIE)?.value,
+  acceptLanguage: Astro.request.headers.get('accept-language'),
+  availableLocales: enabledLocales,
+  defaultLocale,
+  hasPublishedHome: (entryLocale) => Boolean(getPageBySlugStrict(pagesData, '/', entryLocale)),
+});
 
-  if (preferredLocale && preferredLocale !== defaultLocale) {
-    const hasPreferredHome = Boolean(getPageBySlugStrict(pagesData, '/', preferredLocale));
-    if (hasPreferredHome) {
-      const targetPath = slugToPath(buildLocalizedPath('/', preferredLocale, defaultLocale));
-      const targetUrl = `${targetPath}${requestUrl.search || ''}`;
-      const response = Astro.redirect(targetUrl, 302);
-      response.headers.set('Vary', 'Accept-Language');
-      return response;
-    }
+if (rootRedirect) {
+  const targetPath = slugToPath(buildLocalizedPath('/', rootRedirect.locale, defaultLocale));
+  const targetUrl = `${targetPath}${requestUrl.search || ''}`;
+  const response = Astro.redirect(targetUrl, 302);
+  if (rootRedirect.source === 'accept-language') {
+    response.headers.set('Vary', 'Accept-Language');
   }
+  persistLocalePreference(rootRedirect.locale);
+  return response;
 }
 const page = getPageBySlugStrict(pagesData, slug, locale);
 const redirectMatch = !page ? findRedirectByPath(redirectsData.redirects || [], requestUrl.pathname) : null;
@@ -66,6 +81,8 @@ if (cacheConfig.enabled && Astro.cache.enabled) {
 } else {
   Astro.cache.set(false);
 }
+
+persistLocalePreference(locale);
 
 if (redirectMatch) {
   const targetUrl = `${redirectMatch.to}${requestUrl.search || ''}`;

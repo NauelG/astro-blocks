@@ -1,7 +1,7 @@
 ---
-import { getI18nMeta } from 'astro-blocks/getI18nMeta';
-import { getLanguages } from 'astro-blocks/getLanguages';
-import { getMenu } from 'astro-blocks/getMenu';
+import { getI18nMeta } from '@astroblocks/astro-blocks/getI18nMeta';
+import { getLanguages } from '@astroblocks/astro-blocks/getLanguages';
+import { getMenu } from '@astroblocks/astro-blocks/getMenu';
 
 const {
   title = 'AstroBlocks Playground',
@@ -166,7 +166,7 @@ const languageLinks = languages.map((language) => ({
       <slot />
     </main>
     <footer class="shell">
-      Built to validate `astro-blocks` as a consumer would install and use it.
+      Built to validate `@astroblocks/astro-blocks` as a consumer would install and use it.
     </footer>
   </body>
 </html>

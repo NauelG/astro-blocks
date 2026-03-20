@@ -1,4 +1,4 @@
-import { defineBlockSchema } from 'astro-blocks/contract';
+import { defineBlockSchema } from '@astroblocks/astro-blocks/contract';
 
 export const schema = defineBlockSchema(
   {

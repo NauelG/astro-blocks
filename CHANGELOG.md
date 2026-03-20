@@ -9,6 +9,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.12.0-alpha.2] - 2026-03-20
+
+### Changed
+
+- **Scoped package identity for npm publishing:** el paquete pasa a distribuirse como `@astroblocks/astro-blocks` (incluyendo `package.json`, lockfile, README y guías de mantenimiento), y el playground consumidor actualiza imports/subpaths al nuevo scope.
+- **Release docs for local tarball validation:** se actualizan ejemplos de instalación/desinstalación y nombre de tarball para el paquete scopeado (`astroblocks-astro-blocks-<version>.tgz`).
+
+### Fixed
+
+- **Locale choice persistence on SSR home redirect:** la redirección automática de `/` ahora respeta la preferencia del usuario mediante cookie (`astroblocks-locale`) y evita forzar de nuevo el idioma del navegador durante navegación interna.
+- **Coverage for locale redirect behavior:** nuevos tests en localización para preferencia por cookie, navegación same-origin y fallback controlado a `Accept-Language`.
+
 ## [0.12.0-alpha.1] - 2026-03-20
 
 ### Added

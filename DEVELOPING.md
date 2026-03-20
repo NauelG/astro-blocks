@@ -107,9 +107,9 @@ The step-by-step flow is documented in [LOCAL_PACKAGE_TESTING.md](./LOCAL_PACKAG
 ## Public API Rules
 
 - Keep runtime imports split by subpath:
-  - `astro-blocks`
-  - `astro-blocks/contract`
-  - `astro-blocks/getMenu`
+  - `@astroblocks/astro-blocks`
+  - `@astroblocks/astro-blocks/contract`
+  - `@astroblocks/astro-blocks/getMenu`
 - Do not collapse everything into the root export.
 - Keep internal imports relative.
 - Do not introduce `@` aliases for internal package code.
