@@ -14,7 +14,7 @@ Licensed under the Business Source License 1.1
 </p>
 
 <p align="center">
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.11.0--alpha.3-blue" alt="version" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.12.0--alpha.1-blue" alt="version" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="alpha" />
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js" alt="Node 18+" /></a>
   <a href="https://astro.build"><img src="https://img.shields.io/badge/Astro-6+-FF5D01?logo=astro" alt="Astro 6+" /></a>
@@ -231,6 +231,7 @@ AstroBlocks creates and reads these files in the **consumer project root**:
 | `data/pages.json` | Pages, slug, status, blocks, `indexable`, SEO |
 | `data/site.json` | Site name, base URL, favicon, logo, colors, default SEO |
 | `data/menus.json` | Menus and nested menu items |
+| `data/redirects.json` | Manual redirect rules (`from`, `to`, `301/302`, `enabled`) |
 | `data/languages.json` | Content languages (`code`, `label`, `enabled`, `isDefault`) |
 | `data/users.json` | CMS users |
 | `public/uploads/` | Uploaded files |
@@ -245,6 +246,7 @@ You can version these files in your project repository if that fits your workflo
 | --- | --- |
 | `/cms` | Dashboard |
 | `/cms/pages` | Pages |
+| `/cms/redirects` | Redirect rules |
 | `/cms/menus` | Menus |
 | `/cms/settings` | Site settings |
 | `/cms/users` | Users |
@@ -342,6 +344,8 @@ astroBlocks({
   publicRendering: 'static',
 });
 ```
+
+> Redirect rules are SSR-only in this alpha MVP. When `publicRendering: 'static'`, redirects configured in `/cms/redirects` are not applied.
 
 ---
 

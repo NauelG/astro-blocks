@@ -9,6 +9,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.12.0-alpha.1] - 2026-03-20
+
+### Added
+
+- **Redirects MVP (SSR):** nueva entidad `data/redirects.json`, CRUD completo en `/cms/api/redirects`, pantalla `/cms/redirects` en el admin y resolución pública de redirecciones exactas por path con códigos `301/302`, manteniendo el comportamiento i18n V2 por rutas explícitas.
+- **Validación y tests de redirecciones:** utilidades compartidas para normalización/validación de rutas internas (sin URL externa, query ni fragmento), cobertura de tests para handlers y utilidades, e invalidación de caché global al mutar redirecciones.
+- **Automatización de capturas del README:** nuevo comando `npm run screenshots:readme` con Playwright para regenerar y sobrescribir `img/dashboard.jpg` y `img/page_editor.jpg` desde el playground.
+
+### Changed
+
+- **Navegación y documentación del panel:** el sidebar incorpora acceso a `/cms/redirects`; README actualizado con `data/redirects.json`, ruta del panel y nota explícita de alcance SSR-only para redirecciones en alpha.
+- **Checklist de cierre de versión:** se establece como criterio de release ejecutar `npm run screenshots:readme` cuando una iteración incluya cambios de UI.
+
 ## [0.11.0-alpha.3] - 2026-03-19
 
 ### Added

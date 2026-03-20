@@ -4,9 +4,10 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-import { getDefaultLocale, getPageBySlugStrict, getPageLocaleViewStrict, getPageSlugStrict, getPageStatusStrict, loadLanguages, loadPages, loadSite } from '../api/data.js';
-import { getCacheConfig, getPageCacheTags } from '../utils/cache.js';
+import { getDefaultLocale, getPageBySlugStrict, getPageLocaleViewStrict, getPageSlugStrict, getPageStatusStrict, loadLanguages, loadPages, loadRedirects, loadSite } from '../api/data.js';
+import { getCacheConfig, getGlobalCacheTags, getPageCacheTags, getPathCacheTag } from '../utils/cache.js';
 import { localizeBlockPropsForRender } from '../utils/block-props.js';
+import { findRedirectByPath, normalizeRedirectPath } from '../utils/redirects.js';
 import { buildLocalizedPath, resolveLocalizedSlug, resolvePageSeo, slugToPath } from '../utils/slug.js';
 import { normalizeLocaleCode, resolvePreferredLocaleFromAcceptLanguage } from '../utils/localization.js';
 import { Layout, componentMap, schemaMap as runtimeSchemaMap } from 'astro-blocks-runtime';
@@ -17,7 +18,7 @@ export const prerender = false;
 const projectRoot = import.meta.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
 process.env.ASTRO_BLOCKS_PROJECT_ROOT = projectRoot;
 
-const [pagesData, site, languagesData] = await Promise.all([loadPages(), loadSite(), loadLanguages()]);
+const [pagesData, site, languagesData, redirectsData] = await Promise.all([loadPages(), loadSite(), loadLanguages(), loadRedirects()]);
 const defaultLocale = getDefaultLocale(languagesData);
 const enabledLocales = languagesData.languages.filter((language) => language.enabled !== false).map((language) => normalizeLocaleCode(language.code));
 const { locale, slug } = resolveLocalizedSlug(Astro.params.slug ?? '', enabledLocales, defaultLocale);
@@ -42,16 +43,33 @@ if (isRootRequest) {
   }
 }
 const page = getPageBySlugStrict(pagesData, slug, locale);
+const redirectMatch = !page ? findRedirectByPath(redirectsData.redirects || [], requestUrl.pathname) : null;
 const cacheConfig = getCacheConfig();
+const requestPath = normalizeRedirectPath(requestUrl.pathname || '/');
 
-if (page && cacheConfig.enabled && Astro.cache.enabled) {
-  Astro.cache.set({
-    maxAge: cacheConfig.maxAge,
-    swr: cacheConfig.swr,
-    tags: getPageCacheTags(page, locale, defaultLocale),
-  });
+if (cacheConfig.enabled && Astro.cache.enabled) {
+  if (page) {
+    Astro.cache.set({
+      maxAge: cacheConfig.maxAge,
+      swr: cacheConfig.swr,
+      tags: getPageCacheTags(page, locale, defaultLocale),
+    });
+  } else if (redirectMatch) {
+    Astro.cache.set({
+      maxAge: cacheConfig.maxAge,
+      swr: cacheConfig.swr,
+      tags: [...getGlobalCacheTags(), getPathCacheTag(requestPath)],
+    });
+  } else {
+    Astro.cache.set(false);
+  }
 } else {
   Astro.cache.set(false);
+}
+
+if (redirectMatch) {
+  const targetUrl = `${redirectMatch.to}${requestUrl.search || ''}`;
+  return Astro.redirect(targetUrl, redirectMatch.statusCode);
 }
 
 if (!page) {

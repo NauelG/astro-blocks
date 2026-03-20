@@ -21,6 +21,12 @@ import {
 } from '../utils/localization.js';
 import { joinSlugSegments, slugToPath, splitSlugSegments } from '../utils/slug.js';
 import { getProjectRoot, getUploadsDir, resolveUploadPath } from '../utils/paths.js';
+import {
+  hasDuplicateRedirectFrom,
+  normalizeRedirectPath,
+  normalizeRedirectStatusCode,
+  validateRedirectPathInput,
+} from '../utils/redirects.js';
 import type {
   AuthResult,
   AuthUser,
@@ -33,6 +39,7 @@ import type {
   PageLocaleView,
   PageStatus,
   PagesData,
+  RedirectRule,
   SchemaMap,
   SeoData,
   Site,
@@ -242,6 +249,32 @@ function normalizeMenuPayload(body: Record<string, unknown>) {
     name: typeof body.name === 'string' ? body.name.trim() : '',
     selector: typeof body.selector === 'string' ? body.selector.trim() : '',
     items: Array.isArray(body.items) ? (body.items as MenuItem[]) : [],
+  };
+}
+
+function normalizeRedirectPayload(body: Record<string, unknown>, current?: RedirectRule): RedirectRule | { error: string } {
+  const fromInput = body.from !== undefined ? body.from : current?.from;
+  const toInput = body.to !== undefined ? body.to : current?.to;
+
+  const fromError = validateRedirectPathInput(fromInput, 'from');
+  if (fromError) return { error: fromError };
+
+  const toError = validateRedirectPathInput(toInput, 'to');
+  if (toError) return { error: toError };
+
+  const from = normalizeRedirectPath(String(fromInput || '/'));
+  const to = normalizeRedirectPath(String(toInput || '/'));
+
+  if (from === to) return { error: 'La ruta de origen y la de destino no pueden ser iguales.' };
+
+  return {
+    id: current?.id || '',
+    from,
+    to,
+    statusCode: normalizeRedirectStatusCode(body.statusCode !== undefined ? body.statusCode : current?.statusCode),
+    enabled: body.enabled === undefined ? current?.enabled !== false : Boolean(body.enabled),
+    createdAt: current?.createdAt,
+    updatedAt: current?.updatedAt,
   };
 }
 
@@ -1044,6 +1077,78 @@ export async function handleDeleteMenu(id: string, context: HandlerContext = {})
 
   menusData.menus.splice(index, 1);
   await data.saveMenus(menusData);
+  await invalidateGlobalContentCache(context.cache);
+  return new Response(null, { status: 204 });
+}
+
+export async function handleGetRedirects(): Promise<Response> {
+  const redirectsData = await data.loadRedirects();
+  return Response.json(redirectsData);
+}
+
+export async function handlePostRedirects(request: Request, context: HandlerContext = {}): Promise<Response> {
+  const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
+  if (error || !body) return error as Response;
+
+  const redirectsData = await data.loadRedirects();
+  const parsed = normalizeRedirectPayload(body);
+  if ('error' in parsed) return jsonError(parsed.error);
+
+  if (hasDuplicateRedirectFrom(redirectsData.redirects, parsed.from)) {
+    return jsonError('Ya existe una redirección con esa ruta de origen.');
+  }
+
+  const now = new Date().toISOString();
+  const redirect: RedirectRule = {
+    ...parsed,
+    id: data.generateId(),
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  redirectsData.redirects.push(redirect);
+  await data.saveRedirects(redirectsData);
+  await invalidateGlobalContentCache(context.cache);
+  return Response.json(redirect);
+}
+
+export async function handlePutRedirect(id: string, request: Request, context: HandlerContext = {}): Promise<Response> {
+  const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
+  if (error || !body) return error as Response;
+
+  const redirectsData = await data.loadRedirects();
+  const index = redirectsData.redirects.findIndex((entry) => entry.id === id);
+  if (index === -1) return jsonError('Not found', 404);
+
+  const current = redirectsData.redirects[index];
+  const parsed = normalizeRedirectPayload(body, current);
+  if ('error' in parsed) return jsonError(parsed.error);
+
+  if (hasDuplicateRedirectFrom(redirectsData.redirects, parsed.from, id)) {
+    return jsonError('Ya existe una redirección con esa ruta de origen.');
+  }
+
+  const updated: RedirectRule = {
+    ...current,
+    ...parsed,
+    id: current.id,
+    createdAt: current.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  redirectsData.redirects[index] = updated;
+  await data.saveRedirects(redirectsData);
+  await invalidateGlobalContentCache(context.cache);
+  return Response.json(updated);
+}
+
+export async function handleDeleteRedirect(id: string, context: HandlerContext = {}): Promise<Response> {
+  const redirectsData = await data.loadRedirects();
+  const index = redirectsData.redirects.findIndex((entry) => entry.id === id);
+  if (index === -1) return jsonError('Not found', 404);
+
+  redirectsData.redirects.splice(index, 1);
+  await data.saveRedirects(redirectsData);
   await invalidateGlobalContentCache(context.cache);
   return new Response(null, { status: 204 });
 }

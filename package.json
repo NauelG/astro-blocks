@@ -1,6 +1,6 @@
 {
   "name": "astro-blocks",
-  "version": "0.11.0-alpha.3",
+  "version": "0.12.0-alpha.1",
   "description": "Block-based content CMS integration for Astro with admin panel, page builder, menus, SEO and cache invalidation.",
   "homepage": "https://github.com/NauelG/astro-blocks#readme",
   "repository": {
@@ -44,6 +44,7 @@
     "prepare:playground": "npm run build && node scripts/install-playground-package.mjs",
     "dev:playground": "npm run prepare:playground && npm run dev --workspace astro-blocks-playground",
     "build:playground": "npm run prepare:playground && npm run build --workspace astro-blocks-playground",
+    "screenshots:readme": "node scripts/capture-readme-screenshots.mjs",
     "pack:local": "node scripts/pack-local.mjs",
     "prepack": "npm run build"
   },
@@ -58,6 +59,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "astro": "^6.0.5",
+    "playwright": "^1.54.2",
     "typescript": "^5.8.0"
   },
   "peerDependencies": {

@@ -35,6 +35,7 @@ export async function GET({ request }: APIContext): Promise<Response> {
   if (seg[0] === 'pages' && seg.length === 1) return handlers.handleGetPages(request);
   if (seg[0] === 'site' && seg.length === 1) return handlers.handleGetSite();
   if (seg[0] === 'menus' && seg.length === 1) return handlers.handleGetMenus(request);
+  if (seg[0] === 'redirects' && seg.length === 1) return handlers.handleGetRedirects();
   if (seg[0] === 'users' && seg.length === 1) return handlers.handleGetUsers(authResult.user);
   if (seg[0] === 'block-schemas' && seg.length === 1) return handlers.handleGetBlockSchemas();
   if (seg[0] === 'languages' && seg.length === 1) return handlers.handleGetLanguages();
@@ -52,6 +53,7 @@ export async function POST({ request, cache }: APIContext): Promise<Response> {
 
   if (seg[0] === 'pages' && seg.length === 1) return handlers.handlePostPages(request, { cache });
   if (seg[0] === 'menus' && seg.length === 1) return handlers.handlePostMenus(request, { cache });
+  if (seg[0] === 'redirects' && seg.length === 1) return handlers.handlePostRedirects(request, { cache });
   if (seg[0] === 'upload' && seg.length === 1) return handlers.handleUpload(request);
   if (seg[0] === 'cache' && seg[1] === 'invalidate' && seg.length === 2) return handlers.handleInvalidateCache({ cache });
   if (seg[0] === 'users' && seg.length === 1) return handlers.handlePostUsers(request, authResult.user);
@@ -77,6 +79,7 @@ export async function PUT({ request, cache }: APIContext): Promise<Response> {
     return handlers.handlePutSite(request, { cache });
   }
   if (seg[0] === 'menus' && seg.length === 2) return handlers.handlePutMenu(seg[1], request, { cache });
+  if (seg[0] === 'redirects' && seg.length === 2) return handlers.handlePutRedirect(seg[1], request, { cache });
   if (seg[0] === 'users' && seg.length === 2) return handlers.handlePutUser(seg[1], request, authResult.user);
   if (seg[0] === 'languages' && seg.length === 2) {
     const forbidden = handlers.requireOwner(authResult.user);
@@ -95,6 +98,7 @@ export async function DELETE({ request, cache }: APIContext): Promise<Response> 
 
   if (seg[0] === 'pages' && seg.length === 2) return handlers.handleDeletePage(seg[1], request, { cache });
   if (seg[0] === 'menus' && seg.length === 2) return handlers.handleDeleteMenu(seg[1], { cache });
+  if (seg[0] === 'redirects' && seg.length === 2) return handlers.handleDeleteRedirect(seg[1], { cache });
   if (seg[0] === 'users' && seg.length === 2) return handlers.handleDeleteUser(seg[1], authResult.user);
   if (seg[0] === 'upload' && seg.length === 1) return handlers.handleDeleteUpload(request);
   if (seg[0] === 'languages' && seg.length === 2) {

@@ -187,6 +187,7 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
 
         injectRoute({ pattern: '/cms', entrypoint: resolveCms('admin/index.astro') });
         injectRoute({ pattern: '/cms/pages', entrypoint: resolveCms('admin/pages.astro') });
+        injectRoute({ pattern: '/cms/redirects', entrypoint: resolveCms('admin/redirects.astro') });
         injectRoute({ pattern: '/cms/settings', entrypoint: resolveCms('admin/settings.astro') });
         injectRoute({ pattern: '/cms/cache', entrypoint: resolveCms('admin/cache.astro') });
         injectRoute({ pattern: '/cms/menus', entrypoint: resolveCms('admin/menus.astro') });

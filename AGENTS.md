@@ -418,6 +418,7 @@ El README debe mantenerse **100% orientado al consumidor**. Al actualizarlo o am
   - que el alcance de la iteración está realmente terminado
   - que `npm run typecheck` pasa
   - que `npm test` pasa
+  - si la iteración toca la UI del panel o del README visual, ejecutar `npm run screenshots:readme` para regenerar `img/dashboard.jpg` y `img/page_editor.jpg` antes del cierre
   - que no quedan cambios incidentales en playgrounds o datos de ejemplo
   - que el resultado está validado funcional y visualmente
 - **CHANGELOG:** Formato [Keep a Changelog](https://keepachangelog.com/en/1.0.0/):

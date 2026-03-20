@@ -130,6 +130,22 @@ export interface MenusData {
   menus: Menu[];
 }
 
+export type RedirectStatusCode = 301 | 302;
+
+export interface RedirectRule {
+  id: string;
+  from: string;
+  to: string;
+  statusCode: RedirectStatusCode;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface RedirectsData {
+  redirects: RedirectRule[];
+}
+
 export interface ContentLanguage {
   code: string;
   label: string;

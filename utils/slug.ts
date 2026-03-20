@@ -12,6 +12,16 @@ export function slugToPath(slug?: string | string[]): string {
   return `/${String(slug).replace(/^\//, '')}`;
 }
 
+export function normalizePathname(pathname: string): string {
+  const raw = String(pathname || '/').trim();
+  if (!raw) return '/';
+
+  const withLeadingSlash = raw.startsWith('/') ? raw : `/${raw}`;
+  const collapsed = withLeadingSlash.replace(/\/{2,}/g, '/');
+  const withoutTrailingSlash = collapsed.length > 1 ? collapsed.replace(/\/+$/g, '') : collapsed;
+  return withoutTrailingSlash || '/';
+}
+
 export function pathToSlug(pathname: string): string | string[] {
   const normalized = String(pathname || '/').replace(/^\/+|\/+$/g, '');
   if (!normalized) return '/';

@@ -24,6 +24,7 @@ npm run typecheck
 npm run test
 npm run dev:playground
 npm run build:playground
+npm run screenshots:readme
 npm run pack:local
 ```
 
@@ -56,6 +57,28 @@ Validate at least:
 - editing a page invalidates and refreshes its public path
 - editing menus/settings refreshes global page output after invalidation
 - `/cms/cache` invalidates all AstroBlocks cache entries when requested
+
+### README Screenshots
+
+You can regenerate and overwrite the two README screenshots (`img/dashboard.jpg` and `img/page_editor.jpg`) with:
+
+```bash
+npm run screenshots:readme
+```
+
+The command:
+
+1. prepares the playground package
+2. starts the playground dev server
+3. authenticates in `/cms` with an automated owner session
+4. captures `/cms` (dashboard) and `/cms/pages` (page editor modal)
+5. saves JPEG files in `img/` replacing the current screenshots
+
+If Playwright Chromium is not installed yet, run once:
+
+```bash
+npx playwright install chromium
+```
 
 ## Astro Cache Notes
 
@@ -104,6 +127,7 @@ Before publishing or creating a release candidate:
 1. `npm run build`
 2. `npm run test`
 3. `npm run build:playground`
-4. `npm run pack:local`
-5. install the generated tarball in a clean Astro project
-6. verify dev + build there
+4. if the iteration includes UI changes, run `npm run screenshots:readme` to refresh `img/dashboard.jpg` and `img/page_editor.jpg`
+5. `npm run pack:local`
+6. install the generated tarball in a clean Astro project
+7. verify dev + build there

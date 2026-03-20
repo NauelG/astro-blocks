@@ -1,0 +1,137 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+export const prerender = false;
+
+import AdminLayout from './layout.astro';
+import DetailModal from './components/DetailModal.astro';
+import { Pencil, Trash2, Lightbulb } from '@lucide/astro';
+import { loadRedirects, loadSite } from '../../api/data.js';
+
+const site = await loadSite();
+const redirectsData = await loadRedirects();
+const redirects = redirectsData.redirects || [];
+---
+
+<AdminLayout site={site} title="Redirecciones">
+  <div class="cms-stack">
+    <div class="cms-page-intro">
+      <div class="cms-page-intro-copy">
+        <span class="cms-page-eyebrow">Contenido</span>
+        <div class="cms-page-header">
+          <h1 class="cms-title">Redirecciones</h1>
+        </div>
+        <p class="cms-page-lead">
+          Gestiona rutas antiguas y cambios de URL sin romper enlaces existentes. En este MVP las redirecciones son exactas, internas y se aplican en SSR.
+        </p>
+      </div>
+      <div class="cms-page-actions">
+        <button type="button" id="cms-redirect-new-btn" class="cms-btn cms-btn-primary">Nueva redirección</button>
+      </div>
+    </div>
+    <div class="cms-card cms-menus-info-card">
+      <p class="cms-menus-info-text">
+        <Lightbulb size={14} class="cms-menus-info-icon" aria-hidden="true" />
+        <span class="cms-menus-info-body">
+          Usa rutas públicas reales. Para el idioma por defecto sin prefijo (ej. <code>/antigua</code>) y para locales no default con prefijo (ej. <code>/en/old</code>).
+        </span>
+      </p>
+    </div>
+    <div class="cms-toolbar">
+      <div class="cms-toolbar-group">
+        <div class="cms-field cms-toolbar-search">
+          <input type="search" id="cms-redirects-search" placeholder="Buscar por origen o destino" />
+        </div>
+      </div>
+      <div class="cms-toolbar-meta">
+        <span class="cms-results-count" id="cms-redirects-count">{redirects.length} redirecciones</span>
+      </div>
+    </div>
+    <div class="cms-card cms-card--no-padding">
+      <div class="cms-table-wrap">
+        <table class="cms-table">
+          <thead>
+            <tr>
+              <th class="cms-table-actions"></th>
+              <th>Origen</th>
+              <th>Destino</th>
+              <th>Código</th>
+              <th>Estado</th>
+              <th class="cms-table-actions-delete"></th>
+            </tr>
+          </thead>
+          <tbody id="cms-redirects-tbody">
+            {redirects.map((entry) => (
+              <tr>
+                <td class="cms-table-actions">
+                  <button type="button" class="cms-table-btn-edit cms-redirect-edit" data-id={entry.id} aria-label="Editar">
+                    <Pencil size={14} />
+                  </button>
+                </td>
+                <td class="cms-table-cell-monospace">{entry.from}</td>
+                <td class="cms-table-cell-monospace">{entry.to}</td>
+                <td>
+                  <span class="cms-badge cms-badge-neutral">{entry.statusCode}</span>
+                </td>
+                <td>
+                  <span class={entry.enabled !== false ? 'cms-badge cms-badge-success' : 'cms-badge cms-badge-neutral'}>
+                    {entry.enabled !== false ? 'Activa' : 'Inactiva'}
+                  </span>
+                </td>
+                <td class="cms-table-actions-delete">
+                  <button type="button" class="cms-table-btn-delete cms-redirect-delete" data-id={entry.id} aria-label="Eliminar">
+                    <Trash2 size={14} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div id="cms-redirects-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', redirects.length > 0 && 'cms-hidden']}>
+        <p class="cms-empty-state-title">No hay redirecciones configuradas</p>
+        <p class="cms-empty-state-text">Añade la primera redirección para conservar tráfico cuando cambies una URL publicada.</p>
+        <div class="cms-empty-state-actions">
+          <button type="button" class="cms-btn cms-btn-primary" data-open-redirect-new>Crear redirección</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <DetailModal id="redirect-detail-modal" title="Redirección">
+    <form id="redirect-detail-form" class="cms-form">
+      <input type="hidden" id="redirect-detail-id" name="id" value="" />
+      <div class="cms-field">
+        <label for="redirect-detail-from">Ruta origen</label>
+        <input type="text" id="redirect-detail-from" name="from" placeholder="/ruta-antigua" required />
+      </div>
+      <div class="cms-field">
+        <label for="redirect-detail-to">Ruta destino</label>
+        <input type="text" id="redirect-detail-to" name="to" placeholder="/ruta-nueva" required />
+      </div>
+      <div class="cms-field">
+        <label for="redirect-detail-status-code">Código HTTP</label>
+        <select id="redirect-detail-status-code" name="statusCode">
+          <option value="301">301 (Permanente)</option>
+          <option value="302">302 (Temporal)</option>
+        </select>
+      </div>
+      <div class="cms-field cms-field-checkbox">
+        <input type="checkbox" id="redirect-detail-enabled" name="enabled" checked />
+        <label for="redirect-detail-enabled" class="cms-label-tight">Activa</label>
+      </div>
+      <p class="cms-muted cms-hint">Solo se admiten rutas internas exactas sin query (<code>?</code>) ni fragmento (<code>#</code>).</p>
+      <p id="redirect-detail-error" class="cms-muted cms-hidden cms-hint cms-hint-error" role="alert"></p>
+    </form>
+    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="redirect-detail-modal">Cancelar</button>
+    <button type="button" class="cms-btn cms-btn-primary" slot="actions-right" id="redirect-detail-submit">Guardar</button>
+  </DetailModal>
+
+  <script>
+    import { initRedirectsEditor } from './client/redirects-editor.js';
+    initRedirectsEditor();
+  </script>
+</AdminLayout>

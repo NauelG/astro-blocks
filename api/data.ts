@@ -6,6 +6,7 @@ Licensed under the Business Source License 1.1
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getDataDir, getDataPath, getUploadsDir } from '../utils/paths.js';
+import { normalizeRedirectPath, normalizeRedirectStatusCode, validateRedirectPathInput } from '../utils/redirects.js';
 import { pageToSlugParam, slugToPath } from '../utils/slug.js';
 import {
   DEFAULT_CONTENT_LANGUAGES,
@@ -27,6 +28,8 @@ import type {
   PageLocaleView,
   PageStatus,
   PagesData,
+  RedirectRule,
+  RedirectsData,
   SeoData,
   Site,
   UsersData,
@@ -49,6 +52,7 @@ const DEFAULT_SITE: Site = {
   },
 };
 const DEFAULT_MENUS: MenusData = { menus: [] };
+const DEFAULT_REDIRECTS: RedirectsData = { redirects: [] };
 const DEFAULT_USERS: UsersData = { users: [] };
 const DEFAULT_LANGUAGES: LanguagesData = {
   languages: DEFAULT_CONTENT_LANGUAGES.languages.map((language) => ({ ...language })),
@@ -101,6 +105,31 @@ function normalizeMenu(menu: unknown, index: number): Menu {
     name: typeof raw.name === 'string' ? raw.name : '',
     selector: typeof raw.selector === 'string' ? raw.selector : `menu-${String(index)}`,
     items: normalizeMenuItemsByLocale(raw.items),
+  };
+}
+
+function normalizeRedirect(entry: unknown): RedirectRule | null {
+  if (!entry || typeof entry !== 'object') return null;
+
+  const raw = entry as Partial<RedirectRule>;
+  const fromRaw = typeof raw.from === 'string' ? raw.from : '';
+  const toRaw = typeof raw.to === 'string' ? raw.to : '';
+
+  if (validateRedirectPathInput(fromRaw, 'from')) return null;
+  if (validateRedirectPathInput(toRaw, 'to')) return null;
+
+  const from = normalizeRedirectPath(fromRaw);
+  const to = normalizeRedirectPath(toRaw);
+  if (!from || !to || from === to) return null;
+
+  return {
+    id: typeof raw.id === 'string' && raw.id ? raw.id : generateId(),
+    from,
+    to,
+    statusCode: normalizeRedirectStatusCode(raw.statusCode),
+    enabled: raw.enabled !== false,
+    createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : undefined,
+    updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : undefined,
   };
 }
 
@@ -238,6 +267,19 @@ export async function loadMenus(): Promise<MenusData> {
 
 export async function saveMenus(menusData: MenusData): Promise<void> {
   await writeJson(getDataPath('menus.json'), menusData);
+}
+
+export async function loadRedirects(): Promise<RedirectsData> {
+  const data = await readJson(getDataPath('redirects.json'), DEFAULT_REDIRECTS);
+  if (!data || typeof data !== 'object' || !Array.isArray(data.redirects)) return { redirects: [] };
+
+  return {
+    redirects: data.redirects.map(normalizeRedirect).filter(Boolean) as RedirectRule[],
+  };
+}
+
+export async function saveRedirects(redirectsData: RedirectsData): Promise<void> {
+  await writeJson(getDataPath('redirects.json'), redirectsData);
 }
 
 export async function loadLanguages(): Promise<LanguagesData> {
@@ -418,6 +460,7 @@ export async function ensureDefaultFiles(): Promise<void> {
     [getDataPath('site.json'), DEFAULT_SITE],
     [getDataPath('pages.json'), DEFAULT_PAGES],
     [getDataPath('menus.json'), DEFAULT_MENUS],
+    [getDataPath('redirects.json'), DEFAULT_REDIRECTS],
     [getDataPath('users.json'), DEFAULT_USERS],
     [getDataPath('languages.json'), DEFAULT_LANGUAGES],
   ];

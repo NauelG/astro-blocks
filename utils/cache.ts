@@ -12,6 +12,7 @@ export const CACHE_TAGS = {
   root: CACHE_NAMESPACE,
   pages: `${CACHE_NAMESPACE}:pages`,
   menus: `${CACHE_NAMESPACE}:menus`,
+  redirects: `${CACHE_NAMESPACE}:redirects`,
   site: `${CACHE_NAMESPACE}:site`,
   global: `${CACHE_NAMESPACE}:global`,
 } as const;
@@ -64,7 +65,7 @@ export function getPageCachePath(
 }
 
 export function getGlobalCacheTags(): string[] {
-  return [CACHE_TAGS.root, CACHE_TAGS.global, CACHE_TAGS.pages, CACHE_TAGS.menus, CACHE_TAGS.site];
+  return [CACHE_TAGS.root, CACHE_TAGS.global, CACHE_TAGS.pages, CACHE_TAGS.menus, CACHE_TAGS.redirects, CACHE_TAGS.site];
 }
 
 export function getGlobalCachePaths(): string[] {
