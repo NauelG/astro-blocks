@@ -8,6 +8,7 @@ dist/
 
 # Environment & secrets
 .env
+.envrc
 .env.local
 .env.*.local
 .env.development.local
