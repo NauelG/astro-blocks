@@ -39,10 +39,10 @@ const DEFAULT_PAGES: PagesData = { pages: [] };
 const DEFAULT_SITE: Site = {
   siteName: 'My Site',
   baseUrl: 'http://localhost:4321',
-  favicon: '/favicon.svg',
+  favicon: '/favicon.ico',
   logo: '',
-  primaryColor: '#333',
-  secondaryColor: '#666',
+  primaryColor: '#2C53B8',
+  secondaryColor: '#0DB8DB',
   seo: {
     defaultTitle: '',
     defaultDescription: '',

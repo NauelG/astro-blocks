@@ -16,8 +16,8 @@ import blocksLogo from '../../img/blocks_logo.jpg';
 import faviconUrl from '../../img/favicon.ico?url';
 const { site = {}, title = 'AstroBlocks' } = Astro.props;
 const cmsVersion = pkg.version;
-const primary = site.primaryColor || '#333';
-const secondary = site.secondaryColor || site.primaryColor || '#666';
+const primary = site.primaryColor || '#2C53B8';
+const secondary = site.secondaryColor || site.primaryColor || '#0DB8DB';
 const currentPath = Astro.url.pathname;
 function isActive(href: string) {
   if (href === '/cms') return currentPath === '/cms' || currentPath === '/cms/';
@@ -30,7 +30,9 @@ function isActive(href: string) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
-    <link rel="icon" href={faviconUrl} type="image/x-icon" />
+    <link rel="icon" href={faviconUrl} sizes="any" type="image/x-icon" />
+    <link rel="icon" href={blocksLogo.src} type="image/jpeg" />
+    <link rel="apple-touch-icon" href={blocksLogo.src} />
     <title>{title}</title>
   </head>
   <body class="cms-root" style={`--cms-primary: ${primary}; --cms-secondary: ${secondary};`}>

@@ -9,6 +9,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.12.0-alpha.3] - 2026-03-27
+
+### Changed
+
+- **Admin default branding alignment:** default site values now use `/favicon.ico` and AstroBlocks brand accents (`#2C53B8` primary, `#0DB8DB` secondary) instead of generic gray fallbacks.
+- **Admin head icons:** CMS layout now includes explicit favicon and Apple touch icon links using AstroBlocks assets for more consistent branding across devices.
+- **Settings UX defaults:** settings form fallbacks/placeholders and live theme preview now use the same brand defaults, keeping persisted values and runtime preview behavior aligned.
+
 ## [0.12.0-alpha.2] - 2026-03-20
 
 ### Changed
