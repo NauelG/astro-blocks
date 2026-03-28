@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.13.0-alpha.2] - 2026-03-28
+
+### Added
+
+- **Feature manifest for the informational website:** nuevo catálogo interno `meta/features.json` con `schemaVersion`, `id` estable por feature y metadata de versión (`sinceVersion`, `updatedIn`), incluido en el artefacto distribuible como `dist/meta/features.json`.
+- **Feature manifest validation tooling:** nuevos scripts `scripts/features-manifest.mjs` y `scripts/validate-features.mjs` con validaciones de estructura, ids únicos, categorías y estados permitidos, y versiones semver-like.
+- **Feature manifest build/test coverage:** nuevo comando `npm run features:validate` y nuevo test `tests/features-manifest.test.js` para verificar que el build publica un manifiesto válido.
+
+### Changed
+
+- **Build pipeline:** `scripts/build.mjs` ahora valida el manifiesto de features antes de compilar y copia `meta/` a `dist/`.
+- **Maintainer workflow:** se actualizan `DEVELOPING.md` y `AGENTS.md` para incluir revisión/actualización de `meta/features.json` como paso obligatorio en el cierre de versión.
+- **Feature history metadata:** ajustes de `sinceVersion` y `updatedIn` en `meta/features.json` para reflejar hitos reales según `CHANGELOG.md`.
+
 ## [0.13.0-alpha.1] - 2026-03-28
 
 ### Added

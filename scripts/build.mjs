@@ -6,6 +6,7 @@ Licensed under the Business Source License 1.1
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { readAndValidateFeaturesManifest } from './features-manifest.mjs';
 
 const rootDir = process.cwd();
 const distDir = path.join(rootDir, 'dist');
@@ -49,6 +50,7 @@ async function copyStaticAssets() {
   await copyRouteAstroFiles(path.join(rootDir, 'routes'), path.join(distDir, 'routes'));
   await fs.cp(path.join(rootDir, 'styles'), path.join(distDir, 'styles'), { recursive: true });
   await fs.cp(path.join(rootDir, 'img'), path.join(distDir, 'img'), { recursive: true });
+  await fs.cp(path.join(rootDir, 'meta'), path.join(distDir, 'meta'), { recursive: true });
   await copyFile(path.join(rootDir, 'package.json'), path.join(distDir, 'package.json'));
 }
 
@@ -73,6 +75,7 @@ function runTsc() {
   });
 }
 
+await readAndValidateFeaturesManifest({ rootDir });
 await removeDist();
 await copyStaticAssets();
 await runTsc();

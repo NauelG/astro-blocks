@@ -1,6 +1,6 @@
 {
   "name": "@astroblocks/astro-blocks",
-  "version": "0.13.0-alpha.1",
+  "version": "0.13.0-alpha.2",
   "description": "Block-based content CMS integration for Astro with admin panel, page builder, menus, SEO and cache invalidation.",
   "homepage": "https://github.com/NauelG/astro-blocks#readme",
   "repository": {
@@ -39,6 +39,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:watch": "node scripts/build.mjs --watch",
+    "features:validate": "node scripts/validate-features.mjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test tests/*.test.js",
     "prepare:playground": "npm run build && node scripts/install-playground-package.mjs",

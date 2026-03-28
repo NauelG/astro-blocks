@@ -20,6 +20,7 @@ This guide is for maintaining the package itself.
 ```bash
 npm install
 npm run build
+npm run features:validate
 npm run typecheck
 npm run test
 npm run dev:playground
@@ -30,12 +31,21 @@ npm run pack:local
 
 ## Build Pipeline
 
-`npm run build` does two things:
+`npm run build` does three things:
 
-1. copies static package files to `dist/`
-2. compiles TypeScript sources to `dist/` with declarations
+1. validates `meta/features.json`
+2. copies static package files to `dist/` (including `meta/features.json`)
+3. compiles TypeScript sources to `dist/` with declarations
 
 The package root publishes `dist/` only.
+
+## Website Feature Manifest
+
+- `meta/features.json` is an internal metadata catalog used by the informational website.
+- It is copied to `dist/meta/features.json` during build.
+- It is intentionally **not** exposed as a public runtime API subpath.
+- Keep `id` values stable and update `updatedIn` whenever an existing feature changes.
+- For new user-facing capabilities, add a new manifest entry with the current version in both `sinceVersion` and `updatedIn`.
 
 ## Playground Workflow
 
@@ -124,10 +134,12 @@ The step-by-step flow is documented in [LOCAL_PACKAGE_TESTING.md](./LOCAL_PACKAG
 
 Before publishing or creating a release candidate:
 
-1. `npm run build`
-2. `npm run test`
-3. `npm run build:playground`
-4. if the iteration includes UI changes, run `npm run screenshots:readme` to refresh `img/dashboard.jpg` and `img/page_editor.jpg`
-5. `npm run pack:local`
-6. install the generated tarball in a clean Astro project
-7. verify dev + build there
+1. review user-facing scope changes and update `meta/features.json` as needed
+2. `npm run features:validate`
+3. `npm run build`
+4. `npm run test`
+5. `npm run build:playground`
+6. if the iteration includes UI changes, run `npm run screenshots:readme` to refresh `img/dashboard.jpg` and `img/page_editor.jpg`
+7. `npm run pack:local`
+8. install the generated tarball in a clean Astro project
+9. verify dev + build there

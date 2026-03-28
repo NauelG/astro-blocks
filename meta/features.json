@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "features": [
+    {
+      "id": "admin-dashboard",
+      "title": "Admin dashboard",
+      "summary": "Compact CMS dashboard with project status, quick actions and recent activity.",
+      "category": "admin",
+      "status": "alpha",
+      "sinceVersion": "0.7.0",
+      "updatedIn": "0.11.0-alpha.1",
+      "docsPath": "#why-astroblocks"
+    },
+    {
+      "id": "pages-block-editor",
+      "title": "Page block editor",
+      "summary": "Build pages by composing your own Astro components as reusable content blocks.",
+      "category": "editor",
+      "status": "alpha",
+      "sinceVersion": "0.8.0",
+      "updatedIn": "0.13.0-alpha.1",
+      "docsPath": "#block-editor"
+    },
+    {
+      "id": "block-schema-contract",
+      "title": "Typed block schema contract",
+      "summary": "Define block schemas in TypeScript with explicit fields and runtime-safe registration.",
+      "category": "editor",
+      "status": "alpha",
+      "sinceVersion": "0.9.0",
+      "updatedIn": "0.13.0-alpha.1",
+      "docsPath": "#recommended-imports"
+    },
+    {
+      "id": "page-status-workflow",
+      "title": "Draft and publish workflow",
+      "summary": "Manage page lifecycle with draft, published and archived states.",
+      "category": "publishing",
+      "status": "alpha",
+      "sinceVersion": "0.8.0",
+      "updatedIn": "0.11.0-alpha.1",
+      "docsPath": "#data-model"
+    },
+    {
+      "id": "seo-controls",
+      "title": "SEO controls",
+      "summary": "Control title, description, canonical, image and indexability per page.",
+      "category": "seo",
+      "status": "alpha",
+      "sinceVersion": "0.5.0",
+      "updatedIn": "0.11.0-alpha.1",
+      "docsPath": "#block-editor"
+    },
+    {
+      "id": "menus-builder",
+      "title": "Visual menus builder",
+      "summary": "Create nested site menus with selector-based access from frontend layouts.",
+      "category": "navigation",
+      "status": "alpha",
+      "sinceVersion": "0.6.0",
+      "updatedIn": "0.11.0-alpha.1",
+      "docsPath": "#menus-in-your-site"
+    },
+    {
+      "id": "redirects-manager",
+      "title": "Redirect rules manager",
+      "summary": "Manage 301 and 302 redirects directly from the admin panel.",
+      "category": "navigation",
+      "status": "alpha",
+      "sinceVersion": "0.12.0-alpha.1",
+      "updatedIn": "0.12.0-alpha.1",
+      "docsPath": "#cms-routes"
+    },
+    {
+      "id": "media-upload",
+      "title": "Media uploads",
+      "summary": "Upload and reference media files stored in public/uploads.",
+      "category": "media",
+      "status": "alpha",
+      "sinceVersion": "0.1.0",
+      "updatedIn": "0.5.2",
+      "docsPath": "#data-model"
+    },
+    {
+      "id": "users-and-auth",
+      "title": "Users and authentication",
+      "summary": "Session-based CMS authentication with owner and user roles.",
+      "category": "auth",
+      "status": "alpha",
+      "sinceVersion": "0.3.0",
+      "updatedIn": "0.3.0",
+      "docsPath": "#cms-routes"
+    },
+    {
+      "id": "languages-management",
+      "title": "Content languages",
+      "summary": "Configure enabled languages and default locale for localized content.",
+      "category": "i18n",
+      "status": "alpha",
+      "sinceVersion": "0.11.0-alpha.1",
+      "updatedIn": "0.11.0-alpha.1",
+      "docsPath": "#languages-in-your-site"
+    },
+    {
+      "id": "i18n-runtime-helpers",
+      "title": "i18n runtime helpers",
+      "summary": "Use getLanguages and getI18nMeta helpers to build locale-aware site UIs.",
+      "category": "runtime",
+      "status": "alpha",
+      "sinceVersion": "0.11.0-alpha.1",
+      "updatedIn": "0.11.0-alpha.1",
+      "docsPath": "#recommended-imports"
+    },
+    {
+      "id": "menu-runtime-helper",
+      "title": "Menu runtime helper",
+      "summary": "Read menu entries from templates using getMenu with locale support.",
+      "category": "runtime",
+      "status": "alpha",
+      "sinceVersion": "0.4.0",
+      "updatedIn": "0.11.0-alpha.1",
+      "docsPath": "#menus-in-your-site"
+    },
+    {
+      "id": "robots-and-sitemap",
+      "title": "Robots and sitemap generation",
+      "summary": "Generate robots.txt and sitemap-index.xml from CMS-managed content.",
+      "category": "seo",
+      "status": "alpha",
+      "sinceVersion": "0.1.0",
+      "updatedIn": "0.11.0-alpha.1",
+      "docsPath": "#cms-routes"
+    },
+    {
+      "id": "astro-cache-invalidation",
+      "title": "Astro cache invalidation",
+      "summary": "Invalidate Astro experimental cache from content updates and manual panel actions.",
+      "category": "performance",
+      "status": "experimental",
+      "sinceVersion": "0.9.0",
+      "updatedIn": "0.12.0-alpha.1",
+      "docsPath": "#plugin-options"
+    },
+    {
+      "id": "server-and-static-public-rendering",
+      "title": "Server or static public rendering",
+      "summary": "Choose server rendering by default or switch to static rendering mode.",
+      "category": "publishing",
+      "status": "alpha",
+      "sinceVersion": "0.9.0",
+      "updatedIn": "0.11.0-alpha.1",
+      "docsPath": "#plugin-options"
+    }
+  ]
+}

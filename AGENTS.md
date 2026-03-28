@@ -35,6 +35,8 @@ lib/astro-blocks/
 ├── utils/            # Utilidades compartidas (bloques, slugs, paths, menús)
 ├── types/            # Tipos compartidos del dominio
 ├── scripts/          # Build local del paquete
+├── meta/             # Metadatos internos del paquete (p. ej. catálogo de features para la web informativa)
+│   └── features.json
 ├── dist/             # Artefacto distribuible generado por tsc + copia de assets
 ├── playgrounds/
 │   └── basic/        # Proyecto Astro consumidor para validar el paquete
@@ -306,6 +308,8 @@ El dashboard debe seguir el mismo design system, pero con reglas específicas:
 | `utils/blocks.ts` | Resolución de keys de bloque, serialización de schemas y validación compartida de bloques. |
 | `utils/slug.ts` | Normalización de slugs, canonical y SEO derivado para el render público. |
 | `scripts/build.mjs` | Build del paquete: copia assets/`.astro` a `dist/` y compila TypeScript con `tsc`. |
+| `meta/features.json` | Catálogo interno de capacidades para la web informativa; se copia a `dist/meta/features.json` en build. No forma parte de la API pública del CMS. |
+| `scripts/validate-features.mjs` | Valida esquema, ids y consistencia de `meta/features.json` (`npm run features:validate`). |
 
 ---
 
@@ -392,6 +396,7 @@ El README debe mantenerse **100% orientado al consumidor**. Al actualizarlo o am
 - El flujo oficial de desarrollo del paquete usa **TypeScript + `tsc` + `dist/`**.
 - El flujo oficial de validación del artefacto distribuible usa **`npm pack`**.
 - Hay un **playground** en `playgrounds/basic` para validar el paquete desde un proyecto Astro real.
+- Existe un **catálogo interno de features** en `meta/features.json` para el sitio web informativo. Este archivo no se exporta como API pública y debe mantenerse en cada cierre de versión.
 - En alpha, la dirección preferida del producto es **`publicRendering: 'server'` + cache experimental de Astro**.
 - AstroBlocks no implementa una cache propia; usa `Astro.cache` y `context.cache`.
 - Tags estándar de cache:
@@ -416,6 +421,8 @@ El README debe mantenerse **100% orientado al consumidor**. Al actualizarlo o am
 - **Cuándo actualizar:** No se crea la versión ni la entrada en el CHANGELOG hasta que la versión se dé por **cerrada** y se decida hacer el commit. Durante el desarrollo o al entregar cambios, el agente no debe hacer bump de versión ni tocar el CHANGELOG. En el momento en que el usuario pida **hacer el commit**, previamente se hace: (1) incrementar `version` en `package.json`, (2) añadir la entrada en `CHANGELOG.md`; después se realiza el commit. Ver también sección 10 (compatibilidad: sin fallback).
 - **Checklist de cierre de versión:** Antes de cerrar una versión, comprobar:
   - que el alcance de la iteración está realmente terminado
+  - revisar cambios funcionales de la iteración y actualizar `meta/features.json` (nuevas features o mejoras de features existentes)
+  - que `npm run features:validate` pasa
   - que `npm run typecheck` pasa
   - que `npm test` pasa
   - si la iteración toca la UI del panel o del README visual, ejecutar `npm run screenshots:readme` para regenerar `img/dashboard.jpg` y `img/page_editor.jpg` antes del cierre
