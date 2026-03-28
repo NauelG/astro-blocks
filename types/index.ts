@@ -3,15 +3,38 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-export type PropType = 'string' | 'text' | 'number' | 'boolean' | 'image' | 'link' | 'select';
+export type PrimitivePropType = 'string' | 'text' | 'number' | 'boolean' | 'image' | 'link' | 'select';
+export type PropType = PrimitivePropType | 'array';
 
-export interface PropDef {
-  type: PropType;
+export interface PrimitivePropDef {
+  type: PrimitivePropType;
   label: string;
   required?: boolean;
   options?: string[];
   localizable?: boolean;
 }
+
+export interface ObjectArrayItemDef {
+  type: 'object';
+  label: string;
+  fields: Record<string, PrimitivePropDef>;
+  summaryField?: string;
+}
+
+export type ArrayItemDef = PrimitivePropDef | ObjectArrayItemDef;
+
+export interface ArrayPropDef {
+  type: 'array';
+  label: string;
+  required?: boolean;
+  localizable?: boolean;
+  minItems?: number;
+  maxItems?: number;
+  sortable?: boolean;
+  item: ArrayItemDef;
+}
+
+export type PropDef = PrimitivePropDef | ArrayPropDef;
 
 export interface BlockDefinition {
   name: string;

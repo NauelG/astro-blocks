@@ -26,3 +26,33 @@ test('localizeBlockPropsForRender localizes only render-localizable fields', () 
   assert.equal(output.subtitle, 'Sub EN');
   assert.deepEqual(output.priority, { es: 1, en: 2 });
 });
+
+test('localizeBlockPropsForRender localizes array props when marked localizable', () => {
+  const schemaMap = {
+    hero: {
+      name: 'Hero',
+      items: {
+        faqs: {
+          type: 'array',
+          label: 'FAQs',
+          localizable: true,
+          item: {
+            type: 'string',
+            label: 'Pregunta',
+          },
+        },
+      },
+    },
+  };
+
+  const localeKeys = new Set(['es', 'en']);
+  const props = {
+    faqs: {
+      es: ['¿Qué es AstroBlocks?'],
+      en: ['What is AstroBlocks?'],
+    },
+  };
+
+  const output = localizeBlockPropsForRender(props, 'hero', schemaMap, 'en', 'es', localeKeys);
+  assert.deepEqual(output.faqs, ['What is AstroBlocks?']);
+});

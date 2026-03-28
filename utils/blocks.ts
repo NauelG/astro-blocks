@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { COMPONENT_PATH_KEY } from '../contract/index.js';
 import type { BlockInstance, BlockSchema, SchemaMap, SerializedSchema } from '../types/index.js';
+import { validateBlockPropsAgainstSchema, validateSchemaItemsDefinition } from './block-validation.js';
 
 export interface ResolvedBlockEntry {
   key: string;
@@ -34,6 +35,15 @@ export function resolveBlockEntries(projectRoot: string, blocks: BlockSchema[]):
   const seenKeys = new Set<string>();
 
   return blocks.map((schema, index) => {
+    const schemaValidationError = validateSchemaItemsDefinition(
+      schema.items && typeof schema.items === 'object' ? (schema.items as Record<string, unknown>) : {},
+      schema.name || `block at index ${index}`
+    );
+
+    if (schemaValidationError) {
+      throw new Error(`[astro-blocks] ${schemaValidationError}`);
+    }
+
     const componentPathUrl = schema[COMPONENT_PATH_KEY];
 
     if (componentPathUrl === undefined || componentPathUrl === null || String(componentPathUrl).trim() === '') {
@@ -83,23 +93,13 @@ export function validateBlocks(schemaMap: SchemaMap, blocks: unknown): { message
       return { message: `Block at index ${index}: unknown type "${type}".` };
     }
 
-    const props = block?.props && typeof block.props === 'object' ? block.props : {};
+    const props = block?.props && typeof block.props === 'object' && !Array.isArray(block.props)
+      ? block.props as Record<string, unknown>
+      : {};
 
-    for (const [propName, def] of Object.entries(schema.items)) {
-      if (!def || def.required !== true) continue;
-
-      const value = (props as Record<string, unknown>)[propName];
-      if (value === undefined || value === null) {
-        return { message: `Block "${schema.name}" (index ${index}): required prop "${propName}" is missing.` };
-      }
-
-      if ((def.type === 'string' || def.type === 'text') && (typeof value !== 'string' || value.trim() === '')) {
-        return { message: `Block "${schema.name}" (index ${index}): required prop "${propName}" must be non-empty.` };
-      }
-
-      if (def.type === 'number' && (typeof value !== 'number' || Number.isNaN(value))) {
-        return { message: `Block "${schema.name}" (index ${index}): required prop "${propName}" must be a valid number.` };
-      }
+    const issue = validateBlockPropsAgainstSchema(schema.name || type, index, schema.items || {}, props);
+    if (issue) {
+      return { message: issue.message };
     }
   }
 

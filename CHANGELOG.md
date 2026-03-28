@@ -9,6 +9,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.13.0-alpha.1] - 2026-03-28
+
+### Added
+
+- **Native array editing in the page builder:** soporte completo para props `array` dentro del editor de bloques con UX compacta para `array<primitive>` y `array<object>` (añadir, eliminar, reordenar, colapsar/expandir y resumen por fila).
+- **Shared array validation path:** nueva validación compartida de bloques/arrays para cliente y backend (`minItems`, `maxItems`, `required` y validación de campos requeridos dentro de `array<object>`), con mensajes de error consistentes en guardado.
+- **Playground coverage block for arrays:** nuevo bloque `ContentList` en `playgrounds/basic` con datos de ejemplo localizables para probar arrays primitivos y de objetos en el CMS.
+
+### Changed
+
+- **Schema contract and types:** el contrato tipado de bloques incorpora soporte explícito para `array` y `array<object>`; se añade validación estructural temprana del schema al resolver bloques para detectar definiciones inválidas antes del runtime.
+- **Page editor implementation:** el cliente del editor de páginas incorpora estado UI específico por array (fila abierta, paths de error, límites `min/max`) y sincronización de cambios por path estable en `blocksList`.
+- **README block schema docs:** se documenta el uso de arrays en schemas de bloque para facilitar adopción de la nueva capacidad.
+
+### Fixed
+
+- **FAQ row action alignment:** corrección de alineación visual en los botones de acción (expandir/eliminar) de filas `array<object>` en el editor de bloques, validada en desktop, tablet y móvil.
+
 ## [0.12.0-alpha.3] - 2026-03-27
 
 ### Changed

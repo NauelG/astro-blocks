@@ -1,0 +1,52 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+interface Props {
+  heading?: string;
+  tags?: string[];
+  faqs?: FAQItem[];
+}
+
+const { heading = 'Arrays Demo', tags = [], faqs = [] } = Astro.props;
+---
+
+<section style="padding: 0 1.5rem 3rem; max-width: 72rem; margin: 0 auto;">
+  <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 1.5rem;">
+    <h2 style="margin: 0; font-size: 1.5rem; color: #111827;">{heading}</h2>
+
+    <div style="margin-top: 1rem;">
+      <p style="margin: 0 0 0.5rem; font-size: 0.875rem; color: #4b5563;">Tags (array<string>)</p>
+      {tags.length > 0 ? (
+        <ul style="margin: 0; padding-left: 1.25rem; color: #1f2937;">
+          {tags.map((tag) => <li>{tag}</li>)}
+        </ul>
+      ) : (
+        <p style="margin: 0; color: #6b7280;">No tags configured.</p>
+      )}
+    </div>
+
+    <div style="margin-top: 1.25rem;">
+      <p style="margin: 0 0 0.5rem; font-size: 0.875rem; color: #4b5563;">FAQs (array<object>)</p>
+      {faqs.length > 0 ? (
+        <div style="display: grid; gap: 0.75rem;">
+          {faqs.map((item) => (
+            <article style="border: 1px solid #e5e7eb; border-radius: 10px; padding: 0.75rem 0.9rem;">
+              <h3 style="margin: 0; font-size: 1rem; color: #111827;">{item.question}</h3>
+              <p style="margin: 0.35rem 0 0; color: #4b5563;">{item.answer}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p style="margin: 0; color: #6b7280;">No FAQ items configured.</p>
+      )}
+    </div>
+  </div>
+</section>

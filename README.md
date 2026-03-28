@@ -14,7 +14,7 @@ Licensed under the Business Source License 1.1
 </p>
 
 <p align="center">
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.12.0--alpha.3-blue" alt="version" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.13.0--alpha.1-blue" alt="version" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="alpha" />
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js" alt="Node 18+" /></a>
   <a href="https://astro.build"><img src="https://img.shields.io/badge/Astro-6+-FF5D01?logo=astro" alt="Astro 6+" /></a>
@@ -166,6 +166,33 @@ export const schema = defineBlockSchema(
   },
   new URL('./Hero.astro', import.meta.url).href
 );
+```
+
+Array fields are also supported for repeatable content:
+
+```ts
+items: {
+  tags: {
+    type: 'array',
+    label: 'Tags',
+    minItems: 1,
+    maxItems: 6,
+    item: { type: 'string', label: 'Tag' },
+  },
+  faqs: {
+    type: 'array',
+    label: 'FAQs',
+    item: {
+      type: 'object',
+      label: 'FAQ',
+      summaryField: 'question',
+      fields: {
+        question: { type: 'string', label: 'Question', required: true },
+        answer: { type: 'text', label: 'Answer', required: true },
+      },
+    },
+  },
+}
 ```
 
 ### 4. Provide a layout for CMS-rendered pages

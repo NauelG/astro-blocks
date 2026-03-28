@@ -47,6 +47,49 @@
               "en": "This sample shows localized slugs, menus and i18n metadata working together in a consumer project."
             }
           }
+        },
+        {
+          "type": "ContentList",
+          "props": {
+            "heading": {
+              "es": "Prueba de arrays en el editor",
+              "en": "Array editor test"
+            },
+            "tags": {
+              "es": [
+                "astro",
+                "cms",
+                "i18n"
+              ],
+              "en": [
+                "astro",
+                "cms",
+                "localization"
+              ]
+            },
+            "faqs": {
+              "es": [
+                {
+                  "question": "¿Se puede reordenar un array?",
+                  "answer": "Sí, usa drag and drop en cada fila del array."
+                },
+                {
+                  "question": "¿Los arrays se localizan por idioma?",
+                  "answer": "Sí, cada locale guarda su propia versión cuando el campo es localizable."
+                }
+              ],
+              "en": [
+                {
+                  "question": "Can array items be reordered?",
+                  "answer": "Yes, use drag and drop on each array row."
+                },
+                {
+                  "question": "Are arrays localized per language?",
+                  "answer": "Yes, each locale stores its own version when the field is localizable."
+                }
+              ]
+            }
+          }
         }
       ],
       "publishedAt": {

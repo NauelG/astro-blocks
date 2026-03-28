@@ -42,5 +42,5 @@ test('validateBlocks checks required props', () => {
   );
 
   assert.equal(validateBlocks(schemaMap, [{ type: 'Hero', props: { title: 'Hello' } }]), null);
-  assert.match(validateBlocks(schemaMap, [{ type: 'Hero', props: {} }])?.message || '', /required prop "title"/);
+  assert.match(validateBlocks(schemaMap, [{ type: 'Hero', props: {} }])?.message || '', /campo "Title" es obligatorio/);
 });

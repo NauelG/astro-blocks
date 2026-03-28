@@ -49,4 +49,5 @@ export const PROP_TYPES: readonly PropType[] = [
   'image',
   'link',
   'select',
+  'array',
 ] as const;
