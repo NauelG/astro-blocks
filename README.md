@@ -10,11 +10,11 @@ Licensed under the Business Source License 1.1
 <h1 align="center">AstroBlocks</h1>
 <p align="center">
   <strong>Block-first CMS for Astro projects.</strong><br />
-  Pages, menus, settings and uploads stored in JSON, with your own Astro components as blocks.
+  Pages, menus, params, settings and uploads stored in JSON, with your own Astro components as blocks.
 </p>
 
 <p align="center">
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.13.0--alpha.2-blue" alt="version" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-0.14.0--alpha.1-blue" alt="version" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="alpha" />
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js" alt="Node 18+" /></a>
   <a href="https://astro.build"><img src="https://img.shields.io/badge/Astro-6+-FF5D01?logo=astro" alt="Astro 6+" /></a>
@@ -92,6 +92,7 @@ Keep imports split by responsibility:
 ```ts
 import astroBlocks from '@astroblocks/astro-blocks';
 import { defineBlockSchema } from '@astroblocks/astro-blocks/contract';
+import { getConfig } from '@astroblocks/astro-blocks/getConfig';
 import { getI18nMeta } from '@astroblocks/astro-blocks/getI18nMeta';
 import { getLanguages } from '@astroblocks/astro-blocks/getLanguages';
 import { getMenu } from '@astroblocks/astro-blocks/getMenu';
@@ -99,6 +100,7 @@ import { getMenu } from '@astroblocks/astro-blocks/getMenu';
 
 - `@astroblocks/astro-blocks` is the Astro integration entrypoint.
 - `@astroblocks/astro-blocks/contract` is the public block-schema contract.
+- `@astroblocks/astro-blocks/getConfig` reads CMS parameters from `data/configs.json` at runtime.
 - `@astroblocks/astro-blocks/getI18nMeta` builds `hreflang`, `html lang` and OpenGraph locale metadata from AstroBlocks i18n context.
 - `@astroblocks/astro-blocks/getLanguages` reads configured content languages for locale switchers.
 - `@astroblocks/astro-blocks/getMenu` is the runtime helper for reading menu items inside your site.
@@ -259,6 +261,7 @@ AstroBlocks creates and reads these files in the **consumer project root**:
 | `data/site.json` | Site name, base URL, favicon, logo, colors, default SEO |
 | `data/menus.json` | Menus and nested menu items |
 | `data/redirects.json` | Manual redirect rules (`from`, `to`, `301/302`, `enabled`) |
+| `data/configs.json` | Global key/value parameters consumable from code (`key`, `value`, `description`) |
 | `data/languages.json` | Content languages (`code`, `label`, `enabled`, `isDefault`) |
 | `data/users.json` | CMS users |
 | `public/uploads/` | Uploaded files |
@@ -274,6 +277,7 @@ You can version these files in your project repository if that fits your workflo
 | `/cms` | Dashboard |
 | `/cms/pages` | Pages |
 | `/cms/redirects` | Redirect rules |
+| `/cms/configs` | Global parameters |
 | `/cms/menus` | Menus |
 | `/cms/settings` | Site settings |
 | `/cms/users` | Users |
@@ -329,6 +333,24 @@ const { languages, defaultLocale } = await getLanguages();
   ))}
 </nav>
 ```
+
+---
+
+## Config Parameters In Your Site
+
+```astro
+---
+import { getConfig, getConfigMap } from '@astroblocks/astro-blocks/getConfig';
+
+const mapsKey = await getConfig('GOOGLE_MAPS_API_KEY');
+const allConfigs = await getConfigMap();
+---
+```
+
+- `getConfig(key)` matches keys case-insensitively and returns `string | undefined`.
+- `getConfigMap()` returns every configured key/value pair as an object.
+- In SSR mode, updates from `/cms/configs` are available after save + cache invalidation.
+- In `publicRendering: 'static'`, values are fixed at build time until the next rebuild.
 
 ---
 

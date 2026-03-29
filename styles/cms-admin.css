@@ -634,6 +634,21 @@ Licensed under the Business Source License 1.1
   font-family: ui-monospace, monospace;
 }
 
+.cms-configs-value-cell {
+  max-width: 22rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cms-configs-description-cell {
+  max-width: 28rem;
+  color: var(--cms-text-muted, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .cms-badge {
   display: inline-flex;
   align-items: center;

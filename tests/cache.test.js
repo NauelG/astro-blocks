@@ -40,4 +40,5 @@ test('global endpoint tags include their dedicated path tags', () => {
   assert.ok(getSitemapCacheTags().includes(getPathCacheTag('/sitemap-index.xml')));
   assert.ok(getRobotsCacheTags().includes(getPathCacheTag('/robots.txt')));
   assert.ok(getGlobalCacheTags().includes('astro-blocks:site'));
+  assert.ok(getGlobalCacheTags().includes('astro-blocks:configs'));
 });

@@ -169,6 +169,19 @@ export interface RedirectsData {
   redirects: RedirectRule[];
 }
 
+export interface ConfigEntry {
+  id: string;
+  key: string;
+  value: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ConfigsData {
+  configs: ConfigEntry[];
+}
+
 export interface ContentLanguage {
   code: string;
   label: string;

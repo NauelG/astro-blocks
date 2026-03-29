@@ -31,6 +31,7 @@ import type {
   AuthResult,
   AuthUser,
   BlockInstance,
+  ConfigEntry,
   ContentLanguage,
   LanguagesData,
   Menu,
@@ -51,6 +52,7 @@ const JWT_SECRET = new TextEncoder().encode(process.env.CMS_JWT_SECRET || 'cms-j
 const JWT_EXPIRY = '7d';
 type AstroCache = APIContext['cache'];
 type HandlerContext = { cache?: AstroCache | null };
+const CONFIG_KEY_REGEX = /^[A-Za-z][A-Za-z0-9_.-]*$/;
 
 function jsonError(message: string, status = 400, extra?: Record<string, unknown>): Response {
   return new Response(JSON.stringify({ error: message, ...extra }), {
@@ -249,6 +251,45 @@ function normalizeMenuPayload(body: Record<string, unknown>) {
     name: typeof body.name === 'string' ? body.name.trim() : '',
     selector: typeof body.selector === 'string' ? body.selector.trim() : '',
     items: Array.isArray(body.items) ? (body.items as MenuItem[]) : [],
+  };
+}
+
+function normalizeConfigKey(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function configKeyIdentity(key: string): string {
+  return key.trim().toLowerCase();
+}
+
+function hasDuplicateConfigKey(configs: ConfigEntry[], key: string, excludeId?: string): boolean {
+  const target = configKeyIdentity(key);
+  if (!target) return false;
+  return configs.some((entry) => {
+    if (excludeId && entry.id === excludeId) return false;
+    return configKeyIdentity(entry.key) === target;
+  });
+}
+
+function normalizeConfigPayload(body: Record<string, unknown>, current?: ConfigEntry): ConfigEntry | { error: string } {
+  const key = normalizeConfigKey(body.key !== undefined ? body.key : current?.key);
+  if (!key) return { error: 'La clave es obligatoria.' };
+  if (!CONFIG_KEY_REGEX.test(key)) {
+    return { error: 'La clave debe empezar por una letra y solo puede contener letras, números, punto, guion y guion bajo.' };
+  }
+
+  const valueInput = body.value !== undefined ? body.value : current?.value;
+  const value = typeof valueInput === 'string' ? valueInput : valueInput === undefined || valueInput === null ? '' : String(valueInput);
+  const descriptionInput = body.description !== undefined ? body.description : current?.description;
+  const description = typeof descriptionInput === 'string' ? descriptionInput.trim() : '';
+
+  return {
+    id: current?.id || '',
+    key,
+    value,
+    ...(description ? { description } : {}),
+    createdAt: current?.createdAt,
+    updatedAt: current?.updatedAt,
   };
 }
 
@@ -1149,6 +1190,78 @@ export async function handleDeleteRedirect(id: string, context: HandlerContext =
 
   redirectsData.redirects.splice(index, 1);
   await data.saveRedirects(redirectsData);
+  await invalidateGlobalContentCache(context.cache);
+  return new Response(null, { status: 204 });
+}
+
+export async function handleGetConfigs(): Promise<Response> {
+  const configsData = await data.loadConfigs();
+  return Response.json(configsData);
+}
+
+export async function handlePostConfigs(request: Request, context: HandlerContext = {}): Promise<Response> {
+  const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
+  if (error || !body) return error as Response;
+
+  const configsData = await data.loadConfigs();
+  const parsed = normalizeConfigPayload(body);
+  if ('error' in parsed) return jsonError(parsed.error);
+
+  if (hasDuplicateConfigKey(configsData.configs, parsed.key)) {
+    return jsonError('Ya existe un parámetro con esa clave.');
+  }
+
+  const now = new Date().toISOString();
+  const entry: ConfigEntry = {
+    ...parsed,
+    id: data.generateId(),
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  configsData.configs.push(entry);
+  await data.saveConfigs(configsData);
+  await invalidateGlobalContentCache(context.cache);
+  return Response.json(entry);
+}
+
+export async function handlePutConfig(id: string, request: Request, context: HandlerContext = {}): Promise<Response> {
+  const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
+  if (error || !body) return error as Response;
+
+  const configsData = await data.loadConfigs();
+  const index = configsData.configs.findIndex((entry) => entry.id === id);
+  if (index === -1) return jsonError('Not found', 404);
+
+  const current = configsData.configs[index];
+  const parsed = normalizeConfigPayload(body, current);
+  if ('error' in parsed) return jsonError(parsed.error);
+
+  if (hasDuplicateConfigKey(configsData.configs, parsed.key, id)) {
+    return jsonError('Ya existe un parámetro con esa clave.');
+  }
+
+  const updated: ConfigEntry = {
+    ...current,
+    ...parsed,
+    id: current.id,
+    createdAt: current.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  configsData.configs[index] = updated;
+  await data.saveConfigs(configsData);
+  await invalidateGlobalContentCache(context.cache);
+  return Response.json(updated);
+}
+
+export async function handleDeleteConfig(id: string, context: HandlerContext = {}): Promise<Response> {
+  const configsData = await data.loadConfigs();
+  const index = configsData.configs.findIndex((entry) => entry.id === id);
+  if (index === -1) return jsonError('Not found', 404);
+
+  configsData.configs.splice(index, 1);
+  await data.saveConfigs(configsData);
   await invalidateGlobalContentCache(context.cache);
   return new Response(null, { status: 204 });
 }

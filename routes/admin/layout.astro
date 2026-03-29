@@ -8,7 +8,7 @@ import { Image } from 'astro:assets';
 import '@picocss/pico/css/pico.min.css';
 import 'animate.css';
 import '../../styles/cms-admin.css';
-import { LayoutDashboard, FileText, ArrowRightLeft, Menu, Settings, RefreshCw, User, LogOut, Users, ExternalLink, Languages } from '@lucide/astro';
+import { LayoutDashboard, FileText, ArrowRightLeft, Menu, Settings, KeyRound, RefreshCw, User, LogOut, Users, ExternalLink, Languages } from '@lucide/astro';
 import ConfirmDialog from './components/ConfirmDialog.astro';
 import AlertDialog from './components/AlertDialog.astro';
 import pkg from '../../package.json' with { type: 'json' };
@@ -148,6 +148,10 @@ function isActive(href: string) {
                 <a href="/cms/settings" class={`cms-nav-link ${isActive('/cms/settings') ? 'cms-nav-link--active' : ''}`} data-cms-owner-only>
                   <Settings class="cms-nav-icon" size={16} />
                   <span>Ajustes</span>
+                </a>
+                <a href="/cms/configs" class={`cms-nav-link ${isActive('/cms/configs') ? 'cms-nav-link--active' : ''}`}>
+                  <KeyRound class="cms-nav-icon" size={16} />
+                  <span>Parámetros</span>
                 </a>
                 <a href="/cms/users" class={`cms-nav-link ${isActive('/cms/users') ? 'cms-nav-link--active' : ''}`} data-cms-owner-only>
                   <Users class="cms-nav-icon" size={16} />

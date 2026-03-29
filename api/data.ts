@@ -18,6 +18,8 @@ import {
   setLocalizedValue,
 } from '../utils/localization.js';
 import type {
+  ConfigEntry,
+  ConfigsData,
   ContentLanguage,
   LanguagesData,
   Menu,
@@ -53,6 +55,7 @@ const DEFAULT_SITE: Site = {
 };
 const DEFAULT_MENUS: MenusData = { menus: [] };
 const DEFAULT_REDIRECTS: RedirectsData = { redirects: [] };
+const DEFAULT_CONFIGS: ConfigsData = { configs: [] };
 const DEFAULT_USERS: UsersData = { users: [] };
 const DEFAULT_LANGUAGES: LanguagesData = {
   languages: DEFAULT_CONTENT_LANGUAGES.languages.map((language) => ({ ...language })),
@@ -128,6 +131,31 @@ function normalizeRedirect(entry: unknown): RedirectRule | null {
     to,
     statusCode: normalizeRedirectStatusCode(raw.statusCode),
     enabled: raw.enabled !== false,
+    createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : undefined,
+    updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : undefined,
+  };
+}
+
+function normalizeConfigEntry(entry: unknown): ConfigEntry | null {
+  if (!entry || typeof entry !== 'object') return null;
+
+  const raw = entry as Partial<ConfigEntry>;
+  const key = typeof raw.key === 'string' ? raw.key.trim() : '';
+  if (!key) return null;
+
+  const description = typeof raw.description === 'string' ? raw.description.trim() : '';
+  const value =
+    typeof raw.value === 'string'
+      ? raw.value
+      : raw.value === undefined || raw.value === null
+        ? ''
+        : String(raw.value);
+
+  return {
+    id: typeof raw.id === 'string' && raw.id ? raw.id : generateId(),
+    key,
+    value,
+    ...(description ? { description } : {}),
     createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : undefined,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : undefined,
   };
@@ -280,6 +308,19 @@ export async function loadRedirects(): Promise<RedirectsData> {
 
 export async function saveRedirects(redirectsData: RedirectsData): Promise<void> {
   await writeJson(getDataPath('redirects.json'), redirectsData);
+}
+
+export async function loadConfigs(): Promise<ConfigsData> {
+  const data = await readJson(getDataPath('configs.json'), DEFAULT_CONFIGS);
+  if (!data || typeof data !== 'object' || !Array.isArray(data.configs)) return { configs: [] };
+
+  return {
+    configs: data.configs.map(normalizeConfigEntry).filter(Boolean) as ConfigEntry[],
+  };
+}
+
+export async function saveConfigs(configsData: ConfigsData): Promise<void> {
+  await writeJson(getDataPath('configs.json'), configsData);
 }
 
 export async function loadLanguages(): Promise<LanguagesData> {
@@ -461,6 +502,7 @@ export async function ensureDefaultFiles(): Promise<void> {
     [getDataPath('pages.json'), DEFAULT_PAGES],
     [getDataPath('menus.json'), DEFAULT_MENUS],
     [getDataPath('redirects.json'), DEFAULT_REDIRECTS],
+    [getDataPath('configs.json'), DEFAULT_CONFIGS],
     [getDataPath('users.json'), DEFAULT_USERS],
     [getDataPath('languages.json'), DEFAULT_LANGUAGES],
   ];

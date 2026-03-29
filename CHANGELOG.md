@@ -9,6 +9,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.14.0-alpha.1] - 2026-03-29
+
+### Added
+
+- **Global config parameters module:** nuevo archivo `data/configs.json` con CRUD completo en `/cms/api/configs` para gestionar claves/valores string (`key`, `value`, `description`) desde el CMS.
+- **Config parameters admin screen:** nueva pantalla `/cms/configs` con listado compacto, buscador, modal de crear/editar (`DetailModal`) y confirmación antes de eliminar.
+- **Runtime helper for consumer code:** nuevo subpath export `@astroblocks/astro-blocks/getConfig` con `getConfig(key)` (lookup case-insensitive) y `getConfigMap()`.
+- **Coverage for configs capability:** nuevos tests de handlers (`tests/configs-handlers.test.js`) y helper público (`tests/get-config.test.js`).
+
+### Changed
+
+- **Navigation and docs:** sidebar del admin actualizado con acceso a `Parámetros`; README y AGENTS actualizados para incluir `data/configs.json`, `/cms/configs`, `/cms/api/configs` y el helper `getConfig`.
+- **Cache invalidation tags:** se añade `astro-blocks:configs` al set global de tags para invalidación consistente tras cambios de parámetros.
+- **README screenshots:** capturas de `img/dashboard.jpg` y `img/page_editor.jpg` regeneradas con `npm run screenshots:readme`.
+- **Internal features catalog:** `meta/features.json` incorpora la capacidad de parámetros globales para el sitio informativo.
+
+### Fixed
+
+- **Configs modal UX:** el botón `Cancelar` y el cierre por click en backdrop funcionan de forma consistente en `/cms/configs`.
+- **Config key field browser compatibility:** se elimina la validación `pattern` nativa problemática en navegador y se mantiene validación en cliente/servidor.
+- **Configs list privacy affordance:** el valor de cada parámetro se muestra enmascarado en el listado (visible solo al editar en modal).
+
 ## [0.13.0-alpha.2] - 2026-03-28
 
 ### Added

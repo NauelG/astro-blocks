@@ -1,6 +1,6 @@
 {
   "name": "@astroblocks/astro-blocks",
-  "version": "0.13.0-alpha.2",
+  "version": "0.14.0-alpha.1",
   "description": "Block-based content CMS integration for Astro with admin panel, page builder, menus, SEO and cache invalidation.",
   "homepage": "https://github.com/NauelG/astro-blocks#readme",
   "repository": {
@@ -25,6 +25,10 @@
     "./getMenu": {
       "types": "./dist/utils/getMenu.d.ts",
       "import": "./dist/utils/getMenu.js"
+    },
+    "./getConfig": {
+      "types": "./dist/utils/getConfig.d.ts",
+      "import": "./dist/utils/getConfig.js"
     },
     "./getLanguages": {
       "types": "./dist/utils/getLanguages.d.ts",

@@ -21,7 +21,7 @@ lib/astro-blocks/
 │   ├── data.ts
 │   └── handlers.ts
 ├── routes/           # Entrypoints inyectados (no están en src/pages)
-│   ├── admin/        # Panel: layout.astro, components/, index, pages, users, settings, menus, cache
+│   ├── admin/        # Panel: layout.astro, components/, index, pages, redirects, configs, users, settings, menus, languages, cache
 │   │   └── components/
 │   │       ├── DetailModal.astro   # Modal reutilizable para crear/editar (mismo diseño que formularios)
 │   │       ├── ConfirmDialog.astro # Diálogo de confirmación (overlay + panel centrado); expone window.cmsConfirm()
@@ -53,8 +53,8 @@ lib/astro-blocks/
 
 ## 2. Rutas y prefijos
 
-- **Panel:** todo bajo **`/cms`**: `/cms`, `/cms/pages`, `/cms/users`, `/cms/settings`, `/cms/menus`, `/cms/cache`. El detalle (crear/editar) se hace en modal en la propia lista, no hay rutas `/new` ni `/[id]`.
-- **API:** bajo **`/cms/api`**: `/cms/api/pages`, `/cms/api/pages/[id]`, `/cms/api/site`, `/cms/api/menus`, `/cms/api/upload`, `/cms/api/cache/invalidate`.
+- **Panel:** todo bajo **`/cms`**: `/cms`, `/cms/pages`, `/cms/redirects`, `/cms/configs`, `/cms/users`, `/cms/settings`, `/cms/menus`, `/cms/languages`, `/cms/cache`. El detalle (crear/editar) se hace en modal en la propia lista, no hay rutas `/new` ni `/[id]`.
+- **API:** bajo **`/cms/api`**: `/cms/api/pages`, `/cms/api/pages/[id]`, `/cms/api/site`, `/cms/api/menus`, `/cms/api/redirects`, `/cms/api/configs`, `/cms/api/languages`, `/cms/api/users`, `/cms/api/upload`, `/cms/api/cache/invalidate`.
 - **Páginas del sitio:** ruta inyectada **`/[...slug]`**. En alpha, el modo por defecto es SSR con cache experimental de Astro (`routes/page.astro`). Si el consumidor fuerza `publicRendering: 'static'`, el plugin inyecta `routes/page-static.astro`. Home = slug vacío o `/`.
 - **Sitemap / robots:** `/sitemap-index.xml`, `/robots.txt` (endpoints con `prerender = false`).
 
@@ -298,8 +298,8 @@ El dashboard debe seguir el mismo design system, pero con reglas específicas:
 | Archivo | Responsabilidad |
 |--------|------------------|
 | `plugin/index.ts` | Genera `.astro-blocks/runtime.mjs`, inyecta rutas, define alias `astro-blocks-runtime`, `ASTRO_BLOCKS_PROJECT_ROOT`. No inyecta integraciones de CSS. |
-| `api/data.ts` | Lee/escribe `data/pages.json`, `data/site.json`, `data/menus.json`. `ensureDefaultFiles()` crea `data/` y JSON por defecto si no existen. |
-| `api/handlers.ts` | Lógica de cada endpoint: auth con `CMS_SECRET`, CRUD páginas/site/menus, upload a `public/uploads` e invalidación de caché. |
+| `api/data.ts` | Lee/escribe `data/pages.json`, `data/site.json`, `data/menus.json`, `data/redirects.json`, `data/configs.json`, `data/languages.json`, `data/users.json`. `ensureDefaultFiles()` crea `data/` y JSON por defecto si no existen. |
+| `api/handlers.ts` | Lógica de cada endpoint: auth JWT del CMS, CRUD de páginas/site/menus/redirects/configs/languages/users, upload a `public/uploads` e invalidación de caché. |
 | `routes/api/catchall.ts` | Despacha por método y path (segmentos tras `/cms/api/`). `getPathSegments` usa `pathname.split('/').filter(Boolean).slice(2)`. |
 | `routes/page.astro` | Ruta pública SSR por defecto en alpha. Lee `data/pages.json` en cada request, aplica `Astro.cache.set(...)` si la cache experimental está activa, resuelve la página publicada por slug y renderiza con layout + `componentMap`. |
 | `routes/page-static.astro` | Variante estática para `publicRendering: 'static'`; usa `getStaticPaths()` y mantiene el flujo prerenderizado tradicional. |
@@ -354,6 +354,7 @@ El dashboard debe seguir el mismo design system, pero con reglas específicas:
 - **Nueva pantalla sin listado (ej. ajustes o caché):** crear `routes/admin/nombre.astro` sin modal (ej. `settings.astro`, `cache.astro`).
 - **Nuevo endpoint API:** en `handlers.ts` añadir la función; en `routes/api/catchall.ts` despachar por método y segmentos; en el admin usar `fetch('/cms/api/...')`.
 - **Menús:** Estructura en `data/menus.json`: `{ menus: [ { id, name, selector, items } ] }`; cada ítem tiene `name`, `path` y opcionalmente `children` (submenús anidados). API: GET/POST `/cms/api/menus`, PUT/DELETE `/cms/api/menus/:id`. Selector: solo `[a-zA-Z0-9_-]`, único. Ruta obligatoria en todos los ítems; validación en cliente y API. Reordenación de ítems y submenús con Sortable.js (`ghostClass: 'cms-dragging'`, handle `.cms-drag-handle`). `getMenu(selector)` devuelve ítems con `children` para el sitio. La UI del builder debe seguir la dirección actual: tarjetas resumidas y colapsables para ítems principales, submenús inline y máxima compacidad visual compatible con claridad.
+- **Parámetros globales:** Estructura en `data/configs.json`: `{ configs: [ { id, key, value, description?, createdAt?, updatedAt? } ] }`. API: GET/POST `/cms/api/configs`, PUT/DELETE `/cms/api/configs/:id`. `key` único (case-insensitive) con regex `^[A-Za-z][A-Za-z0-9_.-]*$`; `value` string (puede ser vacío). Helper público: `getConfig(key)` y `getConfigMap()` desde `@astroblocks/astro-blocks/getConfig`.
 - **Nuevo tipo de prop en el contrato:** en `contract/index.ts` y `types/index.ts` añadir el tipo; en el panel, si hay UI generada por schema, soportar el nuevo tipo.
 - **Cambio de prefijo de rutas:** buscar y reemplazar `/cms` y `/cms/api` en plugin, admin, robots-get.ts y README; en el catchall ajustar `getPathSegments` (p. ej. `slice(2)` para `/cms/api/...`).
 - **Al entregar cambios en el paquete:** no hacer bump de versión ni entrada en CHANGELOG hasta que la versión se dé por cerrada (ver sección 12). En el momento en que se pida hacer el commit, previamente se actualiza la versión en `package.json` y se añade la entrada en `CHANGELOG.md`.
@@ -405,6 +406,7 @@ El README debe mantenerse **100% orientado al consumidor**. Al actualizarlo o am
   - `astro-blocks:page:<id>`
   - `astro-blocks:path:<path>`
   - `astro-blocks:menus`
+  - `astro-blocks:configs`
   - `astro-blocks:site`
   - `astro-blocks:global`
 - No documentar ni recomendar `file:` como flujo principal de desarrollo o validación.

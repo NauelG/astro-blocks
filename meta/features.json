@@ -72,6 +72,16 @@
       "docsPath": "#cms-routes"
     },
     {
+      "id": "config-parameters",
+      "title": "Config parameters manager and helper",
+      "summary": "Manage global key/value parameters in the admin and consume them at runtime with getConfig.",
+      "category": "runtime",
+      "status": "alpha",
+      "sinceVersion": "0.14.0-alpha.1",
+      "updatedIn": "0.14.0-alpha.1",
+      "docsPath": "#config-parameters-in-your-site"
+    },
+    {
       "id": "media-upload",
       "title": "Media uploads",
       "summary": "Upload and reference media files stored in public/uploads.",

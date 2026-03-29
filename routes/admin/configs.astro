@@ -1,0 +1,135 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+export const prerender = false;
+
+import AdminLayout from './layout.astro';
+import DetailModal from './components/DetailModal.astro';
+import { Pencil, Trash2, Lightbulb } from '@lucide/astro';
+import { loadConfigs, loadSite } from '../../api/data.js';
+
+const site = await loadSite();
+const configsData = await loadConfigs();
+const configs = configsData.configs || [];
+function maskConfigValue(value: string | undefined): string {
+  return value ? '••••••••' : '—';
+}
+---
+
+<AdminLayout site={site} title="Parámetros">
+  <div class="cms-stack">
+    <div class="cms-page-intro">
+      <div class="cms-page-intro-copy">
+        <span class="cms-page-eyebrow">Configuración</span>
+        <div class="cms-page-header">
+          <h1 class="cms-title">Parámetros</h1>
+        </div>
+        <p class="cms-page-lead">
+          Define claves globales para consumirlas en componentes y layouts. Son valores string editables desde el CMS sin tocar código.
+        </p>
+      </div>
+      <div class="cms-page-actions">
+        <button type="button" id="cms-config-new-btn" class="cms-btn cms-btn-primary">Nuevo parámetro</button>
+      </div>
+    </div>
+
+    <div class="cms-card cms-menus-info-card">
+      <p class="cms-menus-info-text">
+        <Lightbulb size={14} class="cms-menus-info-icon" aria-hidden="true" />
+        <span class="cms-menus-info-body">
+          Úsalo para casos como <code>GOOGLE_MAPS_API_KEY</code> o <code>FORM_RECIPIENT</code>. <strong>Cómo se utiliza:</strong> importa <code>getConfig</code> desde <code>@astroblocks/astro-blocks/getConfig</code> y llama, por ejemplo, <code>await getConfig('GOOGLE_MAPS_API_KEY')</code>. En SSR los cambios aplican tras guardar e invalidar caché; en modo estático se reflejan tras rebuild.
+        </span>
+      </p>
+    </div>
+
+    <div class="cms-toolbar">
+      <div class="cms-toolbar-group">
+        <div class="cms-field cms-toolbar-search">
+          <input type="search" id="cms-configs-search" placeholder="Buscar por clave, valor o descripción" />
+        </div>
+      </div>
+      <div class="cms-toolbar-meta">
+        <span class="cms-results-count" id="cms-configs-count">{configs.length} parámetros</span>
+      </div>
+    </div>
+
+    <div class="cms-card cms-card--no-padding">
+      <div class="cms-table-wrap">
+        <table class="cms-table">
+          <thead>
+            <tr>
+              <th class="cms-table-actions"></th>
+              <th>Clave</th>
+              <th>Valor</th>
+              <th>Descripción</th>
+              <th class="cms-table-actions-delete"></th>
+            </tr>
+          </thead>
+          <tbody id="cms-configs-tbody">
+            {configs.map((entry) => (
+              <tr>
+                <td class="cms-table-actions">
+                  <button type="button" class="cms-table-btn-edit cms-config-edit" data-id={entry.id} aria-label="Editar">
+                    <Pencil size={14} />
+                  </button>
+                </td>
+                <td class="cms-table-cell-monospace">{entry.key}</td>
+                <td class="cms-table-cell-monospace cms-configs-value-cell">{maskConfigValue(entry.value)}</td>
+                <td class="cms-configs-description-cell" title={entry.description || ''}>{entry.description || '—'}</td>
+                <td class="cms-table-actions-delete">
+                  <button type="button" class="cms-table-btn-delete cms-config-delete" data-id={entry.id} aria-label="Eliminar">
+                    <Trash2 size={14} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div id="cms-configs-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', configs.length > 0 && 'cms-hidden']}>
+        <p class="cms-empty-state-title">No hay parámetros configurados</p>
+        <p class="cms-empty-state-text">Crea el primero para centralizar claves y valores consumibles desde tus componentes.</p>
+        <div class="cms-empty-state-actions">
+          <button type="button" class="cms-btn cms-btn-primary" data-open-config-new>Crear parámetro</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <DetailModal id="config-detail-modal" title="Parámetro">
+    <form id="config-detail-form" class="cms-form">
+      <input type="hidden" id="config-detail-id" name="id" value="" />
+      <div class="cms-field">
+        <label for="config-detail-key">Clave</label>
+        <input
+          type="text"
+          id="config-detail-key"
+          name="key"
+          placeholder="GOOGLE_MAPS_API_KEY"
+          required
+          class="cms-input-monospace"
+        />
+      </div>
+      <div class="cms-field">
+        <label for="config-detail-value">Valor (string)</label>
+        <textarea id="config-detail-value" name="value" rows="4" placeholder="AIza..."></textarea>
+      </div>
+      <div class="cms-field">
+        <label for="config-detail-description">Descripción (opcional)</label>
+        <textarea id="config-detail-description" name="description" rows="2" placeholder="Uso interno del parámetro"></textarea>
+      </div>
+      <p class="cms-muted cms-hint">Clave obligatoria. Solo se permiten letras, números, punto (<code>.</code>), guion (<code>-</code>) y guion bajo (<code>_</code>).</p>
+      <p id="config-detail-error" class="cms-muted cms-hidden cms-hint cms-hint-error" role="alert"></p>
+    </form>
+    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="config-detail-modal">Cancelar</button>
+    <button type="button" class="cms-btn cms-btn-primary" slot="actions-right" id="config-detail-submit">Guardar</button>
+  </DetailModal>
+
+  <script>
+    import { initConfigsEditor } from './client/configs-editor.js';
+    initConfigsEditor();
+  </script>
+</AdminLayout>
