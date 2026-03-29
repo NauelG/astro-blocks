@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.14.0-alpha.3] - 2026-03-29
+
+### Title
+
+Release workflow hotfix for GitHub release creation context
+
+### Fixed
+
+- **GitHub release job repository context:** el job `create_github_release` ahora define `GH_REPO` para que `gh release` resuelva correctamente el repositorio durante ejecución sin checkout local.
+
+### Changed
+
+- **Release verification iteration:** se mantiene el flujo de release por tag con una nueva versión de verificación para confirmar ejecución completa (validación, publish npm y creación de release).
+
 ## [0.14.0-alpha.2] - 2026-03-29
 
 ### Title

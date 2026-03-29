@@ -137,6 +137,7 @@ jobs:
       - publish_npm
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
       TAG: ${{ github.ref_name }}
       RELEASE_TITLE: ${{ needs.validate_release.outputs.release_title }}
       RELEASE_BODY: ${{ needs.validate_release.outputs.release_body }}
