@@ -143,3 +143,42 @@ Before publishing or creating a release candidate:
 7. `npm run pack:local`
 8. install the generated tarball in a clean Astro project
 9. verify dev + build there
+
+## GitHub Actions Release Flow
+
+### On push to `main`
+
+- Workflow: `.github/workflows/ci-main.yml`
+- Purpose: technical validation only (no tags, no npm publish, no GitHub release)
+- Steps:
+  1. `npm ci`
+  2. `npm run features:validate`
+  3. `npm run typecheck`
+  4. `npm test`
+
+### On push of a version tag (`v*`)
+
+- Workflow: `.github/workflows/release-tag.yml`
+- Purpose: validate release metadata, publish npm, and create/update GitHub release
+- Required checks before publish:
+  - tag format must match `vX.Y.Z` or `vX.Y.Z-alpha.N`
+  - `package.json` version must match tag version (without `v`)
+  - `CHANGELOG.md` must include entry `## [X.Y.Z...] - YYYY-MM-DD`
+  - that entry must include:
+    - `### Title`
+    - one short non-empty title line below it
+- npm publish behavior:
+  - publish with `npm publish --tag latest --provenance`
+  - ensure dist-tags `latest` and `alpha` both point to the tagged version
+- GitHub release behavior:
+  - release name: `vX.Y.Z... — <Title extracted from changelog>`
+  - release notes: extracted from the changelog entry body (excluding the `### Title` block)
+  - prerelease flag enabled when version contains `-alpha.`
+
+### Required secrets and permissions
+
+- Environment secret `NPM_TOKEN` in environment `Production`, with publish rights for `@astroblocks/astro-blocks`
+- `publish_npm` runs under environment `Production` to consume that secret and honor environment protection rules
+- `release-tag.yml` requires:
+  - `contents: write` (create/update release)
+  - `id-token: write` (npm provenance)

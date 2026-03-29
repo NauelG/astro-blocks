@@ -433,8 +433,10 @@ El README debe mantenerse **100% orientado al consumidor**. Al actualizarlo o am
 - **CHANGELOG:** Formato [Keep a Changelog](https://keepachangelog.com/en/1.0.0/):
   - Nueva entrada al **inicio** del archivo, bajo el título "Changelog".
   - Encabezado: `## [X.Y.Z] - AAAA-MM-DD`.
+  - Bajo el encabezado, incluir siempre `### Title` con una frase corta y concreta (se usa para titular la GitHub Release automática).
   - Bloques `### Added`, `### Changed`, `### Fixed`, `### Removed` según corresponda.
   - Descripción breve y clara de cada cambio; enlaces a archivos o secciones si ayuda.
+  - Esta regla de `### Title` aplica a nuevas versiones; no es obligatorio hacer backfill de entradas históricas ya cerradas.
 - **Fases futuras:** pasar a `beta` cuando la arquitectura y UX principal estén bastante cerradas; usar `rc` cuando solo se esperen fixes antes de estable; `1.0.0` cuando se quiera compromiso real de estabilidad.
 
 ---
@@ -470,7 +472,7 @@ Formato de la primera línea: `<tipo>[ámbito opcional]: <descripción>`.
   - Ejemplo: `v0.9.0-alpha.1`
 - **Momento de creación:** el tag se crea justo después del commit de release, no antes.
 - **Criterio:** solo taggear versiones realmente cerradas, con `package.json` y `CHANGELOG.md` ya actualizados y la validación técnica completada.
-- **npm:** Hasta próximo aviso, no asumir publicación en npm como parte del cierre de versión. El flujo oficial sigue siendo `npm pack` + playground local, y los tags sirven como hitos internos de release.
+- **npm:** Al hacer push de un tag de versión (`vX.Y.Z` o `vX.Y.Z-alpha.N`), el workflow de release publica en npm y gestiona dist-tags (`latest` y `alpha`), además de crear/actualizar la GitHub Release.
 
 ---
 

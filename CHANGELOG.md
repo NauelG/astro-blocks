@@ -9,6 +9,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.14.0-alpha.2] - 2026-03-29
+
+### Title
+
+Automated tag-based releases with npm publish and GitHub Release generation
+
+### Added
+
+- **GitHub Actions workflows for CI and release:** nuevos workflows `.github/workflows/ci-main.yml` (validación en `main`) y `.github/workflows/release-tag.yml` (release al subir tag `v*`).
+- **Release notes extraction utility:** nuevo script `scripts/extract-changelog-entry.mjs` para extraer `release_title` y `release_body` desde la entrada versionada del `CHANGELOG.md`.
+
+### Changed
+
+- **Release automation policy:** el flujo de cierre queda separado por evento: `push` a `main` solo valida (`features:validate`, `typecheck`, `test`) y `push` de tag valida metadata de release, publica npm y crea/actualiza la GitHub Release.
+- **Mandatory release title in changelog entries:** a partir de esta versión, cada nueva entrada requiere `### Title` con contenido no vacío, usado como título de la release.
+- **Environment-protected npm publish:** la publicación npm en el workflow de tags usa el environment `Production` y consume `NPM_TOKEN` como environment secret.
+- **Maintainer documentation:** `AGENTS.md` y `DEVELOPING.md` se actualizan para reflejar el flujo automático de releases por tag y el nuevo requisito de `### Title`.
+
 ## [0.14.0-alpha.1] - 2026-03-29
 
 ### Added

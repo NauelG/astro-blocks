@@ -1,0 +1,167 @@
+# Copyright (c) 2026 Nauel Gómez Gamero
+# Licensed under the Business Source License 1.1
+
+name: Release Tag
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release-tag-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate_release:
+    name: Validate tagged release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release_metadata.outputs.version }}
+      is_prerelease: ${{ steps.release_metadata.outputs.is_prerelease }}
+      release_title: ${{ steps.extract_changelog.outputs.release_title }}
+      release_body: ${{ steps.extract_changelog.outputs.release_body }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Validate tag format and package version
+        id: release_metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${GITHUB_REF_NAME}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-alpha\.[0-9]+)?$ ]]; then
+            echo "Tag '$TAG' does not match expected format vX.Y.Z or vX.Y.Z-alpha.N"
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          PACKAGE_VERSION="$(node -e "console.log(JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version)")"
+
+          if [[ "$PACKAGE_VERSION" != "$VERSION" ]]; then
+            echo "Tag version ($VERSION) does not match package.json version ($PACKAGE_VERSION)"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *"-alpha."* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract changelog entry for release
+        id: extract_changelog
+        run: node scripts/extract-changelog-entry.mjs --tag "${GITHUB_REF_NAME}" --github-output
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate features catalog
+        run: npm run features:validate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+  publish_npm:
+    name: Publish package to npm
+    runs-on: ubuntu-latest
+    needs: validate_release
+    environment: Production
+    env:
+      VERSION: ${{ needs.validate_release.outputs.version }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      PACKAGE_NAME: "@astroblocks/astro-blocks"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish version if needed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if npm view "${PACKAGE_NAME}@${VERSION}" version --registry=https://registry.npmjs.org >/dev/null 2>&1; then
+            echo "Version ${PACKAGE_NAME}@${VERSION} already exists on npm; skipping npm publish."
+          else
+            npm publish --tag latest --provenance
+          fi
+
+      - name: Ensure dist-tags latest and alpha point to this version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for DIST_TAG in latest alpha; do
+            CURRENT_TAG_VERSION="$(npm view "${PACKAGE_NAME}" "dist-tags.${DIST_TAG}" 2>/dev/null || true)"
+            if [[ "$CURRENT_TAG_VERSION" == "$VERSION" ]]; then
+              echo "dist-tag '${DIST_TAG}' already points to ${VERSION}."
+            else
+              npm dist-tag add "${PACKAGE_NAME}@${VERSION}" "${DIST_TAG}"
+            fi
+          done
+
+  create_github_release:
+    name: Create GitHub release
+    runs-on: ubuntu-latest
+    needs:
+      - validate_release
+      - publish_npm
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ github.ref_name }}
+      RELEASE_TITLE: ${{ needs.validate_release.outputs.release_title }}
+      RELEASE_BODY: ${{ needs.validate_release.outputs.release_body }}
+      IS_PRERELEASE: ${{ needs.validate_release.outputs.is_prerelease }}
+
+    steps:
+      - name: Create or update GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RELEASE_NAME="${TAG} — ${RELEASE_TITLE}"
+          NOTES_FILE="$(mktemp)"
+          printf '%s\n' "${RELEASE_BODY}" > "${NOTES_FILE}"
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            if [[ "${IS_PRERELEASE}" == "true" ]]; then
+              gh release edit "${TAG}" --title "${RELEASE_NAME}" --notes-file "${NOTES_FILE}" --prerelease
+            else
+              gh release edit "${TAG}" --title "${RELEASE_NAME}" --notes-file "${NOTES_FILE}"
+            fi
+          else
+            if [[ "${IS_PRERELEASE}" == "true" ]]; then
+              gh release create "${TAG}" --title "${RELEASE_NAME}" --notes-file "${NOTES_FILE}" --prerelease
+            else
+              gh release create "${TAG}" --title "${RELEASE_NAME}" --notes-file "${NOTES_FILE}"
+            fi
+          fi
