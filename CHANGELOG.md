@@ -9,6 +9,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.14.0-alpha.4] - 2026-03-29
+
+### Title
+
+GitHub releases now forced as latest to mirror npm latest policy
+
+### Changed
+
+- **Release policy alignment:** el workflow de tags marca explícitamente cada GitHub Release como `latest`, igual que la publicación npm deja `latest` apuntando a la versión del tag.
+- **Maintainer docs update:** `DEVELOPING.md` documenta que la release de GitHub se publica siempre como latest.
+
 ## [0.14.0-alpha.3] - 2026-03-29
 
 ### Title

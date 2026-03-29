@@ -174,6 +174,7 @@ Before publishing or creating a release candidate:
   - release name: `vX.Y.Z... — <Title extracted from changelog>`
   - release notes: extracted from the changelog entry body (excluding the `### Title` block)
   - prerelease flag enabled when version contains `-alpha.`
+  - the release is always marked as `latest` (same policy as npm dist-tags)
 
 ### Required secrets and permissions
 
