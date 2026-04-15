@@ -45,3 +45,4 @@ coverage/
 .turbo/
 .npm-cache/
 *.tgz
+PLAN.md
