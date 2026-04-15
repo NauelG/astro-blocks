@@ -115,19 +115,26 @@ jobs:
             npm publish --tag latest --provenance
           fi
 
-      - name: Ensure dist-tags latest and alpha point to this version
+      - name: Ensure dist-tags point to this version
         shell: bash
         run: |
           set -euo pipefail
 
-          for DIST_TAG in latest alpha; do
-            CURRENT_TAG_VERSION="$(npm view "${PACKAGE_NAME}" "dist-tags.${DIST_TAG}" 2>/dev/null || true)"
-            if [[ "$CURRENT_TAG_VERSION" == "$VERSION" ]]; then
-              echo "dist-tag '${DIST_TAG}' already points to ${VERSION}."
+          CURRENT_LATEST="$(npm view "${PACKAGE_NAME}" "dist-tags.latest" 2>/dev/null || true)"
+          if [[ "$CURRENT_LATEST" == "$VERSION" ]]; then
+            echo "dist-tag 'latest' already points to ${VERSION}."
+          else
+            npm dist-tag add "${PACKAGE_NAME}@${VERSION}" latest
+          fi
+
+          if [[ "${IS_PRERELEASE}" == "true" ]]; then
+            CURRENT_ALPHA="$(npm view "${PACKAGE_NAME}" "dist-tags.alpha" 2>/dev/null || true)"
+            if [[ "$CURRENT_ALPHA" == "$VERSION" ]]; then
+              echo "dist-tag 'alpha' already points to ${VERSION}."
             else
-              npm dist-tag add "${PACKAGE_NAME}@${VERSION}" "${DIST_TAG}"
+              npm dist-tag add "${PACKAGE_NAME}@${VERSION}" alpha
             fi
-          done
+          fi
 
   create_github_release:
     name: Create GitHub release

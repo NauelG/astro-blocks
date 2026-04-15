@@ -13,7 +13,7 @@ This guide is for maintaining the package itself.
 - Consumer validation happens in [`playgrounds/basic`](./playgrounds/basic).
 - The package is built to `dist/` with `tsc`.
 - Local distribution is validated with `npm pack`.
-- Alpha default for public pages is `server + Astro experimental cache`.
+- Default for public pages is `server + Astro experimental cache`.
 
 ## Commands
 

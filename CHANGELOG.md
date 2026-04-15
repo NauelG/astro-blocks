@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.0.0] - 2026-04-15
+
+### Title
+
+Cornerstone — First stable release
+
+### Changed
+
+- First stable release. Versioning moves to stable semver (1.n.m). No more alpha tags on npm.
+
 ## [0.14.0-alpha.4] - 2026-03-29
 
 ### Title
