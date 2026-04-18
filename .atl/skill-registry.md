@@ -9,10 +9,13 @@ Generated: 2026-04-15
 | accessibility, a11y audit, WCAG, screen reader, keyboard navigation | accessibility | project |
 | Astro, .astro files, SSG, islands, content collections | astro | project |
 | UI components, pages, landing pages, dashboards, styling/beautifying | frontend-design | project |
+| node --test, node:test, unit tests, assert/strict, withTempProject | node-test-runner | project |
 | Node.js servers, REST APIs, Express, Fastify, microservices | nodejs-backend-patterns | project |
 | Node.js architecture, framework selection, async patterns | nodejs-best-practices | project |
+| npm release, publish, dist-tag, changelog, cut release, version bump | npm-release | project |
 | Playwright tests, E2E, flaky tests, Page Object Model, test CI/CD | playwright-best-practices | project |
 | SEO, meta tags, structured data, sitemap, search optimization | seo | project |
+| Astro integration authoring, plugin/index.ts, injectRoute authoring, integration hook, peerDependency astro | astro-integration-authoring | project |
 | TypeScript generics, conditional types, mapped types, utility types | typescript-advanced-types | project |
 | Creating a PR, pull request, prepare changes for review | branch-pr | user |
 | Go tests, bubbletea, teatest | go-testing | user |
@@ -62,6 +65,8 @@ Generated: 2026-04-15
 - Never store secrets in code — environment variables only
 - Structure: routes → controllers → services → repositories
 - Use connection pooling; never open a new connection per request
+- JSON file-store: use ensureDefaultFiles + readFile→mutate→writeFile (single-server, no locking)
+- JWT with jose: SignJWT + jwtVerify, TextEncoder-encoded secret, parse Authorization: Bearer header
 
 ### nodejs-best-practices
 - Choose framework by need: Express (simple), Fastify (performance), Koa (middleware control)
@@ -69,6 +74,24 @@ Generated: 2026-04-15
 - Validate all external inputs with a schema validator (Zod, Joi, etc.)
 - Keep business logic in services, not routes
 - Never block the event loop with CPU-intensive synchronous work
+
+### node-test-runner
+- Run the full suite with `npm test` (builds first); never run `node --test` without a prior build.
+- Import `test` from `node:test` and `assert` from `node:assert/strict` — no other test frameworks.
+- Use `withTempProject(fn)` for every test that touches `data/` files; define it inline per test file.
+- Save env vars before mutation (`const prev = process.env.X`); restore in `finally`; use `delete` when `prev === undefined`.
+- Import modules under test from `../dist/...`, not `../src/...`.
+- Use `assert.equal` for scalar equality, `assert.deepEqual` for objects/arrays, `assert.match` for regex, `assert.rejects` for async errors.
+- Run a subset with `--test-name-pattern=<regex>` or a single file with `node --test tests/<file>.test.js`.
+
+### npm-release
+- Tag format is `vX.Y.Z` (stable) or `vX.Y.Z-alpha.N` (pre-release); `v` prefix is mandatory.
+- Tag version MUST equal `package.json#version`; mismatch fails the workflow before publishing.
+- Every CHANGELOG entry needs `## [X.Y.Z] - YYYY-MM-DD` header — brackets and ` - ` separator are required.
+- Every CHANGELOG entry MUST have a `### Title` sub-heading with non-empty content; missing it aborts the release.
+- Publish always uses `--provenance`; never publish this package without it.
+- Pre-releases get both `latest` and `alpha` dist-tags; stable releases get `latest` only.
+- Release notes MUST NOT imply open-source or commercial-free terms; package is BUSL-1.1 licensed.
 
 ### playwright-best-practices
 - Use auto-retrying `expect()` assertions — never `page.waitForTimeout()`
@@ -93,6 +116,15 @@ Generated: 2026-04-15
 - Discriminated unions + exhaustive `never` check in switch for type-safe branching
 - Template literal types for string pattern validation at compile time
 - Mapped types with `as` for key remapping and filtering
+
+### astro-integration-authoring
+- Always return `AstroIntegration` from the plugin function — do not export hooks directly.
+- Put ALL route injection, codegen, and Vite config in `astro:config:setup`; routes are resolved after this hook returns.
+- Resolve entrypoints with `path.join(packageDir, 'routes', file)` — Astro requires absolute paths for `injectRoute`.
+- Use `getProjectRoot(config)` (reads `config.root` || `ASTRO_BLOCKS_PROJECT_ROOT` || `cwd()`) for all consumer-filesystem writes.
+- Write generated files to `.astro-blocks/` inside the consumer project root, then map them via a Vite alias — not virtual modules.
+- Declare `astro` as `peerDependency` only (also in `devDependencies` for local dev); never as a regular `dependency`.
+- Test injected routes end-to-end via the playground or `withTempProject` — unit tests on exported utilities alone are not sufficient.
 
 ### branch-pr
 - Follow issue-first: reference a GitHub issue before opening a PR

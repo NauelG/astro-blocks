@@ -637,3 +637,13 @@ Standardized `ApiResponse` helper with `success`, `error`, and `paginated` stati
 ## Testing Patterns
 
 See `javascript-testing-patterns` skill for comprehensive testing guidance.
+
+## Compact Rules
+
+- Validate all external input at system boundaries; trust internal code
+- Use async/await; handle errors with try/catch or centralized error middleware
+- Never store secrets in code — environment variables only
+- Structure: routes → controllers → services → repositories
+- Use connection pooling; never open a new connection per request
+- JSON file-store: use ensureDefaultFiles + readFile→mutate→writeFile (single-server, no locking)
+- JWT with jose: SignJWT + jwtVerify, TextEncoder-encoded secret, parse Authorization: Bearer header
