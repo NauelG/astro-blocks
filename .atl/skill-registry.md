@@ -92,6 +92,7 @@ Generated: 2026-04-15
 - Publish always uses `--provenance`; never publish this package without it.
 - Pre-releases get both `latest` and `alpha` dist-tags; stable releases get `latest` only.
 - Release notes MUST NOT imply open-source or commercial-free terms; package is BUSL-1.1 licensed.
+- Consumer AGENTS.consumer.md sync (MANDATORY): any PR changing public API, config options, block schema, auth flow, admin routes, or env vars MUST update AGENTS.consumer.md in the same PR. Reviewer confirms. Release blocked otherwise.
 
 ### playwright-best-practices
 - Use auto-retrying `expect()` assertions — never `page.waitForTimeout()`

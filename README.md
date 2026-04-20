@@ -400,6 +400,32 @@ astroBlocks({
 
 ---
 
+## Using with AI Tools
+
+`@astroblocks/astro-blocks` ships a consumer-facing AI context file (`AGENTS.consumer.md`) inside the npm tarball. AI coding assistants (Claude, Copilot, Cursor, Windsurf, etc.) can read this file to understand the integration API, block development patterns, admin routes, and environment variables without you having to explain them manually.
+
+**One-line setup:**
+
+```sh
+npx astro-blocks init-ai
+```
+
+This command detects your project's `AGENTS.md` or `CLAUDE.md` (creating `AGENTS.md` if neither exists) and appends a reference to the consumer context file. The reference points to the installed package:
+
+```
+node_modules/@astroblocks/astro-blocks/AGENTS.consumer.md
+```
+
+The context file is **auto-versioned with the installed package** — when you upgrade `@astroblocks/astro-blocks`, re-run `npx astro-blocks init-ai` to refresh the reference.
+
+Use `--copy` to embed the full content inline instead of a reference link:
+
+```sh
+npx astro-blocks init-ai --copy
+```
+
+---
+
 ## Consumer Troubleshooting
 
 ### Content changes do not appear on the public site

@@ -75,7 +75,22 @@ function runTsc() {
   });
 }
 
+async function addShebang() {
+  const cliPath = path.join(distDir, 'plugin', 'cli', 'index.js');
+  try {
+    await fs.access(cliPath);
+  } catch {
+    return; // CLI not built — safe guard
+  }
+  const content = await fs.readFile(cliPath, 'utf-8');
+  if (!content.startsWith('#!/usr/bin/env node')) {
+    await fs.writeFile(cliPath, '#!/usr/bin/env node\n' + content, 'utf-8');
+  }
+  await fs.chmod(cliPath, 0o755);
+}
+
 await readAndValidateFeaturesManifest({ rootDir });
 await removeDist();
 await copyStaticAssets();
 await runTsc();
+await addShebang();

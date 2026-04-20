@@ -12,6 +12,9 @@
   },
   "license": "BUSL-1.1",
   "type": "module",
+  "bin": {
+    "astro-blocks": "./dist/plugin/cli/index.js"
+  },
   "main": "./dist/plugin/index.js",
   "exports": {
     ".": {
@@ -71,7 +74,8 @@
     "astro": "^6.0.0"
   },
   "files": [
-    "dist"
+    "dist",
+    "AGENTS.consumer.md"
   ],
   "keywords": [
     "astro",

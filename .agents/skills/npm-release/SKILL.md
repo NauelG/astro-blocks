@@ -171,3 +171,4 @@ Work through this checklist before pushing a tag. All items must pass.
 - Publish always uses `--provenance`; never publish this package without it.
 - Pre-releases get both `latest` and `alpha` dist-tags; stable releases get `latest` only.
 - Release notes MUST NOT imply open-source or commercial-free terms; package is BUSL-1.1 licensed.
+- **Consumer AGENTS.consumer.md sync (MANDATORY)**: Any PR that changes public API (`package.json#exports`), integration config options, block schema field types (`defineBlockSchema`), auth flow, admin routes, or environment variables MUST update `AGENTS.consumer.md` in the same PR. Reviewer must confirm. Release is blocked if public surface changed but `AGENTS.consumer.md` was not touched.
