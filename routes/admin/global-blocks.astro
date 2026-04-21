@@ -1,0 +1,102 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+export const prerender = false;
+
+import AdminLayout from './layout.astro';
+import DetailModal from './components/DetailModal.astro';
+import { Pencil, Lightbulb } from '@lucide/astro';
+import { loadSite } from '../../api/data.js';
+import { globalBlocksRegistry as runtimeGlobalBlocksRegistry } from 'astro-blocks-runtime';
+
+const site = await loadSite();
+
+// v2: registry carries { slug, schemaName, componentPath, label? }
+const globalBlocksRegistry: { slug: string; schemaName: string; componentPath: string; label?: string }[] =
+  runtimeGlobalBlocksRegistry ?? [];
+---
+
+<AdminLayout site={site} title="Bloques globales">
+  <div class="cms-stack">
+    <div class="cms-page-intro">
+      <div class="cms-page-intro-copy">
+        <span class="cms-page-eyebrow">Contenido</span>
+        <div class="cms-page-header">
+          <h1 class="cms-title">Bloques globales</h1>
+        </div>
+        <p class="cms-page-lead">
+          Edita elementos reutilizables como cabeceras, pies de página y secciones compartidas. Los cambios se aplican en todos los sitios que los referencien.
+        </p>
+      </div>
+    </div>
+
+    <div class="cms-card cms-menus-info-card">
+      <p class="cms-menus-info-text">
+        <Lightbulb size={14} class="cms-menus-info-icon" aria-hidden="true" />
+        <span class="cms-menus-info-body">
+          Los slugs se declaran en <code>astro.config.mjs</code> mediante la opción <code>globalBlocks</code>. Para añadir o eliminar slugs, modificá la configuración del proyecto y volvé a hacer build.
+        </span>
+      </p>
+    </div>
+
+    <div class="cms-card cms-card--no-padding">
+      <div class="cms-table-wrap">
+        <table class="cms-table">
+          <thead>
+            <tr>
+              <th class="cms-table-actions"></th>
+              <th>Slug</th>
+              <th>Etiqueta</th>
+            </tr>
+          </thead>
+          <tbody id="cms-global-blocks-tbody">
+            {globalBlocksRegistry.map((entry) => (
+              <tr>
+                <td class="cms-table-actions">
+                  <button
+                    type="button"
+                    class="cms-table-btn-edit cms-global-block-edit"
+                    data-slug={entry.slug}
+                    data-label={entry.label || entry.slug}
+                    data-schema-name={entry.schemaName}
+                    aria-label="Editar"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                </td>
+                <td class="cms-table-cell-monospace">{entry.slug}</td>
+                <td>{entry.label || entry.slug}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div
+        id="cms-global-blocks-empty"
+        class:list={['cms-empty-state', 'cms-empty-state--inset', globalBlocksRegistry.length > 0 && 'cms-hidden']}
+      >
+        <p class="cms-empty-state-title">No hay bloques globales declarados</p>
+        <p class="cms-empty-state-text">
+          Declará slugs en <code>globalBlocks</code> dentro de tu <code>astro.config.mjs</code> y volvé a hacer build para empezar.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <DetailModal id="global-block-detail-modal" title="Editar bloque global" large>
+    <form id="global-block-detail-form" class="cms-form cms-global-block-detail-form">
+      <div id="global-block-form-container"></div>
+      <p id="global-block-error" class="cms-muted cms-hidden cms-hint cms-hint-error" role="alert"></p>
+    </form>
+    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" id="global-block-cancel-btn">Cancelar</button>
+    <button type="submit" form="global-block-detail-form" class="cms-btn cms-btn-primary" slot="actions-right" id="global-block-submit-btn">Guardar</button>
+  </DetailModal>
+
+  <script>
+    import { initGlobalBlocksEditor } from './client/global-blocks-editor.js';
+    initGlobalBlocksEditor();
+  </script>
+</AdminLayout>

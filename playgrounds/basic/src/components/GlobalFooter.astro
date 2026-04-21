@@ -1,0 +1,25 @@
+---
+/*
+  Playground sample — GlobalFooter global block component.
+  Rendered by <GlobalBlock slug="footer-extra" /> in Layout.astro.
+*/
+
+interface Props {
+  copyright?: string;
+  showSocials?: boolean;
+}
+
+const { copyright, showSocials } = Astro.props;
+---
+
+{copyright || showSocials ? (
+  <div class="global-footer-extra" style="margin-bottom: 0.75rem; font-size: 0.85rem;">
+    {copyright && <p style="margin: 0;">{copyright}</p>}
+    {showSocials && (
+      <p style="margin: 0.25rem 0 0;">
+        <a href="#" aria-label="Social link" style="margin-right: 0.5rem;">Twitter</a>
+        <a href="#" aria-label="Social link">GitHub</a>
+      </p>
+    )}
+  </div>
+) : null}

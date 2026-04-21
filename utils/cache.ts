@@ -16,6 +16,7 @@ export const CACHE_TAGS = {
   configs: `${CACHE_NAMESPACE}:configs`,
   site: `${CACHE_NAMESPACE}:site`,
   global: `${CACHE_NAMESPACE}:global`,
+  globalBlocks: `${CACHE_NAMESPACE}:global-blocks`,
 } as const;
 export const CACHE_PATHS = {
   sitemap: '/sitemap-index.xml',
@@ -66,7 +67,7 @@ export function getPageCachePath(
 }
 
 export function getGlobalCacheTags(): string[] {
-  return [CACHE_TAGS.root, CACHE_TAGS.global, CACHE_TAGS.pages, CACHE_TAGS.menus, CACHE_TAGS.redirects, CACHE_TAGS.configs, CACHE_TAGS.site];
+  return [CACHE_TAGS.root, CACHE_TAGS.global, CACHE_TAGS.pages, CACHE_TAGS.menus, CACHE_TAGS.redirects, CACHE_TAGS.configs, CACHE_TAGS.site, CACHE_TAGS.globalBlocks];
 }
 
 export function getGlobalCachePaths(): string[] {

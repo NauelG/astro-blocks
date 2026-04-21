@@ -2,6 +2,7 @@
 import { getI18nMeta } from '@astroblocks/astro-blocks/getI18nMeta';
 import { getLanguages } from '@astroblocks/astro-blocks/getLanguages';
 import { getMenu } from '@astroblocks/astro-blocks/getMenu';
+import GlobalBlock from '@astroblocks/astro-blocks/components/GlobalBlock';
 
 const {
   title = 'AstroBlocks Playground',
@@ -139,6 +140,7 @@ const languageLinks = languages.map((language) => ({
     </style>
   </head>
   <body>
+    <GlobalBlock slug="header-cta" />
     <header>
       <div class="shell nav">
         <a href="/" class="brand">
@@ -166,6 +168,7 @@ const languageLinks = languages.map((language) => ({
       <slot />
     </main>
     <footer class="shell">
+      <GlobalBlock slug="footer-extra" />
       Built to validate `@astroblocks/astro-blocks` as a consumer would install and use it.
     </footer>
   </body>

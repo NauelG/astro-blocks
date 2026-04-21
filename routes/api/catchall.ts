@@ -3,10 +3,25 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { APIContext } from 'astro';
 import * as handlers from '../../api/handlers.js';
+import type { GlobalBlockRuntimeEntry } from '../../types/index.js';
 
 export const prerender = false;
+
+async function loadGlobalBlocksRegistry(): Promise<GlobalBlockRuntimeEntry[]> {
+  try {
+    const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
+    const runtimePath = path.join(projectRoot, '.astro-blocks', 'runtime.mjs');
+    const runtimeUrl = pathToFileURL(runtimePath).href;
+    const mod = (await import(/* @vite-ignore */ runtimeUrl)) as { globalBlocksRegistry?: GlobalBlockRuntimeEntry[] };
+    return mod.globalBlocksRegistry ?? [];
+  } catch {
+    return [];
+  }
+}
 
 function getPathSegments(url: string): string[] {
   const pathname = new URL(url).pathname;
@@ -40,6 +55,14 @@ export async function GET({ request }: APIContext): Promise<Response> {
   if (seg[0] === 'users' && seg.length === 1) return handlers.handleGetUsers(authResult.user);
   if (seg[0] === 'block-schemas' && seg.length === 1) return handlers.handleGetBlockSchemas();
   if (seg[0] === 'languages' && seg.length === 1) return handlers.handleGetLanguages();
+  if (seg[0] === 'global-blocks' && seg.length === 1) {
+    const registry = await loadGlobalBlocksRegistry();
+    return handlers.handleGetGlobalBlocks(registry, request);
+  }
+  if (seg[0] === 'global-blocks' && seg.length === 2) {
+    const registry = await loadGlobalBlocksRegistry();
+    return handlers.handleGetGlobalBlock(seg[1], registry, request);
+  }
 
   return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
 }
@@ -88,6 +111,10 @@ export async function PUT({ request, cache }: APIContext): Promise<Response> {
     const forbidden = handlers.requireOwner(authResult.user);
     if (forbidden) return forbidden;
     return handlers.handlePutLanguage(seg[1], request, { cache });
+  }
+  if (seg[0] === 'global-blocks' && seg.length === 2) {
+    const registry = await loadGlobalBlocksRegistry();
+    return handlers.handlePutGlobalBlock(seg[1], request, { cache }, registry);
   }
 
   return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });

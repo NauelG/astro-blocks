@@ -21,6 +21,8 @@ import type {
   ConfigEntry,
   ConfigsData,
   ContentLanguage,
+  GlobalBlockEntry,
+  GlobalBlocksData,
   LanguagesData,
   Menu,
   MenuItem,
@@ -37,6 +39,7 @@ import type {
   UsersData,
 } from '../types/index.js';
 
+const DEFAULT_GLOBAL_BLOCKS: GlobalBlocksData = { globalBlocks: {} };
 const DEFAULT_PAGES: PagesData = { pages: [] };
 const DEFAULT_SITE: Site = {
   siteName: 'My Site',
@@ -341,6 +344,48 @@ export async function saveUsers(usersData: UsersData): Promise<void> {
   await writeJson(getDataPath('users.json'), usersData);
 }
 
+export async function loadGlobalBlocks(): Promise<GlobalBlocksData> {
+  const rawData = await readJson(getDataPath('global-blocks.json'), DEFAULT_GLOBAL_BLOCKS);
+  if (!rawData || typeof rawData !== 'object' || typeof rawData.globalBlocks !== 'object') {
+    return { globalBlocks: {} };
+  }
+
+  // Normalize entries: legacy v1 shape { blocks: [...] } → { props: {} }
+  const normalised: Record<string, GlobalBlockEntry> = {};
+  for (const [slug, entry] of Object.entries(rawData.globalBlocks as Record<string, unknown>)) {
+    if (entry && typeof entry === 'object') {
+      const e = entry as Record<string, unknown>;
+      if (e.props !== undefined) {
+        // v2 shape — pass through
+        normalised[slug] = { props: e.props as Record<string, unknown>, ...(e.updatedAt !== undefined ? { updatedAt: e.updatedAt as string } : {}) };
+      } else if (e.blocks !== undefined) {
+        // legacy v1 shape — treat as empty props
+        normalised[slug] = { props: {}, ...(e.updatedAt !== undefined ? { updatedAt: e.updatedAt as string } : {}) };
+      } else {
+        normalised[slug] = { props: {} };
+      }
+    } else {
+      normalised[slug] = { props: {} };
+    }
+  }
+
+  return { globalBlocks: normalised };
+}
+
+export async function saveGlobalBlock(slug: string, props: Record<string, unknown>): Promise<void> {
+  const data = await loadGlobalBlocks();
+  const entry: GlobalBlockEntry = {
+    props,
+    updatedAt: new Date().toISOString(),
+  };
+  data.globalBlocks[slug] = entry;
+  await writeJson(getDataPath('global-blocks.json'), data);
+}
+
+export async function saveGlobalBlocks(data: GlobalBlocksData): Promise<void> {
+  await writeJson(getDataPath('global-blocks.json'), data);
+}
+
 export function getDefaultLocale(languagesData: LanguagesData): string {
   return getDefaultLanguageCode(languagesData);
 }
@@ -505,6 +550,7 @@ export async function ensureDefaultFiles(): Promise<void> {
     [getDataPath('configs.json'), DEFAULT_CONFIGS],
     [getDataPath('users.json'), DEFAULT_USERS],
     [getDataPath('languages.json'), DEFAULT_LANGUAGES],
+    [getDataPath('global-blocks.json'), DEFAULT_GLOBAL_BLOCKS],
   ];
 
   for (const [filePath, defaultValue] of defaults) {

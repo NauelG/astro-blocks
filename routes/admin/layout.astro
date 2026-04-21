@@ -8,7 +8,7 @@ import { Image } from 'astro:assets';
 import '@picocss/pico/css/pico.min.css';
 import 'animate.css';
 import '../../styles/cms-admin.css';
-import { LayoutDashboard, FileText, ArrowRightLeft, Menu, Settings, KeyRound, RefreshCw, User, LogOut, Users, ExternalLink, Languages } from '@lucide/astro';
+import { LayoutDashboard, FileText, ArrowRightLeft, Menu, Settings, KeyRound, RefreshCw, User, LogOut, Users, ExternalLink, Languages, Globe } from '@lucide/astro';
 import ConfirmDialog from './components/ConfirmDialog.astro';
 import AlertDialog from './components/AlertDialog.astro';
 import pkg from '../../package.json' with { type: 'json' };
@@ -141,6 +141,10 @@ function isActive(href: string) {
                 <a href="/cms/menus" class={`cms-nav-link ${isActive('/cms/menus') ? 'cms-nav-link--active' : ''}`}>
                   <Menu class="cms-nav-icon" size={16} />
                   <span>Menús</span>
+                </a>
+                <a href="/cms/global-blocks" class={`cms-nav-link ${isActive('/cms/global-blocks') ? 'cms-nav-link--active' : ''}`}>
+                  <Globe class="cms-nav-icon" size={16} />
+                  <span>Bloques globales</span>
                 </a>
               </div>
               <div class="cms-nav-group">

@@ -4,14 +4,12 @@ Licensed under the Business Source License 1.1
 */
 
 import Sortable, { type SortableEvent } from 'sortablejs';
-import type { ArrayPropDef, BlockInstance, ObjectArrayItemDef, PrimitivePropDef, SchemaMap, SeoData } from '../../../types/index.js';
+import type { ArrayPropDef, BlockInstance, ObjectArrayItemDef, SchemaMap, SeoData } from '../../../types/index.js';
 import {
-  isObjectArrayItemDef,
   isPrimitivePropDef,
   validateBlockPropsAgainstSchema,
   type BlockValidationIssue,
 } from '../../../utils/block-validation.js';
-import { isSchemaPropLocalizable } from '../../../utils/localization.js';
 import {
   authHeaders,
   closeDialog,
@@ -24,6 +22,7 @@ import {
   showConfirm,
   showToast,
 } from './common.js';
+import { mountBlockForm, type BlockFormHandle, type ArrayLimitInfo } from './block-form.js';
 
 const trashIconSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
@@ -114,10 +113,13 @@ export function initPageEditor(): void {
   let schemaMap: SchemaMap | null = null;
   let blocksList: BlockInstance[] = [];
   let sortableBlocks: Sortable | null = null;
-  const sortableArrays: Sortable[] = [];
+  // Per-block form handles (index → handle). Destroyed and recreated on each renderBlocksList().
+  const blockFormHandles = new Map<number, BlockFormHandle>();
+  // Per-block open-array-item state (key: "blockIndex::propName" → open item index).
+  // Persisted across renderBlocksList() calls so the user doesn't lose expanded state.
+  const openArrayItemByKey = new Map<string, number | null>();
   let pagesState: CmsPage[] = [];
   let openBlockIndex: number | null = null;
-  const openArrayItemByKey = new Map<string, number | null>();
   const inlineErrors = new Map<string, string>();
 
   function arrayStateKey(blockIndex: number, propName: string): string {
@@ -129,13 +131,9 @@ export function initPageEditor(): void {
     return parts.join('::');
   }
 
-  function errorPrefix(blockIndex: number, propName: string): string {
-    return `${blockIndex}::${propName}::`;
-  }
-
-  function clearArraySortables(): void {
-    sortableArrays.forEach((sortable) => sortable.destroy());
-    sortableArrays.length = 0;
+  function destroyBlockFormHandles(): void {
+    blockFormHandles.forEach((handle) => handle.destroy());
+    blockFormHandles.clear();
   }
 
   function withLocaleHint(label: string, localizable = true): string {
@@ -217,43 +215,6 @@ export function initPageEditor(): void {
     imageEmpty?.classList.toggle('cms-hidden', hasImage);
     imageRemoveBtn?.classList.toggle('cms-hidden', !hasImage);
     if (imageUploadBtn) imageUploadBtn.textContent = hasImage ? 'Cambiar' : 'Subir imagen';
-  }
-
-  function parseFieldValue(input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): unknown {
-    if (input instanceof HTMLInputElement && input.type === 'checkbox') return input.checked;
-    if (input instanceof HTMLInputElement && input.type === 'number') return input.value === '' ? '' : Number(input.value);
-    return input.value;
-  }
-
-  function defaultPrimitiveValue(def: PrimitivePropDef): unknown {
-    if (def.type === 'boolean') return false;
-    if (def.type === 'number') return '';
-    if (def.type === 'select') {
-      return Array.isArray(def.options) && def.options.length > 0 ? def.options[0] : '';
-    }
-    return '';
-  }
-
-  function defaultArrayItemValue(def: ArrayPropDef): unknown {
-    if (isPrimitivePropDef(def.item)) return defaultPrimitiveValue(def.item);
-
-    const output: Record<string, unknown> = {};
-    for (const [fieldName, fieldDef] of Object.entries(def.item.fields || {})) {
-      output[fieldName] = defaultPrimitiveValue(fieldDef);
-    }
-    return output;
-  }
-
-  function ensureArrayValue(blockIndex: number, propName: string): unknown[] {
-    if (!blocksList[blockIndex]) blocksList[blockIndex] = { type: '', props: {} };
-    blocksList[blockIndex].props ||= {};
-
-    const value = blocksList[blockIndex].props[propName];
-    if (Array.isArray(value)) return value;
-
-    const next: unknown[] = [];
-    blocksList[blockIndex].props[propName] = next;
-    return next;
   }
 
   function summaryValue(value: unknown): string {
@@ -397,23 +358,6 @@ export function initPageEditor(): void {
     return changed;
   }
 
-  function clearInlineErrorsForProp(blockIndex: number, propName: string): void {
-    const prefix = errorPrefix(blockIndex, propName);
-    for (const key of Array.from(inlineErrors.keys())) {
-      if (key.startsWith(prefix)) inlineErrors.delete(key);
-    }
-  }
-
-  function getInlineError(blockIndex: number, propName: string, itemIndex?: number, fieldName?: string): string {
-    const exact = inlineErrors.get(errorKey(blockIndex, propName, itemIndex, fieldName));
-    if (exact) return exact;
-    if (fieldName !== undefined) {
-      const itemLevel = inlineErrors.get(errorKey(blockIndex, propName, itemIndex));
-      if (itemLevel) return itemLevel;
-    }
-    return '';
-  }
-
   function remapOpenArrayStateForBlockMove(oldIndex: number, newIndex: number): void {
     if (openArrayItemByKey.size === 0) return;
 
@@ -459,196 +403,6 @@ export function initPageEditor(): void {
     }
   }
 
-  function primitiveInputHtml(
-    def: PrimitivePropDef,
-    value: unknown,
-    id: string,
-    attrs: string,
-    rows = 2
-  ): string {
-    if (def.type === 'text') {
-      return `<textarea id="${id}" ${attrs} class="cms-input" rows="${rows}">${escapeHtml(String(value ?? ''))}</textarea>`;
-    }
-
-    if (def.type === 'number') {
-      const numericValue = typeof value === 'number' && !Number.isNaN(value) ? value : '';
-      return `<input type="number" id="${id}" ${attrs} class="cms-input" value="${numericValue}">`;
-    }
-
-    if (def.type === 'select') {
-      const selectedValue = typeof value === 'string' ? value : '';
-      const options = (def.options || [])
-        .map((option) => `<option value="${escapeHtml(option)}"${selectedValue === option ? ' selected' : ''}>${escapeHtml(option)}</option>`)
-        .join('');
-      return `<select id="${id}" ${attrs} class="cms-input">${options}</select>`;
-    }
-
-    const textValue = typeof value === 'string' ? value : String(value ?? '');
-    return `<input type="text" id="${id}" ${attrs} class="cms-input" value="${escapeHtml(textValue)}">`;
-  }
-
-  function renderPrimitiveField(blockIndex: number, propName: string, def: PrimitivePropDef, value: unknown): string {
-    const fieldId = `page-block-${blockIndex}-${propName}`;
-    const label = withLocaleHint(def.label, isSchemaPropLocalizable(def));
-    const error = getInlineError(blockIndex, propName);
-    const errorHtml = error ? `<p class="cms-field-error">${escapeHtml(error)}</p>` : '';
-
-    if (def.type === 'boolean') {
-      return (
-        `<div class="cms-field cms-field-checkbox" data-error-key="${escapeHtml(errorKey(blockIndex, propName))}">` +
-        `<input type="checkbox" id="${fieldId}" data-idx="${blockIndex}" data-prop="${escapeHtml(propName)}" class="cms-input" ${(value === true || value === 'true') ? 'checked' : ''}>` +
-        `<label for="${fieldId}" class="cms-label-tight">${label}</label>` +
-        errorHtml +
-        '</div>'
-      );
-    }
-
-    return (
-      `<div class="cms-field" data-error-key="${escapeHtml(errorKey(blockIndex, propName))}">` +
-      `<label for="${fieldId}">${label}</label>` +
-      primitiveInputHtml(def, value, fieldId, `data-idx="${blockIndex}" data-prop="${escapeHtml(propName)}"`) +
-      errorHtml +
-      '</div>'
-    );
-  }
-
-  function renderArrayPrimitiveItem(
-    blockIndex: number,
-    propName: string,
-    arrayDef: ArrayPropDef,
-    itemDef: PrimitivePropDef,
-    itemValue: unknown,
-    itemIndex: number
-  ): string {
-    const inputId = `page-block-${blockIndex}-${propName}-${itemIndex}`;
-    const attrs = `data-array-primitive="true" data-array-block="${blockIndex}" data-array-prop="${escapeHtml(propName)}" data-array-item="${itemIndex}"`;
-    const error = getInlineError(blockIndex, propName, itemIndex);
-    const errorHtml = error ? `<p class="cms-field-error">${escapeHtml(error)}</p>` : '';
-
-    const inputControl = itemDef.type === 'boolean'
-      ? `<label class="cms-array-item-checkbox"><input type="checkbox" id="${inputId}" ${attrs} class="cms-input" ${(itemValue === true || itemValue === 'true') ? 'checked' : ''}><span>${escapeHtml(itemDef.label || arrayDef.label)}</span></label>`
-      : primitiveInputHtml(itemDef, itemValue, inputId, `${attrs} placeholder="${escapeHtml(itemDef.label || arrayDef.label)}"`, 2);
-
-    return (
-      `<li class="cms-array-item cms-array-item--primitive" data-array-item-row="${itemIndex}" data-error-key="${escapeHtml(errorKey(blockIndex, propName, itemIndex))}">` +
-      '<div class="cms-array-item-inline">' +
-      `<span class="cms-drag-handle cms-array-item-drag" aria-label="Arrastrar">${dragHandleSvg}</span>` +
-      `<div class="cms-array-item-input">${inputControl}</div>` +
-      `<button type="button" class="cms-array-item-delete" data-array-delete="true" data-array-block="${blockIndex}" data-array-prop="${escapeHtml(propName)}" data-array-item="${itemIndex}" aria-label="Eliminar elemento">${trashIconSvg}</button>` +
-      '</div>' +
-      errorHtml +
-      '</li>'
-    );
-  }
-
-  function renderArrayObjectItem(
-    blockIndex: number,
-    propName: string,
-    objectDef: ObjectArrayItemDef,
-    rawItem: unknown,
-    itemIndex: number
-  ): string {
-    const item = rawItem && typeof rawItem === 'object' && !Array.isArray(rawItem)
-      ? rawItem as Record<string, unknown>
-      : {};
-
-    const rowKey = errorKey(blockIndex, propName, itemIndex);
-    const rowError = getInlineError(blockIndex, propName, itemIndex);
-    const rowErrorHtml = rowError ? `<p class="cms-field-error">${escapeHtml(rowError)}</p>` : '';
-
-    const stateKey = arrayStateKey(blockIndex, propName);
-    const openItemIndex = openArrayItemByKey.get(stateKey);
-    const isOpen = openItemIndex === itemIndex;
-
-    const summary = objectArrayItemSummary(objectDef, item, itemIndex);
-
-    const fieldsHtml = Object.entries(objectDef.fields || {})
-      .map(([fieldName, fieldDef]) => {
-        const value = item[fieldName];
-        const fieldId = `page-block-${blockIndex}-${propName}-${itemIndex}-${fieldName}`;
-        const inputAttrs = `data-array-primitive="true" data-array-block="${blockIndex}" data-array-prop="${escapeHtml(propName)}" data-array-item="${itemIndex}" data-array-field="${escapeHtml(fieldName)}"`;
-        const fieldError = getInlineError(blockIndex, propName, itemIndex, fieldName);
-        const fieldErrorHtml = fieldError ? `<p class="cms-field-error">${escapeHtml(fieldError)}</p>` : '';
-
-        if (fieldDef.type === 'boolean') {
-          return (
-            `<div class="cms-field cms-field-checkbox" data-error-key="${escapeHtml(errorKey(blockIndex, propName, itemIndex, fieldName))}">` +
-            `<input type="checkbox" id="${fieldId}" ${inputAttrs} class="cms-input" ${(value === true || value === 'true') ? 'checked' : ''}>` +
-            `<label for="${fieldId}" class="cms-label-tight">${escapeHtml(fieldDef.label)}</label>` +
-            fieldErrorHtml +
-            '</div>'
-          );
-        }
-
-        return (
-          `<div class="cms-field" data-error-key="${escapeHtml(errorKey(blockIndex, propName, itemIndex, fieldName))}">` +
-          `<label for="${fieldId}">${escapeHtml(fieldDef.label)}</label>` +
-          primitiveInputHtml(fieldDef, value, fieldId, inputAttrs, 2) +
-          fieldErrorHtml +
-          '</div>'
-        );
-      })
-      .join('');
-
-    return (
-      `<li class="cms-array-item cms-array-item--object" data-array-item-row="${itemIndex}" data-error-key="${escapeHtml(rowKey)}">` +
-      '<div class="cms-array-item-inline">' +
-      `<span class="cms-drag-handle cms-array-item-drag" aria-label="Arrastrar">${dragHandleSvg}</span>` +
-      `<span class="cms-array-item-summary">${escapeHtml(summary)}</span>` +
-      '<div class="cms-array-item-actions">' +
-      `<button type="button" class="cms-array-item-toggle" data-array-toggle="true" data-array-block="${blockIndex}" data-array-prop="${escapeHtml(propName)}" data-array-item="${itemIndex}" aria-expanded="${isOpen ? 'true' : 'false'}" aria-label="${isOpen ? 'Contraer' : 'Expandir'}">${isOpen ? chevronUpSvg : chevronDownSvg}</button>` +
-      `<button type="button" class="cms-array-item-delete" data-array-delete="true" data-array-block="${blockIndex}" data-array-prop="${escapeHtml(propName)}" data-array-item="${itemIndex}" aria-label="Eliminar elemento">${trashIconSvg}</button>` +
-      '</div>' +
-      '</div>' +
-      `<div class="cms-array-item-body${isOpen ? '' : ' cms-hidden'}">${fieldsHtml}</div>` +
-      rowErrorHtml +
-      '</li>'
-    );
-  }
-
-  function renderArrayField(blockIndex: number, propName: string, def: ArrayPropDef, rawValue: unknown): string {
-    const items = Array.isArray(rawValue) ? rawValue : [];
-    const minItems = typeof def.minItems === 'number' ? def.minItems : null;
-    const maxItems = typeof def.maxItems === 'number' ? def.maxItems : null;
-    const maxReached = maxItems !== null && items.length >= maxItems;
-
-    const limits = [
-      minItems !== null ? `Min ${minItems}` : '',
-      maxItems !== null ? `Max ${maxItems}` : '',
-    ].filter(Boolean).join(' · ');
-
-    const arrayError = getInlineError(blockIndex, propName);
-    const arrayErrorHtml = arrayError ? `<p class="cms-field-error cms-array-field-error">${escapeHtml(arrayError)}</p>` : '';
-
-    const rowsHtml = items
-      .map((itemValue, itemIndex) => {
-        if (isPrimitivePropDef(def.item)) {
-          return renderArrayPrimitiveItem(blockIndex, propName, def, def.item, itemValue, itemIndex);
-        }
-
-        return renderArrayObjectItem(blockIndex, propName, def.item, itemValue, itemIndex);
-      })
-      .join('');
-
-    const sortableEnabled = def.sortable !== false;
-
-    return (
-      `<div class="cms-array-field" data-array-field="true" data-array-block="${blockIndex}" data-array-prop="${escapeHtml(propName)}" data-error-key="${escapeHtml(errorKey(blockIndex, propName))}">` +
-      '<div class="cms-array-field-head">' +
-      `<label class="cms-array-field-label">${withLocaleHint(def.label, isSchemaPropLocalizable(def))}</label>` +
-      '<div class="cms-array-field-meta">' +
-      `<span class="cms-array-field-counter">${items.length} elemento${items.length === 1 ? '' : 's'}</span>` +
-      (limits ? `<span class="cms-array-field-hint">${escapeHtml(limits)}</span>` : '') +
-      `<button type="button" class="cms-btn cms-btn-secondary cms-array-field-add" data-array-add="true" data-array-block="${blockIndex}" data-array-prop="${escapeHtml(propName)}" ${maxReached ? 'disabled' : ''}>Añadir</button>` +
-      '</div>' +
-      '</div>' +
-      `<ul class="cms-array-list" data-array-list="true" data-array-block="${blockIndex}" data-array-prop="${escapeHtml(propName)}" data-array-sortable="${sortableEnabled ? 'true' : 'false'}">${rowsHtml}</ul>` +
-      (maxReached ? `<p class="cms-muted cms-array-field-hint">Has alcanzado el máximo de ${maxItems} elementos.</p>` : '') +
-      arrayErrorHtml +
-      '</div>'
-    );
-  }
-
   function updateBlockSummary(blockIndex: number): void {
     const summaryEl = blockList.querySelector<HTMLElement>(`.cms-block-item[data-index="${blockIndex}"] .cms-block-item-summary`);
     if (!summaryEl || !blocksList[blockIndex]) return;
@@ -658,33 +412,35 @@ export function initPageEditor(): void {
   function focusIssue(issue: BlockValidationIssue): void {
     if (issue.blockIndex === undefined) return;
 
+    // Block body scoped to the affected block — block-form renders fields inside it
+    const blockEl = blockList.querySelector<HTMLElement>(`.cms-block-item[data-index="${issue.blockIndex}"]`);
+    if (!blockEl) return;
+
     let target: Element | null = null;
 
     if (issue.propName) {
-      if (issue.itemIndex !== undefined) {
-        const candidates = Array.from(blockList.querySelectorAll<HTMLElement>('[data-array-block][data-array-prop][data-array-item]'));
-        target = candidates.find((element) => {
-          const parsedBlock = Number.parseInt(element.dataset.arrayBlock || '', 10);
-          const parsedItem = Number.parseInt(element.dataset.arrayItem || '', 10);
-          if (parsedBlock !== issue.blockIndex) return false;
-          if (element.dataset.arrayProp !== issue.propName) return false;
-          if (parsedItem !== issue.itemIndex) return false;
-          if (issue.fieldName) return element.dataset.arrayField === issue.fieldName;
-          return true;
-        }) || null;
-      } else {
-        const primitiveCandidates = Array.from(blockList.querySelectorAll<HTMLElement>('[data-idx][data-prop]'));
-        target = primitiveCandidates.find((element) => {
-          const parsedBlock = Number.parseInt(element.dataset.idx || '', 10);
-          return parsedBlock === issue.blockIndex && element.dataset.prop === issue.propName;
-        }) || blockList.querySelector(`[data-array-field="true"][data-array-block="${issue.blockIndex}"][data-array-prop="${issue.propName}"]`);
+      const body = blockEl.querySelector('.cms-block-item-body');
+      if (body) {
+        if (issue.itemIndex !== undefined) {
+          // Array item: find input with data-array-prop + data-array-item (+ optional data-array-field)
+          const candidates = Array.from(body.querySelectorAll<HTMLElement>('[data-array-prop][data-array-item]'));
+          target = candidates.find((element) => {
+            const parsedItem = Number.parseInt(element.dataset.arrayItem || '', 10);
+            if (element.dataset.arrayProp !== issue.propName) return false;
+            if (parsedItem !== issue.itemIndex) return false;
+            if (issue.fieldName) return element.dataset.arrayField === issue.fieldName;
+            return true;
+          }) || null;
+        } else {
+          // Primitive field: block-form uses data-prop (without data-idx)
+          const primitiveCandidates = Array.from(body.querySelectorAll<HTMLElement>('[data-prop]'));
+          target = primitiveCandidates.find((el) => el.dataset.prop === issue.propName) ||
+            body.querySelector(`[data-array-field="true"][data-array-prop="${issue.propName}"]`);
+        }
       }
     }
 
-    if (!target) {
-      target = blockList.querySelector<HTMLElement>(`.cms-block-item[data-index="${issue.blockIndex}"]`);
-    }
-
+    if (!target) target = blockEl;
     if (!target) return;
 
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -708,7 +464,13 @@ export function initPageEditor(): void {
   }
 
   function renderBlocksList(): void {
-    clearArraySortables();
+    // Snapshot open-array-item state from all live handles before destroying them
+    blockFormHandles.forEach((handle, index) => {
+      handle.getOpenArrayItems().forEach((openRow, propName) => {
+        openArrayItemByKey.set(arrayStateKey(index, propName), openRow);
+      });
+    });
+    destroyBlockFormHandles();
     blockList.innerHTML = '';
 
     if (blocksList.length === 0) {
@@ -746,80 +508,56 @@ export function initPageEditor(): void {
 
       blockList.appendChild(li);
 
-      const body = li.querySelector('.cms-block-item-body');
-      if (!schema || !body) return;
+      const body = li.querySelector<HTMLElement>('.cms-block-item-body');
+      if (!schema?.items || !body) return;
 
-      let fieldsHtml = '<div class="cms-stack cms-block-item-fields">';
-
-      for (const [propName, def] of Object.entries(schema.items || {})) {
-        const value = block.props?.[propName];
-
-        if (def.type === 'array') {
-          fieldsHtml += renderArrayField(index, propName, def, value);
-          continue;
+      // Build a per-block inlineErrors map in block-form key format ("propName::itemIndex::fieldName")
+      // translated from the page-editor key format ("blockIndex::propName::itemIndex::fieldName").
+      const blockErrors = new Map<string, string>();
+      const blockPrefix = `${index}::`;
+      for (const [key, msg] of inlineErrors.entries()) {
+        if (key.startsWith(blockPrefix)) {
+          blockErrors.set(key.slice(blockPrefix.length), msg);
         }
-
-        fieldsHtml += renderPrimitiveField(index, propName, def, value ?? '');
       }
 
-      fieldsHtml += '</div>';
-      body.innerHTML = fieldsHtml;
-    });
-
-    blockList.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('.cms-block-item-fields [data-idx][data-prop]').forEach((input) => {
-      const syncValue = (): void => {
-        const index = Number.parseInt(input.dataset.idx || '', 10);
-        const propName = input.dataset.prop;
-        if (Number.isNaN(index) || !propName || !blocksList[index]) return;
-
-        blocksList[index].props ||= {};
-        blocksList[index].props[propName] = parseFieldValue(input);
-
-        if (clearInlineError(index, propName)) {
-          renderBlocksList();
-          return;
+      // Collect the initial open-array-item state for this block from page-editor state
+      const initialOpen = new Map<string, number | null>();
+      for (const [key, openRow] of openArrayItemByKey.entries()) {
+        if (key.startsWith(blockPrefix)) {
+          initialOpen.set(key.slice(blockPrefix.length), openRow);
         }
+      }
 
-        updateBlockSummary(index);
-      };
+      block.props ||= {};
 
-      input.addEventListener('input', syncValue);
-      input.addEventListener('change', syncValue);
-    });
+      const handle = mountBlockForm({
+        container: body,
+        schemaItems: schema.items,
+        values: block.props,
+        onChange(_values, change) {
+          // block-form has already mutated block.props in place.
+          // If an inline error existed for this field, clear it and re-render the full block list.
+          if (change?.propName) {
+            if (clearInlineError(index, change.propName, change.itemIndex, change.fieldName)) {
+              renderBlocksList();
+              return;
+            }
+          }
+          updateBlockSummary(index);
+        },
+        onArrayLimitReached(info: ArrayLimitInfo) {
+          const limitLabel = info.limit === 'max'
+            ? `Has alcanzado el máximo de ${info.value} elemento${info.value === 1 ? '' : 's'} en este campo.`
+            : `Este campo requiere al menos ${info.value} elemento${info.value === 1 ? '' : 's'}.`;
+          void showAlert(limitLabel, 'Límite del campo');
+        },
+        inlineErrors: blockErrors,
+        fieldPrefix: `page-block-${index}`,
+        initialOpenArrayItems: initialOpen,
+      });
 
-    blockList.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('.cms-block-item-fields [data-array-primitive="true"]').forEach((input) => {
-      const syncValue = (): void => {
-        const blockIndex = Number.parseInt(input.dataset.arrayBlock || '', 10);
-        const propName = input.dataset.arrayProp;
-        const itemIndex = Number.parseInt(input.dataset.arrayItem || '', 10);
-        const fieldName = input.dataset.arrayField;
-
-        if (Number.isNaN(blockIndex) || !propName || Number.isNaN(itemIndex) || !blocksList[blockIndex]) return;
-
-        const values = ensureArrayValue(blockIndex, propName);
-        while (values.length <= itemIndex) values.push('');
-
-        if (fieldName) {
-          const current = values[itemIndex];
-          const objectValue = current && typeof current === 'object' && !Array.isArray(current)
-            ? { ...(current as Record<string, unknown>) }
-            : {};
-          objectValue[fieldName] = parseFieldValue(input);
-          values[itemIndex] = objectValue;
-        } else {
-          values[itemIndex] = parseFieldValue(input);
-        }
-
-        if (clearInlineError(blockIndex, propName, itemIndex, fieldName)) {
-          renderBlocksList();
-          return;
-        }
-
-        updateBlockSummary(blockIndex);
-      };
-
-      input.addEventListener('input', syncValue);
-      input.addEventListener('change', syncValue);
+      blockFormHandles.set(index, handle);
     });
 
     blockList.querySelectorAll<HTMLButtonElement>('.cms-block-item-toggle').forEach((button) => {
@@ -875,129 +613,6 @@ export function initPageEditor(): void {
         renderBlocksList();
         showToast('Bloque eliminado.', 'info', 'Editor');
       });
-    });
-
-    blockList.querySelectorAll<HTMLButtonElement>('.cms-array-field-add').forEach((button) => {
-      button.addEventListener('click', async () => {
-        const blockIndex = Number.parseInt(button.dataset.arrayBlock || '', 10);
-        const propName = button.dataset.arrayProp;
-        if (Number.isNaN(blockIndex) || !propName || !blocksList[blockIndex]) return;
-
-        const schema = schemaMap?.[blocksList[blockIndex].type];
-        const def = schema?.items?.[propName];
-        if (!def || def.type !== 'array') return;
-
-        const values = ensureArrayValue(blockIndex, propName);
-        const maxItems = typeof def.maxItems === 'number' ? def.maxItems : null;
-
-        if (maxItems !== null && values.length >= maxItems) {
-          await showAlert(`Has alcanzado el máximo permitido (${maxItems}).`, 'Límite alcanzado');
-          return;
-        }
-
-        values.push(defaultArrayItemValue(def));
-
-        if (isObjectArrayItemDef(def.item)) {
-          openArrayItemByKey.set(arrayStateKey(blockIndex, propName), values.length - 1);
-        }
-
-        clearInlineErrorsForProp(blockIndex, propName);
-        renderBlocksList();
-        updateBlockSummary(blockIndex);
-      });
-    });
-
-    blockList.querySelectorAll<HTMLButtonElement>('.cms-array-item-delete').forEach((button) => {
-      button.addEventListener('click', async () => {
-        const blockIndex = Number.parseInt(button.dataset.arrayBlock || '', 10);
-        const propName = button.dataset.arrayProp;
-        const itemIndex = Number.parseInt(button.dataset.arrayItem || '', 10);
-
-        if (Number.isNaN(blockIndex) || Number.isNaN(itemIndex) || !propName || !blocksList[blockIndex]) return;
-
-        const schema = schemaMap?.[blocksList[blockIndex].type];
-        const def = schema?.items?.[propName];
-        if (!def || def.type !== 'array') return;
-
-        const values = ensureArrayValue(blockIndex, propName);
-        const minItems = typeof def.minItems === 'number' ? def.minItems : null;
-
-        if (minItems !== null && values.length <= minItems) {
-          await showAlert(`Este campo requiere al menos ${minItems} elemento(s).`, 'No se puede eliminar');
-          return;
-        }
-
-        values.splice(itemIndex, 1);
-
-        const stateKey = arrayStateKey(blockIndex, propName);
-        const openRow = openArrayItemByKey.get(stateKey);
-        if (openRow !== undefined && openRow !== null) {
-          if (openRow === itemIndex) openArrayItemByKey.set(stateKey, null);
-          if (openRow > itemIndex) openArrayItemByKey.set(stateKey, openRow - 1);
-        }
-
-        clearInlineErrorsForProp(blockIndex, propName);
-        renderBlocksList();
-        updateBlockSummary(blockIndex);
-      });
-    });
-
-    blockList.querySelectorAll<HTMLButtonElement>('.cms-array-item-toggle').forEach((button) => {
-      button.addEventListener('click', () => {
-        const blockIndex = Number.parseInt(button.dataset.arrayBlock || '', 10);
-        const propName = button.dataset.arrayProp;
-        const itemIndex = Number.parseInt(button.dataset.arrayItem || '', 10);
-
-        if (Number.isNaN(blockIndex) || Number.isNaN(itemIndex) || !propName) return;
-
-        const stateKey = arrayStateKey(blockIndex, propName);
-        const current = openArrayItemByKey.get(stateKey);
-        openArrayItemByKey.set(stateKey, current === itemIndex ? null : itemIndex);
-        renderBlocksList();
-      });
-    });
-
-    clearArraySortables();
-    blockList.querySelectorAll<HTMLElement>('[data-array-list="true"]').forEach((listEl) => {
-      const sortableEnabled = listEl.dataset.arraySortable !== 'false';
-      if (!sortableEnabled) return;
-
-      const blockIndex = Number.parseInt(listEl.dataset.arrayBlock || '', 10);
-      const propName = listEl.dataset.arrayProp;
-      if (Number.isNaN(blockIndex) || !propName || !blocksList[blockIndex]) return;
-
-      const values = ensureArrayValue(blockIndex, propName);
-      if (values.length < 2) return;
-
-      const sortable = Sortable.create(listEl, {
-        handle: '.cms-array-item-drag',
-        ghostClass: 'cms-dragging',
-        onEnd(event: SortableEvent) {
-          if (event.oldIndex === undefined || event.newIndex === undefined || event.oldIndex === event.newIndex) return;
-
-          const row = values[event.oldIndex];
-          values.splice(event.oldIndex, 1);
-          values.splice(event.newIndex, 0, row);
-
-          const stateKey = arrayStateKey(blockIndex, propName);
-          const openRow = openArrayItemByKey.get(stateKey);
-          if (openRow !== undefined && openRow !== null) {
-            if (openRow === event.oldIndex) {
-              openArrayItemByKey.set(stateKey, event.newIndex);
-            } else if (event.oldIndex < openRow && event.newIndex >= openRow) {
-              openArrayItemByKey.set(stateKey, openRow - 1);
-            } else if (event.oldIndex > openRow && event.newIndex <= openRow) {
-              openArrayItemByKey.set(stateKey, openRow + 1);
-            }
-          }
-
-          clearInlineErrorsForProp(blockIndex, propName);
-          renderBlocksList();
-          updateBlockSummary(blockIndex);
-        },
-      });
-
-      sortableArrays.push(sortable);
     });
 
     sortableBlocks?.destroy();

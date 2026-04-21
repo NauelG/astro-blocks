@@ -217,9 +217,32 @@ export interface AuthResult {
 
 export type PublicRoutingStrategy = 'path-prefix' | 'subdomain' | 'domain';
 
+export interface GlobalBlockDeclaration {
+  slug: string;
+  schema: BlockSchema;
+  label?: string;
+}
+
+export interface GlobalBlockEntry {
+  props: Record<string, unknown>;
+  updatedAt?: string;
+}
+
+export interface GlobalBlocksData {
+  globalBlocks: Record<string, GlobalBlockEntry>;
+}
+
+export interface GlobalBlockRuntimeEntry {
+  slug: string;
+  schemaName: string;
+  componentPath: string;
+  label?: string;
+}
+
 export interface AstroBlocksOptions {
   layoutPath?: string;
   blocks: BlockSchema[];
+  globalBlocks?: GlobalBlockDeclaration[];
   publicRendering?: 'server' | 'static';
   cache?: {
     enabled?: boolean;

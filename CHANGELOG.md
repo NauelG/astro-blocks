@@ -9,6 +9,43 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.0.0] - 2026-04-21
+
+### Title
+
+Global Blocks v2 — schema-driven, locale-aware global blocks with a shared admin field editor
+
+### Added
+
+- **`globalBlocks` config option:** declare slugs bound to a `BlockSchema` — `{ slug, schema, label? }` — in `astro.config.mjs`. The `schema` field is required and must be produced by `defineBlockSchema(..., import.meta.url)`. The plugin validates slug uniqueness, slug format, and `__componentPath` presence at build time; merges global schemas into the shared `componentMap`/`schemaMap`; and emits a thin `globalBlocksRegistry` export (`{ slug, schemaName, componentPath, label }[]`) to `.astro-blocks/runtime.mjs`.
+- **`<GlobalBlock slug="...">` component:** renders exactly **one** component instance bound to the declared slug. Loads stored `props` from `data/global-blocks.json`, resolves the active locale from the URL path prefix (with `Astro.currentLocale` as an optional override for consumers that enable Astro's native `i18n`), projects `LocalizedValueMap` values to the requested locale via `localizeBlockPropsForRender`, and renders the schema-bound component. Unknown slug → silent `console.warn` in dev, empty output in production. Declared slug with no stored entry → renders with empty props (no error).
+- **Locale-aware REST API:**
+  - `GET /cms/api/global-blocks[?locale=xx]` — returns every declared slug with props projected to scalar for the requested locale (or the default locale when none is requested), plus `locale` and `defaultLocale` echo fields.
+  - `GET /cms/api/global-blocks/:slug[?locale=xx]` — returns a single entry projected for the requested locale; `404` if the slug is not declared.
+  - `PUT /cms/api/global-blocks/:slug` body `{ props, locale? }` — scalar props validated against the schema, then merged into the stored `LocalizedValueMap` for the given locale without disturbing other locales. `404` if the slug is not declared; `400` on missing/invalid `props` or schema violations. All endpoints require JWT auth. No POST/DELETE — slugs are static.
+- **Admin UI at `/cms/global-blocks`:** lists declared slugs with resolved labels. Each Edit button opens a **single-block form modal** auto-generated from `schema.items`, using the same field renderers as the page block editor so every field type renders identically across admin surfaces (boolean checkboxes match the "indexable" checkbox in the page form, no size/padding drift). The editor sends scalar values plus the active content locale to the API, preserving non-active locales in storage. No add/remove/reorder UI — exactly one set of props per slug.
+- **Shared `block-form.ts` module:** new internal module (`routes/admin/client/block-form.ts`) extracted from `page-editor.ts`. Exports `mountBlockForm()` for mounting a single-block field form into any container — used by both the page block editor and the global-blocks editor. Supports all field types: `string`, `text`, `number`, `boolean`, `select`, `image`, `url`, `array` (primitive and object, sortable). `onArrayLimitReached` callback lets callers route array min/max alerts into their own UI (the page editor wires this to `showAlert`).
+- **Storage:** content persisted in `data/global-blocks.json` as `{ globalBlocks: { [slug]: { props, updatedAt? } } }`. Each slug stores one flat props object — not a block list. Localizable fields are stored as `LocalizedValueMap` (e.g. `{ es: 'Hola', en: 'Hello' }`) and projected to scalar per-locale at read time.
+
+### Changed
+
+- **`globalBlocks` config shape (BREAKING):** `{ slug, label }` → `{ slug, schema, label? }`. The `schema` field (a `BlockSchema` from `defineBlockSchema`) is now required.
+- **Global block storage shape (BREAKING):** `{ blocks: BlockInstance[] }` → `{ props: Record<string, unknown> }` per slug. One props object per slug, not a list of block instances.
+- **`PUT /cms/api/global-blocks/:slug` body (BREAKING):** was `{ blocks: BlockInstance[] }`, now `{ props: Record<string, unknown>, locale?: string }`.
+- **`PUT /cms/api/global-blocks/:slug` — unregistered slug:** returns `404` (previously `400`). Consistent with REST semantics and `GET` behaviour.
+- **`<GlobalBlock>` rendering:** now renders one component instance (not an iteration over `entry.blocks`). Schema and component are resolved via the `globalBlocksRegistry` emitted at build time.
+- **Admin global-blocks editor:** replaced the block-list editor (add/remove/reorder/select-block-type flow) with a thin single-form controller using `mountBlockForm`.
+
+### Breaking
+
+> **Migration from 1.x:**
+>
+> **Config:** add a `schema` field (from `defineBlockSchema(..., import.meta.url)`) to each `globalBlocks` entry. The legacy `{ slug, label }` shape is rejected at build time.
+>
+> **Data:** legacy entries (`{ blocks: [...] }`) are tolerated on load and treated as `{ props: {} }`. The first successful `PUT` after upgrading overwrites the entry in the new shape. No manual migration script is required — legacy data is preserved until first save.
+>
+> **REST clients:** update PUT payloads from `{ blocks: [...] }` to `{ props: {...}, locale?: '...' }`. Send scalar values per locale; the server merges into the stored `LocalizedValueMap`.
+
 ## [1.0.0] - 2026-04-15
 
 ### Title

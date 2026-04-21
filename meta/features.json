@@ -160,6 +160,16 @@
       "sinceVersion": "0.9.0",
       "updatedIn": "0.11.0-alpha.1",
       "docsPath": "#plugin-options"
+    },
+    {
+      "id": "global-blocks",
+      "title": "Schema-driven global blocks",
+      "summary": "Reusable, schema-bound, locale-aware single-instance blocks with a shared admin editor and a runtime component.",
+      "category": "editor",
+      "status": "alpha",
+      "sinceVersion": "2.0.0",
+      "updatedIn": "2.0.0",
+      "docsPath": "#global-blocks"
     }
   ]
 }

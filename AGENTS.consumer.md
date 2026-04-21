@@ -308,6 +308,18 @@ import { getI18nMeta } from '@astroblocks/astro-blocks/getI18nMeta';
 import type { I18nMetaResult, I18nLayoutContext } from '@astroblocks/astro-blocks/getI18nMeta';
 ```
 
+### `./components/GlobalBlock` — render a global block by slug
+
+```astro
+---
+import GlobalBlock from '@astroblocks/astro-blocks/components/GlobalBlock';
+---
+
+<GlobalBlock slug="site-header" />
+```
+
+Renders the single component instance bound to the declared slug, with locale resolution applied to localizable props. Unknown slug → silent `console.warn` in dev, empty output in production. Declared slug with no stored entry → renders with empty props (no error).
+
 ---
 
 ## Generated Runtime (.astro-blocks/)
@@ -336,6 +348,7 @@ The plugin stores all CMS content as JSON files in your project root under `data
 | `data/redirects.json` | Redirect rules (SSR mode only) |
 | `data/languages.json` | Content language list with default locale |
 | `data/users.json` | Admin user accounts (hashed passwords) |
+| `data/global-blocks.json` | Global block props per declared slug (`{ globalBlocks: { [slug]: { props, updatedAt? } } }`) |
 | `public/uploads/` | Uploaded files (images and documents) |
 
 **Commit these files to git.** They are your CMS content source of truth.
@@ -358,10 +371,148 @@ These routes are **INJECTED by the plugin via `injectRoute`**. Do NOT create the
 | `/cms/cache` | Cache management and invalidation |
 | `/cms/menus` | Menu builder |
 | `/cms/languages` | Content language management |
+| `/cms/global-blocks` | Global block management — declared slugs with single-block form per slug |
 | `/cms/users` | Admin user management |
 | `/cms/api/[...path]` | Internal API used by the admin UI — do not call directly |
 
 **These routes cannot be customized or overridden by consumers.** They are entirely managed by the plugin. If you need to customize the admin UI, file an issue — do not try to shadow these routes.
+
+---
+
+## Global Blocks
+
+Global blocks are reusable singleton content sections — site headers, footers, promotional banners — that are edited once and rendered anywhere via the `<GlobalBlock>` component. Unlike page blocks, global blocks are not tied to a specific URL: each declared slug stores exactly **one set of props** in a shared JSON store.
+
+> **v2 (schema-driven).** Each slug is bound to a specific `BlockSchema` at declaration time. The admin renders a single form for that schema's fields — there is no add/remove/reorder block-list UI. See the [Migration note](#migration-from-v1-alpha) below if you are upgrading from the earlier alpha.
+
+### Declaring global blocks
+
+Add a `globalBlocks` array to your integration options in `astro.config.mjs`. Each entry requires a `schema` produced by `defineBlockSchema`:
+
+```js
+import { defineConfig } from 'astro/config';
+import astroBlocks from '@astroblocks/astro-blocks';
+import { defineBlockSchema } from '@astroblocks/astro-blocks/contract';
+import { heroSchema } from './src/blocks/Hero.astro';
+import { globalHeaderSchema } from './src/components/GlobalHeader.astro';
+import { globalFooterSchema } from './src/components/GlobalFooter.astro';
+
+export default defineConfig({
+  integrations: [
+    astroBlocks({
+      blocks: [heroSchema],
+      globalBlocks: [
+        { slug: 'site-header', schema: globalHeaderSchema, label: 'Header' },
+        { slug: 'site-footer', schema: globalFooterSchema },
+      ],
+    }),
+  ],
+});
+```
+
+**Config shape:**
+
+```ts
+globalBlocks?: Array<{
+  slug: string;       // ^[a-z0-9][a-z0-9-]*$  — unique, static
+  schema: BlockSchema; // produced by defineBlockSchema(..., import.meta.url) — REQUIRED
+  label?: string;     // admin display label; falls back to schema.name, then slug
+}>
+```
+
+**Slug rules:** lowercase alphanumeric and hyphens only (`^[a-z0-9][a-z0-9-]*$`). Slugs must be unique across `globalBlocks`. Duplicates or schemas missing `__componentPath` (i.e. `defineBlockSchema` called without `import.meta.url`) throw a descriptive error at build time.
+
+**Static scope:** slugs are declared at config time, not at runtime. To add or remove a slug, edit `astro.config.mjs` and rebuild.
+
+### Rendering a global block
+
+Import and use the `<GlobalBlock>` component anywhere in your Astro project — layouts, pages, or other components:
+
+```astro
+---
+import GlobalBlock from '@astroblocks/astro-blocks/components/GlobalBlock';
+---
+
+<GlobalBlock slug="site-header" />
+<main><!-- page content --></main>
+<GlobalBlock slug="site-footer" />
+```
+
+The component looks up the schema bound to the slug, loads the stored `props` from `data/global-blocks.json`, resolves localizable fields via `Astro.currentLocale`, and renders **exactly one** component instance. If the slug has no stored entry it renders with empty props (no error). If the slug is not declared in config it outputs nothing and logs a `console.warn` in dev mode.
+
+### Admin UI
+
+Navigate to `/cms/global-blocks` in the admin panel to manage global blocks. Each declared slug appears as a row with its resolved label and an Edit button. Clicking Edit opens a **single-block form modal** auto-generated from that slug's `schema.items` — the same field renderers used by the page block editor. There is no add/remove/reorder UI — there is always exactly one set of props per slug. Save triggers `PUT /cms/api/global-blocks/:slug` with `{ props }`.
+
+### REST API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/cms/api/global-blocks` | List all declared slugs with their stored props |
+| `GET` | `/cms/api/global-blocks/:slug` | Get a single slug entry (404 if slug not declared) |
+| `PUT` | `/cms/api/global-blocks/:slug` | Save props for a slug |
+
+All endpoints require a valid `Authorization: Bearer <token>` header. There is no `POST` or `DELETE` — slugs are static.
+
+**Request body for PUT:**
+
+```json
+{ "props": { "siteTitle": "My Site", "ctaLabel": "Contact" } }
+```
+
+**Response codes:**
+
+| Code | Condition |
+|------|-----------|
+| `200` | Success — returns `{ globalBlocks: { [slug]: { props, updatedAt } } }` |
+| `400` | `props` key missing, not an object, or fails schema validation |
+| `404` | Slug not declared in config |
+
+### Storage shape
+
+Global block content is stored in `data/global-blocks.json`. Commit this file to git — it is your content source of truth.
+
+```json
+{
+  "globalBlocks": {
+    "site-header": {
+      "props": { "siteTitle": "My Site", "ctaLabel": "Contact" },
+      "updatedAt": "2026-04-21T12:00:00.000Z"
+    },
+    "site-footer": {
+      "props": {}
+    }
+  }
+}
+```
+
+Each slug stores `{ props: Record<string, unknown>, updatedAt?: string }`. Slugs with no stored entry return `{ props: {} }` from the API and render with empty props.
+
+### i18n
+
+Localizable props use the same `LocalizedValueMap` pattern as page blocks. When a prop is marked `localizable: true` in its schema, the stored value is an object keyed by locale code:
+
+```json
+{
+  "props": {
+    "siteTitle": { "en": "My Site", "es": "Mi Sitio" }
+  }
+}
+```
+
+The `<GlobalBlock>` component resolves the correct locale value at render time using `Astro.currentLocale`.
+
+### Migration from v1 (alpha)
+
+> **Alpha — breaking change.** This applies only if you used the earlier alpha release that accepted `{ slug, label }` (without `schema`) and stored `{ blocks: BlockInstance[] }` per slug.
+
+- **Config:** add a `schema` field to each `globalBlocks` entry. `schema` must be produced by `defineBlockSchema(..., import.meta.url)`.
+- **Data:** the first successful `PUT` after upgrading rewrites the stored entry to the new `{ props }` shape. On load, legacy entries (`{ blocks: [] }`) are silently treated as `{ props: {} }` — no data loss, no manual migration script required.
+- **Rendering:** `<GlobalBlock>` now renders one component instance (not a list). If your layout depended on iterating `entry.blocks`, simplify to a single block type declared via `schema`.
+
+### Known limitations
+
+**Config/data drift is silently ignored.** If you remove a slug from `globalBlocks` in `astro.config.mjs`, the corresponding data in `data/global-blocks.json` is preserved but silently ignored — the admin UI will not show it, and the API will return 404 for it. To clean up orphaned data, remove the entry from `data/global-blocks.json` manually.
 
 ---
 

@@ -9,7 +9,8 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import type { AstroIntegration } from 'astro';
 import { buildSchemaMap, resolveBlockEntries } from '../utils/blocks.js';
-import type { AstroBlocksOptions } from '../types/index.js';
+import { COMPONENT_PATH_KEY } from '../contract/index.js';
+import type { AstroBlocksOptions, GlobalBlockDeclaration } from '../types/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmsDir = path.resolve(__dirname, '..');
@@ -36,30 +37,89 @@ function getProjectRoot(config?: { root?: string | URL }): string {
   return process.cwd();
 }
 
-async function generateRuntime(projectRoot: string, options: AstroBlocksOptions): Promise<void> {
+const GLOBAL_BLOCK_SLUG_REGEX = /^[a-z0-9][a-z0-9-]*$/;
+
+export function validateGlobalBlocks(declarations: GlobalBlockDeclaration[]): void {
+  const seen = new Set<string>();
+  for (const { slug, schema } of declarations) {
+    if (!GLOBAL_BLOCK_SLUG_REGEX.test(slug)) {
+      throw new Error(
+        `[astro-blocks] Invalid globalBlocks slug "${slug}". Slugs must match ^[a-z0-9][a-z0-9-]*$.`
+      );
+    }
+    if (seen.has(slug)) {
+      throw new Error(
+        `[astro-blocks] Duplicate globalBlocks slug "${slug}". Each slug must be unique.`
+      );
+    }
+    seen.add(slug);
+
+    // Each declared schema must carry a component path (set by defineBlockSchema(..., import.meta.url))
+    if (!schema || !(schema as unknown as Record<string, unknown>)[COMPONENT_PATH_KEY]) {
+      throw new Error(
+        `[astro-blocks] globalBlocks slug "${slug}": schema is missing __componentPath. ` +
+        `Make sure you call defineBlockSchema(definition, import.meta.url) when defining the schema.`
+      );
+    }
+  }
+}
+
+export async function generateRuntime(projectRoot: string, options: AstroBlocksOptions): Promise<void> {
   const layoutPath = options.layoutPath || './src/layouts/Layout.astro';
   const astroBlocksDir = path.join(projectRoot, '.astro-blocks');
-  const blockEntries = resolveBlockEntries(projectRoot, Array.isArray(options.blocks) ? options.blocks : []);
-  const schemaMap = buildSchemaMap(blockEntries);
 
   const relFromAstroBlocks = (absolutePath: string): string => {
     const normalized = path.isAbsolute(absolutePath) ? absolutePath : path.resolve(projectRoot, absolutePath);
     return path.relative(astroBlocksDir, normalized).replace(/\\/g, '/');
   };
 
+  // Page-block entries
+  const blockEntries = resolveBlockEntries(projectRoot, Array.isArray(options.blocks) ? options.blocks : []);
+
+  // Global-block entries — resolve via the same pipeline to enforce __componentPath + key derivation
+  const globalBlockDeclarations = Array.isArray(options.globalBlocks) ? options.globalBlocks : [];
+  const globalBlockSchemas = globalBlockDeclarations.map((g) => g.schema);
+  const globalBlockEntries = resolveBlockEntries(projectRoot, globalBlockSchemas);
+
+  // Merge all entries for componentMap + schemaMap
+  const allEntries = [...blockEntries, ...globalBlockEntries];
+  const schemaMap = buildSchemaMap(allEntries);
+
   const layoutAbs = path.resolve(projectRoot, layoutPath);
   const layoutRel = relFromAstroBlocks(layoutAbs);
 
+  // Thin runtime registry: only what's needed at render/admin time
+  const registryEntries = globalBlockDeclarations.map((decl, i) => {
+    const entry = globalBlockEntries[i];
+    return {
+      slug: decl.slug,
+      schemaName: entry.key,
+      componentPath: relFromAstroBlocks(entry.resolvedPath),
+      label: decl.label,
+    };
+  });
+
+  const registryLines =
+    registryEntries.length === 0
+      ? ['export const globalBlocksRegistry = [];']
+      : [
+          'export const globalBlocksRegistry = [',
+          ...registryEntries.map((e) =>
+            `  { slug: ${JSON.stringify(e.slug)}, schemaName: ${JSON.stringify(e.schemaName)}, componentPath: ${JSON.stringify(e.componentPath)}${e.label !== undefined ? `, label: ${JSON.stringify(e.label)}` : ''} },`
+          ),
+          '];',
+        ];
+
   const runtimeLines = [
     `import Layout from ${JSON.stringify(layoutRel)};`,
-    ...blockEntries.map((entry) => {
+    ...allEntries.map((entry) => {
       const relPath = relFromAstroBlocks(entry.resolvedPath);
       const variableName = entry.key.replace(/-/g, '_').replace(/\s/g, '_') || 'block';
       return `import * as ${variableName} from ${JSON.stringify(relPath)};`;
     }),
     'export { Layout };',
     'export const componentMap = {',
-    ...blockEntries.map((entry) => {
+    ...allEntries.map((entry) => {
       const variableName = entry.key.replace(/-/g, '_').replace(/\s/g, '_') || 'block';
       return `  ${JSON.stringify(entry.key)}: ${variableName}.default,`;
     }),
@@ -67,6 +127,7 @@ async function generateRuntime(projectRoot: string, options: AstroBlocksOptions)
     'export const schemaMap = {',
     ...Object.entries(schemaMap).map(([key, value]) => `  ${JSON.stringify(key)}: ${JSON.stringify(value)},`),
     '};',
+    ...registryLines,
   ];
 
   const schemaMapLines = [
@@ -123,6 +184,10 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
 
         if (!Array.isArray(resolvedOptions.blocks)) {
           throw new Error('[astro-blocks] options.blocks is required and must be an array (e.g. blocks: [heroSchema, ...]).');
+        }
+
+        if (Array.isArray(resolvedOptions.globalBlocks)) {
+          validateGlobalBlocks(resolvedOptions.globalBlocks);
         }
 
         if (resolvedOptions.i18n.routingStrategy !== 'path-prefix') {
@@ -186,6 +251,7 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
         }
 
         injectRoute({ pattern: '/cms', entrypoint: resolveCms('admin/index.astro') });
+        injectRoute({ pattern: '/cms/global-blocks', entrypoint: resolveCms('admin/global-blocks.astro') });
         injectRoute({ pattern: '/cms/pages', entrypoint: resolveCms('admin/pages.astro') });
         injectRoute({ pattern: '/cms/redirects', entrypoint: resolveCms('admin/redirects.astro') });
         injectRoute({ pattern: '/cms/configs', entrypoint: resolveCms('admin/configs.astro') });

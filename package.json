@@ -1,6 +1,6 @@
 {
   "name": "@astroblocks/astro-blocks",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Block-based content CMS integration for Astro with admin panel, page builder, menus, SEO and cache invalidation.",
   "homepage": "https://github.com/NauelG/astro-blocks#readme",
   "repository": {
@@ -40,6 +40,9 @@
     "./getI18nMeta": {
       "types": "./dist/utils/getI18nMeta.d.ts",
       "import": "./dist/utils/getI18nMeta.js"
+    },
+    "./components/GlobalBlock": {
+      "import": "./dist/components/GlobalBlock.astro"
     }
   },
   "types": "./dist/plugin/index.d.ts",
