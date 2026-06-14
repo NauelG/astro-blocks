@@ -1,0 +1,268 @@
+{
+  "uploads": [
+    {
+      "id": "jk2pz5f1lpomqe2630w",
+      "url": "/uploads/2026/06/b0a49cfb-mountain-sunrise.jpg",
+      "filename": "mountain-sunrise.jpg",
+      "size": 71702,
+      "mimeType": "image/jpeg",
+      "createdAt": "2026-06-14T17:28:40.400Z",
+      "width": 1920,
+      "height": 1080,
+      "status": "ready",
+      "variants": [
+        {
+          "format": "webp",
+          "width": 480,
+          "url": "/uploads/2026/06/b0a49cfb-mountain-sunrise-480.webp"
+        },
+        {
+          "format": "avif",
+          "width": 480,
+          "url": "/uploads/2026/06/b0a49cfb-mountain-sunrise-480.avif"
+        },
+        {
+          "format": "webp",
+          "width": 800,
+          "url": "/uploads/2026/06/b0a49cfb-mountain-sunrise-800.webp"
+        },
+        {
+          "format": "avif",
+          "width": 800,
+          "url": "/uploads/2026/06/b0a49cfb-mountain-sunrise-800.avif"
+        },
+        {
+          "format": "webp",
+          "width": 1200,
+          "url": "/uploads/2026/06/b0a49cfb-mountain-sunrise-1200.webp"
+        },
+        {
+          "format": "avif",
+          "width": 1200,
+          "url": "/uploads/2026/06/b0a49cfb-mountain-sunrise-1200.avif"
+        }
+      ],
+      "alt": "Abstract gradient placeholder evoking a mountain sunrise in warm purple and orange tones."
+    },
+    {
+      "id": "lp6bh8jl9mpmqe2631f",
+      "url": "/uploads/2026/06/2ae86013-abstract-waves.png",
+      "filename": "abstract-waves.png",
+      "size": 84448,
+      "mimeType": "image/png",
+      "createdAt": "2026-06-14T17:28:40.419Z",
+      "width": 1600,
+      "height": 900,
+      "status": "ready",
+      "variants": [
+        {
+          "format": "webp",
+          "width": 480,
+          "url": "/uploads/2026/06/2ae86013-abstract-waves-480.webp"
+        },
+        {
+          "format": "avif",
+          "width": 480,
+          "url": "/uploads/2026/06/2ae86013-abstract-waves-480.avif"
+        },
+        {
+          "format": "webp",
+          "width": 800,
+          "url": "/uploads/2026/06/2ae86013-abstract-waves-800.webp"
+        },
+        {
+          "format": "avif",
+          "width": 800,
+          "url": "/uploads/2026/06/2ae86013-abstract-waves-800.avif"
+        },
+        {
+          "format": "webp",
+          "width": 1200,
+          "url": "/uploads/2026/06/2ae86013-abstract-waves-1200.webp"
+        },
+        {
+          "format": "avif",
+          "width": 1200,
+          "url": "/uploads/2026/06/2ae86013-abstract-waves-1200.avif"
+        }
+      ],
+      "alt": "Abstract teal and navy gradient placeholder with layered wave shapes."
+    },
+    {
+      "id": "5u8odkxrho6mqe2631j",
+      "url": "/uploads/2026/06/abfbab43-ocean-gradient.webp",
+      "filename": "ocean-gradient.webp",
+      "size": 21392,
+      "mimeType": "image/webp",
+      "createdAt": "2026-06-14T17:28:40.423Z",
+      "width": 1200,
+      "height": 1200,
+      "status": "ready",
+      "variants": [
+        {
+          "format": "webp",
+          "width": 480,
+          "url": "/uploads/2026/06/abfbab43-ocean-gradient-480.webp"
+        },
+        {
+          "format": "avif",
+          "width": 480,
+          "url": "/uploads/2026/06/abfbab43-ocean-gradient-480.avif"
+        },
+        {
+          "format": "webp",
+          "width": 800,
+          "url": "/uploads/2026/06/abfbab43-ocean-gradient-800.webp"
+        },
+        {
+          "format": "avif",
+          "width": 800,
+          "url": "/uploads/2026/06/abfbab43-ocean-gradient-800.avif"
+        }
+      ],
+      "alt": "Radial ocean gradient placeholder fading from teal to deep blue."
+    },
+    {
+      "id": "h0wi0uo83nrmqe2631n",
+      "url": "/uploads/2026/06/0954b461-city-skyline.jpg",
+      "filename": "city-skyline.jpg",
+      "size": 49006,
+      "mimeType": "image/jpeg",
+      "createdAt": "2026-06-14T17:28:40.427Z",
+      "width": 2000,
+      "height": 1000,
+      "status": "ready",
+      "variants": [
+        {
+          "format": "webp",
+          "width": 480,
+          "url": "/uploads/2026/06/0954b461-city-skyline-480.webp"
+        },
+        {
+          "format": "avif",
+          "width": 480,
+          "url": "/uploads/2026/06/0954b461-city-skyline-480.avif"
+        },
+        {
+          "format": "webp",
+          "width": 800,
+          "url": "/uploads/2026/06/0954b461-city-skyline-800.webp"
+        },
+        {
+          "format": "avif",
+          "width": 800,
+          "url": "/uploads/2026/06/0954b461-city-skyline-800.avif"
+        },
+        {
+          "format": "webp",
+          "width": 1200,
+          "url": "/uploads/2026/06/0954b461-city-skyline-1200.webp"
+        },
+        {
+          "format": "avif",
+          "width": 1200,
+          "url": "/uploads/2026/06/0954b461-city-skyline-1200.avif"
+        },
+        {
+          "format": "webp",
+          "width": 1920,
+          "url": "/uploads/2026/06/0954b461-city-skyline-1920.webp"
+        },
+        {
+          "format": "avif",
+          "width": 1920,
+          "url": "/uploads/2026/06/0954b461-city-skyline-1920.avif"
+        }
+      ],
+      "alt": "Abstract purple gradient placeholder suggesting a night city skyline."
+    },
+    {
+      "id": "0nws98x1pnvmqe2633w",
+      "url": "/uploads/2026/06/6d16f4b6-forest-banner.jpg",
+      "filename": "forest-banner.jpg",
+      "size": 89410,
+      "mimeType": "image/jpeg",
+      "createdAt": "2026-06-14T17:28:40.508Z",
+      "width": 1920,
+      "height": 800,
+      "status": "ready",
+      "variants": [
+        {
+          "format": "webp",
+          "width": 480,
+          "url": "/uploads/2026/06/6d16f4b6-forest-banner-480.webp"
+        },
+        {
+          "format": "avif",
+          "width": 480,
+          "url": "/uploads/2026/06/6d16f4b6-forest-banner-480.avif"
+        },
+        {
+          "format": "webp",
+          "width": 800,
+          "url": "/uploads/2026/06/6d16f4b6-forest-banner-800.webp"
+        },
+        {
+          "format": "avif",
+          "width": 800,
+          "url": "/uploads/2026/06/6d16f4b6-forest-banner-800.avif"
+        },
+        {
+          "format": "webp",
+          "width": 1200,
+          "url": "/uploads/2026/06/6d16f4b6-forest-banner-1200.webp"
+        },
+        {
+          "format": "avif",
+          "width": 1200,
+          "url": "/uploads/2026/06/6d16f4b6-forest-banner-1200.avif"
+        }
+      ],
+      "alt": "Wide green gradient placeholder evoking a layered forest banner."
+    },
+    {
+      "id": "2tvlz0wfllemqe2639s",
+      "url": "/uploads/2026/06/d5b62994-sunset-hero.png",
+      "filename": "sunset-hero.png",
+      "size": 44335,
+      "mimeType": "image/png",
+      "createdAt": "2026-06-14T17:28:40.720Z",
+      "width": 1500,
+      "height": 1000,
+      "status": "ready",
+      "variants": [
+        {
+          "format": "webp",
+          "width": 480,
+          "url": "/uploads/2026/06/d5b62994-sunset-hero-480.webp"
+        },
+        {
+          "format": "avif",
+          "width": 480,
+          "url": "/uploads/2026/06/d5b62994-sunset-hero-480.avif"
+        },
+        {
+          "format": "webp",
+          "width": 800,
+          "url": "/uploads/2026/06/d5b62994-sunset-hero-800.webp"
+        },
+        {
+          "format": "avif",
+          "width": 800,
+          "url": "/uploads/2026/06/d5b62994-sunset-hero-800.avif"
+        },
+        {
+          "format": "webp",
+          "width": 1200,
+          "url": "/uploads/2026/06/d5b62994-sunset-hero-1200.webp"
+        },
+        {
+          "format": "avif",
+          "width": 1200,
+          "url": "/uploads/2026/06/d5b62994-sunset-hero-1200.avif"
+        }
+      ],
+      "alt": "Abstract gradient placeholder evoking a sunset hero scene in pink and gold."
+    }
+  ]
+}

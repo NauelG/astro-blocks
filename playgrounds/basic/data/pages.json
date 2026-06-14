@@ -154,6 +154,78 @@
       },
       "createdAt": "2026-03-19T10:00:00.000Z",
       "updatedAt": "2026-03-19T10:00:00.000Z"
+    },
+    {
+      "id": "media-showcase-page",
+      "title": {
+        "es": "Galería de medios",
+        "en": "Media Showcase"
+      },
+      "slug": {
+        "es": "/galeria",
+        "en": "/media"
+      },
+      "status": {
+        "es": "published",
+        "en": "published"
+      },
+      "indexable": {
+        "es": true,
+        "en": true
+      },
+      "seo": {
+        "title": {
+          "es": "Galería de medios | AstroBlocks Playground",
+          "en": "Media Showcase | AstroBlocks Playground"
+        },
+        "description": {
+          "es": "Demostración del bloque MediaShowcase con imágenes responsivas (picture + webp/avif).",
+          "en": "Demonstration of the MediaShowcase block with responsive images (picture + webp/avif)."
+        },
+        "canonical": {},
+        "image": {},
+        "nofollow": {
+          "es": false,
+          "en": false
+        }
+      },
+      "blocks": [
+        {
+          "type": "MediaShowcase",
+          "props": {
+            "heroImage": {
+              "url": "/uploads/2026/06/0954b461-city-skyline.jpg",
+              "alt": "Abstract purple gradient placeholder suggesting a night city skyline.",
+              "width": 2000,
+              "height": 1000
+            },
+            "galleryImage1": {
+              "url": "/uploads/2026/06/abfbab43-ocean-gradient.webp",
+              "alt": "Radial ocean gradient placeholder fading from teal to deep blue.",
+              "width": 1200,
+              "height": 1200,
+              "caption": "Ocean gradient — radial WebP source"
+            },
+            "galleryImage2": {
+              "url": "/uploads/2026/06/6d16f4b6-forest-banner.jpg",
+              "alt": "Wide green gradient placeholder evoking a layered forest banner.",
+              "width": 1920,
+              "height": 800,
+              "caption": "Forest banner — wide JPEG source"
+            },
+            "caption": {
+              "es": "Las imágenes se sirven como <picture> con variantes WebP y AVIF generadas desde el registro de medios.",
+              "en": "Images are served as <picture> with WebP and AVIF variants generated from the media registry."
+            }
+          }
+        }
+      ],
+      "publishedAt": {
+        "es": "2026-03-19T10:00:00.000Z",
+        "en": "2026-03-19T10:00:00.000Z"
+      },
+      "createdAt": "2026-03-19T10:00:00.000Z",
+      "updatedAt": "2026-03-19T10:00:00.000Z"
     }
   ]
 }

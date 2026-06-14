@@ -34,12 +34,15 @@ Thumbs.db
 
 # Package-root data/ must never exist; it is always consumer/playground-scoped.
 # If tests leak writes to process.cwd()/data, git will not track them.
-data/
+# Anchored to the repo root so it does NOT also ignore the versioned
+# playgrounds/basic/data/ demo directory (media.json lives there).
+/data/
 # public/uploads/
 
-# Playground runtime media data (uploaded files + generated registry are not versioned)
-playgrounds/basic/public/uploads/
-playgrounds/basic/data/media.json
+# NOTE: playgrounds/basic/public/uploads/ and playgrounds/basic/data/media.json
+# are intentionally VERSIONED — they hold the curated MediaShowcase demo state
+# (6 placeholder images + responsive variants + ready registry) so the example
+# works on clone with no setup. Do not re-add them here.
 
 # Coverage y tests
 coverage/
