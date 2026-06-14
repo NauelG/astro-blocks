@@ -14,10 +14,26 @@ const site = await loadSite();
 const mediaData = await loadMedia();
 const uploads = mediaData.uploads;
 
+// NOTE: formatBytes is intentionally duplicated from routes/admin/client/media-fetch.ts.
+// SSR (Astro frontmatter) cannot import client-only ES modules, so the function
+// is inlined here. Keep the two copies in sync if the logic changes.
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDimensions(width?: number, height?: number): string {
+  if (width !== undefined && height !== undefined && width > 0 && height > 0) {
+    return `${width}×${height}`;
+  }
+  return '—';
+}
+
+function formatMediaDate(isoString: string): string {
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return isoString;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 ---
 
@@ -66,6 +82,27 @@ function formatBytes(bytes: number): string {
       <div id="cms-media-upload-progress" class="cms-hidden cms-media-upload-progress" aria-live="polite"></div>
     </div>
 
+    <!-- Search + pagination controls (client-driven; hidden until JS loads) -->
+    <div class="cms-media-toolbar cms-hidden" id="cms-media-toolbar" aria-label="Media search and pagination">
+      <div class="cms-media-toolbar-search">
+        <label for="cms-media-search" class="cms-visually-hidden">Search images by filename</label>
+        <input
+          type="search"
+          id="cms-media-search"
+          class="cms-input cms-media-search-input"
+          placeholder="Search by filename…"
+          autocomplete="off"
+          aria-label="Search images by filename"
+        />
+      </div>
+      <div class="cms-media-toolbar-pagination">
+        <button type="button" id="cms-media-prev" class="cms-btn cms-btn-secondary" aria-label="Previous page" disabled>Prev</button>
+        <span id="cms-media-page-indicator" class="cms-media-page-indicator cms-muted" aria-live="polite" aria-atomic="true"></span>
+        <button type="button" id="cms-media-next" class="cms-btn cms-btn-secondary" aria-label="Next page" disabled>Next</button>
+      </div>
+      <p role="status" aria-live="polite" id="cms-media-count" class="cms-media-count cms-muted"></p>
+    </div>
+
     <!-- Media grid -->
     <div class="cms-card cms-card--no-padding" id="cms-media-grid-card">
       {uploads.length === 0 ? (
@@ -88,7 +125,19 @@ function formatBytes(bytes: number): string {
               </div>
               <div class="cms-media-card-info">
                 <span class="cms-media-card-name" title={entry.filename}>{entry.filename}</span>
-                <span class="cms-media-card-size cms-muted">{formatBytes(entry.size)}</span>
+                <div class="cms-media-card-meta cms-muted" aria-label="Image metadata">
+                  {formatDimensions(entry.width, entry.height) !== '—' && (
+                    <>
+                      <span class="cms-media-card-meta-dim">{formatDimensions(entry.width, entry.height)}</span>
+                      <span class="cms-media-card-meta-sep" aria-hidden="true">·</span>
+                    </>
+                  )}
+                  <span class="cms-media-card-meta-size">{formatBytes(entry.size)}</span>
+                  <span class="cms-media-card-meta-sep" aria-hidden="true">·</span>
+                  <span class="cms-media-card-meta-type">{entry.mimeType}</span>
+                  <span class="cms-media-card-meta-sep" aria-hidden="true">·</span>
+                  <span class="cms-media-card-meta-date">{formatMediaDate(entry.createdAt)}</span>
+                </div>
               </div>
               <button
                 type="button"

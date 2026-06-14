@@ -9,7 +9,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ensureDefaultFiles, loadMedia, saveMedia } from '../dist/api/data.js';
+import { ensureDefaultFiles, loadMedia, saveMedia, appendMediaEntry, generateId } from '../dist/api/data.js';
 import { handleGetMedia } from '../dist/api/handlers.js';
 
 // Minimal JWT creation for auth — tests use getAuth which reads from Authorization header
@@ -162,5 +162,276 @@ test('T-16: loadMedia — new entry with alt/width/height loads cleanly (SC-3.2)
     assert.equal(entry.alt, 'A dog');
     assert.equal(entry.width, 1024);
     assert.equal(entry.height, 768);
+  });
+});
+
+// ─── Helper to create real upload files for reconcile tests ──────────────────
+
+async function createRealEntry(tempRoot, subdir, filename, mimeType = 'image/jpeg', createdAt = new Date().toISOString()) {
+  const dir = path.join(tempRoot, 'public', 'uploads', subdir.replace(/\//g, path.sep));
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, filename), 'fake-image-content');
+  return {
+    id: generateId(),
+    url: `/uploads/${subdir}/${filename}`,
+    filename,
+    size: 18,
+    mimeType,
+    createdAt,
+  };
+}
+
+// ─── Phase 1 TDD Tests: R1 – Default params, limit clamping, NaN ─────────────
+
+// Task 1.1 [RED] — default params: 30 entries → page 1, limit 24, total 30, 24 uploads
+test('ML-R1-default: default params — 30 entries returns page:1, limit:24, total:30, 24 uploads', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Create 30 real file entries
+    const entries = [];
+    for (let i = 0; i < 30; i++) {
+      const subdir = '2026/06';
+      const filename = `file-${String(i).padStart(2, '0')}.jpg`;
+      const entry = await createRealEntry(tempRoot, subdir, filename);
+      entries.push(entry);
+    }
+    await saveMedia({ uploads: entries });
+
+    const token = await makeAuthToken();
+    const req = new Request('http://localhost/cms/api/media', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+
+    assert.equal(body.page, 1, 'page should be 1');
+    assert.equal(body.limit, 24, 'limit should be 24');
+    assert.equal(body.total, 30, 'total should be 30');
+    assert.equal(body.uploads.length, 24, 'uploads should have 24 entries');
+  });
+});
+
+// Task 1.2 [RED] — limit=0 clamped to 1
+test('ML-R1-limit-clamp-low: limit=0 clamped to 1', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entries = [];
+    for (let i = 0; i < 10; i++) {
+      const entry = await createRealEntry(tempRoot, '2026/06', `file-${i}.jpg`);
+      entries.push(entry);
+    }
+    await saveMedia({ uploads: entries });
+
+    const token = await makeAuthToken();
+    const req = new Request('http://localhost/cms/api/media?limit=0', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.limit, 1, 'limit should be clamped to 1');
+    assert.ok(body.uploads.length <= 1, 'uploads should have at most 1 entry');
+    assert.ok(!body.error, 'no error should be returned');
+  });
+});
+
+// Task 1.3 [RED] — limit=500 clamped to 100
+test('ML-R1-limit-clamp-high: limit=500 clamped to 100', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entries = [];
+    for (let i = 0; i < 10; i++) {
+      const entry = await createRealEntry(tempRoot, '2026/06', `file-${i}.jpg`);
+      entries.push(entry);
+    }
+    await saveMedia({ uploads: entries });
+
+    const token = await makeAuthToken();
+    const req = new Request('http://localhost/cms/api/media?limit=500', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.limit, 100, 'limit should be clamped to 100');
+    assert.ok(body.uploads.length <= 100, 'uploads should have at most 100 entries');
+  });
+});
+
+// Task 1.4 [RED] — NaN params → defaults
+test('ML-R1-nan-defaults: NaN page and limit → defaults applied', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entries = [];
+    for (let i = 0; i < 5; i++) {
+      const entry = await createRealEntry(tempRoot, '2026/06', `file-${i}.jpg`);
+      entries.push(entry);
+    }
+    await saveMedia({ uploads: entries });
+
+    const token = await makeAuthToken();
+    const req = new Request('http://localhost/cms/api/media?page=abc&limit=xyz', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.page, 1, 'page should default to 1');
+    assert.equal(body.limit, 24, 'limit should default to 24');
+  });
+});
+
+// Task 1.5 [RED] — q filter case-insensitive substring match
+test('ML-R4-filter-ci: q=banner matches both banner entries case-insensitively', async () => {
+  await withTempProject(async (tempRoot) => {
+    const subdir = '2026/06';
+    const heroBanner = await createRealEntry(tempRoot, subdir, 'hero-Banner.jpg');
+    const bannerSmall = await createRealEntry(tempRoot, subdir, 'banner-small.png', 'image/png');
+    const profile = await createRealEntry(tempRoot, subdir, 'profile.jpg');
+    await saveMedia({ uploads: [heroBanner, bannerSmall, profile] });
+
+    const token = await makeAuthToken();
+    const req = new Request('http://localhost/cms/api/media?q=banner', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.total, 2, 'total should be 2 (both banner entries)');
+    assert.equal(body.uploads.length, 2, 'uploads should have 2 entries');
+    const filenames = body.uploads.map((u) => u.filename);
+    assert.ok(filenames.includes('hero-Banner.jpg'), 'hero-Banner.jpg should be included');
+    assert.ok(filenames.includes('banner-small.png'), 'banner-small.png should be included');
+    assert.ok(!filenames.includes('profile.jpg'), 'profile.jpg should not be included');
+  });
+});
+
+// Task 1.6 [RED] — q='' returns all 15 entries
+test('ML-R4-empty-q: q= (empty string) returns all entries', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entries = [];
+    for (let i = 0; i < 15; i++) {
+      const entry = await createRealEntry(tempRoot, '2026/06', `img-${i}.jpg`);
+      entries.push(entry);
+    }
+    await saveMedia({ uploads: entries });
+
+    const token = await makeAuthToken();
+    const req = new Request('http://localhost/cms/api/media?q=', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.total, 15, 'total should be 15 when q is empty');
+  });
+});
+
+// Task 1.7 [RED] — q with zero matches
+test('ML-R4-zero-matches: q=xyz returns empty uploads and total:0', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entry = await createRealEntry(tempRoot, '2026/06', 'photo.jpg');
+    await saveMedia({ uploads: [entry] });
+
+    const token = await makeAuthToken();
+    const req = new Request('http://localhost/cms/api/media?q=xyz', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.deepEqual(body.uploads, [], 'uploads should be empty');
+    assert.equal(body.total, 0, 'total should be 0');
+    assert.equal(body.page, 1, 'page should be 1');
+  });
+});
+
+// Task 1.8 [RED] — out-of-range page returns empty uploads with correct total
+test('ML-R5-out-of-range-page: page beyond last returns empty uploads + correct total (HTTP 200)', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entries = [];
+    for (let i = 0; i < 10; i++) {
+      const entry = await createRealEntry(tempRoot, '2026/06', `file-${i}.jpg`);
+      entries.push(entry);
+    }
+    await saveMedia({ uploads: entries });
+
+    const token = await makeAuthToken();
+    const req = new Request('http://localhost/cms/api/media?page=5&limit=5', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200, 'should return 200 even for out-of-range page');
+    const body = await res.json();
+    assert.deepEqual(body.uploads, [], 'uploads should be empty');
+    assert.equal(body.total, 10, 'total should be 10');
+    assert.equal(body.page, 5, 'page should be 5');
+  });
+});
+
+// Task 1.9 [RED] — empty registry
+test('ML-R6-empty-registry: empty registry returns correct envelope', async () => {
+  await withTempProject(async () => {
+    const token = await makeAuthToken();
+    const req = new Request('http://localhost/cms/api/media', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.deepEqual(body.uploads, [], 'uploads should be empty');
+    assert.equal(body.total, 0, 'total should be 0');
+    assert.equal(body.page, 1, 'page should be 1');
+    assert.equal(body.limit, 24, 'limit should be 24');
+  });
+});
+
+// Task 1.10 [RED] — back-compat: uploads key must always be present
+test('ML-R3-backcompat: response always has uploads key as array', async () => {
+  await withTempProject(async () => {
+    const token = await makeAuthToken();
+    const req = new Request('http://localhost/cms/api/media', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(Object.prototype.hasOwnProperty.call(body, 'uploads'), 'body must have uploads key');
+    assert.ok(Array.isArray(body.uploads), 'uploads must be an array');
+  });
+});
+
+// Task 1.11 [RED] — pipeline order: reconcile prunes orphans before filter+count
+test('ML-R2-pipeline-order: orphan entries excluded before filter+count', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Create 5 real entries with 'photo' in filename
+    const subdir = '2026/06';
+    const realEntries = [];
+    for (let i = 0; i < 5; i++) {
+      const entry = await createRealEntry(tempRoot, subdir, `photo-${i}.jpg`);
+      realEntries.push(entry);
+    }
+    // Add 3 orphan entries with 'photo' in filename (no real files on disk)
+    const orphanEntries = [
+      { id: generateId(), url: '/uploads/2026/06/photo-orphan-a.jpg', filename: 'photo-orphan-a.jpg', size: 100, mimeType: 'image/jpeg', createdAt: new Date().toISOString() },
+      { id: generateId(), url: '/uploads/2026/06/photo-orphan-b.jpg', filename: 'photo-orphan-b.jpg', size: 100, mimeType: 'image/jpeg', createdAt: new Date().toISOString() },
+      { id: generateId(), url: '/uploads/2026/06/photo-orphan-c.jpg', filename: 'photo-orphan-c.jpg', size: 100, mimeType: 'image/jpeg', createdAt: new Date().toISOString() },
+    ];
+    // Add a non-matching real entry
+    const nonMatchEntry = await createRealEntry(tempRoot, subdir, 'landscape.jpg');
+
+    await saveMedia({ uploads: [...realEntries, ...orphanEntries, nonMatchEntry] });
+
+    const token = await makeAuthToken();
+    const req = new Request('http://localhost/cms/api/media?q=photo', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    // Total should be 5 (real photo entries), not 8 (including orphans)
+    assert.equal(body.total, 5, 'total must exclude orphan entries');
+    const filenames = body.uploads.map((u) => u.filename);
+    // No orphan entries should appear
+    for (const orphan of orphanEntries) {
+      assert.ok(!filenames.includes(orphan.filename), `orphan ${orphan.filename} should not appear`);
+    }
   });
 });

@@ -1423,13 +1423,34 @@ export async function handleGetMedia(request: Request): Promise<Response> {
   const auth = await getAuth(request);
   if (!auth) return jsonError('Unauthorized', 401);
 
+  // Parse query parameters: q, page, limit
+  const url = new URL(request.url);
+  const q = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+
+  let page = parseInt(url.searchParams.get('page') ?? '', 10);
+  if (Number.isNaN(page) || page < 1) page = 1;
+
+  let limit = parseInt(url.searchParams.get('limit') ?? '', 10);
+  // NaN (non-numeric or absent) → default 24; otherwise clamp to [1, 100]
+  if (Number.isNaN(limit)) limit = 24;
+  limit = Math.min(100, Math.max(1, limit));
+
+  // Pipeline: reconcile → sort newest-first → filter(q) → count total → slice page
   const reconciled = await data.reconcileMedia();
-  // Sort by createdAt descending (newest first)
+
   const sorted = [...reconciled.uploads].sort((a, b) => {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
-  return Response.json({ uploads: sorted });
+  // Filter by filename substring (case-insensitive) if q is non-empty
+  const filtered = q
+    ? sorted.filter((entry) => entry.filename.toLowerCase().includes(q))
+    : sorted;
+
+  const total = filtered.length;
+  const uploads = filtered.slice((page - 1) * limit, page * limit);
+
+  return Response.json({ uploads, total, page, limit });
 }
 
 /**

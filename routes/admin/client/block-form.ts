@@ -38,8 +38,10 @@ import {
   isPrimitivePropDef,
 } from '../../../utils/block-validation.js';
 import { isSchemaPropLocalizable } from '../../../utils/localization.js';
-import { escapeHtml, getActiveContentLocale } from './common.js';
+import { escapeHtml, getActiveContentLocale, getCmsToken } from './common.js';
 import { toImageValue, parseImageValue, mediaEntryToImageValue, serializeImageValueAttr } from '../../../utils/image-value.js';
+import { fetchMedia, formatBytes, formatDimensions, formatMediaDate } from './media-fetch.js';
+import type { MediaEntry as MediaFetchEntry } from './media-fetch.js';
 
 // SVG icons (same as page-editor.ts and global-blocks-editor.ts)
 const trashIconSvg =
@@ -56,29 +58,11 @@ const xIconSvg =
 let pickerDialog: HTMLDialogElement | null = null;
 let activePickerInputId: string | null = null;
 
-interface MediaEntry {
-  id: string;
-  url: string;
-  filename: string;
-  size: number;
-  mimeType: string;
-  createdAt: string;
-  alt?: string;
-  width?: number;
-  height?: number;
-}
+// Re-alias the imported type so existing picker code can use 'MediaEntry' name unchanged
+type MediaEntry = MediaFetchEntry;
 
 function escapePickerHtml(s: string): string {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-function getCmsTokenSafe(): string {
-  try {
-    const w = window as Window & { getCmsToken?: () => string };
-    return w.getCmsToken?.() ?? (sessionStorage.getItem('cms-token') || '');
-  } catch {
-    return '';
-  }
 }
 
 function mountPickerDialog(): void {
@@ -361,92 +345,199 @@ function selectPickerImage(value: ImageFieldValue): void {
   closePickerDialog();
 }
 
+// ─── Picker state (per dialog open) ─────────────────────────────────────────
+
+interface PickerState {
+  q: string;
+  page: number;
+  items: MediaEntry[];
+  total: number;
+  limit: number;
+}
+
+let pickerState: PickerState = { q: '', page: 1, items: [], total: 0, limit: 24 };
+let pickerReqSeq = 0;
+let pickerSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+// ─── Picker grid rendering ────────────────────────────────────────────────────
+
+function renderPickerItem(entry: MediaEntry): string {
+  const dims = formatDimensions(entry.width, entry.height);
+  const metaDims = dims !== '—' ? `<span class="cms-media-picker-meta-dim">${escapePickerHtml(dims)}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span>` : '';
+  const metaRow = `<span class="cms-media-picker-meta cms-muted">${metaDims}<span class="cms-media-picker-meta-size">${escapePickerHtml(formatBytes(entry.size))}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span><span class="cms-media-picker-meta-type">${escapePickerHtml(entry.mimeType)}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span><span class="cms-media-picker-meta-date">${escapePickerHtml(formatMediaDate(entry.createdAt))}</span></span>`;
+
+  return `<button type="button" class="cms-media-picker-item"
+    data-picker-url="${escapePickerHtml(entry.url)}"
+    data-picker-alt="${escapePickerHtml(entry.alt ?? '')}"
+    ${entry.width !== undefined ? `data-picker-width="${entry.width}"` : ''}
+    ${entry.height !== undefined ? `data-picker-height="${entry.height}"` : ''}
+    aria-label="Select ${escapePickerHtml(entry.filename)}">
+    <img src="${escapePickerHtml(entry.url)}" alt="${escapePickerHtml(entry.filename)}" class="cms-media-picker-img" loading="lazy" />
+    <span class="cms-media-picker-name">${escapePickerHtml(entry.filename)}</span>
+    ${metaRow}
+  </button>`;
+}
+
+/**
+ * Renders the picker grid into the stable `gridContainer` element.
+ * The search input and upload section live in separate stable containers
+ * that this function does NOT touch — preventing the "search goes dead"
+ * bug where innerHTML-replacement destroyed the bound event listener.
+ */
+function renderPickerGrid(gridContainer: HTMLElement, uploadSection: string): void {
+  const { items, total } = pickerState;
+  const allLoaded = items.length >= total;
+  const countText = total > 0 ? `${items.length} of ${total} images` : '0 images';
+
+  const countRegion = `<p role="status" aria-live="polite" class="cms-media-picker-count cms-muted">${escapePickerHtml(countText)}</p>`;
+
+  if (items.length === 0) {
+    gridContainer.innerHTML = `${countRegion}<p class="cms-muted cms-media-picker-empty">No images yet.</p>`;
+    return;
+  }
+
+  const gridItems = items.map(renderPickerItem).join('');
+  const loadMoreBtn = allLoaded
+    ? ''
+    : `<button type="button" id="cms-picker-load-more" class="cms-btn cms-btn-secondary cms-media-picker-load-more">Load more</button>`;
+
+  gridContainer.innerHTML = `${countRegion}<div class="cms-media-picker-grid">${gridItems}</div>${loadMoreBtn}`;
+
+  // Bind selection clicks
+  gridContainer.querySelectorAll<HTMLButtonElement>('[data-picker-url]').forEach((item) => {
+    item.addEventListener('click', () => {
+      const url = item.dataset.pickerUrl ?? '';
+      if (!url) return;
+      const alt = item.dataset.pickerAlt ?? '';
+      const w = item.dataset.pickerWidth !== undefined ? Math.floor(Number(item.dataset.pickerWidth)) : undefined;
+      const h = item.dataset.pickerHeight !== undefined ? Math.floor(Number(item.dataset.pickerHeight)) : undefined;
+      const value: ImageFieldValue = {
+        url,
+        alt,
+        ...(w !== undefined && Number.isFinite(w) && w > 0 && { width: w }),
+        ...(h !== undefined && Number.isFinite(h) && h > 0 && { height: h }),
+      };
+      selectPickerImage(value);
+    });
+  });
+
+  // Bind load-more button
+  const loadMoreEl = gridContainer.querySelector<HTMLButtonElement>('#cms-picker-load-more');
+  if (loadMoreEl) {
+    loadMoreEl.addEventListener('click', () => {
+      pickerState.page++;
+      pickerLoadPage(gridContainer, uploadSection, true /* append */).catch(() => { /* handled */ });
+    });
+  }
+}
+
+async function pickerLoadPage(gridContainer: HTMLElement, uploadSection: string, append: boolean): Promise<void> {
+  const seq = ++pickerReqSeq;
+  const envelope = await fetchMedia({
+    q: pickerState.q || undefined,
+    page: pickerState.page,
+    limit: pickerState.limit,
+  });
+  if (seq !== pickerReqSeq) return; // stale response guard
+
+  pickerState.total = envelope.total;
+  if (append) {
+    pickerState.items = [...pickerState.items, ...envelope.uploads];
+  } else {
+    pickerState.items = envelope.uploads;
+  }
+
+  renderPickerGrid(gridContainer, uploadSection);
+}
+
 async function openPickerDialog(triggerBtn: HTMLButtonElement, inputId: string): Promise<void> {
   if (!pickerDialog) mountPickerDialog();
   if (!pickerDialog) return;
 
   activePickerInputId = inputId;
 
+  // Reset picker state for fresh open.
+  // pickerReqSeq is NOT reset here — it is monotonically increasing (module-level).
+  // Resetting it would allow stale responses from a previous dialog session to
+  // match the new session's seq counter and clobber content.
+  pickerState = { q: '', page: 1, items: [], total: 0, limit: 24 };
+  if (pickerSearchDebounceTimer !== null) clearTimeout(pickerSearchDebounceTimer);
+
   const body = pickerDialog.querySelector<HTMLElement>('#cms-media-picker-body');
-  if (body) body.innerHTML = '<p class="cms-muted">Loading images…</p>';
+  if (!body) return;
+
+  // Build the stable three-zone layout:
+  //   [searchContainer]  — bound ONCE; never overwritten by grid renders
+  //   [gridContainer]    — replaced on every pickerLoadPage call
+  //   [uploadContainer]  — bound ONCE; never overwritten by grid renders
+  //
+  // This prevents the "search input goes dead" bug where body.innerHTML
+  // replacement destroyed the already-bound input event listener.
+  body.innerHTML = `
+    <div id="cms-picker-search-zone"></div>
+    <div id="cms-picker-grid-zone"><p class="cms-muted">Loading images…</p></div>
+    <div id="cms-picker-upload-zone"></div>
+  `;
+
+  const searchContainer = body.querySelector<HTMLElement>('#cms-picker-search-zone')!;
+  const gridContainer = body.querySelector<HTMLElement>('#cms-picker-grid-zone')!;
+  const uploadContainer = body.querySelector<HTMLElement>('#cms-picker-upload-zone')!;
+
+  // Render search input into its stable zone
+  searchContainer.innerHTML = `
+    <div class="cms-media-picker-search-row">
+      <label for="cms-picker-search" class="cms-visually-hidden">Search images by filename</label>
+      <input type="search" id="cms-picker-search" class="cms-input cms-media-picker-search" placeholder="Search by filename…" autocomplete="off" aria-label="Search images by filename" />
+    </div>
+  `;
+
+  // Render upload section into its stable zone
+  uploadContainer.innerHTML = `
+    <div class="cms-media-picker-upload">
+      <span class="cms-media-picker-upload-label" id="cms-picker-upload-label">Upload new image</span>
+      <div class="cms-media-picker-upload-row">
+        <input type="file" id="cms-picker-file-input" accept="image/*" class="cms-media-picker-file-input" aria-labelledby="cms-picker-upload-label" />
+        <button type="button" id="cms-picker-choose-btn" class="cms-btn cms-btn-secondary" aria-controls="cms-picker-file-input">Choose file</button>
+        <span class="cms-media-picker-filename" id="cms-picker-filename" aria-live="polite">No file selected</span>
+        <button type="button" id="cms-picker-upload-btn" class="cms-btn cms-btn-primary" disabled>Upload</button>
+      </div>
+    </div>
+  `;
+
+  // Keep uploadSection string so renderPickerGrid callers that pass it can
+  // be satisfied — now it is a no-op arg since upload lives in uploadContainer.
+  const uploadSection = '';
 
   pickerDialog.showModal();
 
-  // Fetch media list
   try {
-    const token = getCmsTokenSafe();
-    const res = await fetch('/cms/api/media', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    const data = res.ok ? (await res.json()) as { uploads?: MediaEntry[] } : { uploads: [] };
-    const uploads = data.uploads ?? [];
-
-    if (!body) return;
-
-    // Inline upload section — native file input is visually hidden and triggered
-    // by a styled cms-btn, mirroring the /cms/media dropzone "Choose image" button.
-    const uploadSection = `
-      <div class="cms-media-picker-upload">
-        <span class="cms-media-picker-upload-label" id="cms-picker-upload-label">Upload new image</span>
-        <div class="cms-media-picker-upload-row">
-          <input type="file" id="cms-picker-file-input" accept="image/*" class="cms-media-picker-file-input" aria-labelledby="cms-picker-upload-label" />
-          <button type="button" id="cms-picker-choose-btn" class="cms-btn cms-btn-secondary" aria-controls="cms-picker-file-input">Choose file</button>
-          <span class="cms-media-picker-filename" id="cms-picker-filename" aria-live="polite">No file selected</span>
-          <button type="button" id="cms-picker-upload-btn" class="cms-btn cms-btn-primary" disabled>Upload</button>
-        </div>
-      </div>
-    `;
-
-    if (uploads.length === 0) {
-      body.innerHTML = `<p class="cms-muted">No images yet.</p>${uploadSection}`;
-    } else {
-      const gridItems = uploads
-        .map(
-          (entry) =>
-            `<button type="button" class="cms-media-picker-item"
-              data-picker-url="${escapePickerHtml(entry.url)}"
-              data-picker-alt="${escapePickerHtml(entry.alt ?? '')}"
-              ${entry.width !== undefined ? `data-picker-width="${entry.width}"` : ''}
-              ${entry.height !== undefined ? `data-picker-height="${entry.height}"` : ''}
-              aria-label="Select ${escapePickerHtml(entry.filename)}">
-              <img src="${escapePickerHtml(entry.url)}" alt="${escapePickerHtml(entry.filename)}" class="cms-media-picker-img" loading="lazy" />
-              <span class="cms-media-picker-name">${escapePickerHtml(entry.filename)}</span>
-            </button>`
-        )
-        .join('');
-      body.innerHTML = `<div class="cms-media-picker-grid">${gridItems}</div>${uploadSection}`;
+    // Bind search input ONCE — it lives in searchContainer which renderPickerGrid never touches
+    const searchInput = searchContainer.querySelector<HTMLInputElement>('#cms-picker-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        if (pickerSearchDebounceTimer !== null) clearTimeout(pickerSearchDebounceTimer);
+        pickerSearchDebounceTimer = setTimeout(() => {
+          // New search: reset to page 1, clear accumulated items
+          pickerState.q = searchInput.value.trim();
+          pickerState.page = 1;
+          pickerState.items = [];
+          pickerState.total = 0;
+          pickerLoadPage(gridContainer, uploadSection, false /* replace */).catch(() => { /* handled */ });
+        }, 250);
+      });
     }
 
-    // Bind image selection clicks — build ImageFieldValue snapshot from dataset
-    body.querySelectorAll<HTMLButtonElement>('[data-picker-url]').forEach((item) => {
-      item.addEventListener('click', () => {
-        const url = item.dataset.pickerUrl ?? '';
-        if (!url) return;
-        const alt = item.dataset.pickerAlt ?? '';
-        const w = item.dataset.pickerWidth !== undefined ? Math.floor(Number(item.dataset.pickerWidth)) : undefined;
-        const h = item.dataset.pickerHeight !== undefined ? Math.floor(Number(item.dataset.pickerHeight)) : undefined;
-        const value: ImageFieldValue = {
-          url,
-          alt,
-          ...(w !== undefined && Number.isFinite(w) && w > 0 && { width: w }),
-          ...(h !== undefined && Number.isFinite(h) && h > 0 && { height: h }),
-        };
-        selectPickerImage(value);
-      });
-    });
+    // Load first page into gridContainer
+    await pickerLoadPage(gridContainer, uploadSection, false);
 
-    // Bind inline upload
-    const uploadBtn = body.querySelector<HTMLButtonElement>('#cms-picker-upload-btn');
-    const fileInput = body.querySelector<HTMLInputElement>('#cms-picker-file-input');
-    const chooseBtn = body.querySelector<HTMLButtonElement>('#cms-picker-choose-btn');
-    const filenameLabel = body.querySelector<HTMLElement>('#cms-picker-filename');
+    // Bind upload section controls ONCE — they live in uploadContainer
+    const uploadBtn = uploadContainer.querySelector<HTMLButtonElement>('#cms-picker-upload-btn');
+    const fileInput = uploadContainer.querySelector<HTMLInputElement>('#cms-picker-file-input');
+    const chooseBtn = uploadContainer.querySelector<HTMLButtonElement>('#cms-picker-choose-btn');
+    const filenameLabel = uploadContainer.querySelector<HTMLElement>('#cms-picker-filename');
 
-    // Styled "Choose file" button triggers the visually-hidden native input.
-    chooseBtn?.addEventListener('click', () => {
-      fileInput?.click();
-    });
+    chooseBtn?.addEventListener('click', () => { fileInput?.click(); });
 
-    // Reflect selection in the filename label and enable Upload when a file is chosen.
     fileInput?.addEventListener('change', () => {
       const selected = fileInput.files?.[0];
       if (filenameLabel) filenameLabel.textContent = selected ? selected.name : 'No file selected';
@@ -460,16 +551,15 @@ async function openPickerDialog(triggerBtn: HTMLButtonElement, inputId: string):
       try {
         const fd = new FormData();
         fd.append('file', file);
-        const uploadToken = getCmsTokenSafe();
+        const token = getCmsToken();
         const uploadRes = await fetch('/cms/api/upload', {
           method: 'POST',
-          headers: uploadToken ? { Authorization: `Bearer ${uploadToken}` } : {},
+          headers: { Authorization: `Bearer ${token}` },
           body: fd,
         });
         if (uploadRes.ok) {
           const uploadBody = await uploadRes.json() as { url?: string; entry?: MediaEntry };
           if (uploadBody.url) {
-            // Build ImageFieldValue from the upload response entry (carries width/height)
             const entry = uploadBody.entry;
             const value: ImageFieldValue = entry
               ? mediaEntryToImageValue(entry)
@@ -482,8 +572,7 @@ async function openPickerDialog(triggerBtn: HTMLButtonElement, inputId: string):
       }
     });
   } catch {
-    const body2 = pickerDialog.querySelector<HTMLElement>('#cms-media-picker-body');
-    if (body2) body2.innerHTML = '<p class="cms-muted">Could not load images.</p>';
+    gridContainer.innerHTML = '<p class="cms-muted">Could not load images.</p>';
   }
 }
 
