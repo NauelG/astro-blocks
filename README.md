@@ -10,11 +10,11 @@ Licensed under the Business Source License 1.1
 <h1 align="center">AstroBlocks</h1>
 <p align="center">
   <strong>Block-first CMS for Astro projects.</strong><br />
-  Pages, menus, params, settings and uploads stored in JSON, with your own Astro components as blocks.
+  Pages, menus, params, settings and a responsive media library stored in JSON, with your own Astro components as blocks.
 </p>
 
 <p align="center">
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-2.0.0-blue" alt="version" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-3.0.0-blue" alt="version" /></a>
   <a href="https://www.npmjs.com/package/@astroblocks/astro-blocks"><img src="https://img.shields.io/npm/v/%40astroblocks%2Fastro-blocks?logo=npm" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/@astroblocks/astro-blocks"><img src="https://img.shields.io/npm/dm/%40astroblocks%2Fastro-blocks?logo=npm" alt="npm downloads" /></a>
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="alpha" />
@@ -29,6 +29,7 @@ Licensed under the Business Source License 1.1
 - Edit pages in `/cms` without adding a database.
 - Keep full control over the rendered HTML by using your own Astro components.
 - Define blocks with a small, explicit schema contract.
+- Manage media in a built-in library with responsive images, alt text and captions out of the box.
 - Store content in `data/*.json` and uploads in `public/uploads/`.
 - Generate `sitemap-index.xml` and `robots.txt` from the same content source.
 - Keep consumer imports explicit and type-safe.

@@ -9,6 +9,36 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.0.0] - 2026-06-14
+
+### Title
+
+Media Management — a media library with responsive images, alt text, captions, and where-used tracking
+
+### Added
+
+- **Media library at `/cms/media`:** upload, browse, search, and manage images from a dedicated admin surface. Drag-and-drop or click to upload; each upload is registered in `data/media.json` as a `MediaEntry` (URL, dimensions, alt, caption defaults, variants, status). Files are stored under `public/uploads/YYYY/MM/`.
+- **Upload validation:** uploads are checked for allowed MIME types (JPEG, PNG, WebP, SVG, GIF) and a maximum size before they are written. The size limit defaults to 5 MB and is configurable via the `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` environment variable (value in bytes).
+- **Image field picker:** the `image` block field now opens the media library to pick an existing asset instead of pasting a raw URL. Picking an image carries its registry metadata (dimensions, default alt) into the block.
+- **Responsive image variants:** raster uploads (JPEG, PNG, WebP) generate WebP and AVIF variants via `sharp` at 480/800/1200/1920 px breakpoints (never upscaling beyond the original width). Generation is asynchronous — the upload returns immediately with `status:'processing'`, transitioning to `'ready'` or `'failed'`. The original is always retained as the `<img>` fallback. SVGs are served as-is with no variants.
+- **`<BlockImage>` component** (`@astroblocks/astro-blocks/components/BlockImage`): renders an image field value as a `<picture>` element with AVIF + WebP `<source>` sets and srcset when variants are ready, falling back to a plain `<img>` otherwise. Supports `sizes` and `priority` (eager + `fetchpriority=high` for LCP images). Always emits `alt` (WCAG 1.1.1) and emits `width`/`height` to prevent layout shift (CLS).
+- **`getMediaVariants` helper** (`@astroblocks/astro-blocks/getMediaVariants`): reads variant data from `data/media.json` with mtime-keyed caching for advanced rendering. Returns `{ status: 'none', variants: [] }` when the registry is missing — never throws.
+- **Alt text (WCAG):** alt text is editable inline in the library and stored per asset as a default. Blocks can override the default per usage. Alt is always rendered, even when empty.
+- **Per-image caption:** an optional visible caption can be set per image usage. When present, `<BlockImage>` renders the image inside a `<figure>` with a `<figcaption>`. Distinct from alt (caption is human-facing on the page; alt is for assistive tech/SEO).
+- **Width and height capture:** image dimensions are captured at upload time and emitted on render to reserve layout space and reduce CLS.
+- **Server-side search, pagination, and metadata:** the media library supports server-side search and pagination, and surfaces per-asset metadata (dimensions, size, variant status) in the UI.
+- **Where-used detection:** the library reports where each media asset is referenced across pages and blocks before destructive actions.
+- **Same-MIME replace:** an existing asset can be replaced in place by a new file of the same MIME type, preserving its URL and references.
+- See [docs/media.md](./docs/media.md) for the full media guide (editor workflow, `ImageFieldValue`/`MediaEntry` shapes, API endpoints, and limitations).
+
+### Changed
+
+- **`image` block field value (BREAKING):** the stored value of an `image` field changed from a plain URL `string` to an `ImageFieldValue` object — `{ url, alt?, caption?, width?, height? }`. This carries alt, caption, and dimensions alongside the URL so images can render accessibly and without layout shift.
+
+  > **Migration:** render image fields with the new `<BlockImage>` component (it accepts both the object and a legacy string and coerces automatically), or destructure `.url` for a plain `<img src>`. Legacy bare-string values stored from earlier versions are coerced to `{ url }` on read — no manual data migration is required.
+
+- **New dependency:** `sharp` is now a runtime dependency, used to generate responsive WebP/AVIF variants on upload.
+
 ## [2.0.0] - 2026-04-21
 
 ### Title

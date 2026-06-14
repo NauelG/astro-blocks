@@ -82,14 +82,64 @@
       "docsPath": "#config-parameters-in-your-site"
     },
     {
-      "id": "media-upload",
-      "title": "Media uploads",
-      "summary": "Upload and reference media files stored in public/uploads.",
+      "id": "media-library",
+      "title": "Media library",
+      "summary": "Upload, browse, pick and manage images from a dedicated /cms/media admin surface with MIME and size validation.",
       "category": "media",
       "status": "alpha",
       "sinceVersion": "0.1.0",
-      "updatedIn": "0.5.2",
-      "docsPath": "#data-model"
+      "updatedIn": "3.0.0",
+      "docsPath": "#media-library-and-responsive-images"
+    },
+    {
+      "id": "responsive-images",
+      "title": "Responsive images",
+      "summary": "Automatic WebP and AVIF variant generation with srcset, lazy/priority loading and width/height for CLS via the BlockImage component.",
+      "category": "media",
+      "status": "alpha",
+      "sinceVersion": "3.0.0",
+      "updatedIn": "3.0.0",
+      "docsPath": "#media-library-and-responsive-images"
+    },
+    {
+      "id": "image-alt",
+      "title": "Image alt text",
+      "summary": "WCAG-friendly alt text stored per asset as a default and overridable per usage, always rendered on the image.",
+      "category": "media",
+      "status": "alpha",
+      "sinceVersion": "3.0.0",
+      "updatedIn": "3.0.0",
+      "docsPath": "#media-library-and-responsive-images"
+    },
+    {
+      "id": "image-caption",
+      "title": "Image caption",
+      "summary": "Optional per-image visible caption rendered as figure/figcaption on the public page.",
+      "category": "media",
+      "status": "alpha",
+      "sinceVersion": "3.0.0",
+      "updatedIn": "3.0.0",
+      "docsPath": "#media-library-and-responsive-images"
+    },
+    {
+      "id": "media-search",
+      "title": "Media search and metadata",
+      "summary": "Server-side search, pagination and per-asset metadata (dimensions, size, variant status) in the media library.",
+      "category": "media",
+      "status": "alpha",
+      "sinceVersion": "3.0.0",
+      "updatedIn": "3.0.0",
+      "docsPath": "#media-library-and-responsive-images"
+    },
+    {
+      "id": "media-where-used-replace",
+      "title": "Media where-used and replace",
+      "summary": "Detect where each asset is referenced across pages and blocks, and replace an asset in place with a new file of the same MIME type.",
+      "category": "media",
+      "status": "alpha",
+      "sinceVersion": "3.0.0",
+      "updatedIn": "3.0.0",
+      "docsPath": "#media-library-and-responsive-images"
     },
     {
       "id": "users-and-auth",

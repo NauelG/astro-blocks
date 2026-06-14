@@ -720,6 +720,7 @@ Uploaded files are stored in `public/uploads/` in your project root. This direct
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ASTRO_BLOCKS_PROJECT_ROOT` | `process.cwd()` | Override the project root used by the plugin to read/write `data/` files. Rarely needed; used internally by tests. |
+| `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` | `5242880` (5 MB) | Maximum accepted media upload size, in bytes. Uploads larger than this are rejected. |
 
 ---
 
