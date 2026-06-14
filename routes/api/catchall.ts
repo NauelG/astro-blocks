@@ -56,6 +56,7 @@ export async function GET({ request }: APIContext): Promise<Response> {
   if (seg[0] === 'block-schemas' && seg.length === 1) return handlers.handleGetBlockSchemas();
   if (seg[0] === 'languages' && seg.length === 1) return handlers.handleGetLanguages();
   if (seg[0] === 'media' && seg.length === 1) return handlers.handleGetMedia(request);
+  if (seg[0] === 'media' && seg[2] === 'usage' && seg.length === 3) return handlers.handleGetMediaUsage(seg[1], request);
   if (seg[0] === 'global-blocks' && seg.length === 1) {
     const registry = await loadGlobalBlocksRegistry();
     return handlers.handleGetGlobalBlocks(registry, request);
@@ -81,6 +82,7 @@ export async function POST({ request, cache }: APIContext): Promise<Response> {
   if (seg[0] === 'redirects' && seg.length === 1) return handlers.handlePostRedirects(request, { cache });
   if (seg[0] === 'configs' && seg.length === 1) return handlers.handlePostConfigs(request, { cache });
   if (seg[0] === 'upload' && seg.length === 1) return handlers.handleUpload(request);
+  if (seg[0] === 'media' && seg[2] === 'replace' && seg.length === 3) return handlers.handleReplaceUpload(request, seg[1]);
   if (seg[0] === 'cache' && seg[1] === 'invalidate' && seg.length === 2) return handlers.handleInvalidateCache({ cache });
   if (seg[0] === 'users' && seg.length === 1) return handlers.handlePostUsers(request, authResult.user);
   if (seg[0] === 'languages' && seg.length === 1) {

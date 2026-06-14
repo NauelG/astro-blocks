@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getDataDir, getDataPath, getUploadsDir } from '../utils/paths.js';
+import { findUrlRefsInProps, type UsageRef } from '../utils/image-url-scan.js';
 import { normalizeRedirectPath, normalizeRedirectStatusCode, validateRedirectPathInput } from '../utils/redirects.js';
 import { pageToSlugParam, slugToPath } from '../utils/slug.js';
 import {
@@ -404,6 +405,109 @@ export async function saveGlobalBlock(slug: string, props: Record<string, unknow
 
 export async function saveGlobalBlocks(data: GlobalBlocksData): Promise<void> {
   await writeJson(getDataPath('global-blocks.json'), data);
+}
+
+// Re-export UsageRef so callers can import it from data.ts without going to the util.
+export type { UsageRef };
+
+/**
+ * Find all content locations (page blocks, page seo.image, global blocks) that
+ * reference the given upload URL. Read-only — no file lock needed.
+ *
+ * Returns { count, usages } where count === usages.length (invariant).
+ */
+export async function findMediaUsages(targetUrl: string): Promise<{ count: number; usages: UsageRef[] }> {
+  const usages: UsageRef[] = [];
+
+  // ── Scan pages ────────────────────────────────────────────────────────────
+  const { pages } = await loadPages();
+  for (const page of pages) {
+    // Derive a human-readable page label from the localized title map
+    const titleValues = page.title ? Object.values(page.title) : [];
+    const pageLabel = titleValues.find((v) => typeof v === 'string' && v.trim() !== '') ?? page.id;
+
+    // Scan each block's props
+    for (let blockIndex = 0; blockIndex < page.blocks.length; blockIndex++) {
+      const block = page.blocks[blockIndex];
+      const refs = findUrlRefsInProps(block.props, targetUrl);
+      for (const ref of refs) {
+        usages.push({
+          source: 'page',
+          id: page.id,
+          label: String(pageLabel),
+          blockIndex,
+          propName: ref.propName,
+        });
+      }
+    }
+
+    // Scan seo.image — LocalizedSeoData.image is LocalizedValueMap<string>
+    // i.e. { [locale]: string }. We deduplicate: at most one seo ref per page.
+    if (page.seo?.image && typeof page.seo.image === 'object') {
+      const seoImageMap = page.seo.image as Record<string, unknown>;
+      const found = Object.values(seoImageMap).some((v) => v === targetUrl);
+      if (found) {
+        usages.push({
+          source: 'seo',
+          id: page.id,
+          label: `SEO image of "${String(pageLabel)}"`,
+          propName: 'seo.image',
+        });
+      }
+    }
+  }
+
+  // ── Scan global blocks ────────────────────────────────────────────────────
+  const { globalBlocks } = await loadGlobalBlocks();
+  for (const [slug, gb] of Object.entries(globalBlocks)) {
+    const refs = findUrlRefsInProps(gb.props, targetUrl);
+    for (const ref of refs) {
+      usages.push({
+        source: 'globalBlock',
+        id: slug,
+        label: `Global block: ${slug}`,
+        propName: ref.propName,
+      });
+    }
+  }
+
+  return { count: usages.length, usages };
+}
+
+/**
+ * Update a MediaEntry in-place (by id) with new file byte metadata after a
+ * replace operation. Runs under the media file lock (ADR-6).
+ *
+ * Sets status:'processing', variants:[], updates size/width/height.
+ * Keeps id, url, filename, mimeType, createdAt unchanged.
+ * Returns the updated entry, or null if the id is not found.
+ */
+export async function replaceMediaEntryBytes(
+  id: string,
+  patch: { size: number; width?: number; height?: number }
+): Promise<{ entry: MediaEntry; oldVariants: MediaVariant[] } | null> {
+  return withFileLock(mediaLockKey(), async () => {
+    const m = await loadMedia();
+    const index = m.uploads.findIndex((e) => e.id === id);
+    if (index === -1) return null;
+    const existing = m.uploads[index];
+    // Capture the current variants UNDER THE LOCK so the returned set is
+    // exactly what was live at mutation time. This closes the race where a
+    // concurrent regen repopulates variants between a pre-lock snapshot and
+    // the actual registry write.
+    const oldVariants: MediaVariant[] = existing.variants ?? [];
+    const updated: MediaEntry = {
+      ...existing,
+      size: patch.size,
+      ...(patch.width !== undefined && { width: patch.width }),
+      ...(patch.height !== undefined && { height: patch.height }),
+      status: 'processing',
+      variants: [],
+    };
+    m.uploads[index] = updated;
+    await saveMedia(m);
+    return { entry: updated, oldVariants };
+  });
 }
 
 export async function loadMedia(): Promise<MediaData> {

@@ -1477,6 +1477,138 @@ export async function handleUpdateMediaAlt(id: string, request: Request): Promis
   return Response.json({ entry: updated });
 }
 
+/**
+ * GET /cms/api/media/:id/usage
+ * Returns { count, usages[] } for the given media entry URL.
+ * 401 if unauthenticated; 404 if media id not found.
+ */
+export async function handleGetMediaUsage(id: string, request: Request): Promise<Response> {
+  const auth = await getAuth(request);
+  if (!auth) return jsonError('Unauthorized', 401);
+
+  const m = await data.loadMedia();
+  const entry = m.uploads.find((e) => e.id === id);
+  if (!entry) return jsonError('Not found', 404);
+
+  const result = await data.findMediaUsages(entry.url);
+  return Response.json(result);
+}
+
+/**
+ * POST /cms/api/media/:id/replace
+ * Replaces the bytes of an existing media entry in-place (same URL, same MIME).
+ * 401 unauth; 404 unknown id; 400 no file; 415 wrong/disallowed MIME; 413 oversize.
+ * On success: 200 { entry } with status:'processing'; fires variant regen async.
+ */
+export async function handleReplaceUpload(request: Request, id: string): Promise<Response> {
+  const auth = await getAuth(request);
+  if (!auth) return jsonError('Unauthorized', 401);
+
+  const m = await data.loadMedia();
+  const entry = m.uploads.find((e) => e.id === id);
+  if (!entry) return jsonError('Not found', 404);
+
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return jsonError('Invalid multipart body', 400);
+  }
+
+  const file = formData.get('file');
+  if (!file || typeof (file as File).arrayBuffer !== 'function') {
+    return jsonError('No file', 400);
+  }
+
+  const blob = file as File;
+
+  // MIME validation — same two-phase as handleUpload
+  const mimeType = blob.type || '';
+  if (!mimeType || !ALLOWED_IMAGE_MIME.has(mimeType)) {
+    return jsonError('Unsupported file type. Allowed: jpg, png, webp, svg, gif', 415);
+  }
+  if (mimeType !== entry.mimeType) {
+    return jsonError(`Replacement must be the same type: expected ${entry.mimeType}`, 415);
+  }
+
+  // Size guard
+  if (blob.size > MAX_UPLOAD_BYTES) {
+    const limitMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
+    return jsonError(`File too large. Maximum size is ${limitMb} MB`, 413);
+  }
+
+  // Resolve the on-disk path (reuses traversal guard)
+  const filePath = resolveUploadPath(entry.url);
+  if (!filePath) return jsonError('Internal error: cannot resolve upload path', 500);
+
+  // Overwrite bytes ATOMICALLY: write to a temp file then rename into place.
+  // rename(2) is atomic on POSIX, so a read never observes a half-written file.
+  // On failure the temp file is cleaned up and the original is left intact.
+  const buffer = await blob.arrayBuffer();
+  const tmpPath = `${filePath}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  try {
+    await fs.writeFile(tmpPath, Buffer.from(buffer));
+    await fs.rename(tmpPath, filePath);
+  } catch (writeErr) {
+    // Clean up the temp file on error (best-effort) and abort before any
+    // variant unlink or registry update so the original stays intact.
+    try { await fs.unlink(tmpPath); } catch { /* ignore */ }
+    return jsonError('Failed to write replacement file', 500);
+  }
+
+  // Recompute dimensions
+  let capturedWidth: number | undefined;
+  let capturedHeight: number | undefined;
+  try {
+    const dim = imageSize(Buffer.from(buffer));
+    if (
+      typeof dim.width === 'number' &&
+      typeof dim.height === 'number' &&
+      Number.isFinite(dim.width) &&
+      Number.isFinite(dim.height)
+    ) {
+      capturedWidth = Math.floor(dim.width);
+      capturedHeight = Math.floor(dim.height);
+    }
+  } catch {
+    // Swallow dimension errors — never fail the replace
+  }
+
+  // Update registry under lock. replaceMediaEntryBytes atomically captures
+  // the current variant list and clears it, then returns { entry, oldVariants }.
+  // We use oldVariants (the set that was live at mutation time) to unlink —
+  // not the pre-lock snapshot from the early loadMedia(), which avoids the race
+  // where a concurrent regen re-populates variants between the snapshot and lock.
+  const result = await data.replaceMediaEntryBytes(id, {
+    size: blob.size,
+    width: capturedWidth,
+    height: capturedHeight,
+  });
+  if (!result) return jsonError('Not found', 404);
+
+  const { entry: updated, oldVariants } = result;
+
+  // Delete stale variant files (they map to old bytes; new image may be smaller).
+  // ENOENT is tolerated: variant may already be gone.
+  for (const variant of oldVariants) {
+    const variantPath = resolveUploadPath(variant.url);
+    if (variantPath) {
+      try {
+        await fs.unlink(variantPath);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          // Non-ENOENT errors are swallowed: cascade is best-effort
+        }
+      }
+    }
+  }
+
+  // Build response, then fire-and-forget variant regen (same as handleUpload)
+  const res = Response.json({ entry: updated });
+  void generateAndPersistVariants(updated).catch(() => {});
+  return res;
+}
+
 export async function handleGetGlobalBlocks(
   registry: GlobalBlockRuntimeEntry[],
   request: Request

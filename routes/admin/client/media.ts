@@ -16,6 +16,9 @@ import type { MediaListEnvelope, MediaEntry } from './media-fetch.js';
 const trashIconSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
 
+const replaceIconSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>';
+
 // ─── Page state ───────────────────────────────────────────────────────────────
 
 interface MediaPageState {
@@ -70,13 +73,25 @@ function renderCard(entry: MediaEntry): string {
           aria-label="Alt text for ${escapeAttr(entry.filename)}"
         />
       </div>
-      <button
-        type="button"
-        class="cms-media-card-delete"
-        aria-label="Delete ${escapeAttr(entry.filename)}"
-        data-delete-url="${escapeAttr(entry.url)}"
-        data-delete-filename="${escapeAttr(entry.filename)}"
-      >${trashIconSvg}</button>
+      <div class="cms-media-card-actions">
+        <button
+          type="button"
+          class="cms-media-card-replace cms-btn-icon"
+          aria-label="Replace ${escapeAttr(entry.filename)}"
+          data-replace-id="${escapeAttr(entry.id)}"
+          data-replace-filename="${escapeAttr(entry.filename)}"
+          data-replace-mime="${escapeAttr(entry.mimeType)}"
+          title="Replace ${escapeAttr(entry.filename)}"
+        >${replaceIconSvg}</button>
+        <button
+          type="button"
+          class="cms-media-card-delete cms-btn-icon"
+          aria-label="Delete ${escapeAttr(entry.filename)}"
+          data-delete-url="${escapeAttr(entry.url)}"
+          data-delete-filename="${escapeAttr(entry.filename)}"
+          data-delete-id="${escapeAttr(entry.id)}"
+        >${trashIconSvg}</button>
+      </div>
     </div>`;
 }
 
@@ -146,6 +161,7 @@ function renderGrid(envelope: MediaListEnvelope): void {
   if (nextBtn) nextBtn.disabled = page >= totalPages;
 
   bindDeleteButtons();
+  bindReplaceButtons();
   bindAltEditors();
 }
 
@@ -190,9 +206,42 @@ async function uploadFile(file: File): Promise<void> {
 
 // ─── Delete ───────────────────────────────────────────────────────────────────
 
-async function deleteMedia(url: string, filename: string, triggerBtn: HTMLButtonElement): Promise<void> {
+interface UsageResult {
+  count: number;
+  usages: Array<{ source: string; id: string; label: string; blockIndex?: number; propName?: string }>;
+}
+
+async function fetchMediaUsage(id: string): Promise<UsageResult | null> {
+  const token = getCmsToken();
+  try {
+    const res = await fetch(`/cms/api/media/${encodeURIComponent(id)}/usage`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as UsageResult;
+  } catch {
+    return null;
+  }
+}
+
+async function deleteMedia(url: string, filename: string, id: string, triggerBtn: HTMLButtonElement): Promise<void> {
   const cmsWindow = getCmsWindow();
-  const confirmed = await cmsWindow.cmsConfirm?.({ message: `Delete "${filename}"?`, confirmLabel: 'Delete' });
+
+  // Pre-fetch usage — warn-and-allow; failure falls back to plain confirm
+  const usage = await fetchMediaUsage(id);
+  let confirmMessage: string;
+  if (usage && usage.count > 0) {
+    const labelList = usage.usages
+      .slice(0, 5)
+      .map((u) => `  - ${u.label}`)
+      .join('\n');
+    const more = usage.count > 5 ? `\n  - …and ${usage.count - 5} more` : '';
+    confirmMessage = `Used in ${usage.count} place(s):\n${labelList}${more}\n\nDelete "${filename}" anyway?`;
+  } else {
+    confirmMessage = `Delete "${filename}"?`;
+  }
+
+  const confirmed = await cmsWindow.cmsConfirm?.({ message: confirmMessage, confirmLabel: 'Delete' });
   if (!confirmed) return;
 
   const token = getCmsToken();
@@ -224,7 +273,80 @@ function bindDeleteButtons(): void {
     btn.addEventListener('click', () => {
       const url = btn.dataset.deleteUrl ?? '';
       const filename = btn.dataset.deleteFilename ?? url;
-      deleteMedia(url, filename, btn).catch(() => { /* handled in fn */ });
+      const id = btn.dataset.deleteId ?? '';
+      deleteMedia(url, filename, id, btn).catch(() => { /* handled in fn */ });
+    });
+  });
+}
+
+// ─── Replace ──────────────────────────────────────────────────────────────────
+
+async function replaceMedia(id: string, filename: string, mimeType: string, triggerBtn: HTMLButtonElement): Promise<void> {
+  const cmsWindow = getCmsWindow();
+
+  // Create a hidden file input restricted to the original MIME type
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = mimeType;
+  input.style.display = 'none';
+  document.body.appendChild(input);
+
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    document.body.removeChild(input);
+    if (!file) return;
+
+    const token = getCmsToken();
+
+    // Show processing hint
+    triggerBtn.disabled = true;
+    triggerBtn.setAttribute('aria-busy', 'true');
+    cmsWindow.cmsToast?.({ title: 'Replacing…', message: `Processing ${filename}`, tone: 'success' });
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+      const res = await fetch(`/cms/api/media/${encodeURIComponent(id)}/replace`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+
+      if (res.ok) {
+        cmsWindow.cmsToast?.({ title: 'Replace successful', message: `${filename} replaced. Variants regenerating.`, tone: 'success' });
+        await loadMedia();
+      } else {
+        let errorMsg = 'Replace failed.';
+        try {
+          const body = await res.json() as { error?: string };
+          if (body.error) errorMsg = body.error;
+        } catch { /* ignore */ }
+        cmsWindow.cmsToast?.({ title: '⚠ Replace error', message: errorMsg, tone: 'error' });
+        triggerBtn.disabled = false;
+        triggerBtn.removeAttribute('aria-busy');
+        triggerBtn.focus();
+      }
+    } catch {
+      cmsWindow.cmsToast?.({ title: '⚠ Replace error', message: 'Network error. Please try again.', tone: 'error' });
+      triggerBtn.disabled = false;
+      triggerBtn.removeAttribute('aria-busy');
+      triggerBtn.focus();
+    }
+  });
+
+  input.click();
+}
+
+function bindReplaceButtons(): void {
+  const gridCard = document.getElementById('cms-media-grid-card');
+  if (!gridCard) return;
+  gridCard.querySelectorAll<HTMLButtonElement>('[data-replace-id]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.replaceId ?? '';
+      const filename = btn.dataset.replaceFilename ?? id;
+      const mimeType = btn.dataset.replaceMime ?? 'image/*';
+      replaceMedia(id, filename, mimeType, btn).catch(() => { /* handled in fn */ });
     });
   });
 }

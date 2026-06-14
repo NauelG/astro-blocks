@@ -141,3 +141,33 @@ test('SEC-CDN-07: GET /uploads/../etc/passwd returns 404 (traversal rejected)', 
   const res = await GET({ request: req });
   assert.equal(res.status, 404);
 });
+
+// CC-01: Any uploads-get response must include Cache-Control: no-cache header
+test('CC-01: GET /uploads/*.jpg response includes Cache-Control: no-cache', async () => {
+  const jpegBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+
+  await withUploadedFile('2026/06/cache-test.jpg', jpegBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/cache-test.jpg');
+    const res = await GET({ request: req });
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('Cache-Control'), 'no-cache',
+      'all uploads-get responses must include Cache-Control: no-cache');
+    assert.equal(res.headers.get('Content-Type'), 'image/jpeg',
+      'Content-Type must still be set correctly');
+  });
+});
+
+// CC-02: SVG still gets Content-Disposition even with Cache-Control
+test('CC-02: GET /uploads/*.svg has both Cache-Control: no-cache and Content-Disposition: attachment', async () => {
+  const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>';
+
+  await withUploadedFile('2026/06/cache-test.svg', svgContent, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/cache-test.svg');
+    const res = await GET({ request: req });
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('Cache-Control'), 'no-cache',
+      'SVG must also have Cache-Control: no-cache');
+    assert.equal(res.headers.get('Content-Disposition'), 'attachment',
+      'SVG must still have Content-Disposition: attachment');
+  });
+});

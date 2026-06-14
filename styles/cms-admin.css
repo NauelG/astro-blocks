@@ -4546,6 +4546,83 @@ Licensed under the Business Source License 1.1
   outline-offset: 1px;
 }
 
+/* ─── Media card: actions container (replace + delete) ─────────────────────── */
+.cms-media-card-actions {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: flex;
+  flex-direction: row;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+/* Base styles for icon-only action buttons in the media card */
+.cms-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: var(--cms-radius-base);
+  border: 1px solid transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--cms-transition), background var(--cms-transition),
+    border-color var(--cms-transition), color var(--cms-transition),
+    box-shadow var(--cms-transition);
+}
+
+.cms-btn-icon svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.cms-media-card:hover .cms-btn-icon,
+.cms-btn-icon:focus-visible {
+  opacity: 1;
+}
+
+/* Replace button — neutral/secondary tone */
+.cms-media-card-replace {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.cms-media-card:hover .cms-media-card-replace,
+.cms-media-card-replace:focus-visible {
+  opacity: 1;
+}
+
+.cms-media-card-replace:hover:not(:disabled) {
+  background: #e0e7ff;
+  border-color: #a5b4fc;
+  color: #312e81;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
+}
+
+.cms-media-card-replace:focus-visible {
+  outline: 2px solid rgba(99, 102, 241, 0.45);
+  outline-offset: 1px;
+}
+
+.cms-media-card-replace:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Delete button — re-apply positioning (now inside actions, not absolute) */
+.cms-media-card-actions .cms-media-card-delete {
+  position: static;
+  top: auto;
+  right: auto;
+}
+
 .cms-media-empty-state {
   display: flex;
   flex-direction: column;
@@ -4657,7 +4734,9 @@ Licensed under the Business Source License 1.1
 
 @media (prefers-reduced-motion: reduce) {
   .cms-media-card,
-  .cms-media-card-delete {
+  .cms-media-card-delete,
+  .cms-media-card-replace,
+  .cms-btn-icon {
     transition: none;
   }
 }
