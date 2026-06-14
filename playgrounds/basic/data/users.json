@@ -1,3 +1,11 @@
 {
-  "users": []
+  "users": [
+    {
+      "id": "yz769rohkemq7u07ec",
+      "email": "admin@test.com",
+      "passwordHash": "yxe5uxJTvOwF4NGOOU/Jvg==:Ix5RkJ4UbiWqp4tdopoNad28nHKgfpIkBwVwKsRiMKQhM/SlTaKCxib1YbOlNG+W9CPHzzWcIR3a8UgKG6klxw==",
+      "role": "owner",
+      "createdAt": "2026-06-10T08:53:32.148Z"
+    }
+  ]
 }

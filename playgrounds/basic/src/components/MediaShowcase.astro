@@ -1,0 +1,106 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+// ImageFieldValue shape mirrored locally since the playground uses the installed
+// tarball (not the live src tree). Once `npm run prepare:playground` is run,
+// @astroblocks/astro-blocks/contract exports ImageFieldValue directly.
+interface ImageFieldValue {
+  url: string;
+  alt?: string;
+  width?: number;
+  height?: number;
+}
+
+export interface Props {
+  heroImage?: ImageFieldValue;
+  galleryImage1?: ImageFieldValue;
+  galleryImage2?: ImageFieldValue;
+  caption?: string;
+}
+
+const { heroImage, galleryImage1, galleryImage2, caption } = Astro.props;
+
+function renderAttrs(img: ImageFieldValue | undefined) {
+  if (!img || !img.url) return null;
+  return {
+    src: img.url,
+    alt: img.alt ?? '',
+    width: img.width,
+    height: img.height,
+  };
+}
+
+const heroAttrs = renderAttrs(heroImage);
+const gallery1Attrs = renderAttrs(galleryImage1);
+const gallery2Attrs = renderAttrs(galleryImage2);
+---
+
+<section class="media-showcase">
+  {heroAttrs && (
+    <div class="media-showcase-hero">
+      <img
+        src={heroAttrs.src}
+        alt={heroAttrs.alt}
+        width={heroAttrs.width}
+        height={heroAttrs.height}
+        class="media-showcase-hero-img"
+      />
+    </div>
+  )}
+  <div class="media-showcase-gallery">
+    {gallery1Attrs && (
+      <img
+        src={gallery1Attrs.src}
+        alt={gallery1Attrs.alt}
+        width={gallery1Attrs.width}
+        height={gallery1Attrs.height}
+        class="media-showcase-gallery-img"
+      />
+    )}
+    {gallery2Attrs && (
+      <img
+        src={gallery2Attrs.src}
+        alt={gallery2Attrs.alt}
+        width={gallery2Attrs.width}
+        height={gallery2Attrs.height}
+        class="media-showcase-gallery-img"
+      />
+    )}
+  </div>
+  {caption && <p class="media-showcase-caption">{caption}</p>}
+</section>
+
+<style>
+  .media-showcase {
+    padding: 2rem 1rem;
+  }
+  .media-showcase-hero-img {
+    width: 100%;
+    max-height: 480px;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
+  }
+  .media-showcase-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .media-showcase-gallery-img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 6px;
+    display: block;
+  }
+  .media-showcase-caption {
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
+    color: #666;
+    text-align: center;
+  }
+</style>
