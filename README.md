@@ -14,7 +14,7 @@ Licensed under the Business Source License 1.1
 </p>
 
 <p align="center">
-  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-3.0.0-blue" alt="version" /></a>
+  <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-3.0.1-blue" alt="version" /></a>
   <a href="https://www.npmjs.com/package/@astroblocks/astro-blocks"><img src="https://img.shields.io/npm/v/%40astroblocks%2Fastro-blocks?logo=npm" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/@astroblocks/astro-blocks"><img src="https://img.shields.io/npm/dm/%40astroblocks%2Fastro-blocks?logo=npm" alt="npm downloads" /></a>
   <img src="https://img.shields.io/badge/status-stable-brightgreen" alt="stable" />
@@ -63,7 +63,7 @@ The page editor is the core of AstroBlocks. It is designed as a compact block bu
 | Astro | 6+ |
 | Adapter | `@astrojs/node` 10+ |
 
-AstroBlocks alpha defaults to **SSR public pages + Astro experimental cache**. Use `output: 'static'` plus a server adapter so `/cms`, `/cms/api`, `/robots.txt`, `/sitemap-index.xml` and CMS-managed public pages can run dynamically.
+AstroBlocks defaults to **SSR public pages + Astro experimental cache**. Use `output: 'static'` plus a server adapter so `/cms`, `/cms/api`, `/robots.txt`, `/sitemap-index.xml` and CMS-managed public pages can run dynamically.
 
 ---
 
@@ -464,9 +464,9 @@ const allConfigs = await getConfigMap();
 | --- | --- |
 | `layoutPath` | Path to the Astro layout used when AstroBlocks renders a page |
 | `blocks` | Array of block schemas imported from your `.schema.ts` files |
-| `publicRendering` | `'server'` by default in alpha. Use `'static'` to opt back into prerendered public pages |
-| `cache` | Cache behavior for SSR public pages. Enabled by default in alpha when the consumer configures an Astro cache provider |
-| `i18n.routingStrategy` | Public routing contract for localized paths (`'path-prefix'` in this alpha) |
+| `publicRendering` | `'server'` by default. Use `'static'` to opt back into prerendered public pages |
+| `cache` | Cache behavior for SSR public pages. Enabled by default when the consumer configures an Astro cache provider |
+| `i18n.routingStrategy` | Public routing contract for localized paths (`'path-prefix'` in this version) |
 
 ### Cache Provider
 
@@ -498,7 +498,7 @@ astroBlocks({
 });
 ```
 
-> Redirect rules are SSR-only in this alpha MVP. When `publicRendering: 'static'`, redirects configured in `/cms/redirects` are not applied.
+> Redirect rules are SSR-only in this MVP. When `publicRendering: 'static'`, redirects configured in `/cms/redirects` are not applied.
 
 ---
 
@@ -532,7 +532,7 @@ npx astro-blocks init-ai --copy
 
 ### Content changes do not appear on the public site
 
-CMS-managed public pages are served in SSR by default in alpha. If changes do not appear:
+CMS-managed public pages are served in SSR by default. If changes do not appear:
 
 - make sure the page is `published`
 - make sure your project is using the AstroBlocks catch-all route and not a conflicting file in `src/pages/`
