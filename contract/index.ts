@@ -9,6 +9,7 @@ export type {
   BlockDefinition,
   BlockInstance,
   BlockSchema,
+  ImageFieldValue,
   PropDef,
   PropType,
   SchemaMap,

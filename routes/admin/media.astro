@@ -1,0 +1,181 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+export const prerender = false;
+
+import AdminLayout from './layout.astro';
+import { Image as ImageIcon } from '@lucide/astro';
+import { loadMedia, loadSite } from '../../api/data.js';
+
+const site = await loadSite();
+const mediaData = await loadMedia();
+const uploads = mediaData.uploads;
+
+// NOTE: formatBytes, formatDimensions and formatMediaDate are intentionally
+// duplicated from routes/admin/client/media-fetch.ts. SSR (Astro frontmatter)
+// cannot import client-only ES modules, so the three functions are inlined here.
+// The copies MUST stay byte-for-byte equivalent in behavior: this page renders
+// the initial card metadata server-side, and media-fetch.ts re-renders the SAME
+// cards client-side after a fetch. Any divergence would make first-paint and
+// re-render disagree (e.g. "0×0" vs "—", or different date formats).
+// tests/media-formatters.test.js asserts both copies produce identical output.
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDimensions(width?: number, height?: number): string {
+  if (width !== undefined && height !== undefined && width > 0 && height > 0) {
+    return `${width}×${height}`;
+  }
+  return '—';
+}
+
+function formatMediaDate(isoString: string): string {
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return isoString;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+---
+
+<AdminLayout site={site} title="Media">
+  <div class="cms-stack">
+    <div class="cms-page-intro">
+      <div class="cms-page-intro-copy">
+        <span class="cms-page-eyebrow">Contenido</span>
+        <div class="cms-page-header">
+          <h1 class="cms-title">Media</h1>
+        </div>
+        <p class="cms-page-lead">
+          Upload and manage images for your site. Accepted formats: JPG, PNG, WebP, SVG, GIF.
+        </p>
+      </div>
+    </div>
+
+    <!-- Upload area -->
+    <div class="cms-card cms-media-upload-card">
+      <div
+        class="cms-dropzone"
+        id="cms-media-dropzone"
+        role="region"
+        aria-label="Image upload drop zone"
+      >
+        <ImageIcon size={32} aria-hidden="true" class="cms-dropzone-icon" />
+        <p class="cms-dropzone-label">Drag &amp; drop images here</p>
+        <p class="cms-muted cms-dropzone-hint">or use the button below</p>
+        <button
+          type="button"
+          id="cms-media-upload-btn"
+          class="cms-btn cms-btn-secondary"
+          aria-label="Choose image to upload"
+        >
+          Choose image
+        </button>
+        <input
+          type="file"
+          id="cms-media-file-input"
+          accept="image/*"
+          class="cms-hidden"
+          aria-label="Upload image file"
+          multiple
+        />
+      </div>
+      <div id="cms-media-upload-progress" class="cms-hidden cms-media-upload-progress" aria-live="polite"></div>
+    </div>
+
+    <!-- Search + pagination controls (client-driven; hidden until JS loads) -->
+    <div class="cms-media-toolbar cms-hidden" id="cms-media-toolbar" aria-label="Media search and pagination">
+      <div class="cms-media-toolbar-search">
+        <label for="cms-media-search" class="cms-visually-hidden">Search images by filename</label>
+        <input
+          type="search"
+          id="cms-media-search"
+          class="cms-input cms-media-search-input"
+          placeholder="Search by filename…"
+          autocomplete="off"
+          aria-label="Search images by filename"
+        />
+      </div>
+      <div class="cms-media-toolbar-pagination">
+        <button type="button" id="cms-media-prev" class="cms-btn cms-btn-secondary" aria-label="Previous page" disabled>Prev</button>
+        <span id="cms-media-page-indicator" class="cms-media-page-indicator cms-muted" aria-live="polite" aria-atomic="true"></span>
+        <button type="button" id="cms-media-next" class="cms-btn cms-btn-secondary" aria-label="Next page" disabled>Next</button>
+      </div>
+      <p role="status" aria-live="polite" id="cms-media-count" class="cms-media-count cms-muted"></p>
+    </div>
+
+    <!-- Media grid -->
+    <div class="cms-card cms-card--no-padding" id="cms-media-grid-card">
+      {uploads.length === 0 ? (
+        <div id="cms-media-empty-state" class="cms-media-empty-state">
+          <ImageIcon size={40} aria-hidden="true" class="cms-media-empty-icon" />
+          <p class="cms-media-empty-title">No images uploaded yet</p>
+          <p class="cms-muted">Upload your first image using the area above.</p>
+        </div>
+      ) : (
+        <div id="cms-media-grid" class="cms-media-grid" aria-label="Image library" role="list">
+          {uploads.map((entry) => (
+            <div class="cms-media-card" role="listitem" data-media-url={entry.url} data-media-id={entry.id}>
+              <div class="cms-media-card-thumb">
+                <img
+                  src={entry.url}
+                  alt={entry.filename}
+                  class="cms-media-card-img"
+                  loading="lazy"
+                />
+              </div>
+              <div class="cms-media-card-info">
+                <span class="cms-media-card-name" title={entry.filename}>{entry.filename}</span>
+                <div class="cms-media-card-meta cms-muted" aria-label="Image metadata">
+                  {formatDimensions(entry.width, entry.height) !== '—' && (
+                    <>
+                      <span class="cms-media-card-meta-dim">{formatDimensions(entry.width, entry.height)}</span>
+                      <span class="cms-media-card-meta-sep" aria-hidden="true">·</span>
+                    </>
+                  )}
+                  <span class="cms-media-card-meta-size">{formatBytes(entry.size)}</span>
+                  <span class="cms-media-card-meta-sep" aria-hidden="true">·</span>
+                  <span class="cms-media-card-meta-type">{entry.mimeType}</span>
+                  <span class="cms-media-card-meta-sep" aria-hidden="true">·</span>
+                  <span class="cms-media-card-meta-date">{formatMediaDate(entry.createdAt)}</span>
+                </div>
+              </div>
+              <div class="cms-media-card-actions">
+                <button
+                  type="button"
+                  class="cms-media-card-replace cms-btn-icon"
+                  aria-label={`Replace ${entry.filename}`}
+                  data-replace-id={entry.id}
+                  data-replace-filename={entry.filename}
+                  data-replace-mime={entry.mimeType}
+                  title={`Replace ${entry.filename}`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                </button>
+                <button
+                  type="button"
+                  class="cms-media-card-delete cms-btn-icon"
+                  aria-label={`Delete ${entry.filename}`}
+                  data-delete-url={entry.url}
+                  data-delete-filename={entry.filename}
+                  data-delete-id={entry.id}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+
+  <script>
+    import { initMediaPage } from './client/media.js';
+    initMediaPage();
+  </script>
+</AdminLayout>

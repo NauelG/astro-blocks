@@ -55,6 +55,8 @@ export async function GET({ request }: APIContext): Promise<Response> {
   if (seg[0] === 'users' && seg.length === 1) return handlers.handleGetUsers(authResult.user);
   if (seg[0] === 'block-schemas' && seg.length === 1) return handlers.handleGetBlockSchemas();
   if (seg[0] === 'languages' && seg.length === 1) return handlers.handleGetLanguages();
+  if (seg[0] === 'media' && seg.length === 1) return handlers.handleGetMedia(request);
+  if (seg[0] === 'media' && seg[2] === 'usage' && seg.length === 3) return handlers.handleGetMediaUsage(seg[1], request);
   if (seg[0] === 'global-blocks' && seg.length === 1) {
     const registry = await loadGlobalBlocksRegistry();
     return handlers.handleGetGlobalBlocks(registry, request);
@@ -80,6 +82,7 @@ export async function POST({ request, cache }: APIContext): Promise<Response> {
   if (seg[0] === 'redirects' && seg.length === 1) return handlers.handlePostRedirects(request, { cache });
   if (seg[0] === 'configs' && seg.length === 1) return handlers.handlePostConfigs(request, { cache });
   if (seg[0] === 'upload' && seg.length === 1) return handlers.handleUpload(request);
+  if (seg[0] === 'media' && seg[2] === 'replace' && seg.length === 3) return handlers.handleReplaceUpload(request, seg[1]);
   if (seg[0] === 'cache' && seg[1] === 'invalidate' && seg.length === 2) return handlers.handleInvalidateCache({ cache });
   if (seg[0] === 'users' && seg.length === 1) return handlers.handlePostUsers(request, authResult.user);
   if (seg[0] === 'languages' && seg.length === 1) {
@@ -115,6 +118,20 @@ export async function PUT({ request, cache }: APIContext): Promise<Response> {
   if (seg[0] === 'global-blocks' && seg.length === 2) {
     const registry = await loadGlobalBlocksRegistry();
     return handlers.handlePutGlobalBlock(seg[1], request, { cache }, registry);
+  }
+
+  return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+}
+
+export async function PATCH({ request }: APIContext): Promise<Response> {
+  const authResult = await ensureAuth(request);
+  if ('status' in authResult) return new Response(JSON.stringify(authResult.body), { status: 401 });
+
+  const seg = getPathSegments(request.url);
+
+  // PATCH /cms/api/media/:id — update default alt text
+  if (seg[0] === 'media' && seg.length === 2) {
+    return handlers.handleUpdateMediaAlt(seg[1], request);
   }
 
   return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });

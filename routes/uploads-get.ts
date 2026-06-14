@@ -28,9 +28,11 @@ export async function GET({ request }: { request: Request }): Promise<Response> 
     const buffer = await fs.readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME[ext] || 'application/octet-stream';
-    return new Response(buffer, {
-      headers: { 'Content-Type': contentType },
-    });
+    const headers: Record<string, string> = { 'Content-Type': contentType, 'Cache-Control': 'no-cache' };
+    if (ext === '.svg') {
+      headers['Content-Disposition'] = 'attachment';
+    }
+    return new Response(buffer, { headers });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return new Response(null, { status: 404 });
     return new Response(null, { status: 500 });

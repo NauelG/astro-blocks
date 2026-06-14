@@ -1,0 +1,138 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+/**
+ * BlockImage — renders an image from an ImageFieldValue (or legacy string URL).
+ *
+ * Props:
+ *   image    — ImageFieldValue | string  (string is coerced via toImageValue)
+ *   sizes    — string (default '100vw') — forwarded to <source sizes>
+ *   priority — boolean (default false) — when true: loading='eager' + fetchpriority='high'
+ *   ...rest  — any additional HTML img attributes (class, etc.)
+ *
+ * Rendering rules (REQ-7, WCAG 1.1.1):
+ *   - When getMediaVariants returns status:'ready' AND variants.length > 0:
+ *     emits <picture> with <source type="image/avif" ...> + <source type="image/webp" ...>
+ *     + fallback <img> with full attrs.
+ *   - All other states (processing, failed, none, legacy, SVG):
+ *     emits plain <img> (graceful degradation).
+ *   - alt is ALWAYS present on the <img>, even when empty (WCAG 1.1.1).
+ *   - priority=true → loading='eager' + fetchpriority='high' (NOT lazy).
+ *   - priority=false → loading='lazy' + decoding='async'.
+ *
+ * Attribute precedence: `{...rest}` is spread FIRST on every <img> branch, so the
+ * component-computed src/alt/width/height/loading/decoding/fetchpriority always
+ * win over any same-named attribute passed via rest. This enforces the documented
+ * contract that `priority` controls loading/fetchpriority — a consumer cannot
+ * silently override it by passing `loading` through rest.
+ * NOTE: the literal four-branch <img> markup is intentionally NOT refactored here
+ * (deferred): there is no markup-render test harness, so the safe verification is
+ * typecheck + the pure-helper matrix in tests/block-image-render.test.js.
+ */
+
+import type { ImageFieldValue } from '../types/index.js';
+import { toImageValue, imageAttrs, buildSrcset, getCaption } from '../utils/image-value.js';
+import { getMediaVariants } from '../utils/getMediaVariants.js';
+
+interface Props {
+  image: ImageFieldValue | string;
+  sizes?: string;
+  priority?: boolean;
+  caption?: string;
+  [key: string]: unknown;
+}
+
+const { image, sizes = '100vw', priority = false, caption: captionProp, ...rest } = Astro.props;
+
+const v = toImageValue(image);
+const attrs = imageAttrs(v);
+const caption = getCaption(v, captionProp as string | undefined);
+
+// Lookup responsive image variants from the media registry
+const mv = await getMediaVariants(v.url);
+
+// Determine loading attributes based on priority prop
+const loadingAttr = priority ? 'eager' : 'lazy';
+const decodingAttr = priority ? undefined : 'async';
+const fetchpriorityAttr = priority ? 'high' : undefined;
+---
+
+{caption ? (
+  <figure class="cms-figure">
+    {mv.status === 'ready' && mv.variants.length > 0 ? (
+      <picture>
+        <source
+          type="image/avif"
+          srcset={buildSrcset(mv.variants, 'avif')}
+          sizes={sizes}
+        />
+        <source
+          type="image/webp"
+          srcset={buildSrcset(mv.variants, 'webp')}
+          sizes={sizes}
+        />
+        <img
+          {...rest}
+          src={attrs.src}
+          alt={attrs.alt}
+          width={attrs.width}
+          height={attrs.height}
+          loading={loadingAttr}
+          decoding={decodingAttr}
+          fetchpriority={fetchpriorityAttr}
+        />
+      </picture>
+    ) : (
+      <img
+        {...rest}
+        src={attrs.src}
+        alt={attrs.alt}
+        width={attrs.width}
+        height={attrs.height}
+        loading={loadingAttr}
+        decoding={decodingAttr}
+        fetchpriority={fetchpriorityAttr}
+      />
+    )}
+    <figcaption>{caption}</figcaption>
+  </figure>
+) : (
+  mv.status === 'ready' && mv.variants.length > 0 ? (
+    <picture>
+      <source
+        type="image/avif"
+        srcset={buildSrcset(mv.variants, 'avif')}
+        sizes={sizes}
+      />
+      <source
+        type="image/webp"
+        srcset={buildSrcset(mv.variants, 'webp')}
+        sizes={sizes}
+      />
+      <img
+        {...rest}
+        src={attrs.src}
+        alt={attrs.alt}
+        width={attrs.width}
+        height={attrs.height}
+        loading={loadingAttr}
+        decoding={decodingAttr}
+        fetchpriority={fetchpriorityAttr}
+      />
+    </picture>
+  ) : (
+    <img
+      {...rest}
+      src={attrs.src}
+      alt={attrs.alt}
+      width={attrs.width}
+      height={attrs.height}
+      loading={loadingAttr}
+      decoding={decodingAttr}
+      fetchpriority={fetchpriorityAttr}
+    />
+  )
+)}

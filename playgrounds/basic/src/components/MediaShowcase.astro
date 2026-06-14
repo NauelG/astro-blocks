@@ -1,0 +1,138 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+/**
+ * MediaShowcase — demonstrates responsive <BlockImage> usage.
+ *
+ * - Hero image uses priority={true} (eager + fetchpriority=high, LCP image).
+ * - Gallery images use default lazy loading.
+ * - Demonstrates the sizes prop override for half-width gallery layout.
+ *
+ * When variants are ready (sharp processed), BlockImage emits <picture> with
+ * avif + webp <source> elements and falls back to plain <img> otherwise.
+ *
+ * Manual verification steps:
+ *   1. Upload a JPEG > 1920px → observe status:'processing' in /cms/media
+ *   2. Wait for generation → status:'ready' → this page shows <picture> in source
+ *   3. Upload an SVG → confirm no variants, plain <img> in output
+ *   4. Delete an image → confirm original + all variant files removed
+ */
+
+import BlockImage from '@astroblocks/astro-blocks/components/BlockImage';
+
+// ImageFieldValue shape mirrored locally since the playground uses the installed
+// tarball (not the live src tree).
+// NOTE: caption here is a per-image caption (renders as <figcaption> via BlockImage).
+// Distinct from the section-level `caption` prop below (renders as <p class="media-showcase-caption">).
+interface ImageFieldValue {
+  url: string;
+  alt?: string;
+  /** Per-image caption — renders as <figcaption> inside <figure class="cms-figure"> via BlockImage. */
+  caption?: string;
+  width?: number;
+  height?: number;
+}
+
+export interface Props {
+  heroImage?: ImageFieldValue;
+  galleryImage1?: ImageFieldValue;
+  galleryImage2?: ImageFieldValue;
+  /**
+   * Section-level caption — displayed as a paragraph below the whole showcase.
+   * DISTINCT from per-image captions (ImageFieldValue.caption) which appear as
+   * <figcaption> elements inside each image's <figure>.
+   */
+  caption?: string;
+}
+
+const { heroImage, galleryImage1, galleryImage2, caption } = Astro.props;
+---
+
+<section class="media-showcase">
+  {heroImage && heroImage.url && (
+    <div class="media-showcase-hero">
+      <BlockImage
+        image={heroImage}
+        priority={true}
+        sizes="100vw"
+        class="media-showcase-hero-img"
+      />
+    </div>
+  )}
+  <div class="media-showcase-gallery">
+    <!-- Per-image caption (ImageFieldValue.caption) renders as <figcaption> via BlockImage -->
+    {galleryImage1 && galleryImage1.url && (
+      <BlockImage
+        image={galleryImage1}
+        sizes="(max-width: 640px) 100vw, 50vw"
+        class="media-showcase-gallery-img"
+        caption={galleryImage1.caption}
+      />
+    )}
+    {galleryImage2 && galleryImage2.url && (
+      <BlockImage
+        image={galleryImage2}
+        sizes="(max-width: 640px) 100vw, 50vw"
+        class="media-showcase-gallery-img"
+        caption={galleryImage2.caption}
+      />
+    )}
+  </div>
+  <!-- Section-level caption — distinct from per-image <figcaption> elements rendered above -->
+  {caption && <p class="media-showcase-caption">{caption}</p>}
+</section>
+
+<style>
+  .media-showcase {
+    padding: 2rem 1rem;
+  }
+  .media-showcase-hero-img {
+    width: 100%;
+    max-height: 480px;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
+  }
+  .media-showcase-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .media-showcase-gallery-img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 6px;
+    display: block;
+  }
+  .media-showcase-caption {
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
+    color: #666;
+    text-align: center;
+  }
+
+  /*
+   * Consumer-side figure/figcaption styling.
+   * BlockImage ships <figure class="cms-figure"> as a styling hook only — no
+   * default styles are injected by the library (ADR-3). Each consumer styles it here.
+   * This scoped block is the playground demonstration of that pattern.
+   */
+  :global(.cms-figure) {
+    margin: 0;
+    display: inline-block;
+    width: 100%;
+  }
+
+  :global(.cms-figure figcaption) {
+    margin-top: 0.35rem;
+    font-size: 0.8rem;
+    color: #555;
+    font-style: italic;
+    text-align: center;
+  }
+</style>

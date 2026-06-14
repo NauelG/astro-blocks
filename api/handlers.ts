@@ -9,6 +9,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { APIContext } from 'astro';
 import { SignJWT, jwtVerify } from 'jose';
+import { imageSize } from 'image-size';
 import { getGlobalCachePaths, getGlobalCacheTags, getPageCachePath, getPageCacheTags } from '../utils/cache.js';
 import { validateBlocks } from '../utils/blocks.js';
 import {
@@ -21,6 +22,7 @@ import {
 } from '../utils/localization.js';
 import { joinSlugSegments, slugToPath, splitSlugSegments } from '../utils/slug.js';
 import { getProjectRoot, getUploadsDir, resolveUploadPath } from '../utils/paths.js';
+import { generateAndPersistVariants } from '../utils/variant-generator.js';
 import {
   hasDuplicateRedirectFrom,
   normalizeRedirectPath,
@@ -28,6 +30,7 @@ import {
   validateRedirectPathInput,
 } from '../utils/redirects.js';
 import { validateBlockPropsAgainstSchema } from '../utils/block-validation.js';
+import { toImageValue } from '../utils/image-value.js';
 import type {
   AuthResult,
   AuthUser,
@@ -36,6 +39,7 @@ import type {
   ContentLanguage,
   GlobalBlockRuntimeEntry,
   LanguagesData,
+  MediaEntry,
   Menu,
   MenuItem,
   Page,
@@ -55,6 +59,26 @@ const JWT_EXPIRY = '7d';
 type AstroCache = APIContext['cache'];
 type HandlerContext = { cache?: AstroCache | null };
 const CONFIG_KEY_REGEX = /^[A-Za-z][A-Za-z0-9_.-]*$/;
+
+// Media upload constants
+const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif']);
+
+/** Single source of truth: extension is always derived from the validated MIME type, never from the user filename. */
+const MIME_TO_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/svg+xml': '.svg',
+  'image/gif': '.gif',
+};
+const MAX_UPLOAD_BYTES = (() => {
+  const envVal = process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
+  if (envVal) {
+    const parsed = Number.parseInt(envVal, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return 5 * 1024 * 1024; // 5 MB default
+})();
 
 function jsonError(message: string, status = 400, extra?: Record<string, unknown>): Response {
   return new Response(JSON.stringify({ error: message, ...extra }), {
@@ -388,16 +412,19 @@ function projectBlockProps(
     const localizable = isSchemaPropLocalizable(def);
 
     if (localizable && isLocalizedMapValue(rawValue, localeKeys)) {
-      output[propName] = rawValue[normalizedLocale];
+      const projected = rawValue[normalizedLocale];
+      output[propName] = def?.type === 'image' ? toImageValue(projected) : projected;
       continue;
     }
 
     if (isLocalizedMapValue(rawValue, localeKeys)) {
-      output[propName] = rawValue[normalizedLocale];
+      const projected = rawValue[normalizedLocale];
+      output[propName] = def?.type === 'image' ? toImageValue(projected) : projected;
       continue;
     }
 
-    output[propName] = rawValue;
+    // Coerce legacy string image values to ImageFieldValue at the consumer API boundary
+    output[propName] = def?.type === 'image' ? toImageValue(rawValue) : rawValue;
   }
 
   return output;
@@ -1279,37 +1306,307 @@ export async function handleUpload(request: Request): Promise<Response> {
   if (!file || typeof (file as File).arrayBuffer !== 'function') return jsonError('No file');
 
   const blob = file as File;
+
+  // Validate MIME type BEFORE disk write
+  const mimeType = blob.type || '';
+  if (!mimeType || !ALLOWED_IMAGE_MIME.has(mimeType)) {
+    return jsonError('Unsupported file type. Allowed: jpg, png, webp, svg, gif', 415);
+  }
+
+  // Validate size BEFORE disk write
+  if (blob.size > MAX_UPLOAD_BYTES) {
+    const limitMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
+    return jsonError(`File too large. Maximum size is ${limitMb} MB`, 413);
+  }
+
   const buffer = await blob.arrayBuffer();
-  const fileName = blob.name || 'upload';
-  const extension = path.extname(fileName) || '';
+  // Extension is derived from the already-validated MIME type — never from the user-supplied filename.
+  // This prevents a stored-XSS bypass where an SVG uploaded as "foo.jpg" would be served inline.
+  const extension = MIME_TO_EXT[mimeType];
   const subdir = new Date().toISOString().slice(0, 7).replace(/-/g, '/');
   const dir = path.join(getUploadsDir(), subdir);
 
   await fs.mkdir(dir, { recursive: true });
 
   const token = crypto.randomBytes(4).toString('hex');
-  const base = path.basename(fileName, extension) || 'file';
+  const rawBase = path.basename(blob.name || 'upload', path.extname(blob.name || ''));
+  const base = rawBase.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'file';
   const filename = `${token}-${base}${extension}`;
   await fs.writeFile(path.join(dir, filename), Buffer.from(buffer));
 
-  return Response.json({ url: `/uploads/${subdir}/${filename}`.replace(/\/+/, '/') });
+  const url = `/uploads/${subdir}/${filename}`.replace(/\/+/, '/');
+
+  // Capture image dimensions from the in-memory buffer (REQ-4).
+  // Wrapped in try/catch so corrupt headers / SVG-without-viewBox never fail the upload.
+  let capturedWidth: number | undefined;
+  let capturedHeight: number | undefined;
+  try {
+    const dim = imageSize(Buffer.from(buffer));
+    if (
+      typeof dim.width === 'number' &&
+      typeof dim.height === 'number' &&
+      Number.isFinite(dim.width) &&
+      Number.isFinite(dim.height)
+    ) {
+      capturedWidth = Math.floor(dim.width);
+      capturedHeight = Math.floor(dim.height);
+    }
+  } catch {
+    // Swallow dimension errors — never fail the upload
+  }
+
+  // Append MediaEntry to registry with status:'processing' (variants generated async)
+  const entry: MediaEntry = {
+    id: data.generateId(),
+    url,
+    filename: blob.name || filename,
+    size: blob.size,
+    mimeType,
+    createdAt: new Date().toISOString(),
+    ...(capturedWidth !== undefined && { width: capturedWidth }),
+    ...(capturedHeight !== undefined && { height: capturedHeight }),
+    status: 'processing',
+  };
+  await data.appendMediaEntry(entry);
+
+  // Build response first, then fire-and-forget variant generation (after response returns)
+  const res = Response.json({ url, entry });
+  void generateAndPersistVariants(entry).catch(() => {});
+  return res;
 }
 
 export async function handleDeleteUpload(request: Request): Promise<Response> {
   const { data: body, error } = await parseJsonBody<{ url?: string }>(request);
   if (error || !body) return error as Response;
 
-  const filePath = resolveUploadPath(body.url ?? '');
+  const url = body.url ?? '';
+  const filePath = resolveUploadPath(url);
   if (!filePath) return jsonError('Invalid or disallowed URL');
 
+  // Look up the entry BEFORE removing from registry so we can access its variants
+  const mediaData = await data.loadMedia();
+  const entry = mediaData.uploads.find((e) => e.url === url);
+
+  // Delete variant files (cascade) — ENOENT is tolerated (idempotent)
+  if (entry?.variants && entry.variants.length > 0) {
+    for (const variant of entry.variants) {
+      const variantPath = resolveUploadPath(variant.url);
+      if (variantPath) {
+        try {
+          await fs.unlink(variantPath);
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+            // Non-ENOENT errors are swallowed: cascade is best-effort
+          }
+        }
+      }
+    }
+  }
+
+  // Attempt to unlink original from disk; ENOENT is treated as no-error (idempotent)
   try {
     await fs.unlink(filePath);
   } catch (deleteError) {
-    if ((deleteError as NodeJS.ErrnoException).code === 'ENOENT') return new Response(null, { status: 204 });
-    return jsonError('Delete failed', 500);
+    if ((deleteError as NodeJS.ErrnoException).code !== 'ENOENT') {
+      return jsonError('Delete failed', 500);
+    }
   }
 
+  // Always prune the registry entry by URL (idempotent for both normal and ENOENT cases).
+  // Serialized read-modify-write — concurrency-safe.
+  await data.removeMediaEntryByUrl(url);
+
   return new Response(null, { status: 204 });
+}
+
+export async function handleGetMedia(request: Request): Promise<Response> {
+  const auth = await getAuth(request);
+  if (!auth) return jsonError('Unauthorized', 401);
+
+  // Parse query parameters: q, page, limit
+  const url = new URL(request.url);
+  const q = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+
+  let page = parseInt(url.searchParams.get('page') ?? '', 10);
+  if (Number.isNaN(page) || page < 1) page = 1;
+
+  let limit = parseInt(url.searchParams.get('limit') ?? '', 10);
+  // NaN (non-numeric or absent) → default 24; otherwise clamp to [1, 100]
+  if (Number.isNaN(limit)) limit = 24;
+  limit = Math.min(100, Math.max(1, limit));
+
+  // Pipeline: reconcile → sort newest-first → filter(q) → count total → slice page
+  const reconciled = await data.reconcileMedia();
+
+  const sorted = [...reconciled.uploads].sort((a, b) => {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  // Filter by filename substring (case-insensitive) if q is non-empty
+  const filtered = q
+    ? sorted.filter((entry) => entry.filename.toLowerCase().includes(q))
+    : sorted;
+
+  const total = filtered.length;
+  const uploads = filtered.slice((page - 1) * limit, page * limit);
+
+  return Response.json({ uploads, total, page, limit });
+}
+
+/**
+ * PATCH /cms/api/media/:id — Update the default alt text of a media entry.
+ *
+ * Request body: { alt: string }
+ * Response 200: { entry: MediaEntry } — the updated entry
+ * Errors: 401 (unauth), 404 (unknown id), 400 (malformed body)
+ */
+export async function handleUpdateMediaAlt(id: string, request: Request): Promise<Response> {
+  const auth = await getAuth(request);
+  if (!auth) return jsonError('Unauthorized', 401);
+
+  const { data: body, error } = await parseJsonBody<{ alt?: unknown }>(request);
+  if (error || !body) return error as Response;
+
+  if (typeof body.alt !== 'string') {
+    return jsonError('Bad request: alt must be a string', 400);
+  }
+
+  const updated = await data.updateMediaEntryAlt(id, body.alt);
+  if (!updated) return jsonError('Not found', 404);
+
+  return Response.json({ entry: updated });
+}
+
+/**
+ * GET /cms/api/media/:id/usage
+ * Returns { count, usages[] } for the given media entry URL.
+ * 401 if unauthenticated; 404 if media id not found.
+ */
+export async function handleGetMediaUsage(id: string, request: Request): Promise<Response> {
+  const auth = await getAuth(request);
+  if (!auth) return jsonError('Unauthorized', 401);
+
+  const m = await data.loadMedia();
+  const entry = m.uploads.find((e) => e.id === id);
+  if (!entry) return jsonError('Not found', 404);
+
+  const result = await data.findMediaUsages(entry.url);
+  return Response.json(result);
+}
+
+/**
+ * POST /cms/api/media/:id/replace
+ * Replaces the bytes of an existing media entry in-place (same URL, same MIME).
+ * 401 unauth; 404 unknown id; 400 no file; 415 wrong/disallowed MIME; 413 oversize.
+ * On success: 200 { entry } with status:'processing'; fires variant regen async.
+ */
+export async function handleReplaceUpload(request: Request, id: string): Promise<Response> {
+  const auth = await getAuth(request);
+  if (!auth) return jsonError('Unauthorized', 401);
+
+  const m = await data.loadMedia();
+  const entry = m.uploads.find((e) => e.id === id);
+  if (!entry) return jsonError('Not found', 404);
+
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return jsonError('Invalid multipart body', 400);
+  }
+
+  const file = formData.get('file');
+  if (!file || typeof (file as File).arrayBuffer !== 'function') {
+    return jsonError('No file', 400);
+  }
+
+  const blob = file as File;
+
+  // MIME validation — same two-phase as handleUpload
+  const mimeType = blob.type || '';
+  if (!mimeType || !ALLOWED_IMAGE_MIME.has(mimeType)) {
+    return jsonError('Unsupported file type. Allowed: jpg, png, webp, svg, gif', 415);
+  }
+  if (mimeType !== entry.mimeType) {
+    return jsonError(`Replacement must be the same type: expected ${entry.mimeType}`, 415);
+  }
+
+  // Size guard
+  if (blob.size > MAX_UPLOAD_BYTES) {
+    const limitMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
+    return jsonError(`File too large. Maximum size is ${limitMb} MB`, 413);
+  }
+
+  // Resolve the on-disk path (reuses traversal guard)
+  const filePath = resolveUploadPath(entry.url);
+  if (!filePath) return jsonError('Internal error: cannot resolve upload path', 500);
+
+  // Overwrite bytes ATOMICALLY: write to a temp file then rename into place.
+  // rename(2) is atomic on POSIX, so a read never observes a half-written file.
+  // On failure the temp file is cleaned up and the original is left intact.
+  const buffer = await blob.arrayBuffer();
+  const tmpPath = `${filePath}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  try {
+    await fs.writeFile(tmpPath, Buffer.from(buffer));
+    await fs.rename(tmpPath, filePath);
+  } catch (writeErr) {
+    // Clean up the temp file on error (best-effort) and abort before any
+    // variant unlink or registry update so the original stays intact.
+    try { await fs.unlink(tmpPath); } catch { /* ignore */ }
+    return jsonError('Failed to write replacement file', 500);
+  }
+
+  // Recompute dimensions
+  let capturedWidth: number | undefined;
+  let capturedHeight: number | undefined;
+  try {
+    const dim = imageSize(Buffer.from(buffer));
+    if (
+      typeof dim.width === 'number' &&
+      typeof dim.height === 'number' &&
+      Number.isFinite(dim.width) &&
+      Number.isFinite(dim.height)
+    ) {
+      capturedWidth = Math.floor(dim.width);
+      capturedHeight = Math.floor(dim.height);
+    }
+  } catch {
+    // Swallow dimension errors — never fail the replace
+  }
+
+  // Update registry under lock. replaceMediaEntryBytes atomically captures
+  // the current variant list and clears it, then returns { entry, oldVariants }.
+  // We use oldVariants (the set that was live at mutation time) to unlink —
+  // not the pre-lock snapshot from the early loadMedia(), which avoids the race
+  // where a concurrent regen re-populates variants between the snapshot and lock.
+  const result = await data.replaceMediaEntryBytes(id, {
+    size: blob.size,
+    width: capturedWidth,
+    height: capturedHeight,
+  });
+  if (!result) return jsonError('Not found', 404);
+
+  const { entry: updated, oldVariants } = result;
+
+  // Delete stale variant files (they map to old bytes; new image may be smaller).
+  // ENOENT is tolerated: variant may already be gone.
+  for (const variant of oldVariants) {
+    const variantPath = resolveUploadPath(variant.url);
+    if (variantPath) {
+      try {
+        await fs.unlink(variantPath);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          // Non-ENOENT errors are swallowed: cascade is best-effort
+        }
+      }
+    }
+  }
+
+  // Build response, then fire-and-forget variant regen (same as handleUpload)
+  const res = Response.json({ entry: updated });
+  void generateAndPersistVariants(updated).catch(() => {});
+  return res;
 }
 
 export async function handleGetGlobalBlocks(

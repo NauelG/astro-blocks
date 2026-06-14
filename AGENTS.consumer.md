@@ -198,7 +198,7 @@ Field types available in `items`:
 | `text` | Multi-line text | Textarea input |
 | `number` | Numeric value | Number input |
 | `boolean` | True/false toggle | Checkbox |
-| `image` | Image with upload | Returns a URL string |
+| `image` | Image with upload | Returns an `ImageFieldValue` object (`{ url, alt?, caption?, width?, height? }`); legacy bare strings are coerced. Render with `<BlockImage>` |
 | `link` | URL or path | Text input for href values |
 | `select` | Dropdown selection | Requires `options: string[]` |
 | `array` | List of items | Requires `item` definition; supports sortable, minItems, maxItems |
@@ -320,6 +320,44 @@ import GlobalBlock from '@astroblocks/astro-blocks/components/GlobalBlock';
 
 Renders the single component instance bound to the declared slug, with locale resolution applied to localizable props. Unknown slug → silent `console.warn` in dev, empty output in production. Declared slug with no stored entry → renders with empty props (no error).
 
+### `./components/BlockImage` — render an image field value
+
+```astro
+---
+import BlockImage from '@astroblocks/astro-blocks/components/BlockImage';
+import type { ImageFieldValue } from '@astroblocks/astro-blocks/contract';
+
+const { heroImage } = Astro.props; // heroImage: ImageFieldValue
+---
+
+<BlockImage image={heroImage} class="hero" loading="lazy" />
+```
+
+Renders an image from an `ImageFieldValue` (or a legacy string URL, which is coerced automatically). Always emits the `alt` attribute — WCAG 1.1.1 compliant. Omits `width` and `height` when absent. Accepts any additional HTML `img` attributes as spread props.
+
+When responsive variants are available (`status:'ready'`), `BlockImage` automatically emits a `<picture>` element with avif + webp `<source>` elements and a fallback `<img>`. Props:
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `image` | `ImageFieldValue \| string` | required | Image field value or legacy URL |
+| `sizes` | `string` | `'100vw'` | Value for `sizes` on `<source>` elements |
+| `priority` | `boolean` | `false` | When `true`: `loading="eager"` + `fetchpriority="high"` (use for LCP images) |
+
+### `./getMediaVariants` — read responsive variant data
+
+```ts
+import { getMediaVariants } from '@astroblocks/astro-blocks/getMediaVariants';
+
+const mv = await getMediaVariants('/uploads/2026/06/my-image.jpg');
+// mv.status   → 'ready' | 'processing' | 'failed' | 'none'
+// mv.variants → [{ format: 'webp', width: 480, url: '…' }, …]
+// mv.width / mv.height / mv.alt → from the registry
+```
+
+Reads `data/media.json` with an mtime-keyed in-memory cache. Returns `{ status: 'none', variants: [] }` gracefully when the registry is missing. Never throws.
+
+> Full media guide (editor workflow, `ImageFieldValue`/`MediaEntry` shapes, API endpoints, limitations): `docs/media.md` in the package repository.
+
 ---
 
 ## Generated Runtime (.astro-blocks/)
@@ -349,7 +387,8 @@ The plugin stores all CMS content as JSON files in your project root under `data
 | `data/languages.json` | Content language list with default locale |
 | `data/users.json` | Admin user accounts (hashed passwords) |
 | `data/global-blocks.json` | Global block props per declared slug (`{ globalBlocks: { [slug]: { props, updatedAt? } } }`) |
-| `public/uploads/` | Uploaded files (images and documents) |
+| `data/media.json` | Media registry: one `MediaEntry` per upload (dimensions, alt, variants, status) |
+| `public/uploads/` | Uploaded files and their generated responsive variants (`YYYY/MM` subdirectories) |
 
 **Commit these files to git.** They are your CMS content source of truth.
 
@@ -681,6 +720,7 @@ Uploaded files are stored in `public/uploads/` in your project root. This direct
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ASTRO_BLOCKS_PROJECT_ROOT` | `process.cwd()` | Override the project root used by the plugin to read/write `data/` files. Rarely needed; used internally by tests. |
+| `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` | `5242880` (5 MB) | Maximum accepted media upload size, in bytes. Uploads larger than this are rejected. |
 
 ---
 
