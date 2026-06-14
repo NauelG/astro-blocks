@@ -82,7 +82,7 @@
     "sortablejs": "^1.15.7"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
+    "@types/node": "^25.9.3",
     "astro": "^6.4.6",
     "playwright": "^1.60.0",
     "rimraf": "^6.1.3",
