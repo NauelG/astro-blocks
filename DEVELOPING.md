@@ -88,7 +88,11 @@ Then paste the output into `passwordHash` in `playgrounds/basic/data/users.json`
 
 ### README Screenshots
 
-You can regenerate and overwrite the two README screenshots (`img/dashboard.jpg` and `img/page_editor.jpg`) with:
+The two README screenshots (`img/dashboard.jpg` and `img/page_editor.jpg`) are regenerated
+**automatically** by the `version` npm lifecycle hook on every release. You do not need to run
+this manually before a release.
+
+For ad-hoc refreshes (e.g. after a significant UI change mid-iteration), run:
 
 ```bash
 npm run screenshots:readme
@@ -110,7 +114,11 @@ npx playwright install chromium
 
 ### Media Screenshots
 
-You can regenerate and overwrite the two media-feature screenshots (`img/media-library.png` and `img/image-picker.png`) with:
+The two media-feature screenshots (`img/media-library.png` and `img/image-picker.png`) are
+regenerated **automatically** by the `version` npm lifecycle hook on every release. You do not
+need to run this manually before a release.
+
+For ad-hoc refreshes (e.g. after a significant media-UI change mid-iteration), run:
 
 ```bash
 npm run screenshots:media
@@ -172,19 +180,104 @@ The step-by-step flow is documented in [LOCAL_PACKAGE_TESTING.md](./LOCAL_PACKAG
 - `DEVELOPING.md` is maintainer-facing.
 - `AGENTS.md` is the operational guide for coding agents working in this repo.
 
+## Cutting a Release
+
+### Prerequisites
+
+- Playwright Chromium must be installed (`npx playwright install chromium`) — the `version`
+  lifecycle hook runs both screenshot scripts, which require it.
+- The working tree must be **clean** before running `npm version`. npm enforces this and will
+  abort with an error if there are uncommitted changes or staged files.
+
+### Steps
+
+1. **Update `meta/features.json`** if this release adds or changes user-facing capabilities.
+   Run `npm run features:validate` to confirm it is valid.
+
+2. **Add the CHANGELOG entry** — open `CHANGELOG.md` and prepend a new block at the top:
+
+   ```markdown
+   ## [X.Y.Z] - YYYY-MM-DD
+
+   ### Title
+
+   Short, descriptive release title here
+
+   ### Added
+
+   - New feature description.
+   ```
+
+   Follow the changelog contract exactly (see `.claude/skills/npm-release/SKILL.md`):
+   brackets around the version, ` - ` separator, mandatory `### Title` sub-heading with
+   non-empty content.
+
+3. **Commit the CHANGELOG** — npm version requires a clean tree, so commit first:
+
+   ```bash
+   git add CHANGELOG.md
+   git commit -m "chore(changelog): add X.Y.Z entry"
+   ```
+
+4. **Run `npm version`** — this single command does everything else:
+
+   ```bash
+   npm version <major|minor|patch|X.Y.Z> -m "chore(release): %s"
+   ```
+
+   npm will, in order:
+   1. Run `preversion` — executes `npm test` (build + unit tests). Aborts on failure.
+   2. Bump `package.json#version`.
+   3. Run `version` — regenerates both screenshot sets (`screenshots:readme` and
+      `screenshots:media`) and stages `img/` via `git add img/`.
+   4. Create the release commit (contains `package.json` + `img/`) with the message you
+      passed via `-m` (the `%s` is replaced with the new version, e.g. `chore(release): 3.1.0`).
+   5. Create the `vX.Y.Z` tag pointing at that commit.
+
+   **Do NOT create the tag manually after this — npm already created it.**
+
+5. **Push branch and tag together**:
+
+   ```bash
+   git push --follow-tags
+   ```
+
+   This triggers `release-tag.yml`, which validates the tag, runs tests, publishes to npm
+   with provenance, and creates the GitHub Release.
+
+6. **Verify** after the workflow completes:
+
+   ```bash
+   npm view @astroblocks/astro-blocks dist-tags
+   ```
+
+   Confirm `latest` (and `alpha` for pre-releases) points to the new version.
+
+### Notes
+
+- The `preversion` hook runs `npm test`, which itself runs `npm run build` first. A failing
+  test or type error blocks the release before anything is committed.
+- The screenshot scripts start the playground dev server and run Playwright — this takes
+  roughly 1-2 minutes. The version hook is intentionally slow because correctness matters more
+  than speed at release time.
+- For alpha releases use `npm version X.Y.Z-alpha.N -m "chore(release): %s"` — the tag format
+  `vX.Y.Z-alpha.N` is what the workflow recognises as a pre-release.
+- If the `version` hook fails mid-run (e.g. Playwright crash), npm will NOT have created the
+  commit or tag. Fix the issue, reset any partial `git add` if needed, and re-run `npm version`.
+
 ## Release Sanity Check
 
-Before publishing or creating a release candidate:
+Before running `npm version`, confirm:
 
-1. review user-facing scope changes and update `meta/features.json` as needed
-2. `npm run features:validate`
-3. `npm run build`
-4. `npm run test`
-5. `npm run build:playground`
-6. if the iteration includes UI changes, run `npm run screenshots:readme` to refresh `img/dashboard.jpg` and `img/page_editor.jpg`
-7. `npm run pack:local`
-8. install the generated tarball in a clean Astro project
-9. verify dev + build there
+1. `meta/features.json` is up to date — `npm run features:validate`
+2. Tests pass — `npm run test`
+3. Playground builds cleanly — `npm run build:playground`
+4. `npm run pack:local` produces a valid tarball (install into a clean Astro project to confirm)
+5. CHANGELOG entry is committed and follows the exact parser contract
+6. Working tree is clean (no uncommitted changes)
+
+Screenshots are no longer a manual checklist item — the `version` hook regenerates them
+automatically as part of step 4 in the release flow above.
 
 ## GitHub Actions Release Flow
 
