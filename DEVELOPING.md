@@ -61,12 +61,30 @@ Validate at least:
 - `/cms`
 - `/cms/pages`
 - `/cms/menus`
+- `/cms/media` (upload an image, pick it from an `image` block field, delete it)
 - `/robots.txt`
 - `/sitemap-index.xml`
 - the public home page rendered dynamically from `data/pages.json`
 - editing a page invalidates and refreshes its public path
 - editing menus/settings refreshes global page output after invalidation
 - `/cms/cache` invalidates all AstroBlocks cache entries when requested
+
+### Playground Admin Credentials
+
+The playground seeds a single admin user in [`playgrounds/basic/data/users.json`](./playgrounds/basic/data/users.json). Use these to log in at `/cms`:
+
+| Field | Value |
+| --- | --- |
+| Email | `admin@test.com` |
+| Password | `admin1234` |
+
+The stored `passwordHash` is a `scrypt` digest (`base64(salt):base64(hash)`, keylen 64 — see `hashPassword` in `api/handlers.ts`); the plaintext password is not recoverable from it. This is throwaway dev data, not a real secret, and is regenerated whenever you reset the playground. To rotate it, hash a new password with the same function:
+
+```bash
+node -e "const c=require('crypto');const s=c.randomBytes(16);c.scrypt(process.argv[1],s,64,(e,h)=>console.log(s.toString('base64')+':'+h.toString('base64')))" 'yourNewPassword'
+```
+
+Then paste the output into `passwordHash` in `playgrounds/basic/data/users.json`.
 
 ### README Screenshots
 

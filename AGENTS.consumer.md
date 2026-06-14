@@ -320,6 +320,21 @@ import GlobalBlock from '@astroblocks/astro-blocks/components/GlobalBlock';
 
 Renders the single component instance bound to the declared slug, with locale resolution applied to localizable props. Unknown slug → silent `console.warn` in dev, empty output in production. Declared slug with no stored entry → renders with empty props (no error).
 
+### `./components/BlockImage` — render an image field value
+
+```astro
+---
+import BlockImage from '@astroblocks/astro-blocks/components/BlockImage';
+import type { ImageFieldValue } from '@astroblocks/astro-blocks/contract';
+
+const { heroImage } = Astro.props; // heroImage: ImageFieldValue
+---
+
+<BlockImage image={heroImage} class="hero" loading="lazy" />
+```
+
+Renders a standard `<img>` from an `ImageFieldValue` (or a legacy string URL, which is coerced automatically). Always emits the `alt` attribute — WCAG 1.1.1 compliant. Omits `width` and `height` when absent. Accepts any additional HTML `img` attributes as spread props.
+
 ---
 
 ## Generated Runtime (.astro-blocks/)
