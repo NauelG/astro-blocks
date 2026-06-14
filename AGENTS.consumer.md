@@ -333,7 +333,28 @@ const { heroImage } = Astro.props; // heroImage: ImageFieldValue
 <BlockImage image={heroImage} class="hero" loading="lazy" />
 ```
 
-Renders a standard `<img>` from an `ImageFieldValue` (or a legacy string URL, which is coerced automatically). Always emits the `alt` attribute — WCAG 1.1.1 compliant. Omits `width` and `height` when absent. Accepts any additional HTML `img` attributes as spread props.
+Renders an image from an `ImageFieldValue` (or a legacy string URL, which is coerced automatically). Always emits the `alt` attribute — WCAG 1.1.1 compliant. Omits `width` and `height` when absent. Accepts any additional HTML `img` attributes as spread props.
+
+When responsive variants are available (`status:'ready'`), `BlockImage` automatically emits a `<picture>` element with avif + webp `<source>` elements and a fallback `<img>`. Props:
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `image` | `ImageFieldValue \| string` | required | Image field value or legacy URL |
+| `sizes` | `string` | `'100vw'` | Value for `sizes` on `<source>` elements |
+| `priority` | `boolean` | `false` | When `true`: `loading="eager"` + `fetchpriority="high"` (use for LCP images) |
+
+### `./getMediaVariants` — read responsive variant data
+
+```ts
+import { getMediaVariants } from '@astroblocks/astro-blocks/getMediaVariants';
+
+const mv = await getMediaVariants('/uploads/2026/06/my-image.jpg');
+// mv.status   → 'ready' | 'processing' | 'failed' | 'none'
+// mv.variants → [{ format: 'webp', width: 480, url: '…' }, …]
+// mv.width / mv.height / mv.alt → from the registry
+```
+
+Reads `data/media.json` with an mtime-keyed in-memory cache. Returns `{ status: 'none', variants: [] }` gracefully when the registry is missing. Never throws.
 
 ---
 
