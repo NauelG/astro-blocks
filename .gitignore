@@ -36,6 +36,10 @@ Thumbs.db
 # data/
 # public/uploads/
 
+# Playground runtime media data (uploaded files + generated registry are not versioned)
+playgrounds/basic/public/uploads/
+playgrounds/basic/data/media.json
+
 # Coverage y tests
 coverage/
 .nyc_output/

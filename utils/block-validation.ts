@@ -4,9 +4,11 @@ Licensed under the Business Source License 1.1
 */
 
 import type { ArrayItemDef, ArrayPropDef, ObjectArrayItemDef, PrimitivePropDef, PrimitivePropType, PropDef } from '../types/index.js';
+import { isEmptyImageValue } from './image-value.js';
 
 const PRIMITIVE_TYPES = new Set<PrimitivePropType>(['string', 'text', 'number', 'boolean', 'image', 'link', 'select']);
-const STRING_LIKE_TYPES = new Set<PrimitivePropType>(['string', 'text', 'image', 'link', 'select']);
+// 'image' is intentionally NOT in STRING_LIKE_TYPES — image values are objects, not strings.
+const STRING_LIKE_TYPES = new Set<PrimitivePropType>(['string', 'text', 'link', 'select']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -202,6 +204,80 @@ function validatePrimitiveValue(
   itemIndex?: number,
   fieldName?: string
 ): BlockValidationIssue | null {
+  // Image-type: handled entirely in its own branch before the generic empty check.
+  // A plain string for an image field is ALWAYS invalid (per REQ-2 SC-2.4), even when
+  // required=false — validation receives already-coerced values, never raw strings.
+  if (def.type === 'image') {
+    // null/undefined → truly no value → empty
+    if (value === null || value === undefined) {
+      if (required) {
+        return issue(
+          `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" es obligatorio.`,
+          blockIndex,
+          propName,
+          itemIndex,
+          fieldName
+        );
+      }
+      return null;
+    }
+
+    // Any non-object (incl. string) → always an error
+    if (!isRecord(value)) {
+      return issue(
+        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" debe ser un objeto de imagen.`,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName
+      );
+    }
+    const imgVal = value as Record<string, unknown>;
+    if (typeof imgVal.url !== 'string') {
+      return issue(
+        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" requiere una URL válida.`,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName
+      );
+    }
+    if (required && imgVal.url.trim() === '') {
+      return issue(
+        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" no puede estar vacío.`,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName
+      );
+    }
+    if (imgVal.alt !== undefined && typeof imgVal.alt !== 'string') {
+      return issue(
+        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" — alt debe ser texto.`,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName
+      );
+    }
+    for (const dim of ['width', 'height'] as const) {
+      const v = imgVal[dim];
+      if (v !== undefined) {
+        if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0 || !Number.isInteger(v)) {
+          return issue(
+            `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" — ${dim} debe ser un número entero positivo (> 0).`,
+            blockIndex,
+            propName,
+            itemIndex,
+            fieldName
+          );
+        }
+      }
+    }
+    return null;
+  }
+
+  // Generic empty check for non-image types
   const empty = value === undefined || value === null || value === '';
   if (empty) {
     if (required) {

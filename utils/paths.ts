@@ -47,7 +47,7 @@ export function resolveUploadPath(url: string): string | null {
 
   const uploadsDir = path.resolve(getUploadsDir());
   const resolved = path.resolve(path.join(uploadsDir, relative));
-  if (!resolved.startsWith(uploadsDir)) return null;
+  if (resolved !== uploadsDir && !resolved.startsWith(uploadsDir + path.sep)) return null;
 
   return resolved;
 }

@@ -1,0 +1,113 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+export const prerender = false;
+
+import AdminLayout from './layout.astro';
+import { Image as ImageIcon } from '@lucide/astro';
+import { loadMedia, loadSite } from '../../api/data.js';
+
+const site = await loadSite();
+const mediaData = await loadMedia();
+const uploads = mediaData.uploads;
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+---
+
+<AdminLayout site={site} title="Media">
+  <div class="cms-stack">
+    <div class="cms-page-intro">
+      <div class="cms-page-intro-copy">
+        <span class="cms-page-eyebrow">Contenido</span>
+        <div class="cms-page-header">
+          <h1 class="cms-title">Media</h1>
+        </div>
+        <p class="cms-page-lead">
+          Upload and manage images for your site. Accepted formats: JPG, PNG, WebP, SVG, GIF.
+        </p>
+      </div>
+    </div>
+
+    <!-- Upload area -->
+    <div class="cms-card cms-media-upload-card">
+      <div
+        class="cms-dropzone"
+        id="cms-media-dropzone"
+        role="region"
+        aria-label="Image upload drop zone"
+      >
+        <ImageIcon size={32} aria-hidden="true" class="cms-dropzone-icon" />
+        <p class="cms-dropzone-label">Drag &amp; drop images here</p>
+        <p class="cms-muted cms-dropzone-hint">or use the button below</p>
+        <button
+          type="button"
+          id="cms-media-upload-btn"
+          class="cms-btn cms-btn-secondary"
+          aria-label="Choose image to upload"
+        >
+          Choose image
+        </button>
+        <input
+          type="file"
+          id="cms-media-file-input"
+          accept="image/*"
+          class="cms-hidden"
+          aria-label="Upload image file"
+          multiple
+        />
+      </div>
+      <div id="cms-media-upload-progress" class="cms-hidden cms-media-upload-progress" aria-live="polite"></div>
+    </div>
+
+    <!-- Media grid -->
+    <div class="cms-card cms-card--no-padding" id="cms-media-grid-card">
+      {uploads.length === 0 ? (
+        <div id="cms-media-empty-state" class="cms-media-empty-state">
+          <ImageIcon size={40} aria-hidden="true" class="cms-media-empty-icon" />
+          <p class="cms-media-empty-title">No images uploaded yet</p>
+          <p class="cms-muted">Upload your first image using the area above.</p>
+        </div>
+      ) : (
+        <div id="cms-media-grid" class="cms-media-grid" aria-label="Image library" role="list">
+          {uploads.map((entry) => (
+            <div class="cms-media-card" role="listitem" data-media-url={entry.url} data-media-id={entry.id}>
+              <div class="cms-media-card-thumb">
+                <img
+                  src={entry.url}
+                  alt={entry.filename}
+                  class="cms-media-card-img"
+                  loading="lazy"
+                />
+              </div>
+              <div class="cms-media-card-info">
+                <span class="cms-media-card-name" title={entry.filename}>{entry.filename}</span>
+                <span class="cms-media-card-size cms-muted">{formatBytes(entry.size)}</span>
+              </div>
+              <button
+                type="button"
+                class="cms-media-card-delete"
+                aria-label={`Delete ${entry.filename}`}
+                data-delete-url={entry.url}
+                data-delete-filename={entry.filename}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+
+  <script>
+    import { initMediaPage } from './client/media.js';
+    initMediaPage();
+  </script>
+</AdminLayout>

@@ -239,6 +239,37 @@ export interface GlobalBlockRuntimeEntry {
   label?: string;
 }
 
+/**
+ * Represents the value stored for an image-type block prop.
+ * The `url` is the only required field; `alt`, `width`, and `height` are optional.
+ * Legacy string values are coerced to `{ url: string, alt: '' }` via `toImageValue()`.
+ */
+export interface ImageFieldValue {
+  url: string;
+  alt?: string;
+  width?: number;
+  height?: number;
+}
+
+export interface MediaEntry {
+  id: string;
+  url: string;
+  filename: string;
+  size: number;
+  mimeType: string;
+  createdAt: string;
+  /** Default alt text for this asset. Editable on /cms/media inline. */
+  alt?: string;
+  /** Pixel width captured at upload time via image-size. */
+  width?: number;
+  /** Pixel height captured at upload time via image-size. */
+  height?: number;
+}
+
+export interface MediaData {
+  uploads: MediaEntry[];
+}
+
 export interface AstroBlocksOptions {
   layoutPath?: string;
   blocks: BlockSchema[];

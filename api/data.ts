@@ -3,6 +3,7 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getDataDir, getDataPath, getUploadsDir } from '../utils/paths.js';
@@ -24,6 +25,8 @@ import type {
   GlobalBlockEntry,
   GlobalBlocksData,
   LanguagesData,
+  MediaData,
+  MediaEntry,
   Menu,
   MenuItem,
   MenuLocaleView,
@@ -40,6 +43,7 @@ import type {
 } from '../types/index.js';
 
 const DEFAULT_GLOBAL_BLOCKS: GlobalBlocksData = { globalBlocks: {} };
+const DEFAULT_MEDIA: MediaData = { uploads: [] };
 const DEFAULT_PAGES: PagesData = { pages: [] };
 const DEFAULT_SITE: Site = {
   siteName: 'My Site',
@@ -258,9 +262,24 @@ async function readJson<T>(filePath: string, defaultValue: T): Promise<T> {
   }
 }
 
+// Atomic write: serialize to a uniquely-named temp file, then rename into place.
+// rename(2) is atomic on POSIX, so a reader never observes a half-written file
+// even if multiple writers race on the same path.
 async function writeJson(filePath: string, data: unknown): Promise<void> {
   await ensureDir(path.dirname(filePath));
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  const tmp = `${filePath}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf-8');
+  await fs.rename(tmp, filePath);
+}
+
+// Per-file in-memory mutex. Read-modify-write sequences on the same path run one
+// at a time so concurrent appends/deletes/reconcile cannot lose updates.
+const fileLocks = new Map<string, Promise<unknown>>();
+function withFileLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const prev = fileLocks.get(key) ?? Promise.resolve();
+  const next = prev.then(fn, fn); // run fn after prev settles (success or failure)
+  fileLocks.set(key, next.catch(() => {}));
+  return next;
 }
 
 export async function loadPages(): Promise<PagesData> {
@@ -384,6 +403,109 @@ export async function saveGlobalBlock(slug: string, props: Record<string, unknow
 
 export async function saveGlobalBlocks(data: GlobalBlocksData): Promise<void> {
   await writeJson(getDataPath('global-blocks.json'), data);
+}
+
+export async function loadMedia(): Promise<MediaData> {
+  const raw = await readJson(getDataPath('media.json'), DEFAULT_MEDIA);
+  const uploads = Array.isArray(raw.uploads) ? raw.uploads.reduce((acc: MediaEntry[], entry: unknown) => {
+    if (
+      entry !== null &&
+      typeof entry === 'object' &&
+      !Array.isArray(entry) &&
+      typeof (entry as Record<string, unknown>).id === 'string' &&
+      typeof (entry as Record<string, unknown>).url === 'string' &&
+      typeof (entry as Record<string, unknown>).filename === 'string' &&
+      typeof (entry as Record<string, unknown>).size === 'number' &&
+      typeof (entry as Record<string, unknown>).mimeType === 'string' &&
+      typeof (entry as Record<string, unknown>).createdAt === 'string'
+    ) {
+      const e = entry as Record<string, unknown>;
+      const normalised: MediaEntry = {
+        id: e.id as string,
+        url: e.url as string,
+        filename: e.filename as string,
+        size: e.size as number,
+        mimeType: e.mimeType as string,
+        createdAt: e.createdAt as string,
+        // Pass-through new optional fields when present and valid
+        ...(typeof e.alt === 'string' && { alt: e.alt }),
+        ...(typeof e.width === 'number' && Number.isFinite(e.width) && e.width >= 0 && { width: e.width }),
+        ...(typeof e.height === 'number' && Number.isFinite(e.height) && e.height >= 0 && { height: e.height }),
+      };
+      acc.push(normalised);
+    }
+    return acc;
+  }, []) : [];
+  return { uploads };
+}
+
+export async function updateMediaEntryAlt(id: string, alt: string): Promise<MediaEntry | null> {
+  return withFileLock(mediaLockKey(), async () => {
+    const m = await loadMedia();
+    const index = m.uploads.findIndex((e) => e.id === id);
+    if (index === -1) return null;
+    m.uploads[index] = { ...m.uploads[index], alt };
+    await saveMedia(m);
+    return m.uploads[index];
+  });
+}
+
+export async function saveMedia(data: MediaData): Promise<void> {
+  await writeJson(getDataPath('media.json'), data);
+}
+
+// All media mutations share ONE lock keyed by the resolved media.json path so
+// appends, deletes, and reconcile never race against each other.
+function mediaLockKey(): string {
+  return getDataPath('media.json');
+}
+
+export async function appendMediaEntry(entry: MediaEntry): Promise<MediaData> {
+  return withFileLock(mediaLockKey(), async () => {
+    const m = await loadMedia();
+    m.uploads.push(entry);
+    await saveMedia(m);
+    return m;
+  });
+}
+
+export async function removeMediaEntryByUrl(url: string): Promise<MediaData> {
+  return withFileLock(mediaLockKey(), async () => {
+    const m = await loadMedia();
+    m.uploads = m.uploads.filter((e) => e.url !== url);
+    await saveMedia(m);
+    return m;
+  });
+}
+
+export async function reconcileMedia(): Promise<MediaData> {
+  return withFileLock(mediaLockKey(), async () => {
+    const media = await loadMedia();
+    const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
+    const valid: MediaEntry[] = [];
+    let changed = false;
+
+    for (const entry of media.uploads) {
+      // Resolve the public file path from the URL (strip leading slash)
+      const urlPath = entry.url.startsWith('/') ? entry.url.slice(1) : entry.url;
+      const filePath = path.join(projectRoot, 'public', urlPath);
+      try {
+        await fs.access(filePath);
+        valid.push(entry);
+      } catch {
+        // File not on disk — prune entry
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      const reconciled: MediaData = { uploads: valid };
+      await saveMedia(reconciled);
+      return reconciled;
+    }
+
+    return { uploads: valid };
+  });
 }
 
 export function getDefaultLocale(languagesData: LanguagesData): string {
@@ -551,6 +673,7 @@ export async function ensureDefaultFiles(): Promise<void> {
     [getDataPath('users.json'), DEFAULT_USERS],
     [getDataPath('languages.json'), DEFAULT_LANGUAGES],
     [getDataPath('global-blocks.json'), DEFAULT_GLOBAL_BLOCKS],
+    [getDataPath('media.json'), DEFAULT_MEDIA],
   ];
 
   for (const [filePath, defaultValue] of defaults) {

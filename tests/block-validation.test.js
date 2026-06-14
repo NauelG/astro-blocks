@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { defineBlockSchema } from '../dist/contract/index.js';
-import { validateSchemaItemsDefinition } from '../dist/utils/block-validation.js';
+import { validateSchemaItemsDefinition, validateBlockPropsAgainstSchema } from '../dist/utils/block-validation.js';
 import { buildSchemaMap, resolveBlockEntries, validateBlocks } from '../dist/utils/blocks.js';
 
 test('validateSchemaItemsDefinition rejects invalid array object summaryField', () => {
@@ -133,4 +133,49 @@ test('validateBlocks validates required fields inside array<object>', () => {
     validateBlocks(schemaMap, [{ type: 'FAQ', props: { faqs: [{ question: 'Sin respuesta' }] } }])?.message || '',
     /Respuesta/
   );
+});
+
+// ─── FIX-2: image validator must reject zero and negative dimensions ───────────
+
+const IMAGE_SCHEMA = {
+  hero: { type: 'image', label: 'Hero image', required: false },
+};
+
+test('FIX-2: validator rejects negative width on image prop', () => {
+  const issue = validateBlockPropsAgainstSchema('TestBlock', 0, IMAGE_SCHEMA, {
+    hero: { url: '/img.jpg', alt: 'ok', width: -1, height: 100 },
+  });
+  assert.ok(issue !== null, 'negative width must produce a validation error');
+  assert.match(issue.message, /width/);
+});
+
+test('FIX-2: validator rejects zero width on image prop', () => {
+  const issue = validateBlockPropsAgainstSchema('TestBlock', 0, IMAGE_SCHEMA, {
+    hero: { url: '/img.jpg', alt: 'ok', width: 0, height: 100 },
+  });
+  assert.ok(issue !== null, 'zero width must produce a validation error');
+  assert.match(issue.message, /width/);
+});
+
+test('FIX-2: validator rejects negative height on image prop', () => {
+  const issue = validateBlockPropsAgainstSchema('TestBlock', 0, IMAGE_SCHEMA, {
+    hero: { url: '/img.jpg', alt: 'ok', width: 800, height: -1 },
+  });
+  assert.ok(issue !== null, 'negative height must produce a validation error');
+  assert.match(issue.message, /height/);
+});
+
+test('FIX-2: validator rejects zero height on image prop', () => {
+  const issue = validateBlockPropsAgainstSchema('TestBlock', 0, IMAGE_SCHEMA, {
+    hero: { url: '/img.jpg', alt: 'ok', width: 800, height: 0 },
+  });
+  assert.ok(issue !== null, 'zero height must produce a validation error');
+  assert.match(issue.message, /height/);
+});
+
+test('FIX-2: validator accepts positive integer dimensions on image prop', () => {
+  const issue = validateBlockPropsAgainstSchema('TestBlock', 0, IMAGE_SCHEMA, {
+    hero: { url: '/img.jpg', alt: 'ok', width: 800, height: 600 },
+  });
+  assert.equal(issue, null, 'positive integer dimensions must pass validation');
 });

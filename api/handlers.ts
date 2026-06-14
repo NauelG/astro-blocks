@@ -9,6 +9,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { APIContext } from 'astro';
 import { SignJWT, jwtVerify } from 'jose';
+import { imageSize } from 'image-size';
 import { getGlobalCachePaths, getGlobalCacheTags, getPageCachePath, getPageCacheTags } from '../utils/cache.js';
 import { validateBlocks } from '../utils/blocks.js';
 import {
@@ -28,6 +29,7 @@ import {
   validateRedirectPathInput,
 } from '../utils/redirects.js';
 import { validateBlockPropsAgainstSchema } from '../utils/block-validation.js';
+import { toImageValue } from '../utils/image-value.js';
 import type {
   AuthResult,
   AuthUser,
@@ -36,6 +38,7 @@ import type {
   ContentLanguage,
   GlobalBlockRuntimeEntry,
   LanguagesData,
+  MediaEntry,
   Menu,
   MenuItem,
   Page,
@@ -55,6 +58,26 @@ const JWT_EXPIRY = '7d';
 type AstroCache = APIContext['cache'];
 type HandlerContext = { cache?: AstroCache | null };
 const CONFIG_KEY_REGEX = /^[A-Za-z][A-Za-z0-9_.-]*$/;
+
+// Media upload constants
+const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif']);
+
+/** Single source of truth: extension is always derived from the validated MIME type, never from the user filename. */
+const MIME_TO_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/svg+xml': '.svg',
+  'image/gif': '.gif',
+};
+const MAX_UPLOAD_BYTES = (() => {
+  const envVal = process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
+  if (envVal) {
+    const parsed = Number.parseInt(envVal, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return 5 * 1024 * 1024; // 5 MB default
+})();
 
 function jsonError(message: string, status = 400, extra?: Record<string, unknown>): Response {
   return new Response(JSON.stringify({ error: message, ...extra }), {
@@ -388,16 +411,19 @@ function projectBlockProps(
     const localizable = isSchemaPropLocalizable(def);
 
     if (localizable && isLocalizedMapValue(rawValue, localeKeys)) {
-      output[propName] = rawValue[normalizedLocale];
+      const projected = rawValue[normalizedLocale];
+      output[propName] = def?.type === 'image' ? toImageValue(projected) : projected;
       continue;
     }
 
     if (isLocalizedMapValue(rawValue, localeKeys)) {
-      output[propName] = rawValue[normalizedLocale];
+      const projected = rawValue[normalizedLocale];
+      output[propName] = def?.type === 'image' ? toImageValue(projected) : projected;
       continue;
     }
 
-    output[propName] = rawValue;
+    // Coerce legacy string image values to ImageFieldValue at the consumer API boundary
+    output[propName] = def?.type === 'image' ? toImageValue(rawValue) : rawValue;
   }
 
   return output;
@@ -1279,37 +1305,130 @@ export async function handleUpload(request: Request): Promise<Response> {
   if (!file || typeof (file as File).arrayBuffer !== 'function') return jsonError('No file');
 
   const blob = file as File;
+
+  // Validate MIME type BEFORE disk write
+  const mimeType = blob.type || '';
+  if (!mimeType || !ALLOWED_IMAGE_MIME.has(mimeType)) {
+    return jsonError('Unsupported file type. Allowed: jpg, png, webp, svg, gif', 415);
+  }
+
+  // Validate size BEFORE disk write
+  if (blob.size > MAX_UPLOAD_BYTES) {
+    const limitMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
+    return jsonError(`File too large. Maximum size is ${limitMb} MB`, 413);
+  }
+
   const buffer = await blob.arrayBuffer();
-  const fileName = blob.name || 'upload';
-  const extension = path.extname(fileName) || '';
+  // Extension is derived from the already-validated MIME type — never from the user-supplied filename.
+  // This prevents a stored-XSS bypass where an SVG uploaded as "foo.jpg" would be served inline.
+  const extension = MIME_TO_EXT[mimeType];
   const subdir = new Date().toISOString().slice(0, 7).replace(/-/g, '/');
   const dir = path.join(getUploadsDir(), subdir);
 
   await fs.mkdir(dir, { recursive: true });
 
   const token = crypto.randomBytes(4).toString('hex');
-  const base = path.basename(fileName, extension) || 'file';
+  const rawBase = path.basename(blob.name || 'upload', path.extname(blob.name || ''));
+  const base = rawBase.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'file';
   const filename = `${token}-${base}${extension}`;
   await fs.writeFile(path.join(dir, filename), Buffer.from(buffer));
 
-  return Response.json({ url: `/uploads/${subdir}/${filename}`.replace(/\/+/, '/') });
+  const url = `/uploads/${subdir}/${filename}`.replace(/\/+/, '/');
+
+  // Capture image dimensions from the in-memory buffer (REQ-4).
+  // Wrapped in try/catch so corrupt headers / SVG-without-viewBox never fail the upload.
+  let capturedWidth: number | undefined;
+  let capturedHeight: number | undefined;
+  try {
+    const dim = imageSize(Buffer.from(buffer));
+    if (
+      typeof dim.width === 'number' &&
+      typeof dim.height === 'number' &&
+      Number.isFinite(dim.width) &&
+      Number.isFinite(dim.height)
+    ) {
+      capturedWidth = Math.floor(dim.width);
+      capturedHeight = Math.floor(dim.height);
+    }
+  } catch {
+    // Swallow dimension errors — never fail the upload
+  }
+
+  // Append MediaEntry to registry (serialized read-modify-write — concurrency-safe)
+  const entry: MediaEntry = {
+    id: data.generateId(),
+    url,
+    filename: blob.name || filename,
+    size: blob.size,
+    mimeType,
+    createdAt: new Date().toISOString(),
+    ...(capturedWidth !== undefined && { width: capturedWidth }),
+    ...(capturedHeight !== undefined && { height: capturedHeight }),
+  };
+  await data.appendMediaEntry(entry);
+
+  return Response.json({ url, entry });
 }
 
 export async function handleDeleteUpload(request: Request): Promise<Response> {
   const { data: body, error } = await parseJsonBody<{ url?: string }>(request);
   if (error || !body) return error as Response;
 
-  const filePath = resolveUploadPath(body.url ?? '');
+  const url = body.url ?? '';
+  const filePath = resolveUploadPath(url);
   if (!filePath) return jsonError('Invalid or disallowed URL');
 
+  // Attempt to unlink from disk; ENOENT is treated as no-error (idempotent)
   try {
     await fs.unlink(filePath);
   } catch (deleteError) {
-    if ((deleteError as NodeJS.ErrnoException).code === 'ENOENT') return new Response(null, { status: 204 });
-    return jsonError('Delete failed', 500);
+    if ((deleteError as NodeJS.ErrnoException).code !== 'ENOENT') {
+      return jsonError('Delete failed', 500);
+    }
   }
 
+  // Always prune the registry entry by URL (idempotent for both normal and ENOENT cases).
+  // Serialized read-modify-write — concurrency-safe.
+  await data.removeMediaEntryByUrl(url);
+
   return new Response(null, { status: 204 });
+}
+
+export async function handleGetMedia(request: Request): Promise<Response> {
+  const auth = await getAuth(request);
+  if (!auth) return jsonError('Unauthorized', 401);
+
+  const reconciled = await data.reconcileMedia();
+  // Sort by createdAt descending (newest first)
+  const sorted = [...reconciled.uploads].sort((a, b) => {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  return Response.json({ uploads: sorted });
+}
+
+/**
+ * PATCH /cms/api/media/:id — Update the default alt text of a media entry.
+ *
+ * Request body: { alt: string }
+ * Response 200: { entry: MediaEntry } — the updated entry
+ * Errors: 401 (unauth), 404 (unknown id), 400 (malformed body)
+ */
+export async function handleUpdateMediaAlt(id: string, request: Request): Promise<Response> {
+  const auth = await getAuth(request);
+  if (!auth) return jsonError('Unauthorized', 401);
+
+  const { data: body, error } = await parseJsonBody<{ alt?: unknown }>(request);
+  if (error || !body) return error as Response;
+
+  if (typeof body.alt !== 'string') {
+    return jsonError('Bad request: alt must be a string', 400);
+  }
+
+  const updated = await data.updateMediaEntryAlt(id, body.alt);
+  if (!updated) return jsonError('Not found', 404);
+
+  return Response.json({ entry: updated });
 }
 
 export async function handleGetGlobalBlocks(

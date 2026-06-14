@@ -1,0 +1,45 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+/**
+ * BlockImage — renders an image from an ImageFieldValue (or legacy string URL).
+ *
+ * Props:
+ *   image   — ImageFieldValue | string  (string is coerced via toImageValue)
+ *   ...rest — any additional HTML img attributes (class, loading, decoding, etc.)
+ *
+ * Rendering rules (REQ-7, WCAG 1.1.1):
+ *   - src   always set to image.url
+ *   - alt   always present, even when empty (decorative: alt="")
+ *   - width / height set only when positive integers are present
+ *
+ * Responsive seam (NOT built yet — roadmap):
+ *   srcset, sizes, and <picture>/webp variants will slot in here once the
+ *   image pipeline is implemented. The component boundary isolates that change
+ *   from all consumers — they will get responsive images automatically.
+ */
+
+import type { ImageFieldValue } from '../types/index.js';
+import { toImageValue, imageAttrs } from '../utils/image-value.js';
+
+interface Props {
+  image: ImageFieldValue | string;
+  [key: string]: unknown;
+}
+
+const { image, ...rest } = Astro.props;
+
+const v = toImageValue(image);
+const attrs = imageAttrs(v);
+---
+
+<img
+  src={attrs.src}
+  alt={attrs.alt}
+  width={attrs.width}
+  height={attrs.height}
+  {...rest}
+/>
