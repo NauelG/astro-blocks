@@ -14,9 +14,14 @@ const site = await loadSite();
 const mediaData = await loadMedia();
 const uploads = mediaData.uploads;
 
-// NOTE: formatBytes is intentionally duplicated from routes/admin/client/media-fetch.ts.
-// SSR (Astro frontmatter) cannot import client-only ES modules, so the function
-// is inlined here. Keep the two copies in sync if the logic changes.
+// NOTE: formatBytes, formatDimensions and formatMediaDate are intentionally
+// duplicated from routes/admin/client/media-fetch.ts. SSR (Astro frontmatter)
+// cannot import client-only ES modules, so the three functions are inlined here.
+// The copies MUST stay byte-for-byte equivalent in behavior: this page renders
+// the initial card metadata server-side, and media-fetch.ts re-renders the SAME
+// cards client-side after a fetch. Any divergence would make first-paint and
+// re-render disagree (e.g. "0×0" vs "—", or different date formats).
+// tests/media-formatters.test.js asserts both copies produce identical output.
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;

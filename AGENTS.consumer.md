@@ -198,7 +198,7 @@ Field types available in `items`:
 | `text` | Multi-line text | Textarea input |
 | `number` | Numeric value | Number input |
 | `boolean` | True/false toggle | Checkbox |
-| `image` | Image with upload | Returns a URL string |
+| `image` | Image with upload | Returns an `ImageFieldValue` object (`{ url, alt?, caption?, width?, height? }`); legacy bare strings are coerced. Render with `<BlockImage>` |
 | `link` | URL or path | Text input for href values |
 | `select` | Dropdown selection | Requires `options: string[]` |
 | `array` | List of items | Requires `item` definition; supports sortable, minItems, maxItems |
@@ -356,6 +356,8 @@ const mv = await getMediaVariants('/uploads/2026/06/my-image.jpg');
 
 Reads `data/media.json` with an mtime-keyed in-memory cache. Returns `{ status: 'none', variants: [] }` gracefully when the registry is missing. Never throws.
 
+> Full media guide (editor workflow, `ImageFieldValue`/`MediaEntry` shapes, API endpoints, limitations): `docs/media.md` in the package repository.
+
 ---
 
 ## Generated Runtime (.astro-blocks/)
@@ -385,7 +387,8 @@ The plugin stores all CMS content as JSON files in your project root under `data
 | `data/languages.json` | Content language list with default locale |
 | `data/users.json` | Admin user accounts (hashed passwords) |
 | `data/global-blocks.json` | Global block props per declared slug (`{ globalBlocks: { [slug]: { props, updatedAt? } } }`) |
-| `public/uploads/` | Uploaded files (images and documents) |
+| `data/media.json` | Media registry: one `MediaEntry` per upload (dimensions, alt, variants, status) |
+| `public/uploads/` | Uploaded files and their generated responsive variants (`YYYY/MM` subdirectories) |
 
 **Commit these files to git.** They are your CMS content source of truth.
 

@@ -65,6 +65,7 @@
     "clean:playground": "rimraf playgrounds/basic/.astro playgrounds/basic/.astro-blocks",
     "dev:playground:fresh": "npm run clean:playground && npm run dev:playground",
     "screenshots:readme": "node scripts/capture-readme-screenshots.mjs",
+    "screenshots:media": "node scripts/capture-media-screenshots.mjs",
     "pack:local": "node scripts/pack-local.mjs",
     "prepack": "npm run build"
   },

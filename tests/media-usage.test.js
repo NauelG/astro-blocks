@@ -322,3 +322,62 @@ test('UE-04: count === usages.length invariant', async () => {
     assert.equal(body.count, 2);
   });
 });
+
+// ─── P6: seo.image dedup — same URL in multiple locales → at most ONE seo ref ──
+
+test('P6: seo.image referenced in multiple locales → exactly ONE seo usage (dedup)', async () => {
+  await withTempProject(async (tempRoot) => {
+    const TARGET = '/uploads/2026/06/og-shared.jpg';
+    await writeJson(tempRoot, 'pages.json', {
+      pages: [
+        {
+          id: 'page-multi-locale',
+          title: { en: 'Multi', es: 'Multi' },
+          slug: { en: '/multi', es: '/multi' },
+          status: { en: 'published', es: 'published' },
+          // SAME url under two locales — must NOT produce two seo refs
+          seo: { image: { en: TARGET, es: TARGET } },
+          blocks: [],
+        },
+      ],
+    });
+    await writeJson(tempRoot, 'global-blocks.json', { globalBlocks: {} });
+
+    const result = await findMediaUsages(TARGET);
+    const seoRefs = result.usages.filter((u) => u.source === 'seo');
+    assert.equal(seoRefs.length, 1, 'at most one seo ref per page even across locales');
+    assert.equal(seoRefs[0].propName, 'seo.image');
+    // count invariant holds regardless of dedup
+    assert.equal(result.count, result.usages.length, 'count === usages.length invariant');
+  });
+});
+
+// ─── P6: count invariant under mixed sources (page block + seo + globalBlock) ──
+
+test('P6: count === usages.length invariant across mixed sources', async () => {
+  await withTempProject(async (tempRoot) => {
+    const TARGET = '/uploads/2026/06/mixed.jpg';
+    await writeJson(tempRoot, 'pages.json', {
+      pages: [
+        {
+          id: 'mixed-page',
+          title: { en: 'Mixed' },
+          slug: { en: '/mixed' },
+          status: { en: 'published' },
+          seo: { image: { en: TARGET } },
+          blocks: [{ type: 'Hero', props: { hero: { url: TARGET } } }],
+        },
+      ],
+    });
+    await writeJson(tempRoot, 'global-blocks.json', {
+      globalBlocks: { footer: { props: { logo: { url: TARGET } }, updatedAt: new Date().toISOString() } },
+    });
+
+    const result = await findMediaUsages(TARGET);
+    // page block (1) + seo (1) + global block (1) = 3
+    assert.equal(result.count, 3, 'all three sources counted');
+    assert.equal(result.count, result.usages.length, 'count === usages.length invariant');
+    const sources = result.usages.map((u) => u.source).sort();
+    assert.deepEqual(sources, ['globalBlock', 'page', 'seo']);
+  });
+});

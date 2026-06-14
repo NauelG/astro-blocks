@@ -958,3 +958,80 @@ test('FIX-3: handleGetPages — legacy string image prop is projected as { url, 
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });
+
+// ─── P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override (read at MODULE LOAD) ──────────
+//
+// MAX_UPLOAD_BYTES is computed once when handlers.ts is first evaluated. To test
+// an override we must import a FRESH module instance AFTER setting the env var.
+// Node ESM caches by URL, so we cache-bust with a unique query string. The env
+// var is restored after each test so other suites see the default 5 MB limit.
+
+async function importFreshHandlers(maxBytes) {
+  const prev = process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
+  process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES = String(maxBytes);
+  try {
+    const url = new URL('../dist/api/handlers.js', import.meta.url).href + `?maxbytes=${maxBytes}-${Date.now()}-${Math.random()}`;
+    return await import(url);
+  } finally {
+    if (prev === undefined) delete process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
+    else process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES = prev;
+  }
+}
+
+test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleUpload accepts under-limit, rejects over-limit (413)', async () => {
+  await withTempProject(async () => {
+    const handlersFresh = await importFreshHandlers(1024); // 1 KB limit
+    // Under limit: 500 bytes JPEG
+    const okReq = makeUploadRequest(new Uint8Array(500).fill(0xff), 'small.jpg', 'image/jpeg');
+    const okRes = await handlersFresh.handleUpload(okReq);
+    assert.equal(okRes.status, 200, 'under-limit upload should pass with raised/lowered limit');
+
+    // Over limit: 2 KB > 1 KB
+    const bigReq = makeUploadRequest(new Uint8Array(2048).fill(0xff), 'big.jpg', 'image/jpeg');
+    const bigRes = await handlersFresh.handleUpload(bigReq);
+    assert.equal(bigRes.status, 413, 'over-override-limit upload should be rejected with 413');
+  });
+});
+
+test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleReplaceUpload honors the override (413)', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Seed a real JPEG entry on disk (mime must match for replace)
+    const subdir = '2026/06';
+    const dir = path.join(tempRoot, 'public', 'uploads', subdir);
+    await fs.mkdir(dir, { recursive: true });
+    const filename = 'p3-replace.jpg';
+    await fs.writeFile(path.join(dir, filename), new Uint8Array([0xff, 0xd8, 0xff, 0xe0]));
+    const url = `/uploads/${subdir}/${filename}`;
+    const id = generateId();
+    await appendMediaEntry({
+      id, url, filename, size: 4, mimeType: 'image/jpeg',
+      createdAt: new Date().toISOString(), status: 'ready',
+    });
+
+    const handlersFresh = await importFreshHandlers(1024); // 1 KB limit
+
+    // Auth token (replace requires auth)
+    const { SignJWT } = await import('jose');
+    const token = await new SignJWT({ email: 't@e.com', role: 'owner' })
+      .setSubject('uid').setProtectedHeader({ alg: 'HS256' }).setExpirationTime('1h')
+      .sign(new TextEncoder().encode('cms-jwt-secret-change-me'));
+
+    // Under limit replace → 200 processing
+    const okFd = new FormData();
+    okFd.append('file', new File([new Uint8Array(500).fill(0xff)], 'small.jpg', { type: 'image/jpeg' }));
+    const okReq = new Request(`http://localhost/cms/api/media/${id}/replace`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: okFd,
+    });
+    const okRes = await handlersFresh.handleReplaceUpload(okReq, id);
+    assert.equal(okRes.status, 200, 'under-limit replace should pass');
+
+    // Over limit replace → 413
+    const bigFd = new FormData();
+    bigFd.append('file', new File([new Uint8Array(2048).fill(0xff)], 'big.jpg', { type: 'image/jpeg' }));
+    const bigReq = new Request(`http://localhost/cms/api/media/${id}/replace`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: bigFd,
+    });
+    const bigRes = await handlersFresh.handleReplaceUpload(bigReq, id);
+    assert.equal(bigRes.status, 413, 'over-override-limit replace should be rejected with 413');
+  });
+});

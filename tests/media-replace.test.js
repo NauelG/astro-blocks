@@ -17,6 +17,7 @@ import { SignJWT } from 'jose';
 
 import { ensureDefaultFiles, loadMedia, appendMediaEntry, generateId, markMediaVariantsReady } from '../dist/api/data.js';
 import { handleReplaceUpload } from '../dist/api/handlers.js';
+import { getMediaVariants } from '../dist/utils/getMediaVariants.js';
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 
@@ -248,5 +249,53 @@ test('RE-07: non-allowed MIME type → 415', async () => {
     assert.equal(res.status, 415);
     const body = await res.json();
     assert.ok(body.error, 'should have error message');
+  });
+});
+
+// ─── P5: replace → render status chain (data layer ↔ getMediaVariants accessor) ─
+//
+// After a successful replace the entry is status:'processing' + variants:[], and
+// the render-time accessor getMediaVariants(url) must reflect that (→ plain-img
+// branch in BlockImage). Once markMediaVariantsReady runs, the accessor flips to
+// 'ready'. This ties the data-layer status transition to what the component sees.
+
+test('P5: replace → entry processing + variants:[] AND getMediaVariants returns processing → ready', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Seed an entry that is already ready WITH a variant, so the chain is meaningful
+    const entry = await seedMediaEntry(tempRoot, { withVariants: true });
+    const url = entry.url;
+
+    // Sanity: before replace the accessor sees ready + variants (picture branch)
+    const before = await getMediaVariants(url);
+    assert.equal(before.status, 'ready', 'pre-replace accessor sees ready');
+    assert.ok(before.variants.length > 0, 'pre-replace accessor sees variants');
+
+    // Replace bytes
+    const newContent = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x12, 0x34]);
+    const token = await makeAuthToken();
+    const req = await makeReplaceRequest(entry.id, newContent, 'replaced.jpg', 'image/jpeg', token);
+    const res = await handleReplaceUpload(req, entry.id);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+
+    // Data layer: processing + cleared variants
+    assert.equal(body.entry.status, 'processing', 'entry status processing after replace');
+    assert.deepEqual(body.entry.variants, [], 'entry variants cleared after replace');
+
+    // Render accessor reflects processing → plain-img branch (variants empty)
+    const during = await getMediaVariants(url);
+    assert.equal(during.status, 'processing', 'accessor sees processing → plain-img branch');
+    assert.deepEqual(during.variants, [], 'accessor sees no variants while processing');
+
+    // Now mark ready with new variants — accessor flips to ready (picture branch)
+    const newVariants = [
+      { format: 'webp', width: 480, url: url.replace('.jpg', '-480.webp') },
+      { format: 'avif', width: 480, url: url.replace('.jpg', '-480.avif') },
+    ];
+    await markMediaVariantsReady(entry.id, newVariants);
+
+    const after = await getMediaVariants(url);
+    assert.equal(after.status, 'ready', 'accessor flips to ready after markMediaVariantsReady');
+    assert.equal(after.variants.length, 2, 'accessor exposes the new variants');
   });
 });

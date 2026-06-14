@@ -80,20 +80,23 @@ export function formatBytes(bytes: number): string {
 }
 
 /**
- * Format image dimensions as "w×h" or "—" when either dimension is absent.
+ * Format image dimensions as "w×h", or "—" when either dimension is absent or
+ * not strictly positive. Mirrors the SSR copy in routes/admin/media.astro so the
+ * server first-paint and the client re-render of the SAME card never disagree
+ * (a stored 0 must render "—" in both paths).
  */
 export function formatDimensions(w?: number, h?: number): string {
-  if (w !== undefined && h !== undefined) return `${w}×${h}`;
+  if (w !== undefined && h !== undefined && w > 0 && h > 0) return `${w}×${h}`;
   return '—';
 }
 
 /**
- * Format an ISO date string as a locale date string.
+ * Format an ISO date string as a locale date string. Mirrors the SSR copy in
+ * routes/admin/media.astro: explicit 'en-US' + { year, month: 'short', day } so
+ * SSR and client produce byte-identical output for the same entry.
  */
 export function formatMediaDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString();
-  } catch {
-    return iso;
-  }
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }

@@ -533,10 +533,14 @@ export async function loadMedia(): Promise<MediaData> {
         size: e.size as number,
         mimeType: e.mimeType as string,
         createdAt: e.createdAt as string,
-        // Pass-through new optional fields when present and valid
+        // Pass-through new optional fields when present and valid.
+        // width/height must be STRICTLY positive (> 0) to match the projection layer
+        // (toImageValue / imageAttrs / mediaEntryToImageValue all require > 0). A stored
+        // 0 is dropped here so a 0-dimension entry never leaks an inconsistent value
+        // downstream (SSR card → "—", projected ImageFieldValue → no width/height attr).
         ...(typeof e.alt === 'string' && { alt: e.alt }),
-        ...(typeof e.width === 'number' && Number.isFinite(e.width) && e.width >= 0 && { width: e.width }),
-        ...(typeof e.height === 'number' && Number.isFinite(e.height) && e.height >= 0 && { height: e.height }),
+        ...(typeof e.width === 'number' && Number.isFinite(e.width) && e.width > 0 && { width: e.width }),
+        ...(typeof e.height === 'number' && Number.isFinite(e.height) && e.height > 0 && { height: e.height }),
         // Pass-through status only when it is a valid literal
         ...(typeof e.status === 'string' && VALID_STATUSES.has(e.status) && { status: e.status as MediaEntry['status'] }),
         // Pass-through variants only when each element is a valid {format, width, url}

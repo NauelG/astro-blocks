@@ -139,6 +139,36 @@ test('T-15: loadMedia — old entry without alt/width/height loads cleanly (SC-3
   });
 });
 
+// ─── FIX C: loadMedia drops stored width/height === 0 (align to projection > 0) ─
+
+test('FIX-C: loadMedia drops a stored width:0 / height:0 (must match projection > 0 rule)', async () => {
+  await withTempProject(async () => {
+    const now = new Date().toISOString();
+    // Write malformed-but-tolerated entries directly to disk
+    await saveMedia({
+      uploads: [
+        { id: 'zero-w', url: '/uploads/2026/06/zw.jpg', filename: 'zw.jpg', size: 100, mimeType: 'image/jpeg', createdAt: now, width: 0, height: 600 },
+        { id: 'zero-h', url: '/uploads/2026/06/zh.jpg', filename: 'zh.jpg', size: 100, mimeType: 'image/jpeg', createdAt: now, width: 800, height: 0 },
+        { id: 'zero-both', url: '/uploads/2026/06/zb.jpg', filename: 'zb.jpg', size: 100, mimeType: 'image/jpeg', createdAt: now, width: 0, height: 0 },
+        { id: 'pos', url: '/uploads/2026/06/p.jpg', filename: 'p.jpg', size: 100, mimeType: 'image/jpeg', createdAt: now, width: 800, height: 600 },
+      ],
+    });
+
+    const media = await loadMedia();
+    const byId = Object.fromEntries(media.uploads.map((u) => [u.id, u]));
+
+    // A stored 0 must be DROPPED (undefined), not passed through as 0.
+    assert.equal(byId['zero-w'].width, undefined, 'width:0 must be dropped');
+    assert.equal(byId['zero-w'].height, 600, 'valid height kept');
+    assert.equal(byId['zero-h'].height, undefined, 'height:0 must be dropped');
+    assert.equal(byId['zero-h'].width, 800, 'valid width kept');
+    assert.equal(byId['zero-both'].width, undefined, 'width:0 dropped');
+    assert.equal(byId['zero-both'].height, undefined, 'height:0 dropped');
+    assert.equal(byId['pos'].width, 800, 'positive dims kept');
+    assert.equal(byId['pos'].height, 600, 'positive dims kept');
+  });
+});
+
 test('T-16: loadMedia — new entry with alt/width/height loads cleanly (SC-3.2)', async () => {
   await withTempProject(async () => {
     const now = new Date().toISOString();
@@ -433,5 +463,82 @@ test('ML-R2-pipeline-order: orphan entries excluded before filter+count', async 
     for (const orphan of orphanEntries) {
       assert.ok(!filenames.includes(orphan.filename), `orphan ${orphan.filename} should not appear`);
     }
+  });
+});
+
+// ─── P4: reconcile → count → slice order (pruned entry excluded from BOTH) ────
+
+test('P4-reconcile-count-slice: missing-file entry excluded from total AND from the page slice', async () => {
+  await withTempProject(async (tempRoot) => {
+    const subdir = '2026/06';
+    // 3 real entries on disk + 1 orphan (no file). All created at distinct times
+    // so newest-first sort is deterministic; the orphan is the NEWEST so it would
+    // land first in the page slice if reconcile did not prune before slicing.
+    const base = Date.parse('2026-06-01T00:00:00.000Z');
+    const real = [];
+    for (let i = 0; i < 3; i++) {
+      const e = await createRealEntry(tempRoot, subdir, `real-${i}.jpg`, 'image/jpeg', new Date(base + i * 1000).toISOString());
+      real.push(e);
+    }
+    const orphan = {
+      id: generateId(),
+      url: `/uploads/${subdir}/orphan-newest.jpg`,
+      filename: 'orphan-newest.jpg',
+      size: 100,
+      mimeType: 'image/jpeg',
+      createdAt: new Date(base + 99 * 1000).toISOString(), // newest
+    };
+    await saveMedia({ uploads: [...real, orphan] });
+
+    const token = await makeAuthToken();
+    // limit=2 so the slice is a strict subset — proves reconcile ran before slice
+    const req = new Request('http://localhost/cms/api/media?page=1&limit=2', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+
+    assert.equal(body.total, 3, 'total must count only reconciled (on-disk) entries');
+    assert.equal(body.uploads.length, 2, 'page slice respects limit=2');
+    const ids = body.uploads.map((u) => u.id);
+    assert.ok(!ids.includes(orphan.id), 'orphan must NOT appear in slice even though it is newest');
+
+    // Registry on disk pruned too
+    const after = await loadMedia();
+    assert.ok(!after.uploads.map((u) => u.id).includes(orphan.id), 'orphan pruned from registry');
+  });
+});
+
+test('P4-q-filters-reconciled-set: q filters AFTER reconcile (orphan match excluded from total)', async () => {
+  await withTempProject(async (tempRoot) => {
+    const subdir = '2026/06';
+    // 2 real "logo" entries + 1 orphan "logo" entry (no file)
+    const realA = await createRealEntry(tempRoot, subdir, 'logo-a.png', 'image/png');
+    const realB = await createRealEntry(tempRoot, subdir, 'logo-b.png', 'image/png');
+    const orphanLogo = {
+      id: generateId(),
+      url: `/uploads/${subdir}/logo-orphan.png`,
+      filename: 'logo-orphan.png',
+      size: 50,
+      mimeType: 'image/png',
+      createdAt: new Date().toISOString(),
+    };
+    // plus a non-matching real entry
+    const other = await createRealEntry(tempRoot, subdir, 'banner.jpg');
+    await saveMedia({ uploads: [realA, realB, orphanLogo, other] });
+
+    const token = await makeAuthToken();
+    const req = new Request('http://localhost/cms/api/media?q=logo', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const res = await handleGetMedia(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.total, 2, 'q must match only the reconciled "logo" entries, not the orphan');
+    const filenames = body.uploads.map((u) => u.filename);
+    assert.ok(filenames.includes('logo-a.png') && filenames.includes('logo-b.png'));
+    assert.ok(!filenames.includes('logo-orphan.png'), 'orphan logo excluded by reconcile-before-filter');
+    assert.ok(!filenames.includes('banner.jpg'), 'non-matching entry excluded by q');
   });
 });

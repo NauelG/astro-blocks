@@ -61,7 +61,7 @@ Validate at least:
 - `/cms`
 - `/cms/pages`
 - `/cms/menus`
-- `/cms/media` (upload an image, pick it from an `image` block field, delete it)
+- `/cms/media` (upload an image, pick it from an `image` block field, replace it, delete it — see [docs/media.md](./docs/media.md) for the full feature reference)
 - `/robots.txt`
 - `/sitemap-index.xml`
 - the public home page rendered dynamically from `data/pages.json`
@@ -101,6 +101,30 @@ The command:
 3. authenticates in `/cms` with an automated owner session
 4. captures `/cms` (dashboard) and `/cms/pages` (page editor modal)
 5. saves JPEG files in `img/` replacing the current screenshots
+
+If Playwright Chromium is not installed yet, run once:
+
+```bash
+npx playwright install chromium
+```
+
+### Media Screenshots
+
+You can regenerate and overwrite the two media-feature screenshots (`img/media-library.png` and `img/image-picker.png`) with:
+
+```bash
+npm run screenshots:media
+```
+
+The command does everything end-to-end in a single pass:
+
+1. generates 6 abstract gradient placeholder images via sharp (no real or brand content)
+2. resets the playground media state to a clean slate (empties the uploads directory and blanks `media.json`)
+3. prepares the playground package and starts the dev server
+4. authenticates as owner and uploads all 6 placeholders
+5. polls until every upload has status `ready` (variants fully processed)
+6. captures `/cms/media` (full viewport) and the image-field picker modal (cropped to the panel)
+7. saves PNG files in `img/` replacing the current screenshots
 
 If Playwright Chromium is not installed yet, run once:
 

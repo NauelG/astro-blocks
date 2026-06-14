@@ -298,6 +298,8 @@ API routes are available under `/cms/api/*`.
 
 ## Media Library and Responsive Images
 
+> For the full guide — editor workflow, the `ImageFieldValue`/`MediaEntry` shapes, the API endpoints, and limitations — see [docs/media.md](./docs/media.md).
+
 ### Upload and Library
 
 The media library lives at `/cms/media`. From there you can:
