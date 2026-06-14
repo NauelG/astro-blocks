@@ -17,7 +17,7 @@ Licensed under the Business Source License 1.1
  * server handlers, and Astro component frontmatter.
  */
 
-import type { ImageFieldValue, MediaEntry } from '../types/index.js';
+import type { ImageFieldValue, MediaEntry, MediaVariant } from '../types/index.js';
 
 /** Sentinel returned for null / undefined / malformed input. */
 const EMPTY: ImageFieldValue = { url: '', alt: '' };
@@ -172,6 +172,19 @@ export function serializeImageValueAttr(value: ImageFieldValue): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+/**
+ * Build a srcset string for a given format from an array of MediaVariant objects.
+ * Filters by format, sorts by width ascending, joins as "<url> <w>w, ..." format.
+ * Returns an empty string when no matching variants exist.
+ */
+export function buildSrcset(variants: MediaVariant[], format: string): string {
+  const filtered = variants
+    .filter((v) => v.format === format)
+    .sort((a, b) => a.width - b.width);
+  if (filtered.length === 0) return '';
+  return filtered.map((v) => `${v.url} ${v.width}w`).join(', ');
 }
 
 /**

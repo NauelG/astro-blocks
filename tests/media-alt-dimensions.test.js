@@ -32,6 +32,21 @@ async function makeAuthToken() {
     .sign(JWT_SECRET);
 }
 
+/**
+ * Poll loadMedia() until no entry has status:'processing'.
+ * Drains fire-and-forget generateAndPersistVariants calls from handleUpload
+ * before ASTRO_BLOCKS_PROJECT_ROOT is restored, preventing writes to repo root.
+ */
+async function drainVariantJobs(maxWaitMs = 5000) {
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    const media = await loadMedia();
+    const pending = media.uploads.some((u) => u.status === 'processing');
+    if (!pending) return;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+}
+
 async function withTempProject(fn) {
   const previousRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-blocks-alt-dims-'));
@@ -39,6 +54,8 @@ async function withTempProject(fn) {
   await ensureDefaultFiles();
   try {
     await fn(tempRoot);
+    // Drain any fire-and-forget variant jobs before restoring the env var.
+    await drainVariantJobs();
   } finally {
     if (previousRoot === undefined) {
       delete process.env.ASTRO_BLOCKS_PROJECT_ROOT;

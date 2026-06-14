@@ -27,6 +27,7 @@ import type {
   LanguagesData,
   MediaData,
   MediaEntry,
+  MediaVariant,
   Menu,
   MenuItem,
   MenuLocaleView,
@@ -420,6 +421,7 @@ export async function loadMedia(): Promise<MediaData> {
       typeof (entry as Record<string, unknown>).createdAt === 'string'
     ) {
       const e = entry as Record<string, unknown>;
+      const VALID_STATUSES = new Set(['processing', 'ready', 'failed']);
       const normalised: MediaEntry = {
         id: e.id as string,
         url: e.url as string,
@@ -431,6 +433,18 @@ export async function loadMedia(): Promise<MediaData> {
         ...(typeof e.alt === 'string' && { alt: e.alt }),
         ...(typeof e.width === 'number' && Number.isFinite(e.width) && e.width >= 0 && { width: e.width }),
         ...(typeof e.height === 'number' && Number.isFinite(e.height) && e.height >= 0 && { height: e.height }),
+        // Pass-through status only when it is a valid literal
+        ...(typeof e.status === 'string' && VALID_STATUSES.has(e.status) && { status: e.status as MediaEntry['status'] }),
+        // Pass-through variants only when each element is a valid {format, width, url}
+        ...(Array.isArray(e.variants) && {
+          variants: (e.variants as unknown[]).filter((v): v is MediaVariant => {
+            if (v === null || typeof v !== 'object' || Array.isArray(v)) return false;
+            const vObj = v as Record<string, unknown>;
+            return (vObj.format === 'webp' || vObj.format === 'avif') &&
+              typeof vObj.width === 'number' && vObj.width > 0 &&
+              typeof vObj.url === 'string';
+          }),
+        }),
       };
       acc.push(normalised);
     }
@@ -478,11 +492,61 @@ export async function removeMediaEntryByUrl(url: string): Promise<MediaData> {
   });
 }
 
+/**
+ * Update a MediaEntry to status:'ready' and populate its variants.
+ * Runs under the media file lock to prevent concurrent registry corruption.
+ */
+export async function markMediaVariantsReady(id: string, variants: MediaVariant[]): Promise<void> {
+  await withFileLock(mediaLockKey(), async () => {
+    const m = await loadMedia();
+    const index = m.uploads.findIndex((e) => e.id === id);
+    if (index === -1) return; // No-op when id not found (robustness)
+    m.uploads[index] = { ...m.uploads[index], status: 'ready', variants };
+    await saveMedia(m);
+  });
+}
+
+/**
+ * Update a MediaEntry to status:'failed' and clear its variants.
+ * Runs under the media file lock to prevent concurrent registry corruption.
+ */
+export async function markMediaVariantsFailed(id: string): Promise<void> {
+  await withFileLock(mediaLockKey(), async () => {
+    const m = await loadMedia();
+    const index = m.uploads.findIndex((e) => e.id === id);
+    if (index === -1) return; // No-op when id not found (robustness)
+    m.uploads[index] = { ...m.uploads[index], status: 'failed', variants: [] };
+    await saveMedia(m);
+  });
+}
+
+/**
+ * Variant file naming regex: matches `<token>-<base>-<w>.<format>` pattern.
+ * Conservative: only matches files where the last segment before extension is a number
+ * and the extension is webp or avif, to avoid accidentally deleting originals.
+ * Pattern: anything ending in -<digits>.webp or -<digits>.avif
+ */
+const VARIANT_FILE_REGEX = /^.+-\d+\.(webp|avif)$/;
+
+/**
+ * Unlink a file, tolerating ENOENT (idempotent).
+ */
+async function safeUnlink(filePath: string): Promise<void> {
+  try {
+    await fs.unlink(filePath);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+      // Non-ENOENT errors are swallowed: cleanup is best-effort
+    }
+  }
+}
+
 export async function reconcileMedia(): Promise<MediaData> {
   return withFileLock(mediaLockKey(), async () => {
     const media = await loadMedia();
     const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
     const valid: MediaEntry[] = [];
+    const pruned: MediaEntry[] = [];
     let changed = false;
 
     for (const entry of media.uploads) {
@@ -493,9 +557,75 @@ export async function reconcileMedia(): Promise<MediaData> {
         await fs.access(filePath);
         valid.push(entry);
       } catch {
-        // File not on disk — prune entry
+        // File not on disk — prune entry and schedule variant cleanup
+        pruned.push(entry);
         changed = true;
       }
+    }
+
+    // Delete variant files for pruned entries
+    for (const entry of pruned) {
+      if (entry.variants && entry.variants.length > 0) {
+        for (const variant of entry.variants) {
+          const variantUrlPath = variant.url.startsWith('/') ? variant.url.slice(1) : variant.url;
+          const variantFilePath = path.join(projectRoot, 'public', variantUrlPath);
+          await safeUnlink(variantFilePath);
+        }
+      }
+    }
+
+    // Orphan scan: enumerate variant files in uploads directories and check they
+    // belong to a surviving entry. Only delete files matching VARIANT_FILE_REGEX.
+    // Build a set of all valid variant URLs for quick lookup.
+    const validVariantUrls = new Set<string>();
+    for (const entry of valid) {
+      if (entry.variants) {
+        for (const variant of entry.variants) {
+          validVariantUrls.add(variant.url);
+        }
+      }
+    }
+
+    // Scan all subdirectories under public/uploads for orphan variant files
+    const uploadsDir = path.join(projectRoot, 'public', 'uploads');
+    try {
+      const yearDirs = await fs.readdir(uploadsDir);
+      for (const yearDir of yearDirs) {
+        const yearPath = path.join(uploadsDir, yearDir);
+        let yearStat: Awaited<ReturnType<typeof fs.stat>>;
+        try {
+          yearStat = await fs.stat(yearPath);
+        } catch {
+          continue;
+        }
+        if (!yearStat.isDirectory()) continue;
+
+        const monthDirs = await fs.readdir(yearPath);
+        for (const monthDir of monthDirs) {
+          const monthPath = path.join(yearPath, monthDir);
+          let monthStat: Awaited<ReturnType<typeof fs.stat>>;
+          try {
+            monthStat = await fs.stat(monthPath);
+          } catch {
+            continue;
+          }
+          if (!monthStat.isDirectory()) continue;
+
+          const files = await fs.readdir(monthPath);
+          for (const filename of files) {
+            if (!VARIANT_FILE_REGEX.test(filename)) continue;
+            // Reconstruct the URL for this file
+            const fileUrl = `/uploads/${yearDir}/${monthDir}/${filename}`;
+            if (!validVariantUrls.has(fileUrl)) {
+              // Orphan variant file — unlink
+              await safeUnlink(path.join(monthPath, filename));
+              changed = true;
+            }
+          }
+        }
+      }
+    } catch {
+      // Uploads dir may not exist (first run, test environment) — skip scan
     }
 
     if (changed) {

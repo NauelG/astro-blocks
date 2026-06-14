@@ -46,6 +46,10 @@
     },
     "./components/BlockImage": {
       "import": "./dist/components/BlockImage.astro"
+    },
+    "./getMediaVariants": {
+      "types": "./dist/utils/getMediaVariants.d.ts",
+      "import": "./dist/utils/getMediaVariants.js"
     }
   },
   "types": "./dist/plugin/index.d.ts",
@@ -70,6 +74,7 @@
     "animate.css": "^4.1.1",
     "image-size": "^2.0.2",
     "jose": "^6.0.0",
+    "sharp": "^0.34.5",
     "simple-dropzone": "^0.8.0",
     "sortablejs": "^1.15.0"
   },

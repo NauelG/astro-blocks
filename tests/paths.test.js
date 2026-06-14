@@ -3,7 +3,99 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
 
-import { resolveUploadPath } from '../dist/utils/paths.js';
+import { resolveUploadPath, buildVariantFilename, variantUrlFor } from '../dist/utils/paths.js';
+import { buildSrcset } from '../dist/utils/image-value.js';
+
+// ─── T2.1 buildVariantFilename ────────────────────────────────────────────────
+
+test('buildVariantFilename: nominal case with standard extension', () => {
+  assert.equal(buildVariantFilename('ab12-photo.jpg', 800, 'webp'), 'ab12-photo-800.webp');
+});
+
+test('buildVariantFilename: avif format', () => {
+  assert.equal(buildVariantFilename('ab12-photo.jpg', 480, 'avif'), 'ab12-photo-480.avif');
+});
+
+test('buildVariantFilename: no extension in base', () => {
+  assert.equal(buildVariantFilename('myfile', 1200, 'webp'), 'myfile-1200.webp');
+});
+
+test('buildVariantFilename: png extension', () => {
+  assert.equal(buildVariantFilename('token-image.png', 1920, 'avif'), 'token-image-1920.avif');
+});
+
+// ─── T2.1 variantUrlFor ───────────────────────────────────────────────────────
+
+test('variantUrlFor: nominal case', () => {
+  assert.equal(
+    variantUrlFor('/uploads/2026/06/ab12-photo.jpg', 800, 'webp'),
+    '/uploads/2026/06/ab12-photo-800.webp'
+  );
+});
+
+test('variantUrlFor: avif format', () => {
+  assert.equal(
+    variantUrlFor('/uploads/2026/06/ab12-photo.jpg', 480, 'avif'),
+    '/uploads/2026/06/ab12-photo-480.avif'
+  );
+});
+
+test('variantUrlFor: no directory prefix', () => {
+  assert.equal(
+    variantUrlFor('photo.jpg', 800, 'webp'),
+    'photo-800.webp'
+  );
+});
+
+test('variantUrlFor: trailing slash in url is normalized', () => {
+  // Trailing slash is stripped, then the filename is extracted normally
+  assert.equal(
+    variantUrlFor('/uploads/2026/06/ab12-photo.jpg/', 800, 'webp'),
+    '/uploads/2026/06/ab12-photo-800.webp'
+  );
+});
+
+// ─── T2.2 buildSrcset ─────────────────────────────────────────────────────────
+
+test('buildSrcset: webp variants only', () => {
+  const variants = [
+    { format: 'webp', width: 800, url: '/uploads/2026/06/img-800.webp' },
+    { format: 'webp', width: 480, url: '/uploads/2026/06/img-480.webp' },
+    { format: 'avif', width: 800, url: '/uploads/2026/06/img-800.avif' },
+  ];
+  const result = buildSrcset(variants, 'webp');
+  assert.equal(result, '/uploads/2026/06/img-480.webp 480w, /uploads/2026/06/img-800.webp 800w');
+});
+
+test('buildSrcset: avif variants only', () => {
+  const variants = [
+    { format: 'webp', width: 480, url: '/uploads/2026/06/img-480.webp' },
+    { format: 'avif', width: 1200, url: '/uploads/2026/06/img-1200.avif' },
+    { format: 'avif', width: 480, url: '/uploads/2026/06/img-480.avif' },
+  ];
+  const result = buildSrcset(variants, 'avif');
+  assert.equal(result, '/uploads/2026/06/img-480.avif 480w, /uploads/2026/06/img-1200.avif 1200w');
+});
+
+test('buildSrcset: empty array returns empty string', () => {
+  assert.equal(buildSrcset([], 'webp'), '');
+});
+
+test('buildSrcset: no matching format returns empty string', () => {
+  const variants = [{ format: 'webp', width: 800, url: '/img-800.webp' }];
+  assert.equal(buildSrcset(variants, 'avif'), '');
+});
+
+test('buildSrcset: sorts ascending by width', () => {
+  const variants = [
+    { format: 'webp', width: 1920, url: '/img-1920.webp' },
+    { format: 'webp', width: 480, url: '/img-480.webp' },
+    { format: 'webp', width: 800, url: '/img-800.webp' },
+    { format: 'webp', width: 1200, url: '/img-1200.webp' },
+  ];
+  const result = buildSrcset(variants, 'webp');
+  assert.equal(result, '/img-480.webp 480w, /img-800.webp 800w, /img-1200.webp 1200w, /img-1920.webp 1920w');
+});
 
 test('resolveUploadPath accepts valid upload URLs', () => {
   const resolved = resolveUploadPath('/uploads/2026/03/image.png');

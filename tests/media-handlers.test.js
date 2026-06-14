@@ -9,10 +9,37 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ensureDefaultFiles, loadMedia, savePages, loadLanguages } from '../dist/api/data.js';
+import {
+  ensureDefaultFiles,
+  loadMedia,
+  savePages,
+  loadLanguages,
+  markMediaVariantsReady,
+  markMediaVariantsFailed,
+  appendMediaEntry,
+  generateId,
+} from '../dist/api/data.js';
 import { handleUpload, handleDeleteUpload, handleGetPages } from '../dist/api/handlers.js';
+import { generateAndPersistVariants } from '../dist/utils/variant-generator.js';
 import { toImageValue } from '../dist/utils/image-value.js';
 import { validateBlockPropsAgainstSchema } from '../dist/utils/block-validation.js';
+
+/**
+ * Poll loadMedia() until no entry has status:'processing'.
+ * This drains any fire-and-forget generateAndPersistVariants calls that
+ * handleUpload launches BEFORE we restore ASTRO_BLOCKS_PROJECT_ROOT — which
+ * would otherwise cause the async write to land at process.cwd()/data instead
+ * of the temp dir.
+ */
+async function drainVariantJobs(maxWaitMs = 5000) {
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    const media = await loadMedia();
+    const pending = media.uploads.some((u) => u.status === 'processing');
+    if (!pending) return;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+}
 
 async function withTempProject(fn) {
   const previousRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
@@ -23,6 +50,10 @@ async function withTempProject(fn) {
 
   try {
     await fn(tempRoot);
+    // Drain any fire-and-forget variant jobs launched by handleUpload before
+    // we restore the env var. Without this, those async writes race against the
+    // finally block and fall back to process.cwd()/data (repo root).
+    await drainVariantJobs();
   } finally {
     if (previousRoot === undefined) {
       delete process.env.ASTRO_BLOCKS_PROJECT_ROOT;
@@ -252,6 +283,390 @@ test('SEC-03: filename with special characters is sanitized in stored path', asy
     // URL must not contain spaces, parentheses, #, or ! characters
     assert.doesNotMatch(body.url, /[ ()#!]/, `url contains unsafe chars: ${body.url}`);
     assert.ok(body.url.endsWith('.png'), `expected .png url, got: ${body.url}`);
+  });
+});
+
+// ─── T1.2: loadMedia backward-tolerance + status/variants normalization ───────
+
+test('T1.2: legacy entry (no status/variants) loads without error', async () => {
+  await withTempProject(async () => {
+    const { saveMedia, loadMedia: reloadMedia } = await import('../dist/api/data.js');
+    const legacyEntry = {
+      id: 'legacy-1',
+      url: '/uploads/2026/01/legacy.jpg',
+      filename: 'legacy.jpg',
+      size: 1000,
+      mimeType: 'image/jpeg',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
+    await saveMedia({ uploads: [legacyEntry] });
+    const loaded = await reloadMedia();
+    assert.equal(loaded.uploads.length, 1);
+    const entry = loaded.uploads[0];
+    assert.equal(entry.id, 'legacy-1');
+    assert.equal(entry.status, undefined);
+    assert.equal(entry.variants, undefined);
+  });
+});
+
+test('T1.2: invalid status coerced to undefined', async () => {
+  await withTempProject(async () => {
+    const { saveMedia, loadMedia: reloadMedia } = await import('../dist/api/data.js');
+    const invalidEntry = {
+      id: 'bad-status',
+      url: '/uploads/2026/01/bad.jpg',
+      filename: 'bad.jpg',
+      size: 1000,
+      mimeType: 'image/jpeg',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      status: 'unknown-invalid-status',
+    };
+    // Directly write malformed JSON to bypass TypeScript
+    const { getDataPath } = await import('../dist/utils/paths.js');
+    const fs2 = (await import('node:fs/promises')).default;
+    await fs2.writeFile(getDataPath('media.json'), JSON.stringify({ uploads: [invalidEntry] }), 'utf-8');
+    const loaded = await reloadMedia();
+    assert.equal(loaded.uploads.length, 1);
+    assert.equal(loaded.uploads[0].status, undefined, 'invalid status should be coerced to undefined');
+  });
+});
+
+test('T1.2: invalid variant element filtered out', async () => {
+  await withTempProject(async () => {
+    const { loadMedia: reloadMedia } = await import('../dist/api/data.js');
+    const { getDataPath } = await import('../dist/utils/paths.js');
+    const fs2 = (await import('node:fs/promises')).default;
+    const entryWithBadVariants = {
+      id: 'bad-variants',
+      url: '/uploads/2026/01/img.jpg',
+      filename: 'img.jpg',
+      size: 1000,
+      mimeType: 'image/jpeg',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      status: 'ready',
+      variants: [
+        // Valid variant
+        { format: 'webp', width: 480, url: '/uploads/2026/01/img-480.webp' },
+        // Invalid: bad format
+        { format: 'jpeg', width: 480, url: '/uploads/2026/01/img-480.jpeg' },
+        // Invalid: width 0
+        { format: 'avif', width: 0, url: '/uploads/2026/01/img-0.avif' },
+        // Invalid: missing url
+        { format: 'webp', width: 800 },
+      ],
+    };
+    await fs2.writeFile(getDataPath('media.json'), JSON.stringify({ uploads: [entryWithBadVariants] }), 'utf-8');
+    const loaded = await reloadMedia();
+    assert.equal(loaded.uploads.length, 1);
+    const entry = loaded.uploads[0];
+    assert.equal(entry.variants?.length, 1, 'only 1 valid variant should survive');
+    assert.equal(entry.variants?.[0].format, 'webp');
+    assert.equal(entry.variants?.[0].width, 480);
+  });
+});
+
+// ─── T4.1: markMediaVariantsReady / markMediaVariantsFailed ──────────────────
+
+test('T4.1: markMediaVariantsReady persists status:ready and variants', async () => {
+  await withTempProject(async () => {
+    const entry = {
+      id: generateId(),
+      url: '/uploads/2026/06/test.jpg',
+      filename: 'test.jpg',
+      size: 1000,
+      mimeType: 'image/jpeg',
+      createdAt: new Date().toISOString(),
+      status: 'processing',
+    };
+    await appendMediaEntry(entry);
+
+    const variants = [
+      { format: 'webp', width: 480, url: '/uploads/2026/06/test-480.webp' },
+      { format: 'avif', width: 480, url: '/uploads/2026/06/test-480.avif' },
+    ];
+    await markMediaVariantsReady(entry.id, variants);
+
+    const media = await loadMedia();
+    const updated = media.uploads.find((u) => u.id === entry.id);
+    assert.ok(updated, 'entry should exist');
+    assert.equal(updated.status, 'ready');
+    assert.deepEqual(updated.variants, variants);
+  });
+});
+
+test('T4.1: markMediaVariantsFailed sets status:failed and clears variants', async () => {
+  await withTempProject(async () => {
+    const entry = {
+      id: generateId(),
+      url: '/uploads/2026/06/fail.jpg',
+      filename: 'fail.jpg',
+      size: 500,
+      mimeType: 'image/jpeg',
+      createdAt: new Date().toISOString(),
+      status: 'processing',
+      variants: [{ format: 'webp', width: 480, url: '/uploads/2026/06/fail-480.webp' }],
+    };
+    await appendMediaEntry(entry);
+
+    await markMediaVariantsFailed(entry.id);
+
+    const media = await loadMedia();
+    const updated = media.uploads.find((u) => u.id === entry.id);
+    assert.ok(updated, 'entry should exist');
+    assert.equal(updated.status, 'failed');
+    assert.deepEqual(updated.variants, []);
+  });
+});
+
+test('T4.1: mutation is no-op when id not found', async () => {
+  await withTempProject(async () => {
+    // Should not throw when id does not exist
+    await assert.doesNotReject(() => markMediaVariantsReady('nonexistent-id', []));
+    await assert.doesNotReject(() => markMediaVariantsFailed('nonexistent-id'));
+  });
+});
+
+// ─── T4.2: handleUpload status + delete cascade ───────────────────────────────
+
+test('T4.2: upload returns status:processing synchronously (before variant job)', async () => {
+  await withTempProject(async () => {
+    const content = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]); // JPEG magic bytes
+    const req = makeUploadRequest(content, 'photo.jpg', 'image/jpeg');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(body.entry, 'should return entry');
+    assert.equal(body.entry.status, 'processing', 'status at response time should be processing');
+  });
+});
+
+test('T4.2: delete cascade — original + all variant files gone, entry pruned', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Create a PNG fixture that will produce variants
+    const { default: sharp } = await import('sharp');
+    const pngBuffer = await sharp({
+      create: { width: 1000, height: 50, channels: 3, background: { r: 100, g: 100, b: 100 } }
+    }).png().toBuffer();
+
+    // Write PNG to uploads dir
+    const subdir = new Date().toISOString().slice(0, 7).replace(/-/g, '/');
+    const dir = path.join(tempRoot, 'public', 'uploads', subdir);
+    await fs.mkdir(dir, { recursive: true });
+    const filename = 'cascade-test.png';
+    await fs.writeFile(path.join(dir, filename), pngBuffer);
+    const url = `/uploads/${subdir}/${filename}`;
+
+    const entry = {
+      id: generateId(),
+      url,
+      filename,
+      size: pngBuffer.length,
+      mimeType: 'image/png',
+      createdAt: new Date().toISOString(),
+      width: 1000,
+      height: 50,
+      status: 'processing',
+    };
+    await appendMediaEntry(entry);
+
+    // Generate variants directly
+    await generateAndPersistVariants(entry);
+
+    // Verify variants exist on disk
+    const media = await loadMedia();
+    const readyEntry = media.uploads.find((u) => u.id === entry.id);
+    assert.equal(readyEntry?.status, 'ready', 'entry should be ready after generation');
+    assert.ok(readyEntry?.variants && readyEntry.variants.length > 0, 'should have variants');
+
+    // Record all expected file paths
+    const { resolveUploadPath: resolve } = await import('../dist/utils/paths.js');
+    const variantPaths = readyEntry.variants.map((v) => resolve(v.url));
+    const originalPath = resolve(url);
+
+    // All files should exist before delete
+    await fs.stat(originalPath);
+    for (const vPath of variantPaths) {
+      await fs.stat(vPath);
+    }
+
+    // Delete via handler
+    const deleteReq = new Request('http://localhost/cms/api/upload', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const deleteRes = await handleDeleteUpload(deleteReq);
+    assert.equal(deleteRes.status, 204);
+
+    // Original should be gone
+    await assert.rejects(() => fs.stat(originalPath), { code: 'ENOENT' });
+
+    // All variant files should be gone
+    for (const vPath of variantPaths) {
+      await assert.rejects(() => fs.stat(vPath), { code: 'ENOENT' });
+    }
+
+    // Registry should be pruned
+    const after = await loadMedia();
+    assert.equal(after.uploads.find((u) => u.id === entry.id), undefined, 'entry should be pruned');
+  });
+});
+
+test('T4.2: delete with missing variant files is idempotent', async () => {
+  await withTempProject(async (tempRoot) => {
+    const content = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+    const uploadReq = makeUploadRequest(content, 'photo.jpg', 'image/jpeg');
+    const uploadRes = await handleUpload(uploadReq);
+    const { url } = await uploadRes.json();
+
+    // Manually write a variant entry with a non-existent file
+    const media = await loadMedia();
+    const entry = media.uploads.find((u) => u.url === url);
+    const fakeVariants = [
+      { format: 'webp', width: 480, url: url.replace('.jpg', '-480.webp') },
+    ];
+    await markMediaVariantsReady(entry.id, fakeVariants);
+    // Do NOT create the variant file on disk — it's missing
+
+    const deleteReq = new Request('http://localhost/cms/api/upload', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+
+    // Should not throw even when variant file is missing
+    const deleteRes = await handleDeleteUpload(deleteReq);
+    assert.equal(deleteRes.status, 204, 'delete should succeed even with missing variant files');
+
+    const after = await loadMedia();
+    assert.equal(after.uploads.length, 0, 'entry should be pruned from registry');
+  });
+});
+
+// ─── T7.1: reconcileMedia orphan variant cleanup ──────────────────────────────
+
+import { reconcileMedia } from '../dist/api/data.js';
+import { resolveUploadPath } from '../dist/utils/paths.js';
+
+test('T7.1: reconcile prunes entry and deletes its variants when original is missing', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Create variant files but NOT the original
+    const subdir = '2026/06';
+    const dir = path.join(tempRoot, 'public', 'uploads', subdir);
+    await fs.mkdir(dir, { recursive: true });
+
+    const variantFilename1 = 'ab12-photo-480.webp';
+    const variantFilename2 = 'ab12-photo-480.avif';
+    await fs.writeFile(path.join(dir, variantFilename1), 'fake webp data');
+    await fs.writeFile(path.join(dir, variantFilename2), 'fake avif data');
+
+    const url = `/uploads/${subdir}/ab12-photo.jpg`;
+    const variants = [
+      { format: 'webp', width: 480, url: `/uploads/${subdir}/${variantFilename1}` },
+      { format: 'avif', width: 480, url: `/uploads/${subdir}/${variantFilename2}` },
+    ];
+
+    await appendMediaEntry({
+      id: generateId(),
+      url,
+      filename: 'ab12-photo.jpg',
+      size: 1000,
+      mimeType: 'image/jpeg',
+      createdAt: new Date().toISOString(),
+      status: 'ready',
+      variants,
+    });
+
+    const before = await loadMedia();
+    assert.equal(before.uploads.length, 1, 'entry should exist before reconcile');
+
+    const reconciled = await reconcileMedia();
+    assert.equal(reconciled.uploads.length, 0, 'pruned entry should be removed');
+
+    // Variant files should be deleted
+    for (const v of variants) {
+      const variantPath = resolveUploadPath(v.url);
+      await assert.rejects(() => fs.stat(variantPath), { code: 'ENOENT' });
+    }
+  });
+});
+
+test('T7.1: reconcile tolerates missing orphan variant files', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Register an entry with variants but don't create any files on disk
+    const url = '/uploads/2026/06/ghost.jpg';
+    await appendMediaEntry({
+      id: generateId(),
+      url,
+      filename: 'ghost.jpg',
+      size: 500,
+      mimeType: 'image/jpeg',
+      createdAt: new Date().toISOString(),
+      status: 'ready',
+      variants: [
+        { format: 'webp', width: 480, url: '/uploads/2026/06/ghost-480.webp' },
+      ],
+    });
+
+    // Should not throw even though original AND variant files are missing
+    await assert.doesNotReject(() => reconcileMedia());
+
+    const after = await loadMedia();
+    assert.equal(after.uploads.length, 0, 'entry should be pruned');
+  });
+});
+
+test('T7.1: reconcile leaves valid variant files untouched', async () => {
+  await withTempProject(async (tempRoot) => {
+    const subdir = '2026/06';
+    const dir = path.join(tempRoot, 'public', 'uploads', subdir);
+    await fs.mkdir(dir, { recursive: true });
+
+    // Create original AND variant files
+    const originalFilename = 'valid-image.jpg';
+    const variantFilename = 'valid-image-480.webp';
+    await fs.writeFile(path.join(dir, originalFilename), 'fake jpeg data');
+    await fs.writeFile(path.join(dir, variantFilename), 'fake webp data');
+
+    const url = `/uploads/${subdir}/${originalFilename}`;
+    const variantUrl = `/uploads/${subdir}/${variantFilename}`;
+
+    await appendMediaEntry({
+      id: generateId(),
+      url,
+      filename: originalFilename,
+      size: 1000,
+      mimeType: 'image/jpeg',
+      createdAt: new Date().toISOString(),
+      status: 'ready',
+      variants: [{ format: 'webp', width: 480, url: variantUrl }],
+    });
+
+    const reconciled = await reconcileMedia();
+    assert.equal(reconciled.uploads.length, 1, 'valid entry should survive reconcile');
+
+    // Variant file should still exist
+    const variantPath = resolveUploadPath(variantUrl);
+    const stat = await fs.stat(variantPath);
+    assert.ok(stat.isFile(), 'valid variant file should not be deleted');
+  });
+});
+
+test('T7.1: existing reconcile behaviour preserved (entry with no variants still pruned)', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Entry with no variants, original file missing
+    const url = '/uploads/2026/06/no-variants.jpg';
+    await appendMediaEntry({
+      id: generateId(),
+      url,
+      filename: 'no-variants.jpg',
+      size: 500,
+      mimeType: 'image/jpeg',
+      createdAt: new Date().toISOString(),
+    });
+
+    const reconciled = await reconcileMedia();
+    assert.equal(reconciled.uploads.length, 0, 'entry with missing original and no variants should be pruned');
   });
 });
 

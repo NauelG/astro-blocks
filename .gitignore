@@ -32,8 +32,9 @@ Thumbs.db
 *.swo
 *~
 
-# Optional: datos del proyecto (descomenta si no quieres versionar contenido en repos que usen el paquete)
-# data/
+# Package-root data/ must never exist; it is always consumer/playground-scoped.
+# If tests leak writes to process.cwd()/data, git will not track them.
+data/
 # public/uploads/
 
 # Playground runtime media data (uploaded files + generated registry are not versioned)

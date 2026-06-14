@@ -22,6 +22,7 @@ import {
 } from '../utils/localization.js';
 import { joinSlugSegments, slugToPath, splitSlugSegments } from '../utils/slug.js';
 import { getProjectRoot, getUploadsDir, resolveUploadPath } from '../utils/paths.js';
+import { generateAndPersistVariants } from '../utils/variant-generator.js';
 import {
   hasDuplicateRedirectFrom,
   normalizeRedirectPath,
@@ -1354,7 +1355,7 @@ export async function handleUpload(request: Request): Promise<Response> {
     // Swallow dimension errors — never fail the upload
   }
 
-  // Append MediaEntry to registry (serialized read-modify-write — concurrency-safe)
+  // Append MediaEntry to registry with status:'processing' (variants generated async)
   const entry: MediaEntry = {
     id: data.generateId(),
     url,
@@ -1364,10 +1365,14 @@ export async function handleUpload(request: Request): Promise<Response> {
     createdAt: new Date().toISOString(),
     ...(capturedWidth !== undefined && { width: capturedWidth }),
     ...(capturedHeight !== undefined && { height: capturedHeight }),
+    status: 'processing',
   };
   await data.appendMediaEntry(entry);
 
-  return Response.json({ url, entry });
+  // Build response first, then fire-and-forget variant generation (after response returns)
+  const res = Response.json({ url, entry });
+  void generateAndPersistVariants(entry).catch(() => {});
+  return res;
 }
 
 export async function handleDeleteUpload(request: Request): Promise<Response> {
@@ -1378,7 +1383,27 @@ export async function handleDeleteUpload(request: Request): Promise<Response> {
   const filePath = resolveUploadPath(url);
   if (!filePath) return jsonError('Invalid or disallowed URL');
 
-  // Attempt to unlink from disk; ENOENT is treated as no-error (idempotent)
+  // Look up the entry BEFORE removing from registry so we can access its variants
+  const mediaData = await data.loadMedia();
+  const entry = mediaData.uploads.find((e) => e.url === url);
+
+  // Delete variant files (cascade) — ENOENT is tolerated (idempotent)
+  if (entry?.variants && entry.variants.length > 0) {
+    for (const variant of entry.variants) {
+      const variantPath = resolveUploadPath(variant.url);
+      if (variantPath) {
+        try {
+          await fs.unlink(variantPath);
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+            // Non-ENOENT errors are swallowed: cascade is best-effort
+          }
+        }
+      }
+    }
+  }
+
+  // Attempt to unlink original from disk; ENOENT is treated as no-error (idempotent)
   try {
     await fs.unlink(filePath);
   } catch (deleteError) {
