@@ -260,6 +260,15 @@ function validatePrimitiveValue(
         fieldName
       );
     }
+    if (imgVal.caption !== undefined && typeof imgVal.caption !== 'string') {
+      return issue(
+        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" — caption debe ser texto.`,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName
+      );
+    }
     for (const dim of ['width', 'height'] as const) {
       const v = imgVal[dim];
       if (v !== undefined) {

@@ -38,6 +38,7 @@ export function toImageValue(value: unknown): ImageFieldValue {
       return {
         url: obj.url,
         ...(typeof obj.alt === 'string' && { alt: obj.alt }),
+        ...(typeof obj.caption === 'string' && { caption: obj.caption }),
         ...(typeof obj.width === 'number' && Number.isFinite(obj.width) && obj.width > 0 && { width: obj.width }),
         ...(typeof obj.height === 'number' && Number.isFinite(obj.height) && obj.height > 0 && { height: obj.height }),
       };
@@ -82,6 +83,7 @@ export function parseImageValue(raw: string): ImageFieldValue {
         return {
           url: obj.url as string,
           ...(typeof obj.alt === 'string' && { alt: obj.alt }),
+          ...(typeof obj.caption === 'string' && { caption: obj.caption }),
           // Coerce width/height to positive finite numbers or drop them (0 and negatives are invalid)
           ...(typeof obj.width === 'number' && Number.isFinite(obj.width) && obj.width > 0 && { width: obj.width }),
           ...(typeof obj.height === 'number' && Number.isFinite(obj.height) && obj.height > 0 && { height: obj.height }),
@@ -194,6 +196,7 @@ export function buildSrcset(variants: MediaVariant[], format: string): string {
  *   - url   → entry.url
  *   - alt   → entry.alt ?? ''
  *   - width / height → included only when present on entry
+ *   - caption is NOT included (no registry default; caption is per-component)
  */
 export function mediaEntryToImageValue(entry: MediaEntry): ImageFieldValue {
   return {
@@ -202,4 +205,22 @@ export function mediaEntryToImageValue(entry: MediaEntry): ImageFieldValue {
     ...(typeof entry.width === 'number' && Number.isFinite(entry.width) && entry.width > 0 && { width: entry.width }),
     ...(typeof entry.height === 'number' && Number.isFinite(entry.height) && entry.height > 0 && { height: entry.height }),
   };
+}
+
+/**
+ * Resolve the display caption for an image field value.
+ *
+ * Resolution order:
+ *   1. override?.trim() — if non-empty, use override (caller-supplied explicit caption)
+ *   2. value.caption?.trim() — if non-empty, use the stored caption
+ *   3. '' — no caption (empty string means "no figure wrapper")
+ *
+ * Pure function — safe to call in component frontmatter and unit tests.
+ */
+export function getCaption(value: ImageFieldValue, override?: string): string {
+  const overrideTrimmed = override?.trim() ?? '';
+  if (overrideTrimmed.length > 0) return overrideTrimmed;
+  const valueCaptionTrimmed = value.caption?.trim() ?? '';
+  if (valueCaptionTrimmed.length > 0) return valueCaptionTrimmed;
+  return '';
 }

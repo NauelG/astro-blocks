@@ -20,6 +20,7 @@ import {
   isEmptyImageValue,
   mediaEntryToImageValue,
   serializeImageValueAttr,
+  getCaption,
 } from '../dist/utils/image-value.js';
 
 // ─── toImageValue ─────────────────────────────────────────────────────────────
@@ -376,4 +377,94 @@ test('FIX-3: serializeImageValueAttr — quote-blind escaper would FAIL (proves 
     !serialized.includes('"'),
     'regression guard: if this fails, the call site was reverted to a quote-blind escaper'
   );
+});
+
+// ─── caption pass-through (P1-T5) ─────────────────────────────────────────────
+
+test('toImageValue passes caption string', () => {
+  const result = toImageValue({ url: '/img.jpg', alt: 'Alt', caption: 'Photo credit: J. Doe' });
+  assert.equal(result.caption, 'Photo credit: J. Doe');
+});
+
+test('toImageValue drops non-string caption', () => {
+  const result = toImageValue({ url: '/img.jpg', alt: 'Alt', caption: 42 });
+  assert.ok(!Object.prototype.hasOwnProperty.call(result, 'caption'), 'non-string caption must be dropped');
+});
+
+test('toImageValue omits caption when absent', () => {
+  const result = toImageValue({ url: '/img.jpg', alt: 'Alt' });
+  assert.ok(!Object.prototype.hasOwnProperty.call(result, 'caption'), 'caption key must be absent when not provided');
+});
+
+test('parseImageValue round-trips caption', () => {
+  const raw = JSON.stringify({ url: '/img.jpg', alt: 'Alt', caption: 'Archival photo' });
+  const result = parseImageValue(raw);
+  assert.equal(result.caption, 'Archival photo');
+});
+
+test('parseImageValue round-trips caption with quotes and unicode', () => {
+  const original = { url: '/img.jpg', alt: 'Alt', caption: 'Café "du Monde" — © 2026' };
+  const raw = JSON.stringify(original);
+  const result = parseImageValue(raw);
+  assert.equal(result.caption, 'Café "du Monde" — © 2026');
+});
+
+test('parseImageValue on legacy value (no caption)', () => {
+  const raw = JSON.stringify({ url: '/img.jpg', alt: 'Old photo', width: 800, height: 600 });
+  const result = parseImageValue(raw);
+  assert.ok(!Object.prototype.hasOwnProperty.call(result, 'caption'), 'legacy value must have no caption key');
+  // All existing fields preserved
+  assert.equal(result.url, '/img.jpg');
+  assert.equal(result.alt, 'Old photo');
+  assert.equal(result.width, 800);
+  assert.equal(result.height, 600);
+});
+
+test('mediaEntryToImageValue omits caption', () => {
+  const entry = {
+    id: '1',
+    url: '/uploads/a.jpg',
+    filename: 'a.jpg',
+    size: 1000,
+    mimeType: 'image/jpeg',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    alt: 'Alt text',
+  };
+  const result = mediaEntryToImageValue(entry);
+  assert.equal(result.caption, undefined, 'mediaEntryToImageValue must not add caption');
+});
+
+test('imageAttrs excludes caption', () => {
+  const attrs = imageAttrs({ url: '/img.jpg', alt: 'Alt', caption: 'Some caption' });
+  assert.ok(!('caption' in attrs), 'imageAttrs must not include caption in output attrs');
+});
+
+// ─── getCaption helper (P1-T5) ────────────────────────────────────────────────
+
+test('getCaption returns empty string for absent caption', () => {
+  assert.equal(getCaption({ url: '/img.jpg' }), '');
+});
+
+test('getCaption returns empty string for empty string caption', () => {
+  assert.equal(getCaption({ url: '/img.jpg', caption: '' }), '');
+});
+
+test('getCaption returns empty string for whitespace-only caption', () => {
+  assert.equal(getCaption({ url: '/img.jpg', caption: '   ' }), '');
+});
+
+test('getCaption returns trimmed string for non-empty caption', () => {
+  assert.equal(getCaption({ url: '/img.jpg', caption: '  Sunset over the lake  ' }), 'Sunset over the lake');
+});
+
+test('getCaption override param takes precedence over value.caption', () => {
+  assert.equal(getCaption({ url: '/img.jpg', caption: 'Value caption' }, 'Override caption'), 'Override caption');
+});
+
+test('getCaption override param: empty override falls back to value.caption', () => {
+  assert.equal(getCaption({ url: '/img.jpg', caption: 'Value caption' }, ''), 'Value caption');
+});
+
+test('getCaption override param: whitespace override falls back to value.caption', () => {
+  assert.equal(getCaption({ url: '/img.jpg', caption: 'Value caption' }, '   '), 'Value caption');
 });

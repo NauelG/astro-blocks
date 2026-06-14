@@ -179,3 +179,35 @@ test('FIX-2: validator accepts positive integer dimensions on image prop', () =>
   });
   assert.equal(issue, null, 'positive integer dimensions must pass validation');
 });
+
+// ─── P2: caption validation (media-caption change) ────────────────────────────
+
+test('validator accepts string caption', () => {
+  const issue = validateBlockPropsAgainstSchema('TestBlock', 0, IMAGE_SCHEMA, {
+    hero: { url: '/img.jpg', alt: 'ok', caption: 'A visible description' },
+  });
+  assert.equal(issue, null, 'string caption must pass validation');
+});
+
+test('validator accepts absent caption', () => {
+  const issue = validateBlockPropsAgainstSchema('TestBlock', 0, IMAGE_SCHEMA, {
+    hero: { url: '/img.jpg', alt: 'ok' },
+  });
+  assert.equal(issue, null, 'missing caption must pass validation');
+});
+
+test('validator rejects non-string caption (boolean)', () => {
+  const issue = validateBlockPropsAgainstSchema('TestBlock', 0, IMAGE_SCHEMA, {
+    hero: { url: '/img.jpg', alt: 'ok', caption: true },
+  });
+  assert.ok(issue !== null, 'boolean caption must produce a validation error');
+  assert.match(issue.message, /caption/);
+});
+
+test('validator rejects non-string caption (number)', () => {
+  const issue = validateBlockPropsAgainstSchema('TestBlock', 0, IMAGE_SCHEMA, {
+    hero: { url: '/img.jpg', alt: 'ok', caption: 42 },
+  });
+  assert.ok(issue !== null, 'number caption must produce a validation error');
+  assert.match(issue.message, /caption/);
+});

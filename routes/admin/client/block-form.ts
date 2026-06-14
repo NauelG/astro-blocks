@@ -328,6 +328,24 @@ function seedAltInput(hiddenInput: HTMLInputElement, altOverride?: string): void
   }
 }
 
+/**
+ * Seed the visible caption input for an image field from the current hidden-input JSON.
+ * Reads parseImageValue(hidden.value).caption and sets the caption input value.
+ * If captionOverride is provided, that value is used directly (used on picker pick and clear).
+ */
+function seedCaptionInput(hiddenInput: HTMLInputElement, captionOverride?: string): void {
+  const field = hiddenInput.closest<HTMLElement>('.cms-image-field');
+  if (!field) return;
+  const captionInput = field.querySelector<HTMLInputElement>('[data-image-caption-for]');
+  if (!captionInput) return;
+  if (captionOverride !== undefined) {
+    captionInput.value = captionOverride;
+  } else {
+    const current = parseImageValue(hiddenInput.value);
+    captionInput.value = current.caption ?? '';
+  }
+}
+
 function selectPickerImage(value: ImageFieldValue): void {
   if (!activePickerInputId) return;
   const hiddenInput = document.getElementById(activePickerInputId) as HTMLInputElement | null;
@@ -339,6 +357,8 @@ function selectPickerImage(value: ImageFieldValue): void {
     updateImageFieldDom(hiddenInput, value.url);
     // Seed the alt-override input from the snapshot default alt
     seedAltInput(hiddenInput, value.alt ?? '');
+    // Picker carries no caption default — seed empty (caption is per-component)
+    seedCaptionInput(hiddenInput, '');
     hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
     hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
   }
@@ -719,6 +739,7 @@ function imageFieldHtml(
 ): string {
   const urlValue = value.url;
   const altValue = value.alt ?? '';
+  const captionValue = value.caption ?? '';
   const hasValue = urlValue.length > 0;
   const filename = hasValue ? imageFilenameFromUrl(urlValue) : '';
   const stateClass = hasValue ? ' cms-image-field--has-value' : '';
@@ -734,6 +755,7 @@ function imageFieldHtml(
     : '<span class="cms-image-field-name cms-image-field-name--empty">No image selected</span>';
   const chooseLabel = hasValue ? 'Replace' : 'Choose image';
   const altInputId = `${id}-alt`;
+  const captionInputId = `${id}-caption`;
   const altLabel = localizable
     ? `Alt text <span class="cms-locale-hint">(${escapeHtml(getActiveContentLocale('es'))})</span>`
     : 'Alt text';
@@ -755,6 +777,10 @@ function imageFieldHtml(
     `<div class="cms-image-field-alt-row">` +
     `<label for="${altInputId}" class="cms-image-field-alt-label">${altLabel}</label>` +
     `<input type="text" id="${altInputId}" class="cms-input cms-image-field-alt-input" data-image-alt-for="${escapePickerHtml(id)}" value="${escapePickerHtml(altValue)}" placeholder="Describe this image…" autocomplete="off">` +
+    `</div>` +
+    `<div class="cms-image-field-caption-row">` +
+    `<label for="${captionInputId}" class="cms-image-field-caption-label">Caption</label>` +
+    `<input type="text" id="${captionInputId}" class="cms-input cms-image-field-caption-input" data-image-caption-for="${escapePickerHtml(id)}" value="${escapePickerHtml(captionValue)}" placeholder="Add a visible caption…" autocomplete="off">` +
     `</div>` +
     `</div>` +
     `</div>`
@@ -1126,6 +1152,24 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
       altInput.addEventListener('change', sync);
     });
 
+    // Image field — caption input: wires changes to update only the caption
+    // field in the hidden JSON, leaving url/alt/width/height unchanged.
+    container.querySelectorAll<HTMLInputElement>('[data-image-caption-for]').forEach((captionInput) => {
+      const sync = (): void => {
+        const inputId = captionInput.dataset.imageCaptionFor;
+        if (!inputId) return;
+        const hiddenInput = container.querySelector<HTMLInputElement>(`#${CSS.escape(inputId)}`);
+        if (!hiddenInput) return;
+        const current = parseImageValue(hiddenInput.value);
+        current.caption = captionInput.value;
+        hiddenInput.value = JSON.stringify(current);
+        hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+      captionInput.addEventListener('input', sync);
+      captionInput.addEventListener('change', sync);
+    });
+
     // Image field — "Choose image" button opens the picker dialog
     container.querySelectorAll<HTMLButtonElement>('[data-picker-for]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -1142,10 +1186,11 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
         if (!inputId) return;
         const hiddenInput = container.querySelector<HTMLInputElement>(`#${CSS.escape(inputId)}`);
         if (hiddenInput) {
-          // Set hidden input to empty JSON sentinel; clear alt input
-          hiddenInput.value = JSON.stringify({ url: '', alt: '' });
+          // Set hidden input to empty JSON sentinel; clear alt and caption inputs
+          hiddenInput.value = JSON.stringify({ url: '', alt: '', caption: '' });
           updateImageFieldDom(hiddenInput, '');
           seedAltInput(hiddenInput, '');
+          seedCaptionInput(hiddenInput, '');
           hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
           hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
         }

@@ -25,20 +25,22 @@ Licensed under the Business Source License 1.1
  */
 
 import type { ImageFieldValue } from '../types/index.js';
-import { toImageValue, imageAttrs, buildSrcset } from '../utils/image-value.js';
+import { toImageValue, imageAttrs, buildSrcset, getCaption } from '../utils/image-value.js';
 import { getMediaVariants } from '../utils/getMediaVariants.js';
 
 interface Props {
   image: ImageFieldValue | string;
   sizes?: string;
   priority?: boolean;
+  caption?: string;
   [key: string]: unknown;
 }
 
-const { image, sizes = '100vw', priority = false, ...rest } = Astro.props;
+const { image, sizes = '100vw', priority = false, caption: captionProp, ...rest } = Astro.props;
 
 const v = toImageValue(image);
 const attrs = imageAttrs(v);
+const caption = getCaption(v, captionProp as string | undefined);
 
 // Lookup responsive image variants from the media registry
 const mv = await getMediaVariants(v.url);
@@ -49,18 +51,70 @@ const decodingAttr = priority ? undefined : 'async';
 const fetchpriorityAttr = priority ? 'high' : undefined;
 ---
 
-{mv.status === 'ready' && mv.variants.length > 0 ? (
-  <picture>
-    <source
-      type="image/avif"
-      srcset={buildSrcset(mv.variants, 'avif')}
-      sizes={sizes}
-    />
-    <source
-      type="image/webp"
-      srcset={buildSrcset(mv.variants, 'webp')}
-      sizes={sizes}
-    />
+{caption ? (
+  <figure class="cms-figure">
+    {mv.status === 'ready' && mv.variants.length > 0 ? (
+      <picture>
+        <source
+          type="image/avif"
+          srcset={buildSrcset(mv.variants, 'avif')}
+          sizes={sizes}
+        />
+        <source
+          type="image/webp"
+          srcset={buildSrcset(mv.variants, 'webp')}
+          sizes={sizes}
+        />
+        <img
+          src={attrs.src}
+          alt={attrs.alt}
+          width={attrs.width}
+          height={attrs.height}
+          loading={loadingAttr}
+          decoding={decodingAttr}
+          fetchpriority={fetchpriorityAttr}
+          {...rest}
+        />
+      </picture>
+    ) : (
+      <img
+        src={attrs.src}
+        alt={attrs.alt}
+        width={attrs.width}
+        height={attrs.height}
+        loading={loadingAttr}
+        decoding={decodingAttr}
+        fetchpriority={fetchpriorityAttr}
+        {...rest}
+      />
+    )}
+    <figcaption>{caption}</figcaption>
+  </figure>
+) : (
+  mv.status === 'ready' && mv.variants.length > 0 ? (
+    <picture>
+      <source
+        type="image/avif"
+        srcset={buildSrcset(mv.variants, 'avif')}
+        sizes={sizes}
+      />
+      <source
+        type="image/webp"
+        srcset={buildSrcset(mv.variants, 'webp')}
+        sizes={sizes}
+      />
+      <img
+        src={attrs.src}
+        alt={attrs.alt}
+        width={attrs.width}
+        height={attrs.height}
+        loading={loadingAttr}
+        decoding={decodingAttr}
+        fetchpriority={fetchpriorityAttr}
+        {...rest}
+      />
+    </picture>
+  ) : (
     <img
       src={attrs.src}
       alt={attrs.alt}
@@ -71,16 +125,5 @@ const fetchpriorityAttr = priority ? 'high' : undefined;
       fetchpriority={fetchpriorityAttr}
       {...rest}
     />
-  </picture>
-) : (
-  <img
-    src={attrs.src}
-    alt={attrs.alt}
-    width={attrs.width}
-    height={attrs.height}
-    loading={loadingAttr}
-    decoding={decodingAttr}
-    fetchpriority={fetchpriorityAttr}
-    {...rest}
-  />
+  )
 )}

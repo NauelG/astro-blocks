@@ -4620,6 +4620,28 @@ Licensed under the Business Source License 1.1
   padding: 0.25rem 0.5rem;
 }
 
+/* Caption input row — mirrors the alt-row block above. Admin UI only.
+   Consumer-side .cms-figure / figcaption styling is the consumer's responsibility (ADR-3). */
+.cms-image-field-caption-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.35rem;
+}
+
+.cms-image-field-caption-label {
+  font-size: 0.75rem;
+  color: var(--cms-text-muted, #6b7280);
+  font-weight: 500;
+}
+
+.cms-image-field-caption-input {
+  font-size: 0.8rem;
+  min-height: 24px;
+  height: auto;
+  padding: 0.25rem 0.5rem;
+}
+
 /* Visually hidden but accessible label helper */
 .cms-visually-hidden {
   position: absolute;

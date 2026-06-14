@@ -247,6 +247,7 @@ export interface GlobalBlockRuntimeEntry {
 export interface ImageFieldValue {
   url: string;
   alt?: string;
+  caption?: string;
   width?: number;
   height?: number;
 }
