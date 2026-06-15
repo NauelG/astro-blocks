@@ -4,21 +4,19 @@ Licensed under the Business Source License 1.1
 */
 
 /**
- * Combined coverage runner.
+ * Server + integration coverage runner.
  *
- * Collects raw V8 coverage from two sources into ONE temp directory and reports
- * over the merged set with c8 (which is source-map aware and merges all V8
- * dumps in a NODE_V8_COVERAGE-style directory):
- *   1. node:test integration/unit tests  (server + util code)
- *   2. Playwright e2e tests              (browser client JS + server, when present)
+ * Runs the node:test suite under NODE_V8_COVERAGE and reports with c8 (which is
+ * source-map aware: it maps the compiled dist/*.js coverage back to the original
+ * .ts sources). Writes an istanbul json-summary that drives the README badge.
  *
- * c8 maps the compiled dist/*.js coverage back to the original .ts sources via
- * the emitted source maps, and writes an istanbul json-summary we read to drive
- * the README coverage badge.
+ * Scope: the shipped/server + util surface. Browser-only admin client
+ * controllers (block-form, common) are excluded — node:test cannot drive a DOM;
+ * those are covered by the Playwright e2e suite (`npm run e2e`) instead.
  *
  * Usage:
- *   node scripts/coverage.mjs            # build + node:test coverage (+ e2e if present)
- *   node scripts/coverage.mjs --no-build # skip the build step (dist already current)
+ *   node scripts/coverage.mjs            # build + coverage
+ *   node scripts/coverage.mjs --no-build # skip build (dist already current)
  */
 
 import { spawnSync } from 'node:child_process';
@@ -63,11 +61,13 @@ function main() {
 
   run('node', ['--test', ...testFiles], { NODE_V8_COVERAGE: rawDir });
 
-  // 2. Playwright e2e coverage is appended into the same rawDir by the e2e
-  //    setup when a Playwright config exists. (Wired in a later step.)
-
-  // Report over the merged raw V8 data. --src + --include scope the denominator
-  // to OUR compiled output only (never dependency code in node_modules).
+  // Report "server + integration" coverage over the merged raw V8 data.
+  // --src + --include scope the denominator to OUR compiled output only (never
+  // dependency code in node_modules). Browser-only admin client controllers
+  // (block-form, common) are EXCLUDED: node:test cannot drive a DOM, so they
+  // would only ever read as near-zero here. They are covered by the Playwright
+  // e2e suite instead (`npm run e2e`). media-fetch stays in — it is a plain
+  // utility that the node:test suite exercises directly.
   run('npx', [
     'c8',
     'report',
@@ -81,6 +81,10 @@ function main() {
     'dist/**/*.js',
     '--exclude',
     'dist/**/*.map',
+    '--exclude',
+    'dist/routes/admin/client/block-form.js',
+    '--exclude',
+    'dist/routes/admin/client/common.js',
     '--reporter',
     'json-summary',
     '--reporter',
