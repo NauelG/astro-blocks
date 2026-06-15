@@ -53,6 +53,7 @@ coverage/
 .cache/
 .turbo/
 .npm-cache/
+.atl/.skill-registry.cache.json
 *.tgz
 PLAN.md
 # e2e
