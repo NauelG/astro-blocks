@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh run *)",
+      "Bash(npm view *)",
+      "Bash(node -p \"require\\('./package.json'\\).version\")",
+      "Bash(echo \"badge: $\\(grep -o 'version-[0-9.]*-blue' README.md\\)  |  pkg: $\\(node -p \"require\\('./package.json'\\).version\"\\)\")"
+    ]
+  }
+}
