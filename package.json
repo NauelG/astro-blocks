@@ -59,6 +59,7 @@
     "features:validate": "node scripts/validate-features.mjs",
     "typecheck": "tsc --noEmit",
     "test": "npm run build && node --test tests/*.test.js",
+    "coverage": "node scripts/coverage.mjs",
     "prepare:playground": "npm run build && node scripts/install-playground-package.mjs",
     "dev:playground": "npm run prepare:playground && npm run dev --workspace astro-blocks-playground",
     "build:playground": "npm run prepare:playground && npm run build --workspace astro-blocks-playground",
@@ -84,6 +85,7 @@
   "devDependencies": {
     "@types/node": "^25.9.3",
     "astro": "^6.4.6",
+    "c8": "^11.0.0",
     "playwright": "^1.60.0",
     "rimraf": "^6.1.3",
     "typescript": "^6.0.3"
