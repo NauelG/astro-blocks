@@ -55,3 +55,10 @@ coverage/
 .npm-cache/
 *.tgz
 PLAN.md
+# e2e
+.coverage-browser/
+.e2e-data/
+
+# Playwright
+test-results/
+playwright-report/

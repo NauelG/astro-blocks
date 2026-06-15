@@ -10,6 +10,10 @@ import { schema as mediaShowcaseSchema } from './src/components/MediaShowcase.sc
 export default defineConfig({
   output: 'static',
   adapter: node({ mode: 'standalone' }),
+  // Client source maps are emitted only for coverage runs (COVERAGE=true) so the
+  // e2e browser-coverage bridge can map bundled admin JS back to its .ts source.
+  // Off by default — keeps the normal demo build clean.
+  vite: { build: { sourcemap: process.env.COVERAGE === 'true' } },
   experimental: {
     cache: {
       provider: memoryCache(),
