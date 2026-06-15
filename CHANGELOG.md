@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.0.3] - 2026-06-15
+
+### Title
+
+Dependency maintenance
+
+### Changed
+
+- Updated bundled dependencies: `@lucide/astro` to 1.x, `sharp` to 0.35, `jose` to 6.2, `@picocss/pico` to 2.1, `simple-dropzone` to 0.8.3, and `sortablejs` to 1.15.7. No public API or behavior changes — admin icons and responsive image variants render identically. Verified against the full test suite.
+
+### Added
+
+- Internal test and tooling improvements only (no effect on the published runtime): handler integration tests, a Playwright e2e smoke suite, and a coverage badge.
+
 ## [3.0.2] - 2026-06-14
 
 ### Title
