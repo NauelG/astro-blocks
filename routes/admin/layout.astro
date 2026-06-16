@@ -106,7 +106,7 @@ const t = createT(uiLocale);
               <div class="cms-topbar-locale">
                 <label for="cms-content-locale-select" class="cms-hidden">{t('topbar.contentLanguage')}</label>
                 <select id="cms-content-locale-select" aria-label={t('topbar.contentLanguage')}>
-                  <option value="">Cargando…</option>
+                  <option value="">{t('topbar.contentLanguageLoading')}</option>
                 </select>
               </div>
               {site.baseUrl && (
@@ -196,8 +196,15 @@ const t = createT(uiLocale);
         </footer>
       </div>
     </div>
-    <ConfirmDialog />
-    <AlertDialog />
+    <ConfirmDialog
+      defaultTitle={t('dialog.defaultConfirmTitle')}
+      defaultConfirmLabel={t('common.delete')}
+      defaultCancelLabel={t('common.cancel')}
+    />
+    <AlertDialog
+      defaultTitle={t('dialog.defaultAlertTitle')}
+      defaultOkLabel={t('dialog.defaultOkLabel')}
+    />
     <div class="cms-topbar-dropdown" id="cms-profile-dropdown" role="menu">
       <div class="cms-topbar-dropdown-label">
         <span class="cms-topbar-dropdown-label-title">{site.siteName || 'AstroBlocks'}</span>
@@ -377,6 +384,13 @@ const t = createT(uiLocale);
         window.getCmsUiLocale = function() { return next; };
       };
     </script>
+    <!-- Bridge: SSR-translated layout UI strings for bundled scripts (Fix 2 & 3) -->
+    <script define:vars={{ _layoutSelectFallback: t('common.select'), _layoutToastNotice: t('dialog.defaultAlertTitle') }}>
+      window.__cmsLayoutI18n = {
+        selectFallback: _layoutSelectFallback,
+        toastNotice: _layoutToastNotice,
+      };
+    </script>
     <script>
       (window as unknown as {
         getCmsToken: () => string;
@@ -529,7 +543,8 @@ const t = createT(uiLocale);
 
         function setTriggerLabel(entry: ManagedSelect): void {
           const selected = entry.select.options[entry.select.selectedIndex] || entry.select.options[0];
-          entry.label.textContent = selected?.textContent?.trim() || 'Seleccionar';
+          const selectFallback = (window as unknown as { __cmsLayoutI18n?: { selectFallback?: string } }).__cmsLayoutI18n?.selectFallback || 'Select';
+          entry.label.textContent = selected?.textContent?.trim() || selectFallback;
         }
 
         function syncActiveOption(entry: ManagedSelect): void {
@@ -777,8 +792,9 @@ const t = createT(uiLocale);
           toastRegion.innerHTML = '';
           const toast = document.createElement('div');
           toast.className = `cms-toast cms-toast--${options.tone || 'info'}`;
+          const toastNotice = (window as unknown as { __cmsLayoutI18n?: { toastNotice?: string } }).__cmsLayoutI18n?.toastNotice || 'Notice';
           toast.innerHTML =
-            `<strong class="cms-toast-title">${options.title || 'Aviso'}</strong>` +
+            `<strong class="cms-toast-title">${options.title || toastNotice}</strong>` +
             `<p class="cms-toast-message"></p>`;
           const messageEl = toast.querySelector('.cms-toast-message');
           if (messageEl) messageEl.textContent = options.message;

@@ -8,53 +8,85 @@ export const prerender = false;
 import AdminLayout from './layout.astro';
 import DetailModal from './components/DetailModal.astro';
 import { loadSite } from '../../api/data.js';
+import { resolveUiLocale } from './i18n/resolve.js';
+import { createT } from './i18n/t.js';
 const site = await loadSite();
+const uiLocale = resolveUiLocale({
+  cookie: Astro.request.headers.get('cookie'),
+  acceptLanguage: Astro.request.headers.get('accept-language'),
+});
+const t = createT(uiLocale);
+// Strings injected into the is:inline script via a define:vars bridge script
+const usersI18n = {
+  dialogTitle: t('users.modalTitle'),
+  roleOwner: t('users.roleOwner'),
+  roleUser: t('users.roleUser'),
+  editLabel: t('common.edit'),
+  deleteLabel: t('users.deleteLabel'),
+  newForm: t('users.newForm'),
+  editForm: t('users.editForm'),
+  createBtn: t('users.createBtn'),
+  saveBtn: t('common.save'),
+  deleteConfirm: t('users.deleteConfirm'),
+  cannotDeleteLastOwner: t('users.cannotDeleteLastOwner'),
+  emailRequired: t('users.emailRequired'),
+  passwordRequiredNew: t('users.passwordRequiredNew'),
+  loadError: t('users.loadError'),
+  saveError: t('users.saveError'),
+  deleteError: t('users.deleteError'),
+  deleted: t('users.deleted'),
+  updated: t('users.updated'),
+  created: t('users.created'),
+  noDate: t('common.noDate'),
+  countLabel: t('users.count'),
+  loading: t('users.loadingUsers'),
+};
 ---
 
-<AdminLayout site={site} title="Usuarios">
+<AdminLayout site={site} title={t('users.title')}>
   <div class="cms-stack">
     <div class="cms-page-intro">
       <div class="cms-page-intro-copy">
-        <span class="cms-page-eyebrow">Equipo</span>
+        <span class="cms-page-eyebrow">{t('users.eyebrow')}</span>
         <div class="cms-page-header">
-          <h1 class="cms-title">Accesos y roles del panel</h1>
+          <h1 class="cms-title">{t('users.title')}</h1>
         </div>
         <p class="cms-page-lead">
-          Administra los usuarios del CMS, controla quién puede editar el contenido y mantén el acceso del proyecto bajo una jerarquía clara.
+          {t('users.lead')}
         </p>
       </div>
       <div class="cms-page-actions">
-        <button type="button" id="cms-users-add-btn" class="cms-btn cms-btn-primary">Añadir usuario</button>
+        <button type="button" id="cms-users-add-btn" class="cms-btn cms-btn-primary">{t('users.addUser')}</button>
       </div>
     </div>
     <div class="cms-toolbar">
       <div class="cms-toolbar-group">
         <div class="cms-field cms-toolbar-search">
-          <input type="search" id="cms-users-search" placeholder="Buscar por email" />
+          <input type="search" id="cms-users-search" placeholder={t('users.searchPlaceholder')} />
         </div>
         <div class="cms-field">
-          <select id="cms-users-role-filter" aria-label="Filtrar por rol">
-            <option value="all">Todos los roles</option>
-            <option value="owner">Propietarios</option>
-            <option value="user">Usuarios</option>
+          <select id="cms-users-role-filter" aria-label={t('users.filterByRole')}>
+            <option value="all">{t('users.allRoles')}</option>
+            <option value="owner">{t('users.owners')}</option>
+            <option value="user">{t('users.users')}</option>
           </select>
         </div>
       </div>
       <div class="cms-toolbar-meta">
-        <span class="cms-results-count" id="cms-users-count">0 usuarios</span>
+        <span class="cms-results-count" id="cms-users-count">{t('users.count', { count: '0' })}</span>
       </div>
     </div>
     <p id="cms-users-error" class="cms-muted cms-hidden" role="alert"></p>
-    <p id="cms-users-loading" class="cms-muted">Cargando…</p>
+    <p id="cms-users-loading" class="cms-muted">{t('users.loadingUsers')}</p>
     <div id="cms-users-list-wrap" class="cms-hidden cms-card cms-card--no-padding">
       <div class="cms-table-wrap">
         <table class="cms-table">
           <thead>
             <tr>
               <th class="cms-table-actions"></th>
-              <th>Email</th>
-              <th>Rol</th>
-              <th>Fecha</th>
+              <th>{t('users.colEmail')}</th>
+              <th>{t('users.colRole')}</th>
+              <th>{t('users.colDate')}</th>
               <th class="cms-table-actions-delete"></th>
             </tr>
           </thead>
@@ -62,37 +94,40 @@ const site = await loadSite();
         </table>
       </div>
       <div id="cms-users-empty" class="cms-empty-state cms-empty-state--inset cms-hidden">
-        <p class="cms-empty-state-title">No hay usuarios que coincidan</p>
-        <p class="cms-empty-state-text">Prueba otra búsqueda o crea un nuevo usuario para ampliar el acceso al panel.</p>
+        <p class="cms-empty-state-title">{t('users.empty.title')}</p>
+        <p class="cms-empty-state-text">{t('users.empty.text')}</p>
         <div class="cms-empty-state-actions">
-          <button type="button" class="cms-btn cms-btn-primary" data-open-users-new>Añadir usuario</button>
+          <button type="button" class="cms-btn cms-btn-primary" data-open-users-new>{t('users.addUser')}</button>
         </div>
       </div>
     </div>
   </div>
 
-  <DetailModal id="user-detail-modal" title="Usuario">
+  <DetailModal id="user-detail-modal" title={t('users.modalTitle')}>
     <form id="user-detail-form" class="cms-form">
       <input type="hidden" id="user-detail-id" name="id" value="" />
       <div class="cms-field">
-        <label for="user-detail-email">Email</label>
-        <input type="email" id="user-detail-email" name="email" placeholder="usuario@ejemplo.com" />
+        <label for="user-detail-email">{t('users.labelEmail')}</label>
+        <input type="email" id="user-detail-email" name="email" placeholder={t('users.emailPlaceholder')} />
       </div>
       <div class="cms-field" id="user-detail-password-wrap">
-        <label for="user-detail-password">Contraseña</label>
-        <input type="password" id="user-detail-password" name="password" placeholder="Dejar en blanco para no cambiar" autocomplete="new-password" />
+        <label for="user-detail-password">{t('users.labelPassword')}</label>
+        <input type="password" id="user-detail-password" name="password" placeholder={t('users.passwordPlaceholder')} autocomplete="new-password" />
       </div>
       <div class="cms-field">
-        <label for="user-detail-role">Rol</label>
+        <label for="user-detail-role">{t('users.labelRole')}</label>
         <select name="role" id="user-detail-role">
-          <option value="user">Usuario</option>
-          <option value="owner">Propietario</option>
+          <option value="user">{t('users.roleUser')}</option>
+          <option value="owner">{t('users.roleOwner')}</option>
         </select>
       </div>
     </form>
-    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="user-detail-modal">Cancelar</button>
-    <button type="submit" form="user-detail-form" class="cms-btn cms-btn-primary" id="user-detail-submit" slot="actions-right">Guardar</button>
+    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="user-detail-modal">{t('common.cancel')}</button>
+    <button type="submit" form="user-detail-form" class="cms-btn cms-btn-primary" id="user-detail-submit" slot="actions-right">{t('common.save')}</button>
   </DetailModal>
+
+  {/* Bridge: inject server-translated strings into the is:inline script below */}
+  <script define:vars={{ usersI18n }}></script>
 
   <script is:inline>
     (function() {
@@ -136,7 +171,7 @@ const site = await loadSite();
           if (errorEl) { errorEl.textContent = msg || ''; errorEl.classList.toggle('cms-hidden', !msg); }
         }
         function formatDate(iso) {
-          if (!iso) return 'Sin fecha';
+          if (!iso) return usersI18n.noDate;
           try { return new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }); } catch (e) { return iso; }
         }
         function closeModal() { if (dialog) dialog.close(); }
@@ -155,7 +190,7 @@ const site = await loadSite();
           });
         }
         function updateMeta(list) {
-          if (countEl) countEl.textContent = list.length + ' usuarios';
+          if (countEl) countEl.textContent = usersI18n.countLabel.replace('{count}', String(list.length));
           if (emptyEl) emptyEl.classList.toggle('cms-hidden', list.length > 0);
         }
         function openNew() {
@@ -164,7 +199,7 @@ const site = await loadSite();
           if (passwordInput) { passwordInput.value = ''; passwordInput.required = true; }
           if (passwordWrap) passwordWrap.style.display = '';
           if (roleSelect) roleSelect.value = 'user';
-          setFormTitle('Nuevo usuario', 'Crear');
+          setFormTitle(usersI18n.newForm, usersI18n.createBtn);
           openModal();
         }
         function openEdit(u) {
@@ -174,7 +209,7 @@ const site = await loadSite();
           if (passwordInput) { passwordInput.value = ''; passwordInput.required = false; }
           if (passwordWrap) passwordWrap.style.display = '';
           if (roleSelect) roleSelect.value = u.role || 'user';
-          setFormTitle('Editar usuario', 'Guardar');
+          setFormTitle(usersI18n.editForm, usersI18n.saveBtn);
           openModal();
         }
 
@@ -191,14 +226,14 @@ const site = await loadSite();
             var tr = document.createElement('tr');
             var canDelete = u.role !== 'owner' || ownerCount > 1;
             tr.innerHTML =
-              '<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-user-edit" data-id="' + u.id + '" aria-label="Editar">' + pencilSvg + '</button></td>' +
+              '<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-user-edit" data-id="' + u.id + '" aria-label="' + usersI18n.editLabel + '">' + pencilSvg + '</button></td>' +
               '<td>' + (u.email || '') + '</td>' +
-              '<td><span class="cms-badge ' + (u.role === 'owner' ? 'cms-badge-success' : 'cms-badge-neutral') + '">' + (u.role === 'owner' ? 'Propietario' : 'Usuario') + '</span></td>' +
+              '<td><span class="cms-badge ' + (u.role === 'owner' ? 'cms-badge-success' : 'cms-badge-neutral') + '">' + (u.role === 'owner' ? usersI18n.roleOwner : usersI18n.roleUser) + '</span></td>' +
               '<td>' + formatDate(u.createdAt) + '</td>' +
               '<td class="cms-table-actions-delete">' +
                 (canDelete
-                  ? '<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="' + u.id + '" aria-label="Eliminar">' + trashSvg + '</button>'
-                  : '<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="' + u.id + '" disabled aria-label="Eliminar" title="No se puede eliminar al único propietario">' + trashSvg + '</button>') +
+                  ? '<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="' + u.id + '" aria-label="' + usersI18n.deleteLabel + '">' + trashSvg + '</button>'
+                  : '<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="' + u.id + '" disabled aria-label="' + usersI18n.deleteLabel + '" title="' + usersI18n.cannotDeleteLastOwner + '">' + trashSvg + '</button>') +
               '</td>';
             tbody.appendChild(tr);
             tr.querySelector('.cms-user-edit').addEventListener('click', function() { openEdit(u); });
@@ -213,7 +248,7 @@ const site = await loadSite();
           fetch('/cms/api/users', { headers: headers() })
             .then(function(r) {
               if (r.status === 403) { window.location.href = '/cms'; return null; }
-              if (!r.ok) throw new Error('Error al cargar usuarios');
+              if (!r.ok) throw new Error(usersI18n.loadError);
               return r.json();
             })
             .then(function(data) {
@@ -224,24 +259,24 @@ const site = await loadSite();
             })
             .catch(function(err) {
               if (loadingEl) loadingEl.classList.add('cms-hidden');
-              setError(err.message || 'Error al cargar');
+              setError(err.message || usersI18n.loadError);
             });
         }
         function deleteUser(id) {
           if (!id) return;
-          window.cmsConfirm({ message: '¿Eliminar este usuario?', confirmLabel: 'Eliminar' }).then(function(ok) {
+          window.cmsConfirm({ message: usersI18n.deleteConfirm, confirmLabel: usersI18n.deleteLabel }).then(function(ok) {
             if (!ok) return;
             setError('');
             fetch('/cms/api/users/' + id, { method: 'DELETE', headers: headers() })
               .then(function(r) {
                 if (r.status === 204) {
-                  window.cmsToast && window.cmsToast({ title: 'Usuarios', message: 'Usuario eliminado.', tone: 'success' });
+                  window.cmsToast && window.cmsToast({ title: usersI18n.dialogTitle, message: usersI18n.deleted, tone: 'success' });
                   loadUsers();
                   return;
                 }
-                return r.json().then(function(data) { throw new Error(data.error || 'Error al eliminar'); });
+                return r.json().then(function(data) { throw new Error(data.error || usersI18n.deleteError); });
               })
-              .catch(function(err) { setError(err.message || 'Error al eliminar'); });
+              .catch(function(err) { setError(err.message || usersI18n.deleteError); });
           });
         }
 
@@ -264,8 +299,8 @@ const site = await loadSite();
           var email = emailInput && emailInput.value ? emailInput.value.trim() : '';
           var password = passwordInput && passwordInput.value ? passwordInput.value : '';
           var role = roleSelect && roleSelect.value ? roleSelect.value : 'user';
-          if (!email) { setError('Email obligatorio'); return; }
-          if (!id && !password) { setError('La contraseña es obligatoria para nuevos usuarios'); return; }
+          if (!email) { setError(usersI18n.emailRequired); return; }
+          if (!id && !password) { setError(usersI18n.passwordRequiredNew); return; }
           setError('');
           if (id) {
             var body = { role: role };
@@ -273,22 +308,22 @@ const site = await loadSite();
             fetch('/cms/api/users/' + id, { method: 'PUT', headers: headers(), body: JSON.stringify(body) })
               .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
               .then(function(res) {
-                if (!res.ok) throw new Error(res.data.error || 'Error al guardar');
+                if (!res.ok) throw new Error(res.data.error || usersI18n.saveError);
                 closeModal();
-                window.cmsToast && window.cmsToast({ title: 'Usuarios', message: 'Usuario actualizado.', tone: 'success' });
+                window.cmsToast && window.cmsToast({ title: usersI18n.dialogTitle, message: usersI18n.updated, tone: 'success' });
                 loadUsers();
               })
-              .catch(function(err) { setError(err.message || 'Error al guardar'); });
+              .catch(function(err) { setError(err.message || usersI18n.saveError); });
           } else {
             fetch('/cms/api/users', { method: 'POST', headers: headers(), body: JSON.stringify({ email: email, password: password, role: role }) })
               .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
               .then(function(res) {
-                if (!res.ok) throw new Error(res.data.error || 'Error al crear');
+                if (!res.ok) throw new Error(res.data.error || usersI18n.saveError);
                 closeModal();
-                window.cmsToast && window.cmsToast({ title: 'Usuarios', message: 'Usuario creado.', tone: 'success' });
+                window.cmsToast && window.cmsToast({ title: usersI18n.dialogTitle, message: usersI18n.created, tone: 'success' });
                 loadUsers();
               })
-              .catch(function(err) { setError(err.message || 'Error al crear'); });
+              .catch(function(err) { setError(err.message || usersI18n.saveError); });
           }
         });
 

@@ -210,6 +210,8 @@ export const en = {
   'redirects.deleted': 'Redirect deleted.',
   'redirects.updated': 'Redirect updated.',
   'redirects.created': 'Redirect created.',
+  'redirects.code301': 'Permanent',
+  'redirects.code302': 'Temporary',
   'redirects.deleteConfirm': 'Delete redirect {from} → {to}?',
 
   // ─── Configs / Parameters ─────────────────────────────────────────────────
@@ -413,6 +415,8 @@ export const en = {
   // ─── Dialogs ──────────────────────────────────────────────────────────────
   'dialog.defaultAlertTitle': 'Notice',
   'dialog.defaultConfirmLabel': 'Confirm',
+  'dialog.defaultConfirmTitle': 'Confirm',
+  'dialog.defaultOkLabel': 'OK',
   'dialog.defaultErrorTitle': 'Error',
 
   // ─── API Errors ───────────────────────────────────────────────────────────
