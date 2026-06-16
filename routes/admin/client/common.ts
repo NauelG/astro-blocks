@@ -3,12 +3,17 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
+import type { UiLocale } from '../i18n/types.js';
+
 type CmsUser = { id: string; email: string; role: string } | null;
 
 type CmsWindow = Window & typeof globalThis & {
   getCmsToken?: () => string;
   getCmsUser?: () => CmsUser;
   getCmsContentLocale?: () => string;
+  /** UI locale bridge — set by the layout once the locale selector is ready. */
+  getCmsUiLocale?: () => UiLocale;
+  setCmsUiLocale?: (locale: UiLocale) => void;
   cmsAlert?: (options: { title?: string; message: string }) => Promise<unknown> | unknown;
   cmsConfirm?: (options: { message: string; confirmLabel?: string }) => Promise<boolean>;
   cmsToast?: (options: { title?: string; message: string; tone?: 'success' | 'error' | 'info' }) => void;
