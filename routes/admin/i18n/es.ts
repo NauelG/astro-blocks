@@ -20,6 +20,7 @@ export const es = {
   'auth.emailPlaceholder': 'Email',
   'auth.passwordPlaceholder': 'Contraseña',
   'auth.emailPasswordRequired': 'Email y contraseña obligatorios.',
+  'auth.loginError': 'Error al iniciar sesión.',
   'auth.sessionLabel': 'Sesión del panel',
 
   // ─── Navigation ───────────────────────────────────────────────────────────
