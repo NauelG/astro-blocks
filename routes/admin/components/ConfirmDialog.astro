@@ -5,28 +5,41 @@ Licensed under the Business Source License 1.1
 */
 
 /**
- * Diálogo de confirmación del CMS (no usa confirm() nativo).
- * Expone window.cmsConfirm(options) que devuelve Promise<boolean>.
+ * Reusable CMS confirm dialog (no native confirm()).
+ * Exposes window.cmsConfirm(options) returning Promise<boolean>.
  * options: { message: string, title?: string, confirmLabel?: string, cancelLabel?: string }
+ *
+ * Default labels are injected server-side via props to avoid Spanish literals
+ * in the is:inline script.
  */
+interface Props {
+  defaultTitle?: string;
+  defaultConfirmLabel?: string;
+  defaultCancelLabel?: string;
+}
+const {
+  defaultTitle = 'Confirm',
+  defaultConfirmLabel = 'Delete',
+  defaultCancelLabel = 'Cancel',
+} = Astro.props;
 ---
 
 <dialog id="cms-confirm-dialog" class="cms-confirm-dialog" aria-labelledby="cms-confirm-title" aria-describedby="cms-confirm-message">
   <div class="cms-confirm-panel">
-    <h2 id="cms-confirm-title" class="cms-confirm-title">Confirmar</h2>
+    <h2 id="cms-confirm-title" class="cms-confirm-title">{defaultTitle}</h2>
     <p id="cms-confirm-message" class="cms-confirm-message"></p>
     <div class="cms-confirm-actions cms-form-actions">
       <div class="cms-form-actions-left">
-        <button type="button" id="cms-confirm-cancel" class="cms-btn cms-btn-secondary">Cancelar</button>
+        <button type="button" id="cms-confirm-cancel" class="cms-btn cms-btn-secondary">{defaultCancelLabel}</button>
       </div>
       <div class="cms-form-actions-right">
-        <button type="button" id="cms-confirm-ok" class="cms-btn cms-btn-danger">Eliminar</button>
+        <button type="button" id="cms-confirm-ok" class="cms-btn cms-btn-danger">{defaultConfirmLabel}</button>
       </div>
     </div>
   </div>
 </dialog>
 
-<script is:inline>
+<script define:vars={{ defaultTitle, defaultConfirmLabel, defaultCancelLabel }}>
   (function() {
     var dialog = document.getElementById('cms-confirm-dialog');
     var titleEl = document.getElementById('cms-confirm-title');
@@ -35,10 +48,10 @@ Licensed under the Business Source License 1.1
     var okBtn = document.getElementById('cms-confirm-ok');
 
     function open(opts) {
-      var message = (opts && opts.message) || '¿Continuar?';
-      var title = (opts && opts.title) != null ? opts.title : 'Confirmar';
-      var confirmLabel = (opts && opts.confirmLabel) != null ? opts.confirmLabel : 'Eliminar';
-      var cancelLabel = (opts && opts.cancelLabel) != null ? opts.cancelLabel : 'Cancelar';
+      var message = (opts && opts.message) || '';
+      var title = (opts && opts.title) != null ? opts.title : defaultTitle;
+      var confirmLabel = (opts && opts.confirmLabel) != null ? opts.confirmLabel : defaultConfirmLabel;
+      var cancelLabel = (opts && opts.cancelLabel) != null ? opts.cancelLabel : defaultCancelLabel;
       if (messageEl) messageEl.textContent = message;
       if (titleEl) titleEl.textContent = title;
       if (okBtn) okBtn.textContent = confirmLabel;

@@ -4,10 +4,13 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
+export const prerender = false;
 import AdminLayout from './layout.astro';
 import DetailModal from './components/DetailModal.astro';
 import { Pencil, Trash2 } from '@lucide/astro';
 import { getDefaultLocale, getPageLocaleView, loadLanguages, loadPages, loadSite } from '../../api/data.js';
+import { resolveUiLocale } from './i18n/resolve.js';
+import { createT } from './i18n/t.js';
 const site = await loadSite();
 const pagesData = await loadPages();
 const languagesData = await loadLanguages();
@@ -18,39 +21,44 @@ function slugStr(p: { slug?: string | string[] }) {
   if (p.slug === '/' || (Array.isArray(p.slug) && !p.slug.length)) return '/';
   return Array.isArray(p.slug) ? '/' + p.slug.join('/') : p.slug;
 }
+const uiLocale = resolveUiLocale({
+  cookie: Astro.request.headers.get('cookie'),
+  acceptLanguage: Astro.request.headers.get('accept-language'),
+});
+const t = createT(uiLocale);
 ---
 
-<AdminLayout site={site} title="Páginas">
+<AdminLayout site={site} title={t('nav.pages')}>
   <div class="cms-stack">
     <div class="cms-page-intro">
       <div class="cms-page-intro-copy">
-        <span class="cms-page-eyebrow">Contenido</span>
+        <span class="cms-page-eyebrow">{t('pages.eyebrow')}</span>
         <div class="cms-page-header">
-          <h1 class="cms-title">Biblioteca editorial</h1>
+          <h1 class="cms-title">{t('pages.title')}</h1>
         </div>
         <p class="cms-page-lead">
-          Gestiona borradores, páginas publicadas e indexabilidad desde una única vista. El editor mantiene el foco en contenido, SEO y bloques.
+          {t('pages.lead')}
         </p>
       </div>
       <div class="cms-page-actions">
-        <button type="button" id="cms-page-new-btn" class="cms-btn cms-btn-primary">Nueva página</button>
+        <button type="button" id="cms-page-new-btn" class="cms-btn cms-btn-primary">{t('pages.newPage')}</button>
       </div>
     </div>
     <div class="cms-toolbar">
       <div class="cms-toolbar-group">
         <div class="cms-field cms-toolbar-search">
-          <input type="search" id="cms-pages-search" placeholder="Buscar por título o slug" />
+          <input type="search" id="cms-pages-search" placeholder={t('pages.searchPlaceholder')} />
         </div>
         <div class="cms-field">
-          <select id="cms-pages-status-filter" aria-label="Filtrar por estado">
-            <option value="all">Todos los estados</option>
-            <option value="published">Publicadas</option>
-            <option value="draft">Borradores</option>
+          <select id="cms-pages-status-filter" aria-label={t('pages.filterByStatus')}>
+            <option value="all">{t('pages.allStatuses')}</option>
+            <option value="published">{t('pages.publishedFilter')}</option>
+            <option value="draft">{t('pages.draftsFilter')}</option>
           </select>
         </div>
       </div>
       <div class="cms-toolbar-meta">
-        <span class="cms-results-count" id="cms-pages-count">{pages.length} páginas · {publishedCount} publicadas</span>
+        <span class="cms-results-count" id="cms-pages-count">{t('pages.count', { count: String(pages.length), published: String(publishedCount) })}</span>
       </div>
     </div>
     <div class="cms-card cms-card--no-padding">
@@ -59,10 +67,10 @@ function slugStr(p: { slug?: string | string[] }) {
           <thead>
             <tr>
               <th class="cms-table-actions"></th>
-              <th>Título</th>
-              <th>Slug</th>
-              <th>Estado</th>
-              <th>Indexable</th>
+              <th>{t('pages.colTitle')}</th>
+              <th>{t('pages.colSlug')}</th>
+              <th>{t('pages.colStatus')}</th>
+              <th>{t('pages.colIndexable')}</th>
               <th class="cms-table-actions-delete"></th>
             </tr>
           </thead>
@@ -70,7 +78,7 @@ function slugStr(p: { slug?: string | string[] }) {
             {pages.map((p: { id: string; title: string; slug?: string | string[]; status: string; indexable?: boolean }) => (
               <tr>
                 <td class="cms-table-actions">
-                  <button type="button" class="cms-table-btn-edit cms-page-edit" data-id={p.id} aria-label="Editar">
+                  <button type="button" class="cms-table-btn-edit cms-page-edit" data-id={p.id} aria-label={t('common.edit')}>
                     <Pencil size={14} />
                   </button>
                 </td>
@@ -78,18 +86,18 @@ function slugStr(p: { slug?: string | string[] }) {
                 <td class="cms-table-cell-monospace">{slugStr(p)}</td>
                 <td>
                   <span class={p.status === 'published' ? 'cms-badge cms-badge-success' : 'cms-badge cms-badge-neutral'}>
-                    {p.status}
+                    {p.status === 'published' ? t('status.published') : t('status.draft')}
                   </span>
                 </td>
                 <td>
                   <span
                     class={'cms-indexable-dot cms-indexable-dot--' + (p.indexable !== false ? 'yes' : 'no')}
-                    aria-label={p.indexable !== false ? 'Indexable' : 'No indexable'}
+                    aria-label={p.indexable !== false ? t('status.indexable') : t('status.notIndexable')}
                     role="img"
                   />
                 </td>
                 <td class="cms-table-actions-delete">
-                  <button type="button" class="cms-table-btn-delete cms-page-delete" data-id={p.id} aria-label="Eliminar">
+                  <button type="button" class="cms-table-btn-delete cms-page-delete" data-id={p.id} aria-label={t('common.delete')}>
                     <Trash2 size={14} />
                   </button>
                 </td>
@@ -99,106 +107,106 @@ function slugStr(p: { slug?: string | string[] }) {
         </table>
       </div>
       <div id="cms-pages-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', pages.length > 0 && 'cms-hidden']}>
-        <p class="cms-empty-state-title">No hay páginas que mostrar</p>
-        <p class="cms-empty-state-text">Crea una nueva página o ajusta la búsqueda para volver a ver resultados.</p>
+        <p class="cms-empty-state-title">{t('pages.empty.title')}</p>
+        <p class="cms-empty-state-text">{t('pages.empty.text')}</p>
         <div class="cms-empty-state-actions">
-          <button type="button" class="cms-btn cms-btn-primary" data-open-page-new>Crear página</button>
+          <button type="button" class="cms-btn cms-btn-primary" data-open-page-new>{t('pages.createPage')}</button>
         </div>
       </div>
     </div>
   </div>
 
-  <DetailModal id="page-detail-modal" title="Página" large>
+  <DetailModal id="page-detail-modal" title={t('pageEditor.newPage')} large>
     <form id="page-detail-form" class="cms-form cms-page-detail-form">
       <input type="hidden" id="page-detail-id" name="id" value="" />
       <div class="cms-page-detail-layout">
         <div class="cms-page-detail-col cms-page-detail-col--info">
-          <div class="cms-page-detail-tabs" role="tablist" aria-label="Secciones del formulario">
-            <button type="button" role="tab" aria-selected="true" id="page-detail-tab-info" aria-controls="page-detail-panel-info" class="cms-page-detail-tab cms-page-detail-tab--active">Información</button>
-            <button type="button" role="tab" aria-selected="false" id="page-detail-tab-seo" aria-controls="page-detail-panel-seo" class="cms-page-detail-tab">SEO</button>
+          <div class="cms-page-detail-tabs" role="tablist" aria-label={t('pageEditor.tabInfo')}>
+            <button type="button" role="tab" aria-selected="true" id="page-detail-tab-info" aria-controls="page-detail-panel-info" class="cms-page-detail-tab cms-page-detail-tab--active">{t('pageEditor.tabInfo')}</button>
+            <button type="button" role="tab" aria-selected="false" id="page-detail-tab-seo" aria-controls="page-detail-panel-seo" class="cms-page-detail-tab">{t('pageEditor.tabSeo')}</button>
           </div>
           <div id="page-detail-panel-info" role="tabpanel" aria-labelledby="page-detail-tab-info" class="cms-page-detail-tabpanel cms-page-detail-tabpanel--active">
             <div class="cms-field">
-              <label for="page-detail-title">Título</label>
+              <label for="page-detail-title">{t('pageEditor.labelTitle')}</label>
               <input type="text" id="page-detail-title" name="title" required />
             </div>
             <div class="cms-field">
-              <label for="page-detail-slug">Slug</label>
-              <input type="text" id="page-detail-slug" name="slug" placeholder="/ o /about" />
+              <label for="page-detail-slug">{t('pageEditor.labelSlug')}</label>
+              <input type="text" id="page-detail-slug" name="slug" placeholder={t('pageEditor.slugPlaceholder')} />
             </div>
             <input type="hidden" name="status" id="page-detail-status" value="draft" />
             <div class="cms-field cms-field-indexable cms-field-checkbox">
               <input type="checkbox" name="indexable" id="page-detail-indexable" checked />
-              <label for="page-detail-indexable" class="cms-label-tight">Indexable</label>
+              <label for="page-detail-indexable" class="cms-label-tight">{t('pageEditor.labelIndexable')}</label>
             </div>
             <p id="page-detail-seo-hidden-hint" class="cms-muted cms-hidden cms-hint">
-              Las páginas no indexables no aparecen en el sitemap y llevan meta noindex. Los campos SEO no se utilizan.
+              {t('pageEditor.seoHiddenHint')}
             </p>
           </div>
           <div id="page-detail-panel-seo" role="tabpanel" aria-labelledby="page-detail-tab-seo" class="cms-page-detail-tabpanel">
           <div id="page-detail-seo-fields" class="cms-stack">
             <div class="cms-field">
-              <label for="page-detail-seo-title">Título SEO</label>
-              <input type="text" id="page-detail-seo-title" name="seo-title" placeholder="50–60 caracteres" />
+              <label for="page-detail-seo-title">{t('pageEditor.labelSeoTitle')}</label>
+              <input type="text" id="page-detail-seo-title" name="seo-title" placeholder={t('pageEditor.seoTitlePlaceholder')} />
             </div>
             <div class="cms-field">
-              <label for="page-detail-seo-description">Descripción</label>
-              <textarea id="page-detail-seo-description" name="seo-description" rows="2" placeholder="150–160 caracteres"></textarea>
+              <label for="page-detail-seo-description">{t('pageEditor.labelDescription')}</label>
+              <textarea id="page-detail-seo-description" name="seo-description" rows="2" placeholder={t('pageEditor.seoDescriptionPlaceholder')}></textarea>
             </div>
             <div class="cms-field">
-              <label for="page-detail-seo-canonical">URL canónica</label>
-              <input type="text" id="page-detail-seo-canonical" name="seo-canonical" placeholder="Dejar vacío para usar la URL de la página" />
+              <label for="page-detail-seo-canonical">{t('pageEditor.labelCanonical')}</label>
+              <input type="text" id="page-detail-seo-canonical" name="seo-canonical" placeholder={t('pageEditor.seoCanonicalPlaceholder')} />
             </div>
             <div class="cms-field">
-              <label>Imagen (og:image / twitter:image)</label>
+              <label>{t('pageEditor.labelOgImage')}</label>
               <div class="cms-seo-image-field">
                 <input type="hidden" id="page-detail-seo-image" name="seo-image" value="" />
                 <div id="page-detail-seo-image-preview" class="cms-seo-image-preview">
-                  <img id="page-detail-seo-image-thumb" class="cms-seo-image-thumb cms-hidden" alt="" />
-                  <span id="page-detail-seo-image-empty" class="cms-seo-image-empty">Sin imagen</span>
+                  <img id="page-detail-seo-image-thumb" class="cms-seo-image-thumb cms-hidden" alt={t('pageEditor.seoImageAlt')} />
+                  <span id="page-detail-seo-image-empty" class="cms-seo-image-empty">{t('pageEditor.noImage')}</span>
                 </div>
                 <div class="cms-seo-image-actions">
-                  <button type="button" id="page-detail-seo-image-upload" class="cms-btn cms-btn-secondary">Subir imagen</button>
-                  <button type="button" id="page-detail-seo-image-remove" class="cms-btn cms-btn-secondary cms-hidden" aria-label="Eliminar imagen">Eliminar</button>
+                  <button type="button" id="page-detail-seo-image-upload" class="cms-btn cms-btn-secondary">{t('pageEditor.uploadImage')}</button>
+                  <button type="button" id="page-detail-seo-image-remove" class="cms-btn cms-btn-secondary cms-hidden" aria-label={t('pageEditor.removeImage')}>{t('pageEditor.changeImage')}</button>
                 </div>
               </div>
               <input type="file" id="page-detail-seo-image-file" accept="image/*" class="cms-hidden" />
             </div>
             <div class="cms-field cms-field-checkbox">
               <input type="checkbox" name="seo-nofollow" id="page-detail-seo-nofollow" />
-              <label for="page-detail-seo-nofollow" class="cms-label-tight">Añadir nofollow</label>
+              <label for="page-detail-seo-nofollow" class="cms-label-tight">{t('pageEditor.seoNofollow')}</label>
             </div>
           </div>
           </div>
         </div>
         <div class="cms-page-detail-col cms-page-detail-col--blocks">
           <div class="cms-field">
-            <label>Bloques</label>
+            <label>{t('pageEditor.blocks')}</label>
             <div id="page-detail-blocks-section" class="cms-blocks-section">
-              <p id="page-detail-blocks-empty" class="cms-muted cms-blocks-empty">Ningún bloque. Añade bloques para construir el contenido de la página.</p>
-              <ul id="page-detail-blocks-list" class="cms-blocks-list" aria-label="Lista de bloques"></ul>
-              <button type="button" id="page-detail-blocks-add" class="cms-btn cms-btn-secondary">Añadir bloque</button>
+              <p id="page-detail-blocks-empty" class="cms-muted cms-blocks-empty">{t('pageEditor.noBlocks')}</p>
+              <ul id="page-detail-blocks-list" class="cms-blocks-list" aria-label={t('pageEditor.blocks')}></ul>
+              <button type="button" id="page-detail-blocks-add" class="cms-btn cms-btn-secondary">{t('pageEditor.addBlock')}</button>
             </div>
           </div>
         </div>
       </div>
     </form>
-    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="page-detail-modal">Cancelar</button>
+    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="page-detail-modal">{t('common.cancel')}</button>
     <div class="cms-cluster cms-cluster-gap-md" slot="actions-right">
-      <button type="button" class="cms-btn cms-btn-publish" id="page-detail-publish-btn" aria-label="Guardar y publicar">Publicar</button>
-      <button type="button" class="cms-btn cms-btn-unpublish cms-hidden" id="page-detail-unpublish-btn" aria-label="Guardar y pasar a borrador">A borrador</button>
-      <button type="submit" form="page-detail-form" class="cms-btn cms-btn-primary" id="page-detail-submit">Guardar</button>
+      <button type="button" class="cms-btn cms-btn-publish" id="page-detail-publish-btn" aria-label={t('common.publish')}>{t('common.publish')}</button>
+      <button type="button" class="cms-btn cms-btn-unpublish cms-hidden" id="page-detail-unpublish-btn" aria-label={t('common.unpublish')}>{t('common.unpublish')}</button>
+      <button type="submit" form="page-detail-form" class="cms-btn cms-btn-primary" id="page-detail-submit">{t('common.save')}</button>
     </div>
   </DetailModal>
 
   <dialog id="page-detail-block-select-modal" class="cms-detail-modal" aria-labelledby="page-detail-block-select-title">
     <div class="cms-detail-modal-panel" role="document">
-      <h2 id="page-detail-block-select-title" class="cms-detail-modal-title">Seleccionar tipo de bloque</h2>
+      <h2 id="page-detail-block-select-title" class="cms-detail-modal-title">{t('pageEditor.blockSelectTitle')}</h2>
       <div class="cms-detail-modal-body">
         <ul id="page-detail-block-select-list" class="cms-blocks-select-list cms-blocks-select-grid"></ul>
       </div>
       <div class="cms-detail-modal-actions cms-form-actions">
-        <button type="button" class="cms-btn cms-btn-secondary" data-close-modal="page-detail-block-select-modal">Cancelar</button>
+        <button type="button" class="cms-btn cms-btn-secondary" data-close-modal="page-detail-block-select-modal">{t('common.cancel')}</button>
       </div>
     </div>
   </dialog>

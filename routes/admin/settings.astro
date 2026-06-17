@@ -4,8 +4,11 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
+export const prerender = false;
 import AdminLayout from './layout.astro';
 import { loadSite } from '../../api/data.js';
+import { resolveUiLocale } from './i18n/resolve.js';
+import { createT } from './i18n/t.js';
 const site = await loadSite();
 function toFullHex(val: string | undefined, fallback: string) {
   if (!val || !val.startsWith('#')) return fallback;
@@ -16,18 +19,28 @@ function toFullHex(val: string | undefined, fallback: string) {
 }
 const primaryHex = toFullHex(site.primaryColor, '#2C53B8');
 const secondaryHex = toFullHex(site.secondaryColor, '#0DB8DB');
+const uiLocale = resolveUiLocale({
+  cookie: Astro.request.headers.get('cookie'),
+  acceptLanguage: Astro.request.headers.get('accept-language'),
+});
+const t = createT(uiLocale);
+const settingsI18n = {
+  saveTitle: t('settings.saveTitle'),
+  saved: t('settings.saved'),
+  saveError: t('settings.saveError'),
+};
 ---
 
-<AdminLayout site={site} title="Ajustes">
+<AdminLayout site={site} title={t('settings.title')}>
   <div class="cms-stack">
     <div class="cms-page-intro">
       <div class="cms-page-intro-copy">
-        <span class="cms-page-eyebrow">White-label</span>
+        <span class="cms-page-eyebrow">{t('settings.eyebrow')}</span>
         <div class="cms-page-header">
-          <h1 class="cms-title">Sistema visual y datos del sitio</h1>
+          <h1 class="cms-title">{t('settings.title')}</h1>
         </div>
         <p class="cms-page-lead">
-          Ajusta branding, URL base y colorimetría del panel sin salir del CMS. La previsualización te ayuda a validar el tema antes de guardar.
+          {t('settings.lead')}
         </p>
       </div>
     </div>
@@ -35,37 +48,37 @@ const secondaryHex = toFullHex(site.secondaryColor, '#0DB8DB');
       <div class="cms-settings-grid">
         <div class="cms-settings-column">
           <div class="cms-settings-section">
-            <p class="cms-settings-section-title">Información del sitio</p>
+            <p class="cms-settings-section-title">{t('settings.siteInfoTitle')}</p>
             <div class="cms-field">
-              <label for="siteName">Nombre del sitio</label>
+              <label for="siteName">{t('settings.labelSiteName')}</label>
               <input type="text" id="siteName" name="siteName" value={site.siteName} />
             </div>
             <div class="cms-field">
-              <label for="baseUrl">URL base</label>
+              <label for="baseUrl">{t('settings.labelBaseUrl')}</label>
               <input type="text" id="baseUrl" name="baseUrl" value={site.baseUrl} placeholder="https://example.com" />
             </div>
             <div class="cms-field">
-              <label for="favicon">Favicon (ruta)</label>
+              <label for="favicon">{t('settings.labelFavicon')}</label>
               <input type="text" id="favicon" name="favicon" value={site.favicon} placeholder="/favicon.ico" />
             </div>
             <div class="cms-field">
-              <label for="logo">Logo (URL)</label>
+              <label for="logo">{t('settings.labelLogo')}</label>
               <input type="text" id="logo" name="logo" value={site.logo} />
             </div>
           </div>
           <div class="cms-settings-section">
-            <p class="cms-settings-section-title">Apariencia (white-label)</p>
+            <p class="cms-settings-section-title">{t('settings.appearanceTitle')}</p>
             <div class="cms-field">
-              <label for="primaryColor">Color primario</label>
+              <label for="primaryColor">{t('settings.labelPrimaryColor')}</label>
               <div class="cms-color-field">
-                <input type="color" id="primaryColor-picker" value={primaryHex} title="Elegir color" />
+                <input type="color" id="primaryColor-picker" value={primaryHex} title={t('settings.chooseColor')} />
                 <input type="text" id="primaryColor" name="primaryColor" value={site.primaryColor} placeholder="#2C53B8" maxlength="7" />
               </div>
             </div>
             <div class="cms-field">
-              <label for="secondaryColor">Color secundario</label>
+              <label for="secondaryColor">{t('settings.labelSecondaryColor')}</label>
               <div class="cms-color-field">
-                <input type="color" id="secondaryColor-picker" value={secondaryHex} title="Elegir color" />
+                <input type="color" id="secondaryColor-picker" value={secondaryHex} title={t('settings.chooseColor')} />
                 <input type="text" id="secondaryColor" name="secondaryColor" value={site.secondaryColor} placeholder="#0DB8DB" maxlength="7" />
               </div>
             </div>
@@ -73,7 +86,7 @@ const secondaryHex = toFullHex(site.secondaryColor, '#0DB8DB');
         </div>
         <div class="cms-settings-column">
           <div class="cms-settings-section cms-settings-preview-card">
-            <p class="cms-settings-section-title">Preview del panel</p>
+            <p class="cms-settings-section-title">{t('settings.previewTitle')}</p>
             <div id="cms-theme-preview" class="cms-settings-preview-shell" style={`--cms-primary: ${primaryHex}; --cms-secondary: ${secondaryHex};`}>
               <div class="cms-settings-preview-sidebar">
                 <div class="cms-settings-preview-accent" id="cms-theme-preview-primary"></div>
@@ -87,32 +100,32 @@ const secondaryHex = toFullHex(site.secondaryColor, '#0DB8DB');
             <div class="cms-settings-preview-palette">
               <div class="cms-settings-preview-swatch">
                 <div id="cms-preview-primary-swatch" class="cms-settings-preview-swatch-chip" style={`background: ${primaryHex};`}></div>
-                <label for="primaryColor">Primario</label>
+                <label for="primaryColor">{t('settings.primary')}</label>
                 <span id="cms-preview-primary-text">{site.primaryColor || primaryHex}</span>
               </div>
               <div class="cms-settings-preview-swatch">
                 <div id="cms-preview-secondary-swatch" class="cms-settings-preview-swatch-chip" style={`background: ${secondaryHex};`}></div>
-                <label for="secondaryColor">Secundario</label>
+                <label for="secondaryColor">{t('settings.secondary')}</label>
                 <span id="cms-preview-secondary-text">{site.secondaryColor || secondaryHex}</span>
               </div>
             </div>
           </div>
           <div class="cms-card">
-            <p class="cms-dashboard-section-title">Notas de diseño</p>
+            <p class="cms-dashboard-section-title">{t('settings.designNotes')}</p>
             <p class="cms-dashboard-section-copy">
-              El color primario funciona como acento de interacción. El panel mantiene superficies neutras para seguir siendo usable con cualquier identidad visual.
+              {t('settings.designNotesCopy')}
             </p>
           </div>
         </div>
       </div>
       <div class="cms-form-actions cms-form-actions--flush">
         <div class="cms-form-actions-right">
-          <button type="submit" class="cms-btn cms-btn-primary">Guardar ajustes</button>
+          <button type="submit" class="cms-btn cms-btn-primary">{t('settings.save')}</button>
         </div>
       </div>
     </form>
   </div>
-  <script>
+  <script define:vars={{ settingsI18n }}>
     (function() {
       function toFullHex(s: string) {
         if (!s || !s.startsWith('#')) return null;
@@ -187,11 +200,11 @@ const secondaryHex = toFullHex(site.secondaryColor, '#0DB8DB');
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify(body),
       });
-      if (!res.ok) await window.cmsAlert({ message: 'Error: ' + (await res.text()), title: 'Error' });
+      if (!res.ok) await window.cmsAlert({ message: settingsI18n.saveError.replace('{detail}', await res.text()), title: settingsI18n.saveTitle });
       else {
         document.body.style.setProperty('--cms-primary', body.primaryColor || '#2C53B8');
         document.body.style.setProperty('--cms-secondary', body.secondaryColor || body.primaryColor || '#0DB8DB');
-        window.cmsToast?.({ title: 'Ajustes', message: 'Cambios guardados correctamente.', tone: 'success' });
+        window.cmsToast?.({ title: settingsI18n.saveTitle, message: settingsI18n.saved, tone: 'success' });
       }
     });
   </script>

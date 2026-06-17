@@ -3,12 +3,18 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
+import type { UiLocale } from '../i18n/types.js';
+import { ct } from '../i18n/client.js';
+
 type CmsUser = { id: string; email: string; role: string } | null;
 
 type CmsWindow = Window & typeof globalThis & {
   getCmsToken?: () => string;
   getCmsUser?: () => CmsUser;
   getCmsContentLocale?: () => string;
+  /** UI locale bridge — set by the layout once the locale selector is ready. */
+  getCmsUiLocale?: () => UiLocale;
+  setCmsUiLocale?: (locale: UiLocale) => void;
   cmsAlert?: (options: { title?: string; message: string }) => Promise<unknown> | unknown;
   cmsConfirm?: (options: { message: string; confirmLabel?: string }) => Promise<boolean>;
   cmsToast?: (options: { title?: string; message: string; tone?: 'success' | 'error' | 'info' }) => void;
@@ -101,7 +107,7 @@ export async function showAlert(message: string, title = 'Error'): Promise<void>
   alert(message);
 }
 
-export async function showConfirm(message: string, confirmLabel = 'Confirmar'): Promise<boolean> {
+export async function showConfirm(message: string, confirmLabel = ct('dialog.defaultConfirmLabel')): Promise<boolean> {
   const api = getCmsWindow().cmsConfirm;
   if (api) return api({ message, confirmLabel });
   return confirm(message);
@@ -131,7 +137,7 @@ export function escapeHtml(value: string): string {
 }
 
 export function formatDisplayDate(value?: string | null): string {
-  if (!value) return 'Sin fecha';
+  if (!value) return ct('common.noDate');
   try {
     return new Date(value).toLocaleDateString(undefined, {
       day: '2-digit',

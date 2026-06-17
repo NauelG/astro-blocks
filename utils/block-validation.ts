@@ -64,24 +64,26 @@ export function isArrayPropDef(def: unknown): def is ArrayPropDef {
   return true;
 }
 
+// ─── Schema definition validation (developer/build-time, not user-facing) ────
+
 function validatePrimitiveDefinition(
   def: PrimitivePropDef,
   schemaName: string,
   propName: string,
   fieldName?: string
 ): string | null {
-  const label = fieldName ? `campo "${fieldName}" de "${propName}"` : `prop "${propName}"`;
+  const label = fieldName ? `field "${fieldName}" of "${propName}"` : `prop "${propName}"`;
 
   if (!isPrimitivePropType(def.type)) {
-    return `Schema "${schemaName}": ${label} tiene un tipo no soportado.`;
+    return `Schema "${schemaName}": ${label} has an unsupported type.`;
   }
 
   if (typeof def.label !== 'string' || def.label.trim() === '') {
-    return `Schema "${schemaName}": ${label} requiere un label no vacío.`;
+    return `Schema "${schemaName}": ${label} requires a non-empty label.`;
   }
 
   if (def.type === 'select' && def.options !== undefined && !isValidSelectOptions(def.options)) {
-    return `Schema "${schemaName}": ${label} define options inválidas.`;
+    return `Schema "${schemaName}": ${label} defines invalid options.`;
   }
 
   return null;
@@ -90,7 +92,7 @@ function validatePrimitiveDefinition(
 export function validateSchemaItemsDefinition(items: Record<string, unknown>, schemaName: string): string | null {
   for (const [propName, rawDef] of Object.entries(items || {})) {
     if (!isRecord(rawDef)) {
-      return `Schema "${schemaName}": prop "${propName}" inválida.`;
+      return `Schema "${schemaName}": prop "${propName}" is invalid.`;
     }
 
     if (isPrimitivePropType(rawDef.type)) {
@@ -100,34 +102,34 @@ export function validateSchemaItemsDefinition(items: Record<string, unknown>, sc
     }
 
     if (rawDef.type !== 'array') {
-      return `Schema "${schemaName}": prop "${propName}" usa un tipo no soportado.`;
+      return `Schema "${schemaName}": prop "${propName}" uses an unsupported type.`;
     }
 
     if (typeof rawDef.label !== 'string' || rawDef.label.trim() === '') {
-      return `Schema "${schemaName}": prop "${propName}" requiere un label no vacío.`;
+      return `Schema "${schemaName}": prop "${propName}" requires a non-empty label.`;
     }
 
     const minItems = normalizeCount(rawDef.minItems);
     const maxItems = normalizeCount(rawDef.maxItems);
 
     if (rawDef.minItems !== undefined && minItems === null) {
-      return `Schema "${schemaName}": prop "${propName}" tiene minItems inválido.`;
+      return `Schema "${schemaName}": prop "${propName}" has an invalid minItems value.`;
     }
 
     if (rawDef.maxItems !== undefined && maxItems === null) {
-      return `Schema "${schemaName}": prop "${propName}" tiene maxItems inválido.`;
+      return `Schema "${schemaName}": prop "${propName}" has an invalid maxItems value.`;
     }
 
     if (minItems !== null && maxItems !== null && minItems > maxItems) {
-      return `Schema "${schemaName}": prop "${propName}" no puede tener minItems mayor que maxItems.`;
+      return `Schema "${schemaName}": prop "${propName}" cannot have minItems greater than maxItems.`;
     }
 
     if (!Object.prototype.hasOwnProperty.call(rawDef, 'item')) {
-      return `Schema "${schemaName}": prop "${propName}" requiere item.`;
+      return `Schema "${schemaName}": prop "${propName}" requires an item definition.`;
     }
 
     if (!isRecord(rawDef.item)) {
-      return `Schema "${schemaName}": prop "${propName}" tiene un item inválido.`;
+      return `Schema "${schemaName}": prop "${propName}" has an invalid item definition.`;
     }
 
     if (isPrimitivePropType(rawDef.item.type)) {
@@ -137,24 +139,24 @@ export function validateSchemaItemsDefinition(items: Record<string, unknown>, sc
     }
 
     if (rawDef.item.type !== 'object') {
-      return `Schema "${schemaName}": prop "${propName}" solo soporta item primitivo u object en Fase 1.`;
+      return `Schema "${schemaName}": prop "${propName}" only supports primitive or object item types.`;
     }
 
     if (typeof rawDef.item.label !== 'string' || rawDef.item.label.trim() === '') {
-      return `Schema "${schemaName}": prop "${propName}" requiere label en item object.`;
+      return `Schema "${schemaName}": prop "${propName}" requires a label on the object item.`;
     }
 
     if (!isRecord(rawDef.item.fields)) {
-      return `Schema "${schemaName}": prop "${propName}" requiere fields en item object.`;
+      return `Schema "${schemaName}": prop "${propName}" requires fields on the object item.`;
     }
 
     for (const [fieldName, rawFieldDef] of Object.entries(rawDef.item.fields)) {
       if (!isRecord(rawFieldDef)) {
-        return `Schema "${schemaName}": prop "${propName}" tiene un field inválido ("${fieldName}").`;
+        return `Schema "${schemaName}": prop "${propName}" has an invalid field definition ("${fieldName}").`;
       }
 
       if (!isPrimitivePropType(rawFieldDef.type)) {
-        return `Schema "${schemaName}": prop "${propName}" no soporta fields anidados en item object ("${fieldName}").`;
+        return `Schema "${schemaName}": prop "${propName}" does not support nested fields in an object item ("${fieldName}").`;
       }
 
       const message = validatePrimitiveDefinition(rawFieldDef as unknown as PrimitivePropDef, schemaName, propName, fieldName);
@@ -163,11 +165,11 @@ export function validateSchemaItemsDefinition(items: Record<string, unknown>, sc
 
     if (rawDef.item.summaryField !== undefined) {
       if (typeof rawDef.item.summaryField !== 'string' || rawDef.item.summaryField.trim() === '') {
-        return `Schema "${schemaName}": prop "${propName}" tiene summaryField inválido.`;
+        return `Schema "${schemaName}": prop "${propName}" has an invalid summaryField value.`;
       }
 
       if (!Object.prototype.hasOwnProperty.call(rawDef.item.fields, rawDef.item.summaryField)) {
-        return `Schema "${schemaName}": prop "${propName}" usa summaryField "${rawDef.item.summaryField}" inexistente.`;
+        return `Schema "${schemaName}": prop "${propName}" references a non-existent summaryField "${rawDef.item.summaryField}".`;
       }
     }
   }
@@ -175,7 +177,24 @@ export function validateSchemaItemsDefinition(items: Record<string, unknown>, sc
   return null;
 }
 
+// ─── Block value validation (user-facing, fully i18n'd) ──────────────────────
+
+/**
+ * A block validation issue.
+ *
+ * `messageKey` and `params` are the canonical i18n representation:
+ *   - Server callers use localizedJsonError(request, issue.messageKey, 400, issue.params)
+ *   - Client callers use ct(issue.messageKey, issue.params)
+ *
+ * `message` is the English rendering of the issue for backward compat and
+ * for callers that do not yet support i18n (e.g. validateBlocks in blocks.ts).
+ */
 export interface BlockValidationIssue {
+  /** Catalog key for the user-facing message (i18n). */
+  messageKey: string;
+  /** Interpolation params for the catalog key. */
+  params: Record<string, string | number>;
+  /** English rendering of the issue (backward compat). */
   message: string;
   blockIndex?: number;
   propName?: string;
@@ -183,14 +202,61 @@ export interface BlockValidationIssue {
   fieldName?: string;
 }
 
+/**
+ * Minimal English catalog subset used to render the backward-compat `message`.
+ * Keep in sync with blockValidation.* keys in routes/admin/i18n/en.ts.
+ */
+const EN_BLOCK_MESSAGES: Record<string, string> = {
+  'blockValidation.fieldRequired': 'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
+  'blockValidation.fieldMustBeImage': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be an image object.',
+  'blockValidation.fieldImageNeedsUrl': 'Block "{blockName}" (index {blockIndex}): field "{label}" requires a valid URL.',
+  'blockValidation.fieldCannotBeEmpty': 'Block "{blockName}" (index {blockIndex}): field "{label}" cannot be empty.',
+  'blockValidation.fieldAltMustBeText': 'Block "{blockName}" (index {blockIndex}): field "{label}" — alt must be text.',
+  'blockValidation.fieldCaptionMustBeText': 'Block "{blockName}" (index {blockIndex}): field "{label}" — caption must be text.',
+  'blockValidation.fieldDimInvalid': 'Block "{blockName}" (index {blockIndex}): field "{label}" — {dim} must be a positive integer (> 0).',
+  'blockValidation.fieldMustBeText': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be text.',
+  'blockValidation.fieldInvalidOption': 'Block "{blockName}" (index {blockIndex}): field "{label}" has an invalid option.',
+  'blockValidation.fieldMustBeNumber': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be a valid number.',
+  'blockValidation.fieldMustBeBoolean': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be a boolean.',
+  'blockValidation.arrayMustContainObjects': 'Block "{blockName}" (index {blockIndex}): "{label}" must contain valid objects.',
+  'blockValidation.arrayRequired': 'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
+  'blockValidation.arrayMustBeArray': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be an array.',
+  'blockValidation.arrayMinItems': 'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
+  'blockValidation.arrayMaxItems': 'Block "{blockName}" (index {blockIndex}): field "{label}" allows at most {max} item(s).',
+  'blockValidation.arrayIsRequired': 'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
+};
+
+/** Interpolate a template string with params (same logic as routes/admin/i18n/t.ts). */
+function interpolate(template: string, params: Record<string, string | number>): string {
+  return template.replace(/\{([^}]+)\}/g, (_, key: string) => {
+    const val = params[key];
+    return val !== undefined ? String(val) : `{${key}}`;
+  });
+}
+
+/** Build an English message string from the catalog key + params. */
+function enMessage(messageKey: string, params: Record<string, string | number>): string {
+  const template = EN_BLOCK_MESSAGES[messageKey] ?? messageKey;
+  return interpolate(template, params);
+}
+
 function issue(
-  message: string,
+  messageKey: string,
+  params: Record<string, string | number>,
   blockIndex: number,
   propName: string,
   itemIndex?: number,
   fieldName?: string
 ): BlockValidationIssue {
-  return { message, blockIndex, propName, ...(itemIndex !== undefined && { itemIndex }), ...(fieldName && { fieldName }) };
+  return {
+    messageKey,
+    params,
+    message: enMessage(messageKey, params),
+    blockIndex,
+    propName,
+    ...(itemIndex !== undefined && { itemIndex }),
+    ...(fieldName && { fieldName }),
+  };
 }
 
 function validatePrimitiveValue(
@@ -204,6 +270,8 @@ function validatePrimitiveValue(
   itemIndex?: number,
   fieldName?: string
 ): BlockValidationIssue | null {
+  const base = { blockName, blockIndex: String(blockIndex), label };
+
   // Image-type: handled entirely in its own branch before the generic empty check.
   // A plain string for an image field is ALWAYS invalid (per REQ-2 SC-2.4), even when
   // required=false — validation receives already-coerced values, never raw strings.
@@ -211,75 +279,33 @@ function validatePrimitiveValue(
     // null/undefined → truly no value → empty
     if (value === null || value === undefined) {
       if (required) {
-        return issue(
-          `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" es obligatorio.`,
-          blockIndex,
-          propName,
-          itemIndex,
-          fieldName
-        );
+        return issue('blockValidation.fieldRequired', base, blockIndex, propName, itemIndex, fieldName);
       }
       return null;
     }
 
     // Any non-object (incl. string) → always an error
     if (!isRecord(value)) {
-      return issue(
-        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" debe ser un objeto de imagen.`,
-        blockIndex,
-        propName,
-        itemIndex,
-        fieldName
-      );
+      return issue('blockValidation.fieldMustBeImage', base, blockIndex, propName, itemIndex, fieldName);
     }
     const imgVal = value as Record<string, unknown>;
     if (typeof imgVal.url !== 'string') {
-      return issue(
-        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" requiere una URL válida.`,
-        blockIndex,
-        propName,
-        itemIndex,
-        fieldName
-      );
+      return issue('blockValidation.fieldImageNeedsUrl', base, blockIndex, propName, itemIndex, fieldName);
     }
     if (required && imgVal.url.trim() === '') {
-      return issue(
-        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" no puede estar vacío.`,
-        blockIndex,
-        propName,
-        itemIndex,
-        fieldName
-      );
+      return issue('blockValidation.fieldCannotBeEmpty', base, blockIndex, propName, itemIndex, fieldName);
     }
     if (imgVal.alt !== undefined && typeof imgVal.alt !== 'string') {
-      return issue(
-        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" — alt debe ser texto.`,
-        blockIndex,
-        propName,
-        itemIndex,
-        fieldName
-      );
+      return issue('blockValidation.fieldAltMustBeText', base, blockIndex, propName, itemIndex, fieldName);
     }
     if (imgVal.caption !== undefined && typeof imgVal.caption !== 'string') {
-      return issue(
-        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" — caption debe ser texto.`,
-        blockIndex,
-        propName,
-        itemIndex,
-        fieldName
-      );
+      return issue('blockValidation.fieldCaptionMustBeText', base, blockIndex, propName, itemIndex, fieldName);
     }
     for (const dim of ['width', 'height'] as const) {
       const v = imgVal[dim];
       if (v !== undefined) {
         if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0 || !Number.isInteger(v)) {
-          return issue(
-            `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" — ${dim} debe ser un número entero positivo (> 0).`,
-            blockIndex,
-            propName,
-            itemIndex,
-            fieldName
-          );
+          return issue('blockValidation.fieldDimInvalid', { ...base, dim }, blockIndex, propName, itemIndex, fieldName);
         }
       }
     }
@@ -290,46 +316,22 @@ function validatePrimitiveValue(
   const empty = value === undefined || value === null || value === '';
   if (empty) {
     if (required) {
-      return issue(
-        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" es obligatorio.`,
-        blockIndex,
-        propName,
-        itemIndex,
-        fieldName
-      );
+      return issue('blockValidation.fieldRequired', base, blockIndex, propName, itemIndex, fieldName);
     }
     return null;
   }
 
   if (STRING_LIKE_TYPES.has(def.type)) {
     if (typeof value !== 'string') {
-      return issue(
-        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" debe ser texto.`,
-        blockIndex,
-        propName,
-        itemIndex,
-        fieldName
-      );
+      return issue('blockValidation.fieldMustBeText', base, blockIndex, propName, itemIndex, fieldName);
     }
 
     if (required && value.trim() === '') {
-      return issue(
-        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" no puede estar vacío.`,
-        blockIndex,
-        propName,
-        itemIndex,
-        fieldName
-      );
+      return issue('blockValidation.fieldCannotBeEmpty', base, blockIndex, propName, itemIndex, fieldName);
     }
 
     if (def.type === 'select' && Array.isArray(def.options) && value && !def.options.includes(value)) {
-      return issue(
-        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" tiene una opción no válida.`,
-        blockIndex,
-        propName,
-        itemIndex,
-        fieldName
-      );
+      return issue('blockValidation.fieldInvalidOption', base, blockIndex, propName, itemIndex, fieldName);
     }
 
     return null;
@@ -337,26 +339,14 @@ function validatePrimitiveValue(
 
   if (def.type === 'number') {
     if (typeof value !== 'number' || Number.isNaN(value)) {
-      return issue(
-        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" debe ser un número válido.`,
-        blockIndex,
-        propName,
-        itemIndex,
-        fieldName
-      );
+      return issue('blockValidation.fieldMustBeNumber', base, blockIndex, propName, itemIndex, fieldName);
     }
     return null;
   }
 
   if (def.type === 'boolean') {
     if (typeof value !== 'boolean') {
-      return issue(
-        `Bloque "${blockName}" (índice ${blockIndex}): el campo "${label}" debe ser booleano.`,
-        blockIndex,
-        propName,
-        itemIndex,
-        fieldName
-      );
+      return issue('blockValidation.fieldMustBeBoolean', base, blockIndex, propName, itemIndex, fieldName);
     }
   }
 
@@ -376,7 +366,7 @@ function validateArrayItems(
     for (let itemIndex = 0; itemIndex < values.length; itemIndex += 1) {
       const value = values[itemIndex];
       const required = primitive.required !== false;
-      const itemLabel = `${def.label} · elemento ${itemIndex + 1}`;
+      const itemLabel = `${def.label} · element ${itemIndex + 1}`;
       const valueIssue = validatePrimitiveValue(
         primitive,
         value,
@@ -397,7 +387,8 @@ function validateArrayItems(
     const rawItem = values[itemIndex];
     if (!isRecord(rawItem)) {
       return issue(
-        `Bloque "${blockName}" (índice ${blockIndex}): "${def.label}" debe contener objetos válidos.`,
+        'blockValidation.arrayMustContainObjects',
+        { blockName, blockIndex: String(blockIndex), label: def.label },
         blockIndex,
         propName,
         itemIndex
@@ -405,7 +396,7 @@ function validateArrayItems(
     }
 
     for (const [fieldName, fieldDef] of Object.entries(def.item.fields || {})) {
-      const fieldLabel = `${def.label} · elemento ${itemIndex + 1} · ${fieldDef.label || fieldName}`;
+      const fieldLabel = `${def.label} · element ${itemIndex + 1} · ${fieldDef.label || fieldName}`;
       const fieldIssue = validatePrimitiveValue(
         fieldDef,
         rawItem[fieldName],
@@ -439,7 +430,8 @@ export function validateBlockPropsAgainstSchema(
       if (value === undefined || value === null) {
         if (def.required === true || (minItems !== null && minItems > 0)) {
           return issue(
-            `Bloque "${blockName}" (índice ${blockIndex}): el campo "${def.label || propName}" requiere al menos ${minItems || 1} elemento(s).`,
+            'blockValidation.arrayRequired',
+            { blockName, blockIndex: String(blockIndex), label: def.label || propName, min: minItems || 1 },
             blockIndex,
             propName
           );
@@ -449,7 +441,8 @@ export function validateBlockPropsAgainstSchema(
 
       if (!Array.isArray(value)) {
         return issue(
-          `Bloque "${blockName}" (índice ${blockIndex}): el campo "${def.label || propName}" debe ser un array.`,
+          'blockValidation.arrayMustBeArray',
+          { blockName, blockIndex: String(blockIndex), label: def.label || propName },
           blockIndex,
           propName
         );
@@ -457,7 +450,8 @@ export function validateBlockPropsAgainstSchema(
 
       if (def.required === true && value.length === 0) {
         return issue(
-          `Bloque "${blockName}" (índice ${blockIndex}): el campo "${def.label || propName}" es obligatorio.`,
+          'blockValidation.arrayIsRequired',
+          { blockName, blockIndex: String(blockIndex), label: def.label || propName },
           blockIndex,
           propName
         );
@@ -465,7 +459,8 @@ export function validateBlockPropsAgainstSchema(
 
       if (minItems !== null && value.length < minItems) {
         return issue(
-          `Bloque "${blockName}" (índice ${blockIndex}): el campo "${def.label || propName}" requiere al menos ${minItems} elemento(s).`,
+          'blockValidation.arrayMinItems',
+          { blockName, blockIndex: String(blockIndex), label: def.label || propName, min: minItems },
           blockIndex,
           propName
         );
@@ -473,7 +468,8 @@ export function validateBlockPropsAgainstSchema(
 
       if (maxItems !== null && value.length > maxItems) {
         return issue(
-          `Bloque "${blockName}" (índice ${blockIndex}): el campo "${def.label || propName}" permite como máximo ${maxItems} elemento(s).`,
+          'blockValidation.arrayMaxItems',
+          { blockName, blockIndex: String(blockIndex), label: def.label || propName, max: maxItems },
           blockIndex,
           propName
         );

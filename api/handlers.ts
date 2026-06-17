@@ -53,6 +53,31 @@ import type {
   User,
 } from '../types/index.js';
 import * as data from './data.js';
+import { resolveUiLocale } from '../routes/admin/i18n/resolve.js';
+import { catalogs } from '../routes/admin/i18n/catalogs.js';
+import { t as translateFn } from '../routes/admin/i18n/t.js';
+
+/** Resolve the UI locale from the incoming API request (cookie > Accept-Language > 'en'). */
+function resolveRequestUiLocale(request: Request): import('../routes/admin/i18n/types.js').UiLocale {
+  return resolveUiLocale({
+    cookie: request.headers.get('cookie'),
+    acceptLanguage: request.headers.get('accept-language'),
+  });
+}
+
+/** Return a localized JSON error response. The wire shape { error: string } is preserved. */
+export function localizedJsonError(
+  request: Request,
+  key: string,
+  status = 400,
+  params?: Record<string, string | number>,
+  extra?: Record<string, unknown>
+): Response {
+  const locale = resolveRequestUiLocale(request);
+  const catalog = catalogs[locale];
+  const message = translateFn(catalog, key, params);
+  return jsonError(message, status, extra);
+}
 
 const JWT_SECRET = new TextEncoder().encode(process.env.CMS_JWT_SECRET || 'cms-jwt-secret-change-me');
 const JWT_EXPIRY = '7d';
@@ -230,7 +255,7 @@ async function parseJsonBody<T>(request: Request): Promise<{ data: T | null; err
   try {
     return { data: (await request.json()) as T, error: null };
   } catch {
-    return { data: null, error: jsonError('Invalid body') };
+    return { data: null, error: localizedJsonError(request, 'errors.invalidBody') };
   }
 }
 
@@ -243,13 +268,14 @@ function scryptAsync(password: string, salt: crypto.BinaryLike, keylen: number):
   });
 }
 
+/** Returns a catalog error key (not a user-facing string) or null. */
 function validateMenuItemsPaths(items: unknown): string | null {
-  if (!Array.isArray(items)) return 'Los elementos del menú deben ser un array.';
+  if (!Array.isArray(items)) return 'errors.menuItemsArray';
 
   for (const item of items as MenuItem[]) {
-    if (!item || typeof item !== 'object') return 'Elemento del menú no válido.';
+    if (!item || typeof item !== 'object') return 'errors.invalidMenuItem';
     if (typeof item.path !== 'string' || item.path.trim() === '') {
-      return 'La ruta es obligatoria en todos los elementos del menú.';
+      return 'errors.menuPathRequired';
     }
     if (Array.isArray(item.children)) {
       const childError = validateMenuItemsPaths(item.children);
@@ -260,14 +286,15 @@ function validateMenuItemsPaths(items: unknown): string | null {
   return null;
 }
 
+/** Returns a catalog error key (not a user-facing string) or null. */
 function validateMenuSelector(menusData: { menus: Menu[] }, selector: string, excludeMenuId: string | null): string | null {
-  if (!selector) return 'El selector es obligatorio.';
+  if (!selector) return 'errors.menuSelectorRequired';
   if (!data.MENU_SELECTOR_REGEX.test(selector)) {
-    return 'El selector solo puede contener letras, números, guiones y guiones bajos (sin espacios).';
+    return 'errors.invalidMenuSelector';
   }
 
   const taken = menusData.menus.some((menu) => menu.selector === selector && menu.id !== excludeMenuId);
-  if (taken) return 'Ya existe un menú con ese selector.';
+  if (taken) return 'errors.menuSelectorExists';
 
   return null;
 }
@@ -297,11 +324,11 @@ function hasDuplicateConfigKey(configs: ConfigEntry[], key: string, excludeId?: 
   });
 }
 
-function normalizeConfigPayload(body: Record<string, unknown>, current?: ConfigEntry): ConfigEntry | { error: string } {
+function normalizeConfigPayload(body: Record<string, unknown>, current?: ConfigEntry): ConfigEntry | { errorKey: string } {
   const key = normalizeConfigKey(body.key !== undefined ? body.key : current?.key);
-  if (!key) return { error: 'La clave es obligatoria.' };
+  if (!key) return { errorKey: 'errors.configKeyRequired' };
   if (!CONFIG_KEY_REGEX.test(key)) {
-    return { error: 'La clave debe empezar por una letra y solo puede contener letras, números, punto, guion y guion bajo.' };
+    return { errorKey: 'errors.invalidConfigKey' };
   }
 
   const valueInput = body.value !== undefined ? body.value : current?.value;
@@ -319,20 +346,23 @@ function normalizeConfigPayload(body: Record<string, unknown>, current?: ConfigE
   };
 }
 
-function normalizeRedirectPayload(body: Record<string, unknown>, current?: RedirectRule): RedirectRule | { error: string } {
+function normalizeRedirectPayload(
+  body: Record<string, unknown>,
+  current?: RedirectRule
+): RedirectRule | { errorKey: string; fieldKey?: string } {
   const fromInput = body.from !== undefined ? body.from : current?.from;
   const toInput = body.to !== undefined ? body.to : current?.to;
 
   const fromError = validateRedirectPathInput(fromInput, 'from');
-  if (fromError) return { error: fromError };
+  if (fromError) return fromError;
 
   const toError = validateRedirectPathInput(toInput, 'to');
-  if (toError) return { error: toError };
+  if (toError) return toError;
 
   const from = normalizeRedirectPath(String(fromInput || '/'));
   const to = normalizeRedirectPath(String(toInput || '/'));
 
-  if (from === to) return { error: 'La ruta de origen y la de destino no pueden ser iguales.' };
+  if (from === to) return { errorKey: 'errors.redirectSameFromTo' };
 
   return {
     id: current?.id || '',
@@ -350,7 +380,7 @@ function validateLocalePrefixConflict(
   locale: string,
   defaultLocale: string,
   languagesData: LanguagesData
-): string | null {
+): { errorKey: string; params: Record<string, string> } | null {
   if (locale !== defaultLocale) return null;
 
   const segments = splitSlugSegments(slug);
@@ -365,7 +395,7 @@ function validateLocalePrefixConflict(
     .filter(Boolean);
 
   if (enabledLocales.includes(first) && first !== defaultLocale) {
-    return `El slug no puede comenzar con "${first}" porque está reservado para prefijos de idioma.`;
+    return { errorKey: 'errors.slugLocaleConflict', params: { locale: first } };
   }
 
   return null;
@@ -566,15 +596,23 @@ async function loadSchemaMap(): Promise<{ schemaMap?: SchemaMap; error?: string;
   }
 }
 
-async function ensureValidBlocks(blocks: unknown): Promise<Response | null> {
+async function ensureValidBlocks(blocks: unknown, request?: Request): Promise<Response | null> {
   if (blocks === undefined) return null;
 
   if (!Array.isArray(blocks) || blocks.length > 0) {
     const result = await loadSchemaMap();
-    if (result.error) return jsonError(result.error, 500, { missing: result.missing || [] });
+    if (result.error) {
+      if (request) return localizedJsonError(request, 'errors.loadBlockSchemasFailed', 500, undefined, { missing: result.missing || [] });
+      return jsonError(result.error, 500, { missing: result.missing || [] });
+    }
 
     const validation = validateBlocks(result.schemaMap || {}, blocks);
-    if (validation) return jsonError(validation.message);
+    if (validation) {
+      if (request && validation.messageKey) {
+        return localizedJsonError(request, validation.messageKey, 400, validation.params);
+      }
+      return jsonError(validation.message);
+    }
   }
 
   return null;
@@ -626,8 +664,10 @@ export async function getAuth(request: Request): Promise<AuthResult | null> {
   }
 }
 
-export function requireOwner(user?: AuthUser | null): Response | null {
-  if (!user || user.role !== 'owner') return jsonError('Forbidden', 403);
+export function requireOwner(user?: AuthUser | null, request?: Request): Response | null {
+  if (!user || user.role !== 'owner') {
+    return request ? localizedJsonError(request, 'errors.forbidden', 403) : jsonError('Forbidden', 403);
+  }
   return null;
 }
 
@@ -637,7 +677,7 @@ export async function handleLogin(request: Request): Promise<Response> {
 
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body.password === 'string' ? body.password : '';
-  if (!email || !password) return jsonError('Email and password required');
+  if (!email || !password) return localizedJsonError(request, 'errors.emailPasswordRequired');
 
   const usersData = await data.loadUsers();
   const users = usersData.users || [];
@@ -655,15 +695,17 @@ export async function handleLogin(request: Request): Promise<Response> {
 
   const user = users.find((entry) => entry.email === email);
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
-    return jsonError('Invalid credentials', 401);
+    return localizedJsonError(request, 'errors.invalidCredentials', 401);
   }
 
   const token = await createToken(user);
   return Response.json({ token, user: { id: user.id, email: user.email, role: user.role } });
 }
 
-export async function handleAuthMe(user?: AuthUser | null): Promise<Response> {
-  if (!user) return jsonError('Unauthorized', 401);
+export async function handleAuthMe(user?: AuthUser | null, request?: Request): Promise<Response> {
+  if (!user) {
+    return request ? localizedJsonError(request, 'errors.unauthorized', 401) : jsonError('Unauthorized', 401);
+  }
   return Response.json({ user });
 }
 
@@ -686,7 +728,7 @@ export async function handleGetUsers(user?: AuthUser | null): Promise<Response> 
 }
 
 export async function handlePostUsers(request: Request, authUser?: AuthUser | null): Promise<Response> {
-  const forbidden = requireOwner(authUser);
+  const forbidden = requireOwner(authUser, request);
   if (forbidden) return forbidden;
 
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
@@ -695,10 +737,10 @@ export async function handlePostUsers(request: Request, authUser?: AuthUser | nu
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body.password === 'string' ? body.password : '';
   const role = body.role === 'owner' ? 'owner' : 'user';
-  if (!email || !password) return jsonError('Email and password required');
+  if (!email || !password) return localizedJsonError(request, 'errors.emailPasswordRequired');
 
   const usersData = await data.loadUsers();
-  if (usersData.users.some((user) => user.email === email)) return jsonError('Email already exists');
+  if (usersData.users.some((user) => user.email === email)) return localizedJsonError(request, 'errors.emailExists');
 
   const createdAt = new Date().toISOString();
   const newUser: User = {
@@ -715,12 +757,12 @@ export async function handlePostUsers(request: Request, authUser?: AuthUser | nu
 }
 
 export async function handlePutUser(id: string, request: Request, authUser?: AuthUser | null): Promise<Response> {
-  const forbidden = requireOwner(authUser);
+  const forbidden = requireOwner(authUser, request);
   if (forbidden) return forbidden;
 
   const usersData = await data.loadUsers();
   const index = usersData.users.findIndex((user) => user.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
@@ -731,7 +773,7 @@ export async function handlePutUser(id: string, request: Request, authUser?: Aut
   if (body.role !== undefined) {
     const newRole = body.role === 'owner' ? 'owner' : 'user';
     if (target.role === 'owner' && newRole === 'user' && ownerCount <= 1) {
-      return jsonError('No se puede quitar el único propietario');
+      return localizedJsonError(request, 'errors.cannotRemoveLastOwner', 400);
     }
     usersData.users[index] = { ...target, role: newRole };
   }
@@ -745,17 +787,21 @@ export async function handlePutUser(id: string, request: Request, authUser?: Aut
   return Response.json({ id: updated.id, email: updated.email, role: updated.role, createdAt: updated.createdAt });
 }
 
-export async function handleDeleteUser(id: string, authUser?: AuthUser | null): Promise<Response> {
-  const forbidden = requireOwner(authUser);
+export async function handleDeleteUser(id: string, authUser?: AuthUser | null, request?: Request): Promise<Response> {
+  const forbidden = requireOwner(authUser, request);
   if (forbidden) return forbidden;
 
   const usersData = await data.loadUsers();
   const index = usersData.users.findIndex((user) => user.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
 
   const target = usersData.users[index];
   const ownerCount = usersData.users.filter((user) => user.role === 'owner').length;
-  if (target.role === 'owner' && ownerCount <= 1) return jsonError('No se puede eliminar al único propietario');
+  if (target.role === 'owner' && ownerCount <= 1) {
+    return request
+      ? localizedJsonError(request, 'errors.cannotDeleteLastOwner', 400)
+      : jsonError('Cannot delete the only owner.', 400);
+  }
 
   usersData.users.splice(index, 1);
   await data.saveUsers(usersData);
@@ -776,13 +822,13 @@ export async function handlePostLanguages(request: Request, context: HandlerCont
   const enabled = body.enabled !== false;
   const isDefault = body.isDefault === true;
 
-  if (!code) return jsonError('El código de idioma es obligatorio.');
+  if (!code) return localizedJsonError(request, 'errors.languageCodeRequired');
   if (!/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(code)) {
-    return jsonError('Código de idioma no válido. Usa formato como "es" o "pt-br".');
+    return localizedJsonError(request, 'errors.invalidLanguageCode');
   }
 
   if (languagesData.languages.some((language) => normalizeLanguageCode(language.code) === code)) {
-    return jsonError('Ya existe un idioma con ese código.');
+    return localizedJsonError(request, 'errors.languageCodeExists');
   }
 
   const newLanguage: ContentLanguage = { code, label, enabled, isDefault };
@@ -808,7 +854,7 @@ export async function handlePutLanguage(code: string, request: Request, context:
 
   const languagesData = await data.loadLanguages();
   const index = languagesData.languages.findIndex((language) => normalizeLanguageCode(language.code) === normalizedCode);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const current = languagesData.languages[index];
   const next: ContentLanguage = {
@@ -825,7 +871,7 @@ export async function handlePutLanguage(code: string, request: Request, context:
   }
 
   if (!languagesData.languages.some((language) => language.enabled !== false)) {
-    return jsonError('Debe existir al menos un idioma habilitado.');
+    return localizedJsonError(request, 'errors.mustHaveEnabledLanguage');
   }
 
   if (!languagesData.languages.some((language) => language.isDefault && language.enabled !== false)) {
@@ -837,7 +883,7 @@ export async function handlePutLanguage(code: string, request: Request, context:
   return Response.json(languagesData.languages[index]);
 }
 
-export async function handleDeleteLanguage(code: string, context: HandlerContext = {}): Promise<Response> {
+export async function handleDeleteLanguage(code: string, context: HandlerContext = {}, request?: Request): Promise<Response> {
   const normalizedCode = normalizeLanguageCode(code);
 
   const [languagesData, pagesData, menusData, schemaResult] = await Promise.all([
@@ -848,8 +894,12 @@ export async function handleDeleteLanguage(code: string, context: HandlerContext
   ]);
 
   const languageIndex = languagesData.languages.findIndex((language) => normalizeLanguageCode(language.code) === normalizedCode);
-  if (languageIndex === -1) return jsonError('Not found', 404);
-  if (languagesData.languages.length <= 1) return jsonError('No se puede eliminar el último idioma.');
+  if (languageIndex === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
+  if (languagesData.languages.length <= 1) {
+    return request
+      ? localizedJsonError(request, 'errors.cannotDeleteLastLanguage')
+      : jsonError('Cannot delete the last language.');
+  }
 
   const localeKeys = getLanguageLocaleKeys(languagesData);
 
@@ -922,7 +972,7 @@ export async function handlePostPages(request: Request, context: HandlerContext 
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
-  const blocksError = await ensureValidBlocks(body.blocks);
+  const blocksError = await ensureValidBlocks(body.blocks, request);
   if (blocksError) return blocksError;
 
   const [pagesData, languagesData, schemaResult] = await Promise.all([
@@ -942,11 +992,11 @@ export async function handlePostPages(request: Request, context: HandlerContext 
   const blocks = Array.isArray(body.blocks) ? (body.blocks as BlockInstance[]) : [];
 
   if (hasDuplicateSlug(pagesData.pages, null, locale, defaultLocale, slug)) {
-    return jsonError('Ya existe una página con ese slug para este idioma.');
+    return localizedJsonError(request, 'errors.duplicateSlug');
   }
 
   const conflictError = validateLocalePrefixConflict(slug, locale, defaultLocale, languagesData);
-  if (conflictError) return jsonError(conflictError);
+  if (conflictError) return localizedJsonError(request, conflictError.errorKey, 400, conflictError.params);
 
   const localeKeys = getLanguageLocaleKeys(languagesData);
   const now = new Date().toISOString();
@@ -975,7 +1025,7 @@ export async function handlePutPage(id: string, request: Request, context: Handl
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
-  const blocksError = await ensureValidBlocks(body.blocks);
+  const blocksError = await ensureValidBlocks(body.blocks, request);
   if (blocksError) return blocksError;
 
   const [pagesData, languagesData, schemaResult] = await Promise.all([
@@ -985,7 +1035,7 @@ export async function handlePutPage(id: string, request: Request, context: Handl
   ]);
 
   const index = pagesData.pages.findIndex((page) => page.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const defaultLocale = getDefaultLanguageCode(languagesData);
   const locale = resolveLocaleFromBody(body, request, languagesData);
@@ -1000,11 +1050,11 @@ export async function handlePutPage(id: string, request: Request, context: Handl
   const seo = body.seo !== undefined ? normalizePageSeo(body.seo) : existingView.seo || {};
 
   if (hasDuplicateSlug(pagesData.pages, id, locale, defaultLocale, slug)) {
-    return jsonError('Ya existe una página con ese slug para este idioma.');
+    return localizedJsonError(request, 'errors.duplicateSlug');
   }
 
   const conflictError = validateLocalePrefixConflict(slug, locale, defaultLocale, languagesData);
-  if (conflictError) return jsonError(conflictError);
+  if (conflictError) return localizedJsonError(request, conflictError.errorKey, 400, conflictError.params);
 
   const localeKeys = getLanguageLocaleKeys(languagesData);
   const now = new Date().toISOString();
@@ -1039,7 +1089,7 @@ export async function handleDeletePage(id: string, request: Request, context: Ha
   const [pagesData, languagesData] = await Promise.all([data.loadPages(), data.loadLanguages()]);
 
   const index = pagesData.pages.findIndex((page) => page.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const locale = normalizeLocaleFromRequest(request, languagesData);
   const defaultLocale = getDefaultLanguageCode(languagesData);
@@ -1087,14 +1137,14 @@ export async function handlePostMenus(request: Request, context: HandlerContext 
   const locale = resolveLocaleFromBody(body, request, languagesData);
 
   const selectorError = validateMenuSelector(menusData, payload.selector, null);
-  if (selectorError) return jsonError(selectorError);
+  if (selectorError) return localizedJsonError(request, selectorError);
 
   const pathError = validateMenuItemsPaths(payload.items);
-  if (pathError) return jsonError(pathError);
+  if (pathError) return localizedJsonError(request, pathError);
 
   const newMenu: Menu = {
     id: data.generateId(),
-    name: payload.name || 'Menú',
+    name: payload.name || 'Menu',
     selector: payload.selector || 'menu',
     items: {
       [locale]: payload.items,
@@ -1116,20 +1166,20 @@ export async function handlePutMenu(id: string, request: Request, context: Handl
   const payload = normalizeMenuPayload(body);
   const [menusData, languagesData] = await Promise.all([data.loadMenus(), data.loadLanguages()]);
   const index = menusData.menus.findIndex((menu) => menu.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const locale = resolveLocaleFromBody(body, request, languagesData);
 
   const selectorError = validateMenuSelector(menusData, payload.selector, id);
-  if (selectorError) return jsonError(selectorError);
+  if (selectorError) return localizedJsonError(request, selectorError);
 
   const pathError = validateMenuItemsPaths(payload.items);
-  if (pathError) return jsonError(pathError);
+  if (pathError) return localizedJsonError(request, pathError);
 
   const current = menusData.menus[index];
   const updated: Menu = {
     ...current,
-    name: payload.name || current.name || 'Menú',
+    name: payload.name || current.name || 'Menu',
     selector: payload.selector || current.selector || 'menu',
     items: {
       ...(current.items || {}),
@@ -1145,10 +1195,10 @@ export async function handlePutMenu(id: string, request: Request, context: Handl
   return Response.json(data.getMenuLocaleView(updated, locale, defaultLocale));
 }
 
-export async function handleDeleteMenu(id: string, context: HandlerContext = {}): Promise<Response> {
+export async function handleDeleteMenu(id: string, context: HandlerContext = {}, request?: Request): Promise<Response> {
   const menusData = await data.loadMenus();
   const index = menusData.menus.findIndex((menu) => menu.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
 
   menusData.menus.splice(index, 1);
   await data.saveMenus(menusData);
@@ -1167,10 +1217,15 @@ export async function handlePostRedirects(request: Request, context: HandlerCont
 
   const redirectsData = await data.loadRedirects();
   const parsed = normalizeRedirectPayload(body);
-  if ('error' in parsed) return jsonError(parsed.error);
+  if ('errorKey' in parsed) {
+    const locale = resolveRequestUiLocale(request);
+    const catalog = catalogs[locale];
+    const fieldLabel = parsed.fieldKey ? translateFn(catalog, parsed.fieldKey) : '';
+    return localizedJsonError(request, parsed.errorKey, 400, fieldLabel ? { field: fieldLabel } : undefined);
+  }
 
   if (hasDuplicateRedirectFrom(redirectsData.redirects, parsed.from)) {
-    return jsonError('Ya existe una redirección con esa ruta de origen.');
+    return localizedJsonError(request, 'errors.redirectFromExists');
   }
 
   const now = new Date().toISOString();
@@ -1193,14 +1248,19 @@ export async function handlePutRedirect(id: string, request: Request, context: H
 
   const redirectsData = await data.loadRedirects();
   const index = redirectsData.redirects.findIndex((entry) => entry.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const current = redirectsData.redirects[index];
   const parsed = normalizeRedirectPayload(body, current);
-  if ('error' in parsed) return jsonError(parsed.error);
+  if ('errorKey' in parsed) {
+    const locale = resolveRequestUiLocale(request);
+    const catalog = catalogs[locale];
+    const fieldLabel = parsed.fieldKey ? translateFn(catalog, parsed.fieldKey) : '';
+    return localizedJsonError(request, parsed.errorKey, 400, fieldLabel ? { field: fieldLabel } : undefined);
+  }
 
   if (hasDuplicateRedirectFrom(redirectsData.redirects, parsed.from, id)) {
-    return jsonError('Ya existe una redirección con esa ruta de origen.');
+    return localizedJsonError(request, 'errors.redirectFromExists');
   }
 
   const updated: RedirectRule = {
@@ -1217,10 +1277,10 @@ export async function handlePutRedirect(id: string, request: Request, context: H
   return Response.json(updated);
 }
 
-export async function handleDeleteRedirect(id: string, context: HandlerContext = {}): Promise<Response> {
+export async function handleDeleteRedirect(id: string, context: HandlerContext = {}, request?: Request): Promise<Response> {
   const redirectsData = await data.loadRedirects();
   const index = redirectsData.redirects.findIndex((entry) => entry.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
 
   redirectsData.redirects.splice(index, 1);
   await data.saveRedirects(redirectsData);
@@ -1239,10 +1299,10 @@ export async function handlePostConfigs(request: Request, context: HandlerContex
 
   const configsData = await data.loadConfigs();
   const parsed = normalizeConfigPayload(body);
-  if ('error' in parsed) return jsonError(parsed.error);
+  if ('errorKey' in parsed) return localizedJsonError(request, parsed.errorKey);
 
   if (hasDuplicateConfigKey(configsData.configs, parsed.key)) {
-    return jsonError('Ya existe un parámetro con esa clave.');
+    return localizedJsonError(request, 'errors.configKeyExists');
   }
 
   const now = new Date().toISOString();
@@ -1265,14 +1325,14 @@ export async function handlePutConfig(id: string, request: Request, context: Han
 
   const configsData = await data.loadConfigs();
   const index = configsData.configs.findIndex((entry) => entry.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const current = configsData.configs[index];
   const parsed = normalizeConfigPayload(body, current);
-  if ('error' in parsed) return jsonError(parsed.error);
+  if ('errorKey' in parsed) return localizedJsonError(request, parsed.errorKey);
 
   if (hasDuplicateConfigKey(configsData.configs, parsed.key, id)) {
-    return jsonError('Ya existe un parámetro con esa clave.');
+    return localizedJsonError(request, 'errors.configKeyExists');
   }
 
   const updated: ConfigEntry = {
@@ -1289,10 +1349,10 @@ export async function handlePutConfig(id: string, request: Request, context: Han
   return Response.json(updated);
 }
 
-export async function handleDeleteConfig(id: string, context: HandlerContext = {}): Promise<Response> {
+export async function handleDeleteConfig(id: string, context: HandlerContext = {}, request?: Request): Promise<Response> {
   const configsData = await data.loadConfigs();
   const index = configsData.configs.findIndex((entry) => entry.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
 
   configsData.configs.splice(index, 1);
   await data.saveConfigs(configsData);
@@ -1303,20 +1363,20 @@ export async function handleDeleteConfig(id: string, context: HandlerContext = {
 export async function handleUpload(request: Request): Promise<Response> {
   const formData = await request.formData();
   const file = formData.get('file');
-  if (!file || typeof (file as File).arrayBuffer !== 'function') return jsonError('No file');
+  if (!file || typeof (file as File).arrayBuffer !== 'function') return localizedJsonError(request, 'errors.noFile');
 
   const blob = file as File;
 
   // Validate MIME type BEFORE disk write
   const mimeType = blob.type || '';
   if (!mimeType || !ALLOWED_IMAGE_MIME.has(mimeType)) {
-    return jsonError('Unsupported file type. Allowed: jpg, png, webp, svg, gif', 415);
+    return localizedJsonError(request, 'errors.unsupportedFileType', 415);
   }
 
   // Validate size BEFORE disk write
   if (blob.size > MAX_UPLOAD_BYTES) {
     const limitMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
-    return jsonError(`File too large. Maximum size is ${limitMb} MB`, 413);
+    return localizedJsonError(request, 'errors.fileTooLarge', 413, { limitMb: String(limitMb) });
   }
 
   const buffer = await blob.arrayBuffer();
@@ -1381,7 +1441,7 @@ export async function handleDeleteUpload(request: Request): Promise<Response> {
 
   const url = body.url ?? '';
   const filePath = resolveUploadPath(url);
-  if (!filePath) return jsonError('Invalid or disallowed URL');
+  if (!filePath) return localizedJsonError(request, 'errors.invalidUrl');
 
   // Look up the entry BEFORE removing from registry so we can access its variants
   const mediaData = await data.loadMedia();
@@ -1408,7 +1468,7 @@ export async function handleDeleteUpload(request: Request): Promise<Response> {
     await fs.unlink(filePath);
   } catch (deleteError) {
     if ((deleteError as NodeJS.ErrnoException).code !== 'ENOENT') {
-      return jsonError('Delete failed', 500);
+      return localizedJsonError(request, 'errors.deleteFailed', 500);
     }
   }
 
@@ -1421,7 +1481,7 @@ export async function handleDeleteUpload(request: Request): Promise<Response> {
 
 export async function handleGetMedia(request: Request): Promise<Response> {
   const auth = await getAuth(request);
-  if (!auth) return jsonError('Unauthorized', 401);
+  if (!auth) return localizedJsonError(request, 'errors.unauthorized', 401);
 
   // Parse query parameters: q, page, limit
   const url = new URL(request.url);
@@ -1462,17 +1522,17 @@ export async function handleGetMedia(request: Request): Promise<Response> {
  */
 export async function handleUpdateMediaAlt(id: string, request: Request): Promise<Response> {
   const auth = await getAuth(request);
-  if (!auth) return jsonError('Unauthorized', 401);
+  if (!auth) return localizedJsonError(request, 'errors.unauthorized', 401);
 
   const { data: body, error } = await parseJsonBody<{ alt?: unknown }>(request);
   if (error || !body) return error as Response;
 
   if (typeof body.alt !== 'string') {
-    return jsonError('Bad request: alt must be a string', 400);
+    return localizedJsonError(request, 'errors.altMustBeString');
   }
 
   const updated = await data.updateMediaEntryAlt(id, body.alt);
-  if (!updated) return jsonError('Not found', 404);
+  if (!updated) return localizedJsonError(request, 'errors.notFound', 404);
 
   return Response.json({ entry: updated });
 }
@@ -1484,11 +1544,11 @@ export async function handleUpdateMediaAlt(id: string, request: Request): Promis
  */
 export async function handleGetMediaUsage(id: string, request: Request): Promise<Response> {
   const auth = await getAuth(request);
-  if (!auth) return jsonError('Unauthorized', 401);
+  if (!auth) return localizedJsonError(request, 'errors.unauthorized', 401);
 
   const m = await data.loadMedia();
   const entry = m.uploads.find((e) => e.id === id);
-  if (!entry) return jsonError('Not found', 404);
+  if (!entry) return localizedJsonError(request, 'errors.notFound', 404);
 
   const result = await data.findMediaUsages(entry.url);
   return Response.json(result);
@@ -1502,22 +1562,22 @@ export async function handleGetMediaUsage(id: string, request: Request): Promise
  */
 export async function handleReplaceUpload(request: Request, id: string): Promise<Response> {
   const auth = await getAuth(request);
-  if (!auth) return jsonError('Unauthorized', 401);
+  if (!auth) return localizedJsonError(request, 'errors.unauthorized', 401);
 
   const m = await data.loadMedia();
   const entry = m.uploads.find((e) => e.id === id);
-  if (!entry) return jsonError('Not found', 404);
+  if (!entry) return localizedJsonError(request, 'errors.notFound', 404);
 
   let formData: FormData;
   try {
     formData = await request.formData();
   } catch {
-    return jsonError('Invalid multipart body', 400);
+    return localizedJsonError(request, 'errors.invalidMultipartBody');
   }
 
   const file = formData.get('file');
   if (!file || typeof (file as File).arrayBuffer !== 'function') {
-    return jsonError('No file', 400);
+    return localizedJsonError(request, 'errors.noFile');
   }
 
   const blob = file as File;
@@ -1525,21 +1585,21 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   // MIME validation — same two-phase as handleUpload
   const mimeType = blob.type || '';
   if (!mimeType || !ALLOWED_IMAGE_MIME.has(mimeType)) {
-    return jsonError('Unsupported file type. Allowed: jpg, png, webp, svg, gif', 415);
+    return localizedJsonError(request, 'errors.unsupportedFileType', 415);
   }
   if (mimeType !== entry.mimeType) {
-    return jsonError(`Replacement must be the same type: expected ${entry.mimeType}`, 415);
+    return localizedJsonError(request, 'errors.replaceSameType', 415, { mimeType: entry.mimeType });
   }
 
   // Size guard
   if (blob.size > MAX_UPLOAD_BYTES) {
     const limitMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
-    return jsonError(`File too large. Maximum size is ${limitMb} MB`, 413);
+    return localizedJsonError(request, 'errors.fileTooLarge', 413, { limitMb: String(limitMb) });
   }
 
   // Resolve the on-disk path (reuses traversal guard)
   const filePath = resolveUploadPath(entry.url);
-  if (!filePath) return jsonError('Internal error: cannot resolve upload path', 500);
+  if (!filePath) return localizedJsonError(request, 'errors.invalidUrl', 500);
 
   // Overwrite bytes ATOMICALLY: write to a temp file then rename into place.
   // rename(2) is atomic on POSIX, so a read never observes a half-written file.
@@ -1553,7 +1613,7 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
     // Clean up the temp file on error (best-effort) and abort before any
     // variant unlink or registry update so the original stays intact.
     try { await fs.unlink(tmpPath); } catch { /* ignore */ }
-    return jsonError('Failed to write replacement file', 500);
+    return localizedJsonError(request, 'errors.replaceWriteFailed', 500);
   }
 
   // Recompute dimensions
@@ -1584,7 +1644,7 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
     width: capturedWidth,
     height: capturedHeight,
   });
-  if (!result) return jsonError('Not found', 404);
+  if (!result) return localizedJsonError(request, 'errors.notFound', 404);
 
   const { entry: updated, oldVariants } = result;
 
@@ -1690,14 +1750,14 @@ export async function handlePutGlobalBlock(
   registry: GlobalBlockRuntimeEntry[]
 ): Promise<Response> {
   const decl = registry.find((entry) => entry.slug === slug);
-  if (!decl) return jsonError(`Global block slug "${slug}" not found`, 404);
+  if (!decl) return localizedJsonError(request, 'errors.globalBlockNotFound', 404, { slug });
 
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
-  if (!Object.prototype.hasOwnProperty.call(body, 'props')) return jsonError('props is required');
+  if (!Object.prototype.hasOwnProperty.call(body, 'props')) return localizedJsonError(request, 'errors.propsRequired');
   if (typeof body.props !== 'object' || body.props === null || Array.isArray(body.props)) {
-    return jsonError('props must be a plain object');
+    return localizedJsonError(request, 'errors.propsMustBePlainObject');
   }
 
   const incomingProps = body.props as Record<string, unknown>;
@@ -1707,7 +1767,7 @@ export async function handlePutGlobalBlock(
     data.loadLanguages(),
     loadSchemaMap(),
   ]);
-  if (schemaResult.error) return jsonError(schemaResult.error, 500);
+  if (schemaResult.error) return localizedJsonError(request, 'errors.schemaLoadFailed', 500);
 
   const locale = resolveLocaleFromBody(body, request, languagesData);
   const localeKeys = getLanguageLocaleKeys(languagesData);
@@ -1729,7 +1789,7 @@ export async function handlePutGlobalBlock(
       }
     }
     const issue = validateBlockPropsAgainstSchema(schema.name || decl.schemaName, 0, schemaItems, propsForValidation);
-    if (issue) return jsonError(issue.message, 400);
+    if (issue) return localizedJsonError(request, issue.messageKey, 400, issue.params);
   }
 
   // Merge incoming (scalar-per-locale) props into existing props so other locales are preserved.
@@ -1767,7 +1827,7 @@ export async function handlePutGlobalBlock(
   });
 }
 
-export async function handleInvalidateCache(context: HandlerContext = {}): Promise<Response> {
+export async function handleInvalidateCache(request: Request, context: HandlerContext = {}): Promise<Response> {
   if (!context.cache?.enabled) {
     return Response.json({
       ok: true,
@@ -1788,7 +1848,7 @@ export async function handleInvalidateCache(context: HandlerContext = {}): Promi
       message: 'Cache invalidated successfully.',
     });
   } catch (error) {
-    return jsonError('Cache invalidation failed', 500, {
+    return localizedJsonError(request, 'errors.cacheInvalidationFailed', 500, undefined, {
       detail: error instanceof Error ? error.message : String(error),
     });
   }

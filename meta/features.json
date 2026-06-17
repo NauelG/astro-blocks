@@ -220,6 +220,16 @@
       "sinceVersion": "2.0.0",
       "updatedIn": "2.0.0",
       "docsPath": "#global-blocks"
+    },
+    {
+      "id": "admin-ui-i18n",
+      "title": "Admin UI internationalisation (en / es)",
+      "summary": "The CMS admin panel renders in English or Spanish. Language is resolved server-side from a cookie override, Accept-Language header, or English fallback. Includes a profile-dropdown language switcher, dynamic html[lang], ~400-key catalog, localised API error messages, and a Spanish-leak guard.",
+      "category": "i18n",
+      "status": "alpha",
+      "sinceVersion": "3.1.0",
+      "updatedIn": "3.1.0",
+      "docsPath": "#cms-routes"
     }
   ]
 }

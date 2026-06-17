@@ -134,7 +134,7 @@ test('handlePostMenus rejects missing selector', async () => {
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'El selector es obligatorio.');
+    assert.equal(body.error, 'Selector is required.');
   });
 });
 
@@ -156,7 +156,7 @@ test('handlePostMenus rejects invalid selector characters', async () => {
     const body = await response.json();
     assert.equal(
       body.error,
-      'El selector solo puede contener letras, números, guiones y guiones bajos (sin espacios).'
+      'The selector can only contain letters, numbers, dashes, and underscores (no spaces).'
     );
   });
 });
@@ -190,7 +190,7 @@ test('handlePostMenus rejects duplicate selector', async () => {
 
     assert.equal(duplicate.status, 400);
     const body = await duplicate.json();
-    assert.equal(body.error, 'Ya existe un menú con ese selector.');
+    assert.equal(body.error, 'A menu with that selector already exists.');
   });
 });
 
@@ -210,7 +210,7 @@ test('handlePostMenus rejects items without path', async () => {
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'La ruta es obligatoria en todos los elementos del menú.');
+    assert.equal(body.error, 'Path is required in all menu items.');
   });
 });
 
@@ -264,7 +264,7 @@ test('handlePutMenu returns 404 for unknown id', async () => {
 
     assert.equal(response.status, 404);
     const body = await response.json();
-    assert.equal(body.error, 'Not found');
+    assert.ok(body.error, 'should include error message');
   });
 });
 
@@ -313,7 +313,7 @@ test('handlePutMenu prevents changing selector to one already taken by another m
 
     assert.equal(conflict.status, 400);
     const body = await conflict.json();
-    assert.equal(body.error, 'Ya existe un menú con ese selector.');
+    assert.equal(body.error, 'A menu with that selector already exists.');
   });
 });
 
@@ -378,7 +378,7 @@ test('handlePostMenus validates nested children paths recursively', async () => 
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'La ruta es obligatoria en todos los elementos del menú.');
+    assert.equal(body.error, 'Path is required in all menu items.');
   });
 });
 

@@ -9,31 +9,60 @@ import AdminLayout from './layout.astro';
 import DetailModal from './components/DetailModal.astro';
 import { Pencil, Trash2, Lightbulb } from '@lucide/astro';
 import { loadLanguages, loadSite } from '../../api/data.js';
+import { resolveUiLocale } from './i18n/resolve.js';
+import { createT } from './i18n/t.js';
 const site = await loadSite();
 const languagesData = await loadLanguages();
 const languages = languagesData.languages || [];
+const uiLocale = resolveUiLocale({
+  cookie: Astro.request.headers.get('cookie'),
+  acceptLanguage: Astro.request.headers.get('accept-language'),
+});
+const t = createT(uiLocale);
+// Strings injected into the is:inline script via a define:vars bridge script
+const languagesI18n = {
+  statusActive: t('languages.statusActive'),
+  statusDisabled: t('languages.statusDisabled'),
+  isDefaultYes: t('languages.isDefaultYes'),
+  editLabel: t('common.edit'),
+  deleteLabel: t('languages.deleteLabel'),
+  newForm: t('languages.newForm'),
+  editForm: t('languages.editForm'),
+  createBtn: t('languages.createBtn'),
+  saveBtn: t('common.save'),
+  loadError: t('languages.loadError'),
+  deleteError: t('languages.deleteError'),
+  saveError: t('languages.saveError'),
+  validationTitle: t('languages.validationTitle'),
+  codeObligatory: t('languages.codeObligatory'),
+  deleted: t('languages.deleted'),
+  created: t('languages.created'),
+  updated: t('languages.updated'),
+  dialogTitle: t('languages.modalTitle'),
+  deleteConfirmTemplate: t('languages.deleteConfirm'),
+};
 ---
 
-<AdminLayout site={site} title="Idiomas">
+<AdminLayout site={site} title={t('languages.title')}>
   <div class="cms-stack">
     <div class="cms-page-intro">
       <div class="cms-page-intro-copy">
-        <span class="cms-page-eyebrow">Localización</span>
+        <span class="cms-page-eyebrow">{t('languages.eyebrow')}</span>
         <div class="cms-page-header">
-          <h1 class="cms-title">Idiomas de contenido</h1>
+          <h1 class="cms-title">{t('languages.title')}</h1>
         </div>
         <p class="cms-page-lead">
-          Define los idiomas disponibles para el contenido público del sitio. El idioma de interfaz del panel se configura por separado y no es editable aquí.
+          {t('languages.lead')}
         </p>
       </div>
       <div class="cms-page-actions">
-        <button type="button" id="cms-language-new-btn" class="cms-btn cms-btn-primary">Nuevo idioma</button>
+        <button type="button" id="cms-language-new-btn" class="cms-btn cms-btn-primary">{t('languages.newLanguage')}</button>
       </div>
     </div>
     <div class="cms-card cms-menus-info-card">
       <p class="cms-menus-info-text">
         <Lightbulb size={14} class="cms-menus-info-icon" aria-hidden="true" />
-        <span class="cms-menus-info-body">Usa <code>getLanguages()</code> desde <code>astro-blocks/getLanguages</code> para leer los idiomas de contenido en tu proyecto Astro y construir un selector o menú de idioma en frontend. El helper devuelve <code>languages</code> y <code>defaultLocale</code>; por defecto incluye solo idiomas habilitados.</span>
+        <span class="cms-menus-info-body">{t('languages.info')}</span>
       </p>
     </div>
 
@@ -43,10 +72,10 @@ const languages = languagesData.languages || [];
           <thead>
             <tr>
               <th class="cms-table-actions"></th>
-              <th>Código</th>
-              <th>Etiqueta</th>
-              <th>Estado</th>
-              <th>Predeterminado</th>
+              <th>{t('languages.colCode')}</th>
+              <th>{t('languages.colLabel')}</th>
+              <th>{t('languages.colStatus')}</th>
+              <th>{t('languages.colDefault')}</th>
               <th class="cms-table-actions-delete"></th>
             </tr>
           </thead>
@@ -54,7 +83,7 @@ const languages = languagesData.languages || [];
             {languages.map((language) => (
               <tr>
                 <td class="cms-table-actions">
-                  <button type="button" class="cms-table-btn-edit cms-language-edit" data-code={language.code} aria-label="Editar">
+                  <button type="button" class="cms-table-btn-edit cms-language-edit" data-code={language.code} aria-label={t('common.edit')}>
                     <Pencil size={14} />
                   </button>
                 </td>
@@ -62,12 +91,12 @@ const languages = languagesData.languages || [];
                 <td>{language.label}</td>
                 <td>
                   <span class={language.enabled !== false ? 'cms-badge cms-badge-success' : 'cms-badge cms-badge-neutral'}>
-                    {language.enabled !== false ? 'Activo' : 'Desactivado'}
+                    {language.enabled !== false ? t('languages.statusActive') : t('languages.statusDisabled')}
                   </span>
                 </td>
-                <td>{language.isDefault ? 'Sí' : '—'}</td>
+                <td>{language.isDefault ? t('languages.isDefaultYes') : '—'}</td>
                 <td class="cms-table-actions-delete">
-                  <button type="button" class="cms-table-btn-delete cms-language-delete" data-code={language.code} aria-label="Eliminar">
+                  <button type="button" class="cms-table-btn-delete cms-language-delete" data-code={language.code} aria-label={t('languages.deleteLabel')}>
                     <Trash2 size={14} />
                   </button>
                 </td>
@@ -77,41 +106,42 @@ const languages = languagesData.languages || [];
         </table>
       </div>
       <div id="cms-languages-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', languages.length > 0 && 'cms-hidden']}>
-        <p class="cms-empty-state-title">No hay idiomas configurados</p>
-        <p class="cms-empty-state-text">Crea al menos un idioma para empezar a editar contenido multi idioma.</p>
+        <p class="cms-empty-state-title">{t('languages.empty.title')}</p>
+        <p class="cms-empty-state-text">{t('languages.empty.text')}</p>
       </div>
     </div>
   </div>
 
-  <DetailModal id="language-detail-modal" title="Idioma">
+  <DetailModal id="language-detail-modal" title={t('languages.modalTitle')}>
     <form id="language-detail-form" class="cms-form">
       <input type="hidden" id="language-detail-mode" value="create" />
       <input type="hidden" id="language-detail-current-code" value="" />
       <div class="cms-field">
-        <label for="language-detail-code">Código</label>
-        <input type="text" id="language-detail-code" name="code" placeholder="es, ca, en" required />
+        <label for="language-detail-code">{t('languages.labelCode')}</label>
+        <input type="text" id="language-detail-code" name="code" placeholder={t('languages.codePlaceholder')} required />
       </div>
       <div class="cms-field">
-        <label for="language-detail-label">Etiqueta</label>
-        <input type="text" id="language-detail-label" name="label" placeholder="Español" required />
+        <label for="language-detail-label">{t('languages.labelLabel')}</label>
+        <input type="text" id="language-detail-label" name="label" placeholder={t('languages.labelPlaceholder')} required />
       </div>
       <div class="cms-field cms-field-checkbox">
         <input type="checkbox" id="language-detail-enabled" name="enabled" checked />
-        <label for="language-detail-enabled" class="cms-label-tight">Habilitado</label>
+        <label for="language-detail-enabled" class="cms-label-tight">{t('languages.labelEnabled')}</label>
       </div>
       <div class="cms-field cms-field-checkbox">
         <input type="checkbox" id="language-detail-default" name="isDefault" />
-        <label for="language-detail-default" class="cms-label-tight">Predeterminado</label>
+        <label for="language-detail-default" class="cms-label-tight">{t('languages.labelDefault')}</label>
       </div>
       <p class="cms-muted cms-hint">
-        El idioma predeterminado se sirve sin prefijo en URL. Los demás usan prefijo (ej. <code>/en/...</code>).
+        {t('languages.hint')}
       </p>
     </form>
-    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="language-detail-modal">Cancelar</button>
-    <button type="submit" form="language-detail-form" class="cms-btn cms-btn-primary" id="language-detail-submit" slot="actions-right">Guardar</button>
+    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" data-close-modal="language-detail-modal">{t('common.cancel')}</button>
+    <button type="submit" form="language-detail-form" class="cms-btn cms-btn-primary" id="language-detail-submit" slot="actions-right">{t('common.save')}</button>
   </DetailModal>
 
-  <script is:inline>
+  {/* Strings injected via define:vars directly into the script that consumes them */}
+  <script define:vars={{ languagesI18n }}>
     (function() {
       function getToken() {
         if (typeof window === 'undefined') return '';
@@ -199,7 +229,7 @@ const languages = languagesData.languages || [];
           labelInput.value = '';
           enabledInput.checked = true;
           defaultInput.checked = false;
-          setModalTitle('Nuevo idioma', 'Crear');
+          setModalTitle(languagesI18n.newForm, languagesI18n.createBtn);
         }
 
         function openNew() {
@@ -217,7 +247,7 @@ const languages = languagesData.languages || [];
           labelInput.value = language.label || language.code;
           enabledInput.checked = language.enabled !== false;
           defaultInput.checked = language.isDefault === true;
-          setModalTitle('Editar idioma', 'Guardar');
+          setModalTitle(languagesI18n.editForm, languagesI18n.saveBtn);
           openModal();
         }
 
@@ -226,12 +256,12 @@ const languages = languagesData.languages || [];
             var active = language.enabled !== false;
             return (
               '<tr>' +
-                '<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-language-edit" data-code="' + language.code + '" aria-label="Editar">' + pencilSvg + '</button></td>' +
+                '<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-language-edit" data-code="' + language.code + '" aria-label="' + languagesI18n.editLabel + '">' + pencilSvg + '</button></td>' +
                 '<td class="cms-table-cell-monospace">' + language.code + '</td>' +
                 '<td>' + (language.label || language.code) + '</td>' +
-                '<td><span class="cms-badge ' + (active ? 'cms-badge-success' : 'cms-badge-neutral') + '">' + (active ? 'Activo' : 'Desactivado') + '</span></td>' +
-                '<td>' + (language.isDefault ? 'Sí' : '—') + '</td>' +
-                '<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-language-delete" data-code="' + language.code + '" aria-label="Eliminar">' + trashSvg + '</button></td>' +
+                '<td><span class="cms-badge ' + (active ? 'cms-badge-success' : 'cms-badge-neutral') + '">' + (active ? languagesI18n.statusActive : languagesI18n.statusDisabled) + '</span></td>' +
+                '<td>' + (language.isDefault ? languagesI18n.isDefaultYes : '—') + '</td>' +
+                '<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-language-delete" data-code="' + language.code + '" aria-label="' + languagesI18n.deleteLabel + '">' + trashSvg + '</button></td>' +
               '</tr>'
             );
           }).join('');
@@ -255,13 +285,13 @@ const languages = languagesData.languages || [];
 
         function refreshLanguages() {
           return fetch('/cms/api/languages', { headers: { Authorization: 'Bearer ' + token } })
-            .then(function(r) { if (!r.ok) throw new Error('Error al cargar idiomas'); return r.json(); })
+            .then(function(r) { if (!r.ok) throw new Error(languagesI18n.loadError); return r.json(); })
             .then(function(payload) {
               languagesState = payload.languages || [];
               renderRows();
             })
             .catch(function(err) {
-              window.cmsAlert && window.cmsAlert({ title: 'Error', message: err.message || 'Error al cargar idiomas' });
+              window.cmsAlert && window.cmsAlert({ title: languagesI18n.dialogTitle, message: err.message || languagesI18n.loadError });
             });
         }
 
@@ -279,11 +309,11 @@ const languages = languagesData.languages || [];
         async function deleteLanguage(code) {
           try {
             var counts = await getCascadeCounts(code);
-            var message = 'Eliminar el idioma "' + code + '" borrará en cascada su contenido asociado.\n\n' +
-              '- Páginas afectadas: ' + counts.pages + '\n' +
-              '- Menús afectados: ' + counts.menus + '\n\n' +
-              'Esta acción no se puede deshacer. ¿Continuar?';
-            var ok = await window.cmsConfirm({ message: message, confirmLabel: 'Eliminar idioma' });
+            var message = languagesI18n.deleteConfirmTemplate
+              .replace('{code}', code)
+              .replace('{pages}', String(counts.pages))
+              .replace('{menus}', String(counts.menus));
+            var ok = await window.cmsConfirm({ message: message, confirmLabel: languagesI18n.deleteLabel });
             if (!ok) return;
 
             var response = await fetch('/cms/api/languages/' + encodeURIComponent(code), {
@@ -292,14 +322,14 @@ const languages = languagesData.languages || [];
             });
             if (!response.ok) {
               var errorBody = await response.json().catch(function() { return {}; });
-              throw new Error(errorBody.error || 'Error al eliminar idioma');
+              throw new Error(errorBody.error || languagesI18n.deleteError);
             }
 
-            window.cmsToast && window.cmsToast({ title: 'Idiomas', message: 'Idioma eliminado correctamente.', tone: 'success' });
+            window.cmsToast && window.cmsToast({ title: languagesI18n.dialogTitle, message: languagesI18n.deleted, tone: 'success' });
             await refreshLanguages();
             notifyLanguagesUpdated();
           } catch (err) {
-            window.cmsAlert && window.cmsAlert({ title: 'Error', message: (err && err.message) || 'Error al eliminar idioma' });
+            window.cmsAlert && window.cmsAlert({ title: languagesI18n.dialogTitle, message: (err && err.message) || languagesI18n.deleteError });
           }
         }
 
@@ -311,7 +341,7 @@ const languages = languagesData.languages || [];
           var isDefault = defaultInput.checked;
 
           if (!code) {
-            await window.cmsAlert({ title: 'Validación', message: 'El código de idioma es obligatorio.' });
+            await window.cmsAlert({ title: languagesI18n.validationTitle, message: languagesI18n.codeObligatory });
             return;
           }
 
@@ -336,20 +366,20 @@ const languages = languagesData.languages || [];
 
           if (!response.ok) {
             var errorBody = await response.json().catch(function() { return {}; });
-            throw new Error(errorBody.error || 'Error al guardar idioma');
+            throw new Error(errorBody.error || languagesI18n.saveError);
           }
 
           closeModal();
           await refreshLanguages();
           notifyLanguagesUpdated();
-          window.cmsToast && window.cmsToast({ title: 'Idiomas', message: mode === 'create' ? 'Idioma creado.' : 'Idioma actualizado.', tone: 'success' });
+          window.cmsToast && window.cmsToast({ title: languagesI18n.dialogTitle, message: mode === 'create' ? languagesI18n.created : languagesI18n.updated, tone: 'success' });
         }
 
         document.getElementById('cms-language-new-btn')?.addEventListener('click', openNew);
         form.addEventListener('submit', function(event) {
           event.preventDefault();
           submitForm().catch(function(err) {
-            window.cmsAlert && window.cmsAlert({ title: 'Error', message: err.message || 'Error al guardar idioma' });
+            window.cmsAlert && window.cmsAlert({ title: languagesI18n.dialogTitle, message: err.message || languagesI18n.saveError });
           });
         });
 

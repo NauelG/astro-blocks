@@ -4,12 +4,15 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
+export const prerender = false;
 import fs from 'node:fs/promises';
 import AdminLayout from './layout.astro';
 import { Globe, FileText, Menu, Languages, Upload, Plus, Settings, RefreshCw, ExternalLink, ShieldCheck, Clock3 } from '@lucide/astro';
 import { loadSite, loadPages, getDefaultLocale, getPageIndexable, getPageLocaleView, getPageStatus, getPublishedPages, loadLanguages, loadMenus } from '../../api/data.js';
 import { getUploadsDir } from '../../utils/paths.js';
 import { slugToPath } from '../../utils/slug.js';
+import { resolveUiLocale } from './i18n/resolve.js';
+import { createT } from './i18n/t.js';
 
 const site = await loadSite();
 const pagesData = await loadPages();
@@ -43,30 +46,36 @@ const recentPages = [...allPages]
   .map((page) => getPageLocaleView(page, defaultLocale, defaultLocale));
 
 const lastUpdatedPage = recentPages[0];
+
+const uiLocale = resolveUiLocale({
+  cookie: Astro.request.headers.get('cookie'),
+  acceptLanguage: Astro.request.headers.get('accept-language'),
+});
+const t = createT(uiLocale);
 ---
 
-<AdminLayout site={site} title="Dashboard">
+<AdminLayout site={site} title={t('dashboard.title')}>
   <div class="cms-stack cms-dashboard">
     <div class="cms-page-intro">
       <div class="cms-page-intro-copy">
-        <span class="cms-page-eyebrow">Control center</span>
+        <span class="cms-page-eyebrow">{t('dashboard.eyebrow')}</span>
         <div class="cms-page-header">
-          <h1 class="cms-title">Dashboard</h1>
+          <h1 class="cms-title">{t('dashboard.title')}</h1>
         </div>
         <p class="cms-page-lead">
-          Vista general del contenido, la navegación y el estado del proyecto para trabajar con rapidez y sin ruido visual.
+          {t('dashboard.lead')}
         </p>
       </div>
       <div class="cms-page-actions">
         {site.baseUrl && (
           <a href={site.baseUrl} target="_blank" rel="noopener noreferrer" class="cms-btn cms-btn-secondary">
             <ExternalLink size={13} />
-            <span>Ver sitio</span>
+            <span>{t('nav.viewSite')}</span>
           </a>
         )}
         <a href="/cms/pages" class="cms-btn cms-btn-primary">
           <Plus size={13} />
-          <span>Nueva página</span>
+          <span>{t('dashboard.actionNewPage')}</span>
         </a>
       </div>
     </div>
@@ -76,9 +85,9 @@ const lastUpdatedPage = recentPages[0];
         <div class="cms-card cms-dashboard-lead-card">
           <div class="cms-dashboard-lead-top">
             <span class="cms-dashboard-kicker">{site.siteName || 'AstroBlocks'}</span>
-            <h2 class="cms-dashboard-lead-title">Resumen operativo del CMS</h2>
+            <h2 class="cms-dashboard-lead-title">{t('dashboard.operativeSummary')}</h2>
             <p class="cms-dashboard-lead-text">
-              Todo el contenido, la navegación y el branding del proyecto desde un panel compacto y fácil de escanear.
+              {t('dashboard.summaryText')}
             </p>
           </div>
           <div class="cms-dashboard-lead-bottom">
@@ -89,7 +98,7 @@ const lastUpdatedPage = recentPages[0];
               </span>
               <span class="cms-dashboard-meta-pill">
                 <Clock3 size={12} />
-                <span>{lastUpdatedPage ? `Última edición: ${lastUpdatedPage.title}` : 'Sin actividad reciente'}</span>
+                <span>{lastUpdatedPage ? t('dashboard.lastEdit', { title: lastUpdatedPage.title }) : t('dashboard.noRecentActivity')}</span>
               </span>
             </div>
           </div>
@@ -101,49 +110,49 @@ const lastUpdatedPage = recentPages[0];
               <Globe size={14} />
             </div>
             <p class="cms-stat-value cms-stat-value--primary">{published.length}</p>
-            <p class="cms-stat-label">Publicadas</p>
+            <p class="cms-stat-label">{t('dashboard.published')}</p>
           </div>
           <div class="cms-card cms-dashboard-stat">
             <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
               <FileText size={14} />
             </div>
             <p class="cms-stat-value">{drafts.length}</p>
-            <p class="cms-stat-label">Borradores</p>
+            <p class="cms-stat-label">{t('dashboard.drafts')}</p>
           </div>
           <div class="cms-card cms-dashboard-stat">
             <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
               <Menu size={14} />
             </div>
             <p class="cms-stat-value">{menus.length}</p>
-            <p class="cms-stat-label">Menús</p>
+            <p class="cms-stat-label">{t('dashboard.menus')}</p>
           </div>
           <div class="cms-card cms-dashboard-stat">
             <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
               <Languages size={14} />
             </div>
             <p class="cms-stat-value">{enabledLanguagesCount}</p>
-            <p class="cms-stat-label">Idiomas</p>
+            <p class="cms-stat-label">{t('dashboard.languages')}</p>
           </div>
           <div class="cms-card cms-dashboard-stat">
             <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
               <Upload size={14} />
             </div>
             <p class="cms-stat-value">{uploadCount}</p>
-            <p class="cms-stat-label">Archivos</p>
+            <p class="cms-stat-label">{t('dashboard.files')}</p>
           </div>
         </div>
 
         <div class="cms-card cms-card--no-padding cms-dashboard-recent">
           <div class="cms-dashboard-block-header">
-            <span class="cms-dashboard-block-title">Actividad reciente</span>
-            <a href="/cms/pages" class="cms-dashboard-block-link">Ir a páginas</a>
+            <span class="cms-dashboard-block-title">{t('dashboard.recentActivity')}</span>
+            <a href="/cms/pages" class="cms-dashboard-block-link">{t('dashboard.goToPages')}</a>
           </div>
           {recentPages.length === 0 ? (
             <div class="cms-empty-state cms-empty-state--inset">
-              <p class="cms-empty-state-title">Todavía no hay páginas creadas</p>
-              <p class="cms-empty-state-text">Crea la primera página para empezar a poblar el sitio y activar el flujo editorial del CMS.</p>
+              <p class="cms-empty-state-title">{t('dashboard.noPages.title')}</p>
+              <p class="cms-empty-state-text">{t('dashboard.noPages.text')}</p>
               <div class="cms-empty-state-actions">
-                <a href="/cms/pages" class="cms-btn cms-btn-primary">Crear primera página</a>
+                <a href="/cms/pages" class="cms-btn cms-btn-primary">{t('dashboard.createFirstPage')}</a>
               </div>
             </div>
           ) : (
@@ -151,11 +160,11 @@ const lastUpdatedPage = recentPages[0];
               <tbody>
                 {recentPages.map((page) => (
                   <tr>
-                    <td class="cms-dashboard-recent-title">{page.title || '(sin título)'}</td>
+                    <td class="cms-dashboard-recent-title">{page.title || t('dashboard.noTitle')}</td>
                     <td class="cms-table-cell-monospace cms-dashboard-recent-slug">{slugToPath(page.slug)}</td>
                     <td class="cms-dashboard-recent-status">
                       <span class={`cms-badge ${page.status === 'published' ? 'cms-badge-success' : 'cms-badge-neutral'}`}>
-                        {page.status === 'published' ? 'Publicada' : 'Borrador'}
+                        {page.status === 'published' ? t('status.published') : t('status.draft')}
                       </span>
                     </td>
                   </tr>
@@ -168,38 +177,38 @@ const lastUpdatedPage = recentPages[0];
 
       <div class="cms-dashboard-secondary">
         <div class="cms-card cms-dashboard-actions-card">
-          <h2 class="cms-dashboard-section-title">Acciones rápidas</h2>
-          <p class="cms-dashboard-section-copy">Accesos directos a las tareas más frecuentes del panel.</p>
+          <h2 class="cms-dashboard-section-title">{t('dashboard.quickActions')}</h2>
+          <p class="cms-dashboard-section-copy">{t('dashboard.quickActionsLead')}</p>
           <div class="cms-dashboard-action-grid">
             <a href="/cms/pages" class="cms-dashboard-action-card">
               <span class="cms-dashboard-action-icon"><Plus size={14} /></span>
-              <span class="cms-dashboard-action-title">Nueva página</span>
-              <p class="cms-dashboard-action-text">Crear y editar contenido.</p>
+              <span class="cms-dashboard-action-title">{t('dashboard.actionNewPage')}</span>
+              <p class="cms-dashboard-action-text">{t('dashboard.actionNewPageText')}</p>
             </a>
             <a href="/cms/menus" class="cms-dashboard-action-card">
               <span class="cms-dashboard-action-icon"><Menu size={14} /></span>
-              <span class="cms-dashboard-action-title">Menús</span>
-              <p class="cms-dashboard-action-text">Gestionar navegación.</p>
+              <span class="cms-dashboard-action-title">{t('dashboard.actionMenus')}</span>
+              <p class="cms-dashboard-action-text">{t('dashboard.actionMenusText')}</p>
             </a>
             <a href="/cms/settings" class="cms-dashboard-action-card" data-cms-owner-only>
               <span class="cms-dashboard-action-icon"><Settings size={14} /></span>
-              <span class="cms-dashboard-action-title">Ajustes</span>
-              <p class="cms-dashboard-action-text">White-label y branding.</p>
+              <span class="cms-dashboard-action-title">{t('dashboard.actionSettings')}</span>
+              <p class="cms-dashboard-action-text">{t('dashboard.actionSettingsText')}</p>
             </a>
             <a href="/cms/cache" class="cms-dashboard-action-card">
               <span class="cms-dashboard-action-icon"><RefreshCw size={14} /></span>
-              <span class="cms-dashboard-action-title">Caché</span>
-              <p class="cms-dashboard-action-text">Invalidar SSR.</p>
+              <span class="cms-dashboard-action-title">{t('dashboard.actionCache')}</span>
+              <p class="cms-dashboard-action-text">{t('dashboard.actionCacheText')}</p>
             </a>
           </div>
         </div>
 
         <div class="cms-card cms-dashboard-site-card">
-          <h2 class="cms-dashboard-section-title">Sitio y branding</h2>
-          <p class="cms-dashboard-section-copy">Referencia rápida del proyecto y acceso al sitio público.</p>
+          <h2 class="cms-dashboard-section-title">{t('dashboard.siteAndBranding')}</h2>
+          <p class="cms-dashboard-section-copy">{t('dashboard.siteAndBrandingLead')}</p>
           <div class="cms-dashboard-meta">
             <span class="cms-dashboard-meta-pill">
-              <span>{site.siteName || 'Proyecto sin nombre'}</span>
+              <span>{site.siteName || t('dashboard.noName')}</span>
             </span>
             <span class="cms-dashboard-meta-pill">
               <ShieldCheck size={12} />
@@ -213,8 +222,8 @@ const lastUpdatedPage = recentPages[0];
             </a>
           ) : (
             <div class="cms-empty-state">
-              <p class="cms-empty-state-title">Falta la URL base</p>
-              <p class="cms-empty-state-text">Define la URL base en ajustes para mejorar el contexto del panel y del SEO.</p>
+              <p class="cms-empty-state-title">{t('dashboard.noBaseUrl.title')}</p>
+              <p class="cms-empty-state-text">{t('dashboard.noBaseUrl.text')}</p>
             </div>
           )}
         </div>

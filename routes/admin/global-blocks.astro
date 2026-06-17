@@ -11,24 +11,32 @@ import DetailModal from './components/DetailModal.astro';
 import { Pencil, Lightbulb } from '@lucide/astro';
 import { loadSite } from '../../api/data.js';
 import { globalBlocksRegistry as runtimeGlobalBlocksRegistry } from 'astro-blocks-runtime';
+import { resolveUiLocale } from './i18n/resolve.js';
+import { createT } from './i18n/t.js';
 
 const site = await loadSite();
 
 // v2: registry carries { slug, schemaName, componentPath, label? }
 const globalBlocksRegistry: { slug: string; schemaName: string; componentPath: string; label?: string }[] =
   runtimeGlobalBlocksRegistry ?? [];
+
+const uiLocale = resolveUiLocale({
+  cookie: Astro.request.headers.get('cookie'),
+  acceptLanguage: Astro.request.headers.get('accept-language'),
+});
+const t = createT(uiLocale);
 ---
 
-<AdminLayout site={site} title="Bloques globales">
+<AdminLayout site={site} title={t('globalBlocks.title')}>
   <div class="cms-stack">
     <div class="cms-page-intro">
       <div class="cms-page-intro-copy">
-        <span class="cms-page-eyebrow">Contenido</span>
+        <span class="cms-page-eyebrow">{t('globalBlocks.eyebrow')}</span>
         <div class="cms-page-header">
-          <h1 class="cms-title">Bloques globales</h1>
+          <h1 class="cms-title">{t('globalBlocks.title')}</h1>
         </div>
         <p class="cms-page-lead">
-          Edita elementos reutilizables como cabeceras, pies de página y secciones compartidas. Los cambios se aplican en todos los sitios que los referencien.
+          {t('globalBlocks.lead')}
         </p>
       </div>
     </div>
@@ -37,7 +45,7 @@ const globalBlocksRegistry: { slug: string; schemaName: string; componentPath: s
       <p class="cms-menus-info-text">
         <Lightbulb size={14} class="cms-menus-info-icon" aria-hidden="true" />
         <span class="cms-menus-info-body">
-          Los slugs se declaran en <code>astro.config.mjs</code> mediante la opción <code>globalBlocks</code>. Para añadir o eliminar slugs, modificá la configuración del proyecto y volvé a hacer build.
+          {t('globalBlocks.info')}
         </span>
       </p>
     </div>
@@ -48,8 +56,8 @@ const globalBlocksRegistry: { slug: string; schemaName: string; componentPath: s
           <thead>
             <tr>
               <th class="cms-table-actions"></th>
-              <th>Slug</th>
-              <th>Etiqueta</th>
+              <th>{t('globalBlocks.colSlug')}</th>
+              <th>{t('globalBlocks.colLabel')}</th>
             </tr>
           </thead>
           <tbody id="cms-global-blocks-tbody">
@@ -62,7 +70,7 @@ const globalBlocksRegistry: { slug: string; schemaName: string; componentPath: s
                     data-slug={entry.slug}
                     data-label={entry.label || entry.slug}
                     data-schema-name={entry.schemaName}
-                    aria-label="Editar"
+                    aria-label={t('common.edit')}
                   >
                     <Pencil size={14} />
                   </button>
@@ -78,21 +86,21 @@ const globalBlocksRegistry: { slug: string; schemaName: string; componentPath: s
         id="cms-global-blocks-empty"
         class:list={['cms-empty-state', 'cms-empty-state--inset', globalBlocksRegistry.length > 0 && 'cms-hidden']}
       >
-        <p class="cms-empty-state-title">No hay bloques globales declarados</p>
+        <p class="cms-empty-state-title">{t('globalBlocks.empty.title')}</p>
         <p class="cms-empty-state-text">
-          Declará slugs en <code>globalBlocks</code> dentro de tu <code>astro.config.mjs</code> y volvé a hacer build para empezar.
+          {t('globalBlocks.empty.text')}
         </p>
       </div>
     </div>
   </div>
 
-  <DetailModal id="global-block-detail-modal" title="Editar bloque global" large>
+  <DetailModal id="global-block-detail-modal" title={t('globalBlocks.title')} large>
     <form id="global-block-detail-form" class="cms-form cms-global-block-detail-form">
       <div id="global-block-form-container"></div>
       <p id="global-block-error" class="cms-muted cms-hidden cms-hint cms-hint-error" role="alert"></p>
     </form>
-    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" id="global-block-cancel-btn">Cancelar</button>
-    <button type="submit" form="global-block-detail-form" class="cms-btn cms-btn-primary" slot="actions-right" id="global-block-submit-btn">Guardar</button>
+    <button type="button" class="cms-btn cms-btn-secondary" slot="actions-left" id="global-block-cancel-btn">{t('common.cancel')}</button>
+    <button type="submit" form="global-block-detail-form" class="cms-btn cms-btn-primary" slot="actions-right" id="global-block-submit-btn">{t('common.save')}</button>
   </DetailModal>
 
   <script>

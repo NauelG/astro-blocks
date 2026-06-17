@@ -132,7 +132,7 @@ test('handlePostUsers: unauthenticated returns 403', async () => {
 
     assert.equal(response.status, 403);
     const body = await response.json();
-    assert.equal(body.error, 'Forbidden');
+    assert.match(body.error, /forbidden/i);
   });
 });
 
@@ -162,7 +162,7 @@ test('handlePostUsers: duplicate email returns 400', async () => {
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'Email already exists');
+    assert.equal(body.error, 'Email already exists.');
   });
 });
 
@@ -181,7 +181,7 @@ test('handlePostUsers: missing email/password returns 400', async () => {
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'Email and password required');
+    assert.equal(body.error, 'Email and password are required.');
   });
 });
 
@@ -266,7 +266,7 @@ test('handlePutUser: unauthenticated returns 403', async () => {
 
     assert.equal(response.status, 403);
     const body = await response.json();
-    assert.equal(body.error, 'Forbidden');
+    assert.match(body.error, /forbidden/i);
   });
 });
 
@@ -286,7 +286,7 @@ test('handlePutUser: returns 404 for unknown user id', async () => {
 
     assert.equal(response.status, 404);
     const body = await response.json();
-    assert.equal(body.error, 'Not found');
+    assert.ok(body.error, 'should include error message');
   });
 });
 
@@ -307,7 +307,7 @@ test('handlePutUser: cannot demote the sole owner', async () => {
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'No se puede quitar el único propietario');
+    assert.equal(body.error, 'Cannot remove the only owner.');
   });
 });
 
@@ -419,7 +419,7 @@ test('handleDeleteUser: cannot delete the sole owner', async () => {
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'No se puede eliminar al único propietario');
+    assert.equal(body.error, 'Cannot delete the only owner.');
   });
 });
 

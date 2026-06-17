@@ -6,6 +6,7 @@ Licensed under the Business Source License 1.1
 import Sortable from 'sortablejs';
 import type { Menu, MenuItem, MenusData } from '../../../types/index.js';
 import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, getActiveContentLocale, openDialog, showAlert, showConfirm, showToast } from './common.js';
+import { ct } from '../i18n/client.js';
 
 const SELECTOR_REGEX = /^[a-zA-Z0-9_-]+$/;
 const dragHandleSvg =
@@ -78,7 +79,7 @@ export function initMenusEditor(): void {
 
   function validatePaths(items: MenuItem[]): string | null {
     for (const item of items) {
-      if (!item.path?.trim()) return 'La ruta es obligatoria en todos los elementos.';
+      if (!item.path?.trim()) return ct('errors.menuPathRequired');
       if (Array.isArray(item.children)) {
         const childError = validatePaths(item.children);
         if (childError) return childError;
@@ -136,16 +137,16 @@ export function initMenusEditor(): void {
   }
 
   function renderMenuSummary(name: string, path: string, emptyLabel: string): string {
-    return `<div class="cms-menu-card-copy"><strong>${escapeHtml(name || emptyLabel)}</strong><span>${escapeHtml(path || 'Define una ruta')}</span></div>`;
+    return `<div class="cms-menu-card-copy"><strong>${escapeHtml(name || emptyLabel)}</strong><span>${escapeHtml(path || ct('menus.defineRoute'))}</span></div>`;
   }
 
   function renderChildRow(itemIndex: number, childIndex: number, child: MenuItem): string {
     return (
       `<div class="menu-child-row" data-item-index="${itemIndex}" data-child-index="${childIndex}">` +
       renderMenuDragHandle() +
-      renderMenuTextInput('menu-child-name', 'Nombre del submenú', 'Nombre del submenú', child.name ?? '', true) +
-      renderMenuTextInput('menu-child-path', 'Ruta del submenú', '/ruta', child.path ?? '', true) +
-      renderMenuDeleteButton('menu-child-delete', 'Eliminar') +
+      renderMenuTextInput('menu-child-name', ct('menus.submenuNameLabel'), ct('menus.submenuNameLabel'), child.name ?? '', true) +
+      renderMenuTextInput('menu-child-path', ct('menus.submenuPathLabel'), '/ruta', child.path ?? '', true) +
+      renderMenuDeleteButton('menu-child-delete', ct('common.delete')) +
       '</div>'
     );
   }
@@ -159,23 +160,23 @@ export function initMenusEditor(): void {
       '<div class="cms-menu-card-header">' +
       '<div class="cms-menu-card-title">' +
       renderMenuDragHandle() +
-      renderMenuSummary(item.name ?? '', item.path ?? '', 'Elemento de menú') +
-      `<span class="cms-menu-card-summary-badge">${childrenCount} sub${childrenCount === 1 ? 'menú' : 'menús'}</span>` +
+      renderMenuSummary(item.name ?? '', item.path ?? '', ct('menus.menuItem')) +
+      `<span class="cms-menu-card-summary-badge">${childrenCount === 1 ? ct('menus.submenuBadgeSingular', { count: childrenCount }) : ct('menus.submenuBadgePlural', { count: childrenCount })}</span>` +
       '</div>' +
       '<div class="cms-menu-card-actions">' +
-      `<button type="button" class="cms-menu-card-toggle" data-item-index="${itemIndex}" aria-expanded="${isOpen ? 'true' : 'false'}" aria-label="${isOpen ? 'Contraer' : 'Expandir'}">${isOpen ? chevronUpSvg : chevronDownSvg}</button>` +
-      renderMenuDeleteButton('menu-item-delete', 'Eliminar', 'data-item-index', itemIndex) +
+      `<button type="button" class="cms-menu-card-toggle" data-item-index="${itemIndex}" aria-expanded="${isOpen ? 'true' : 'false'}" aria-label="${isOpen ? ct('common.collapse') : ct('common.expand')}">${isOpen ? chevronUpSvg : chevronDownSvg}</button>` +
+      renderMenuDeleteButton('menu-item-delete', ct('common.delete'), 'data-item-index', itemIndex) +
       '</div>' +
       '</div>' +
       `<div class="cms-menu-card-body${isOpen ? '' : ' cms-hidden'}">` +
       '<div class="cms-menu-card-inline-fields">' +
-      renderMenuTextInput('menu-item-name', 'Nombre del elemento', 'Nombre del elemento', item.name ?? '', true) +
-      renderMenuTextInput('menu-item-path', 'Ruta del elemento', '/ruta', item.path ?? '', true) +
+      renderMenuTextInput('menu-item-name', ct('menus.itemNameLabel'), ct('menus.itemNameLabel'), item.name ?? '', true) +
+      renderMenuTextInput('menu-item-path', ct('menus.itemPathLabel'), '/ruta', item.path ?? '', true) +
       '</div>' +
       '<div class="cms-menu-card-children">' +
       '<div class="cms-menu-card-children-head">' +
-      `<span class="cms-menu-card-children-title">Submenús ${localeHintHtml()}</span>` +
-      `<button type="button" class="cms-btn cms-btn-secondary menu-add-child-btn" data-item-index="${itemIndex}">Añadir submenú</button>` +
+      `<span class="cms-menu-card-children-title">${ct('menus.submenusTitle')} ${localeHintHtml()}</span>` +
+      `<button type="button" class="cms-btn cms-btn-secondary menu-add-child-btn" data-item-index="${itemIndex}">${ct('menus.addSubmenu')}</button>` +
       '</div>' +
       `<div class="menu-children-list" id="menu-children-${itemIndex}">${childrenHtml}</div>` +
       '</div>' +
@@ -296,7 +297,7 @@ export function initMenusEditor(): void {
     setSelectorHint(false, '');
     setError('');
     renderBuilder();
-    setFormTitle('Nuevo menú', 'Crear');
+    setFormTitle(ct('menus.newMenuForm'), ct('common.create'));
     openDialog(dialog);
   }
 
@@ -318,7 +319,7 @@ export function initMenusEditor(): void {
     setSelectorHint(false, '');
     setError('');
     renderBuilder();
-    setFormTitle('Editar menú', 'Guardar');
+    setFormTitle(ct('menus.editMenuForm'), ct('common.save'));
     openDialog(dialog);
   }
 
@@ -335,14 +336,14 @@ export function initMenusEditor(): void {
     menusTableBody.innerHTML = list
       .map((menu) => (
         `<tr class="cms-menu-row" data-id="${escapeHtml(menu.id)}">` +
-        `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-menu-edit" data-id="${escapeHtml(menu.id)}" aria-label="Editar">${pencilSvg}</button></td>` +
-        `<td><button type="button" class="cms-table-link cms-menu-open" data-id="${escapeHtml(menu.id)}">${escapeHtml(menu.name || 'Menú')}</button></td>` +
+        `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-menu-edit" data-id="${escapeHtml(menu.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
+        `<td><button type="button" class="cms-table-link cms-menu-open" data-id="${escapeHtml(menu.id)}">${escapeHtml(menu.name || ct('menus.modalTitle'))}</button></td>` +
         `<td class="cms-table-cell-monospace">${escapeHtml(menu.selector)}</td>` +
-        `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-menu-delete" data-id="${escapeHtml(menu.id)}" aria-label="Eliminar">${trashSvg}</button></td>` +
+        `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-menu-delete" data-id="${escapeHtml(menu.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
         '</tr>'
       ))
       .join('');
-    if (menusCount) menusCount.textContent = `${list.length} menús`;
+    if (menusCount) menusCount.textContent = ct('menus.count', { count: list.length });
     menusEmpty?.classList.toggle('cms-hidden', list.length > 0);
   }
 
@@ -367,11 +368,11 @@ export function initMenusEditor(): void {
 
     setError('');
     if (!selector) {
-      setSelectorHint(false, 'El selector es obligatorio.');
+      setSelectorHint(false, ct('errors.menuSelectorRequired'));
       return;
     }
     if (!SELECTOR_REGEX.test(selector)) {
-      setSelectorHint(false, 'Solo letras, numeros, guiones y guiones bajos (sin espacios).');
+      setSelectorHint(false, ct('errors.invalidMenuSelector'));
       return;
     }
 
@@ -383,7 +384,7 @@ export function initMenusEditor(): void {
     }
 
     const id = idInput?.value.trim() || '';
-    const payload = { name: name || 'Menú', selector, items: currentMenu.items, locale: getActiveContentLocale('') || undefined };
+    const payload = { name: name || ct('menus.modalTitle'), selector, items: currentMenu.items, locale: getActiveContentLocale('') || undefined };
 
     try {
       await fetchOk(id ? `/cms/api/menus/${encodeURIComponent(id)}` : '/cms/api/menus', {
@@ -393,14 +394,14 @@ export function initMenusEditor(): void {
       });
       closeDialog(dialog);
       await refreshMenus();
-      showToast(id ? 'Menú actualizado correctamente.' : 'Menú creado correctamente.', 'success', 'Menús');
+      showToast(id ? ct('menus.saved') : ct('menus.saved'), 'success', ct('nav.menus'));
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Error al guardar.');
+      setError(error instanceof Error ? error.message : ct('pageEditor.saveError'));
     }
   }
 
   async function deleteMenu(id: string): Promise<void> {
-    const ok = await showConfirm('¿Eliminar este menú?', 'Eliminar');
+    const ok = await showConfirm(ct('menus.deleteConfirm', { selector: id }), ct('common.delete'));
     if (!ok) return;
 
     try {
@@ -408,11 +409,11 @@ export function initMenusEditor(): void {
         method: 'DELETE',
         headers: authHeaders(false),
       });
-      if (response.status !== 204) throw new Error('Error al eliminar');
+      if (response.status !== 204) throw new Error(ct('pageEditor.pageDeleteError'));
       await refreshMenus();
-      showToast('Menú eliminado correctamente.', 'success', 'Menús');
+      showToast(ct('menus.deleted'), 'success', ct('nav.menus'));
     } catch {
-      await showAlert('Error al eliminar', 'Error');
+      await showAlert(ct('pageEditor.pageDeleteError'), ct('dialog.defaultErrorTitle'));
     }
   }
 
@@ -422,7 +423,7 @@ export function initMenusEditor(): void {
       setSelectorHint(false, '');
       return;
     }
-    setSelectorHint(SELECTOR_REGEX.test(value), SELECTOR_REGEX.test(value) ? '' : 'Solo letras, numeros, guiones y guiones bajos (sin espacios).');
+    setSelectorHint(SELECTOR_REGEX.test(value), SELECTOR_REGEX.test(value) ? '' : ct('errors.invalidMenuSelector'));
   });
 
   addItemBtn?.addEventListener('click', () => {

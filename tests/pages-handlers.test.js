@@ -134,7 +134,7 @@ test('handlePostPages returns 400 on duplicate slug', async () => {
     );
 
     assert.equal(duplicate.status, 400);
-    assert.equal((await duplicate.json()).error, 'Ya existe una página con ese slug para este idioma.');
+    assert.equal((await duplicate.json()).error, 'A page with that slug already exists for this language.');
   });
 });
 
@@ -185,7 +185,9 @@ test('handlePostPages returns 400 when blocks fail schema prop validation', asyn
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.match(body.error, /campo "Title" es obligatorio/);
+    // T1.1: block-validation now returns messageKey-based messages localized per request locale.
+    // Default request (no cookie, no Accept-Language) resolves to English.
+    assert.match(body.error, /field "Title" is required/);
   });
 });
 
@@ -293,7 +295,7 @@ test('handlePutPage returns 400 on duplicate slug during update', async () => {
     );
 
     assert.equal(conflict.status, 400);
-    assert.equal((await conflict.json()).error, 'Ya existe una página con ese slug para este idioma.');
+    assert.equal((await conflict.json()).error, 'A page with that slug already exists for this language.');
   });
 });
 

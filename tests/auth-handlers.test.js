@@ -113,7 +113,7 @@ test('handleLogin: bad password returns 401', async () => {
 
     assert.equal(response.status, 401);
     const body = await response.json();
-    assert.equal(body.error, 'Invalid credentials');
+    assert.equal(body.error, 'Invalid credentials.');
   });
 });
 
@@ -139,7 +139,7 @@ test('handleLogin: unknown email after users exist returns 401', async () => {
 
     assert.equal(response.status, 401);
     const body = await response.json();
-    assert.equal(body.error, 'Invalid credentials');
+    assert.equal(body.error, 'Invalid credentials.');
   });
 });
 
@@ -155,7 +155,7 @@ test('handleLogin: missing email or password returns 400', async () => {
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'Email and password required');
+    assert.equal(body.error, 'Email and password are required.');
   });
 });
 

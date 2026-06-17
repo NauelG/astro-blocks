@@ -25,6 +25,7 @@ import {
   getActiveContentLocale,
   showToast,
 } from './common.js';
+import { ct } from '../i18n/client.js';
 import { mountBlockForm, type BlockFormHandle } from './block-form.js';
 
 interface GlobalBlockResponse {
@@ -83,7 +84,7 @@ export function initGlobalBlocksEditor(): void {
     formHandle?.destroy();
     formHandle = null;
 
-    if (modalTitle) modalTitle.textContent = `Editar: ${label}`;
+    if (modalTitle) modalTitle.textContent = ct('globalBlocks.editTitle', { label });
 
     // Parallel fetch: stored entry (projected for active locale) + all block schemas
     const [entryResponse, schemas] = await Promise.all([
@@ -104,7 +105,7 @@ export function initGlobalBlocksEditor(): void {
 
     const schema = schemas[schemaName];
     if (!schema?.items) {
-      setError(`No se encontró el esquema para "${schemaName}". Verificá la configuración.`);
+      setError(ct('globalBlocks.schemaNotFound', { name: schemaName }));
       dlg.showModal();
       return;
     }
@@ -174,13 +175,13 @@ export function initGlobalBlocksEditor(): void {
         formHandle?.destroy();
         formHandle = null;
         dlg.close();
-        showToast('Bloque global guardado correctamente.', 'success', 'Bloques globales');
+        showToast(ct('globalBlocks.saved'), 'success', ct('globalBlocks.savedTitle'));
       } else {
         const body = await res.json().catch(() => ({})) as { error?: string };
-        setError(body.error || `Error ${res.status} al guardar.`);
+        setError(body.error || ct('pageEditor.saveError'));
       }
     } catch {
-      setError('Error de red al guardar. Revisá la conexión.');
+      setError(ct('globalBlocks.networkError'));
     }
   }
 

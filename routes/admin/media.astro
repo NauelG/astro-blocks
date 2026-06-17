@@ -9,10 +9,17 @@ export const prerender = false;
 import AdminLayout from './layout.astro';
 import { Image as ImageIcon } from '@lucide/astro';
 import { loadMedia, loadSite } from '../../api/data.js';
+import { resolveUiLocale } from './i18n/resolve.js';
+import { createT } from './i18n/t.js';
 
 const site = await loadSite();
 const mediaData = await loadMedia();
 const uploads = mediaData.uploads;
+const uiLocale = resolveUiLocale({
+  cookie: Astro.request.headers.get('cookie'),
+  acceptLanguage: Astro.request.headers.get('accept-language'),
+});
+const t = createT(uiLocale);
 
 // NOTE: formatBytes, formatDimensions and formatMediaDate are intentionally
 // duplicated from routes/admin/client/media-fetch.ts. SSR (Astro frontmatter)
@@ -42,16 +49,16 @@ function formatMediaDate(isoString: string): string {
 }
 ---
 
-<AdminLayout site={site} title="Media">
+<AdminLayout site={site} title={t('media.title')}>
   <div class="cms-stack">
     <div class="cms-page-intro">
       <div class="cms-page-intro-copy">
-        <span class="cms-page-eyebrow">Contenido</span>
+        <span class="cms-page-eyebrow">{t('media.eyebrow')}</span>
         <div class="cms-page-header">
-          <h1 class="cms-title">Media</h1>
+          <h1 class="cms-title">{t('media.title')}</h1>
         </div>
         <p class="cms-page-lead">
-          Upload and manage images for your site. Accepted formats: JPG, PNG, WebP, SVG, GIF.
+          {t('media.lead')}
         </p>
       </div>
     </div>
@@ -62,25 +69,25 @@ function formatMediaDate(isoString: string): string {
         class="cms-dropzone"
         id="cms-media-dropzone"
         role="region"
-        aria-label="Image upload drop zone"
+        aria-label={t('media.dropzoneAriaLabel')}
       >
         <ImageIcon size={32} aria-hidden="true" class="cms-dropzone-icon" />
-        <p class="cms-dropzone-label">Drag &amp; drop images here</p>
-        <p class="cms-muted cms-dropzone-hint">or use the button below</p>
+        <p class="cms-dropzone-label">{t('media.dropzoneLabel')}</p>
+        <p class="cms-muted cms-dropzone-hint">{t('media.dropzoneHint')}</p>
         <button
           type="button"
           id="cms-media-upload-btn"
           class="cms-btn cms-btn-secondary"
-          aria-label="Choose image to upload"
+          aria-label={t('media.chooseImageAriaLabel')}
         >
-          Choose image
+          {t('media.chooseImage')}
         </button>
         <input
           type="file"
           id="cms-media-file-input"
           accept="image/*"
           class="cms-hidden"
-          aria-label="Upload image file"
+          aria-label={t('media.fileInputAriaLabel')}
           multiple
         />
       </div>
@@ -88,22 +95,22 @@ function formatMediaDate(isoString: string): string {
     </div>
 
     <!-- Search + pagination controls (client-driven; hidden until JS loads) -->
-    <div class="cms-media-toolbar cms-hidden" id="cms-media-toolbar" aria-label="Media search and pagination">
+    <div class="cms-media-toolbar cms-hidden" id="cms-media-toolbar" aria-label={t('media.searchAriaLabel')}>
       <div class="cms-media-toolbar-search">
-        <label for="cms-media-search" class="cms-visually-hidden">Search images by filename</label>
+        <label for="cms-media-search" class="cms-visually-hidden">{t('media.searchLabel')}</label>
         <input
           type="search"
           id="cms-media-search"
           class="cms-input cms-media-search-input"
-          placeholder="Search by filename…"
+          placeholder={t('media.searchPlaceholder')}
           autocomplete="off"
-          aria-label="Search images by filename"
+          aria-label={t('media.searchAriaLabel')}
         />
       </div>
       <div class="cms-media-toolbar-pagination">
-        <button type="button" id="cms-media-prev" class="cms-btn cms-btn-secondary" aria-label="Previous page" disabled>Prev</button>
+        <button type="button" id="cms-media-prev" class="cms-btn cms-btn-secondary" aria-label={t('media.prevPage')} disabled>{t('media.prevBtn')}</button>
         <span id="cms-media-page-indicator" class="cms-media-page-indicator cms-muted" aria-live="polite" aria-atomic="true"></span>
-        <button type="button" id="cms-media-next" class="cms-btn cms-btn-secondary" aria-label="Next page" disabled>Next</button>
+        <button type="button" id="cms-media-next" class="cms-btn cms-btn-secondary" aria-label={t('media.nextPage')} disabled>{t('media.nextBtn')}</button>
       </div>
       <p role="status" aria-live="polite" id="cms-media-count" class="cms-media-count cms-muted"></p>
     </div>
@@ -113,11 +120,11 @@ function formatMediaDate(isoString: string): string {
       {uploads.length === 0 ? (
         <div id="cms-media-empty-state" class="cms-media-empty-state">
           <ImageIcon size={40} aria-hidden="true" class="cms-media-empty-icon" />
-          <p class="cms-media-empty-title">No images uploaded yet</p>
-          <p class="cms-muted">Upload your first image using the area above.</p>
+          <p class="cms-media-empty-title">{t('media.empty.title')}</p>
+          <p class="cms-muted">{t('media.empty.text')}</p>
         </div>
       ) : (
-        <div id="cms-media-grid" class="cms-media-grid" aria-label="Image library" role="list">
+        <div id="cms-media-grid" class="cms-media-grid" aria-label={t('media.imageLibraryAriaLabel')} role="list">
           {uploads.map((entry) => (
             <div class="cms-media-card" role="listitem" data-media-url={entry.url} data-media-id={entry.id}>
               <div class="cms-media-card-thumb">
@@ -130,7 +137,7 @@ function formatMediaDate(isoString: string): string {
               </div>
               <div class="cms-media-card-info">
                 <span class="cms-media-card-name" title={entry.filename}>{entry.filename}</span>
-                <div class="cms-media-card-meta cms-muted" aria-label="Image metadata">
+                <div class="cms-media-card-meta cms-muted" aria-label={t('media.imageMetaAriaLabel')}>
                   {formatDimensions(entry.width, entry.height) !== '—' && (
                     <>
                       <span class="cms-media-card-meta-dim">{formatDimensions(entry.width, entry.height)}</span>
@@ -148,18 +155,18 @@ function formatMediaDate(isoString: string): string {
                 <button
                   type="button"
                   class="cms-media-card-replace cms-btn-icon"
-                  aria-label={`Replace ${entry.filename}`}
+                  aria-label={`${t('media.replaceLabel')} ${entry.filename}`}
                   data-replace-id={entry.id}
                   data-replace-filename={entry.filename}
                   data-replace-mime={entry.mimeType}
-                  title={`Replace ${entry.filename}`}
+                  title={`${t('media.replaceLabel')} ${entry.filename}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                 </button>
                 <button
                   type="button"
                   class="cms-media-card-delete cms-btn-icon"
-                  aria-label={`Delete ${entry.filename}`}
+                  aria-label={`${t('media.deleteLabel')} ${entry.filename}`}
                   data-delete-url={entry.url}
                   data-delete-filename={entry.filename}
                   data-delete-id={entry.id}

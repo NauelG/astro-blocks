@@ -14,6 +14,8 @@ import AlertDialog from './components/AlertDialog.astro';
 import pkg from '../../package.json' with { type: 'json' };
 import blocksLogo from '../../img/blocks_logo.jpg';
 import faviconUrl from '../../img/favicon.ico?url';
+import { resolveUiLocale } from './i18n/resolve.js';
+import { createT } from './i18n/t.js';
 const { site = {}, title = 'AstroBlocks' } = Astro.props;
 const cmsVersion = pkg.version;
 const primary = site.primaryColor || '#2C53B8';
@@ -23,10 +25,17 @@ function isActive(href: string) {
   if (href === '/cms') return currentPath === '/cms' || currentPath === '/cms/';
   return currentPath.startsWith(href);
 }
+// Server-side UI locale resolution (REQ-2.1, REQ-3.1)
+// Precedence: cms-ui-locale cookie > Accept-Language header > 'en' fallback
+const uiLocale = resolveUiLocale({
+  cookie: Astro.request.headers.get('cookie'),
+  acceptLanguage: Astro.request.headers.get('accept-language'),
+});
+const t = createT(uiLocale);
 ---
 
 <!doctype html>
-<html lang="en" data-theme="light" style="color-scheme: light;">
+<html lang={uiLocale} data-theme="light" style="color-scheme: light;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
@@ -40,7 +49,7 @@ function isActive(href: string) {
       <div id="login-form" class="cms-hidden cms-login-wrap">
         <div class="cms-login-card cms-card cms-animate-in">
           <div id="cms-auth-logo" class="cms-auth-logo"></div>
-          <p id="cms-auth-loading" class="cms-muted">Cargando…</p>
+          <p id="cms-auth-loading" class="cms-muted">{t('auth.loading')}</p>
           <div id="cms-auth-forms" class="cms-hidden">
             <p id="cms-auth-message" class="cms-muted"></p>
             <form id="cms-login-form" class="cms-login-fields" method="post" action="#" autocomplete="off">
@@ -48,7 +57,7 @@ function isActive(href: string) {
                 type="email"
                 id="cms-email-input"
                 name="email"
-                placeholder="Email"
+                placeholder={t('auth.emailPlaceholder')}
                 class="cms-input"
                 autocomplete="username"
               />
@@ -56,12 +65,12 @@ function isActive(href: string) {
                 type="password"
                 id="cms-password-input"
                 name="password"
-                placeholder="Contraseña"
+                placeholder={t('auth.passwordPlaceholder')}
                 class="cms-input"
                 autocomplete="current-password"
               />
               <button type="submit" id="cms-login-btn" class="cms-btn cms-btn-primary">
-                <span id="cms-submit-label">Entrar</span>
+                <span id="cms-submit-label">{t('auth.enterLabel')}</span>
               </button>
             </form>
           </div>
@@ -76,7 +85,7 @@ function isActive(href: string) {
                 type="button"
                 class="cms-topbar-nav-toggle"
                 id="cms-sidebar-toggle"
-                aria-label="Abrir navegación"
+                aria-label={t('nav.openNav')}
                 aria-expanded="false"
                 aria-controls="cms-sidebar"
               >
@@ -95,20 +104,20 @@ function isActive(href: string) {
             </div>
             <div class="cms-topbar-actions">
               <div class="cms-topbar-locale">
-                <label for="cms-content-locale-select" class="cms-hidden">Idioma de contenido</label>
-                <select id="cms-content-locale-select" aria-label="Idioma de contenido">
-                  <option value="">Cargando…</option>
+                <label for="cms-content-locale-select" class="cms-hidden">{t('topbar.contentLanguage')}</label>
+                <select id="cms-content-locale-select" aria-label={t('topbar.contentLanguage')}>
+                  <option value="">{t('topbar.contentLanguageLoading')}</option>
                 </select>
               </div>
               {site.baseUrl && (
                 <a href={site.baseUrl} target="_blank" rel="noopener noreferrer" class="cms-btn cms-btn-secondary cms-topbar-site-link">
                   <ExternalLink size={13} />
-                  <span>Ver sitio</span>
+                  <span>{t('nav.viewSite')}</span>
                 </a>
               )}
             </div>
             <div class="cms-topbar-profile">
-              <button type="button" class="cms-topbar-profile-trigger" id="cms-profile-trigger" aria-haspopup="true" aria-expanded="false" aria-label="Menú de usuario">
+              <button type="button" class="cms-topbar-profile-trigger" id="cms-profile-trigger" aria-haspopup="true" aria-expanded="false" aria-label={t('topbar.userMenu')}>
                 <User class="cms-topbar-profile-icon" size={14} />
               </button>
             </div>
@@ -120,58 +129,58 @@ function isActive(href: string) {
             <div class="cms-sidebar-brand">
               <Image src={blocksLogo} width={32} height={32} alt="" class="cms-sidebar-brand-logo" />
               <div class="cms-sidebar-brand-copy">
-                <span class="cms-sidebar-brand-eyebrow">Content platform</span>
+                <span class="cms-sidebar-brand-eyebrow">{t('nav.contentPlatform')}</span>
               </div>
             </div>
-            <nav class="cms-nav" aria-label="Panel">
+            <nav class="cms-nav" aria-label={t('nav.dashboard')}>
               <a href="/cms" class={`cms-nav-link ${isActive('/cms') ? 'cms-nav-link--active' : ''}`}>
                 <LayoutDashboard class="cms-nav-icon" size={16} />
-                <span>Dashboard</span>
+                <span>{t('nav.dashboard')}</span>
               </a>
               <div class="cms-nav-group">
-                <span class="cms-nav-group-title">Contenido</span>
+                <span class="cms-nav-group-title">{t('nav.content')}</span>
                 <a href="/cms/pages" class={`cms-nav-link ${isActive('/cms/pages') ? 'cms-nav-link--active' : ''}`}>
                   <FileText class="cms-nav-icon" size={16} />
-                  <span>Páginas</span>
+                  <span>{t('nav.pages')}</span>
                 </a>
                 <a href="/cms/media" class={`cms-nav-link ${isActive('/cms/media') ? 'cms-nav-link--active' : ''}`}>
                   <ImageIcon class="cms-nav-icon" size={16} />
-                  <span>Media</span>
+                  <span>{t('nav.media')}</span>
                 </a>
                 <a href="/cms/redirects" class={`cms-nav-link ${isActive('/cms/redirects') ? 'cms-nav-link--active' : ''}`}>
                   <ArrowRightLeft class="cms-nav-icon" size={16} />
-                  <span>Redirecciones</span>
+                  <span>{t('nav.redirects')}</span>
                 </a>
                 <a href="/cms/menus" class={`cms-nav-link ${isActive('/cms/menus') ? 'cms-nav-link--active' : ''}`}>
                   <Menu class="cms-nav-icon" size={16} />
-                  <span>Menús</span>
+                  <span>{t('nav.menus')}</span>
                 </a>
                 <a href="/cms/global-blocks" class={`cms-nav-link ${isActive('/cms/global-blocks') ? 'cms-nav-link--active' : ''}`}>
                   <Globe class="cms-nav-icon" size={16} />
-                  <span>Bloques globales</span>
+                  <span>{t('nav.globalBlocks')}</span>
                 </a>
               </div>
               <div class="cms-nav-group">
-                <span class="cms-nav-group-title">Configuración</span>
+                <span class="cms-nav-group-title">{t('nav.configuration')}</span>
                 <a href="/cms/settings" class={`cms-nav-link ${isActive('/cms/settings') ? 'cms-nav-link--active' : ''}`} data-cms-owner-only>
                   <Settings class="cms-nav-icon" size={16} />
-                  <span>Ajustes</span>
+                  <span>{t('nav.settings')}</span>
                 </a>
                 <a href="/cms/configs" class={`cms-nav-link ${isActive('/cms/configs') ? 'cms-nav-link--active' : ''}`}>
                   <KeyRound class="cms-nav-icon" size={16} />
-                  <span>Parámetros</span>
+                  <span>{t('nav.configs')}</span>
                 </a>
                 <a href="/cms/users" class={`cms-nav-link ${isActive('/cms/users') ? 'cms-nav-link--active' : ''}`} data-cms-owner-only>
                   <Users class="cms-nav-icon" size={16} />
-                  <span>Usuarios</span>
+                  <span>{t('nav.users')}</span>
                 </a>
                 <a href="/cms/languages" class={`cms-nav-link ${isActive('/cms/languages') ? 'cms-nav-link--active' : ''}`} data-cms-owner-only>
                   <Languages class="cms-nav-icon" size={16} />
-                  <span>Idiomas</span>
+                  <span>{t('nav.languages')}</span>
                 </a>
                 <a href="/cms/cache" class={`cms-nav-link ${isActive('/cms/cache') ? 'cms-nav-link--active' : ''}`}>
                   <RefreshCw class="cms-nav-icon" size={16} />
-                  <span>Caché</span>
+                  <span>{t('nav.cache')}</span>
                 </a>
               </div>
             </nav>
@@ -187,27 +196,67 @@ function isActive(href: string) {
         </footer>
       </div>
     </div>
-    <ConfirmDialog />
-    <AlertDialog />
+    <ConfirmDialog
+      defaultTitle={t('dialog.defaultConfirmTitle')}
+      defaultConfirmLabel={t('common.delete')}
+      defaultCancelLabel={t('common.cancel')}
+    />
+    <AlertDialog
+      defaultTitle={t('dialog.defaultAlertTitle')}
+      defaultOkLabel={t('dialog.defaultOkLabel')}
+    />
     <div class="cms-topbar-dropdown" id="cms-profile-dropdown" role="menu">
       <div class="cms-topbar-dropdown-label">
         <span class="cms-topbar-dropdown-label-title">{site.siteName || 'AstroBlocks'}</span>
-        <span class="cms-topbar-dropdown-label-text" id="cms-profile-email">Sesión del panel</span>
+        <span class="cms-topbar-dropdown-label-text" id="cms-profile-email">{t('auth.sessionLabel')}</span>
       </div>
       <div class="cms-topbar-dropdown-divider"></div>
+      <!-- UI Language Switcher (Task 2.3, REQ-9) — distinct from #cms-content-locale-select (HARD WALL) -->
       <div class="cms-field cms-topbar-dropdown-locale-field">
-        <label for="cms-ui-locale-select" class="cms-topbar-dropdown-locale-label">Idioma del panel</label>
-        <select id="cms-ui-locale-select" aria-label="Idioma del panel">
-          <option value="es">Español</option>
+        <label for="cms-ui-locale-select" class="cms-topbar-dropdown-locale-label">{t('topbar.uiLanguage')}</label>
+        <!--
+          Native <select> enhanced by the existing enhanceSelect machinery.
+          Options use language endonyms (shown in their own language, per i18n convention).
+          The `selected` attribute reflects the SSR-resolved active locale (REQ-9.5).
+        -->
+        <select id="cms-ui-locale-select" aria-label={t('topbar.uiLanguage')}>
+          <option value="en" selected={uiLocale === 'en'}>English</option>
+          <option value="es" selected={uiLocale === 'es'}>Español</option>
         </select>
       </div>
       <div class="cms-topbar-dropdown-divider"></div>
       <button type="button" class="cms-topbar-dropdown-item" id="cms-logout-btn" data-profile-action="logout" role="menuitem">
         <LogOut class="cms-topbar-dropdown-icon" size={14} />
-        <span>Salir</span>
+        <span>{t('topbar.signOut')}</span>
       </button>
     </div>
     <div id="cms-toast-region" class="cms-toast-region" aria-live="polite" aria-atomic="true"></div>
+    <!-- T1.3: Auth i18n bridge MUST come before the auth script that reads it.
+         Classic scripts execute in source order — the bridge must be declared first
+         so window.__cmsAuthI18n is populated when the auth IIFE runs. -->
+    <script define:vars={{
+      _authLoading: t('auth.loading'),
+      _authSignIn: t('auth.signIn'),
+      _authCreateFirstUser: t('auth.createFirstUser'),
+      _authEnterLabel: t('auth.enterLabel'),
+      _authCreateAccountLabel: t('auth.createAccountLabel'),
+      _authEmailPasswordRequired: t('auth.emailPasswordRequired'),
+      _authLoginError: t('auth.loginError'),
+      _authSessionLabel: t('auth.sessionLabel'),
+      _authRoleOwner: t('users.roleOwner'),
+    }}>
+      window.__cmsAuthI18n = {
+        loading: _authLoading,
+        signIn: _authSignIn,
+        createFirstUser: _authCreateFirstUser,
+        enterLabel: _authEnterLabel,
+        createAccountLabel: _authCreateAccountLabel,
+        emailPasswordRequired: _authEmailPasswordRequired,
+        loginError: _authLoginError,
+        sessionLabel: _authSessionLabel,
+        roleOwner: _authRoleOwner,
+      };
+    </script>
     <script>
       (function() {
         if (typeof document === 'undefined') return;
@@ -223,13 +272,14 @@ function isActive(href: string) {
         const passwordInput = document.getElementById('cms-password-input');
         const loginError = document.getElementById('cms-login-error');
         const profileEmail = document.getElementById('cms-profile-email');
+        const _i18n = (window as unknown as { __cmsAuthI18n?: Record<string, string> }).__cmsAuthI18n || {};
         function setProfileEmail(user: { email?: string; role?: string } | null) {
           if (!profileEmail) return;
           if (!user?.email) {
-            profileEmail.textContent = 'Sesión del panel';
+            profileEmail.textContent = _i18n.sessionLabel || 'Panel session';
             return;
           }
-          profileEmail.textContent = user.role === 'owner' ? `${user.email} · Owner` : user.email;
+          profileEmail.textContent = user.role === 'owner' ? `${user.email} · ${_i18n.roleOwner || 'Owner'}` : user.email;
         }
         function show(hasToken: boolean) {
           if (loginForm) loginForm.classList.toggle('cms-hidden', hasToken);
@@ -256,10 +306,10 @@ function isActive(href: string) {
           }
           if (authMessage) {
             authMessage.textContent = hasUsers
-              ? 'Inicia sesión con tu email y contraseña.'
-              : 'Crea la cuenta del primer usuario (propietario).';
+              ? (_i18n.signIn || 'Sign in with your email and password.')
+              : (_i18n.createFirstUser || 'Create the first user account (owner).');
           }
-          if (submitLabel) submitLabel.textContent = hasUsers ? 'Entrar' : 'Crear cuenta';
+          if (submitLabel) submitLabel.textContent = hasUsers ? (_i18n.enterLabel || 'Sign in') : (_i18n.createAccountLabel || 'Create account');
           if (authLoading) authLoading.classList.add('cms-hidden');
           if (authForms) authForms.classList.remove('cms-hidden');
         }
@@ -301,7 +351,7 @@ function isActive(href: string) {
             const password = (passwordInput as HTMLInputElement).value;
             setLoginError('');
             if (!email || !password) {
-              setLoginError('Email y contraseña obligatorios.');
+              setLoginError(_i18n.emailPasswordRequired || 'Email and password are required.');
               return;
             }
             const res = await fetch('/cms/api/auth/login', {
@@ -311,7 +361,7 @@ function isActive(href: string) {
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
-              setLoginError(data.error || 'Error al iniciar sesión.');
+              setLoginError(data.error || _i18n.loginError || 'Sign-in error.');
               return;
             }
             try {
@@ -322,6 +372,28 @@ function isActive(href: string) {
           });
         }
       })();
+    </script>
+    <!-- Task 2.4: Emit SSR-resolved uiLocale to client via window bridge (Design Decision #3) -->
+    <script define:vars={{ uiLocale }}>
+      // Bridge: getCmsUiLocale() returns the SSR-resolved locale for this page.
+      // Client editors call window.getCmsUiLocale?.() via i18n/client.ts getUiLocale()
+      // to ensure they render in the same language as the surrounding SSR page.
+      window.getCmsUiLocale = function() { return uiLocale; };
+
+      // setCmsUiLocale is called by setUiLocale() in i18n/client.ts after it has
+      // already written the cookie AND localStorage. This bridge only updates the
+      // in-memory getter — localStorage is owned exclusively by setUiLocale (single
+      // source of truth, no double-write).
+      window.setCmsUiLocale = function(next) {
+        window.getCmsUiLocale = function() { return next; };
+      };
+    </script>
+    <!-- Bridge: SSR-translated layout UI strings for bundled scripts (Fix 2 & 3) -->
+    <script define:vars={{ _layoutSelectFallback: t('common.select'), _layoutToastNotice: t('dialog.defaultAlertTitle') }}>
+      window.__cmsLayoutI18n = {
+        selectFallback: _layoutSelectFallback,
+        toastNotice: _layoutToastNotice,
+      };
     </script>
     <script>
       (window as unknown as {
@@ -347,29 +419,31 @@ function isActive(href: string) {
       (function() {
         if (typeof document === 'undefined') return;
 
-        const UI_LOCALES = [{ code: 'es', label: 'Español' }];
         const cmsWindow = window as unknown as {
           getCmsToken?: () => string;
           setCmsContentLocale?: (locale: string) => void;
+          setCmsUiLocale?: (locale: string) => void;
           refreshCmsContentLocaleSelector?: () => Promise<void>;
         };
 
+        // UI locale switcher — wired to setUiLocale (cookie + localStorage + reload)
         function initUiLocaleSelector() {
           const select = document.getElementById('cms-ui-locale-select') as HTMLSelectElement | null;
           if (!select) return;
 
-          const allowed = new Set(UI_LOCALES.map((entry) => entry.code));
-          const stored = (() => { try { return sessionStorage.getItem('cms-ui-locale') || ''; } catch (_) { return ''; } })();
-          const selected = allowed.has(stored) ? stored : UI_LOCALES[0].code;
-
-          select.innerHTML = UI_LOCALES.map((entry) => `<option value="${entry.code}">${entry.label}</option>`).join('');
-          select.value = selected;
-          try { sessionStorage.setItem('cms-ui-locale', selected); } catch (_) {}
+          const SUPPORTED = new Set(['en', 'es']);
 
           select.addEventListener('change', () => {
-            const next = select.value;
-            if (!allowed.has(next)) return;
-            try { sessionStorage.setItem('cms-ui-locale', next); } catch (_) {}
+            const next = select.value as string;
+            if (!SUPPORTED.has(next)) return;
+            // Write cookie with correct attributes: Path=/cms, SameSite=Lax, Max-Age=1yr
+            document.cookie = `cms-ui-locale=${encodeURIComponent(next)};path=/cms;max-age=31536000;samesite=Lax`;
+            // Mirror to localStorage (best-effort)
+            try { localStorage.setItem('cms-ui-locale', next); } catch (_) {}
+            // Propagate via window bridge
+            cmsWindow.setCmsUiLocale?.(next);
+            // Full reload: SSR re-resolves and re-renders in the new language
+            location.reload();
           });
         }
 
@@ -473,7 +547,8 @@ function isActive(href: string) {
 
         function setTriggerLabel(entry: ManagedSelect): void {
           const selected = entry.select.options[entry.select.selectedIndex] || entry.select.options[0];
-          entry.label.textContent = selected?.textContent?.trim() || 'Seleccionar';
+          const selectFallback = (window as unknown as { __cmsLayoutI18n?: { selectFallback?: string } }).__cmsLayoutI18n?.selectFallback || 'Select';
+          entry.label.textContent = selected?.textContent?.trim() || selectFallback;
         }
 
         function syncActiveOption(entry: ManagedSelect): void {
@@ -567,6 +642,19 @@ function isActive(href: string) {
           trigger.className = 'cms-select-trigger';
           trigger.setAttribute('aria-haspopup', 'listbox');
           trigger.setAttribute('aria-expanded', 'false');
+          // Fix 3 (a11y): propagate the accessible name from the native <select>
+          // to the trigger button so screen readers can identify the control.
+          // Prefer an explicit aria-label on the <select>; fall back to a <label>
+          // associated via the for/id relationship.
+          const selectAriaLabel = select.getAttribute('aria-label');
+          if (selectAriaLabel) {
+            trigger.setAttribute('aria-label', selectAriaLabel);
+          } else if (select.id) {
+            const associatedLabel = document.querySelector<HTMLLabelElement>(`label[for="${select.id}"]`);
+            if (associatedLabel?.textContent?.trim()) {
+              trigger.setAttribute('aria-label', associatedLabel.textContent.trim());
+            }
+          }
 
           const label = document.createElement('span');
           label.className = 'cms-select-trigger-label';
@@ -708,8 +796,9 @@ function isActive(href: string) {
           toastRegion.innerHTML = '';
           const toast = document.createElement('div');
           toast.className = `cms-toast cms-toast--${options.tone || 'info'}`;
+          const toastNotice = (window as unknown as { __cmsLayoutI18n?: { toastNotice?: string } }).__cmsLayoutI18n?.toastNotice || 'Notice';
           toast.innerHTML =
-            `<strong class="cms-toast-title">${options.title || 'Aviso'}</strong>` +
+            `<strong class="cms-toast-title">${options.title || toastNotice}</strong>` +
             `<p class="cms-toast-message"></p>`;
           const messageEl = toast.querySelector('.cms-toast-message');
           if (messageEl) messageEl.textContent = options.message;
