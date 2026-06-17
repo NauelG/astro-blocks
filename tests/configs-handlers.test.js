@@ -122,7 +122,7 @@ test('config handlers validate key format and case-insensitive duplicates', asyn
     );
 
     assert.equal(duplicate.status, 400);
-    assert.equal((await duplicate.json()).error, 'Ya existe un parámetro con esa clave.');
+    assert.equal((await duplicate.json()).error, 'A parameter with that key already exists.');
 
     const invalidKey = await handlePostConfigs(
       new Request('http://localhost/cms/api/configs', {
@@ -135,7 +135,7 @@ test('config handlers validate key format and case-insensitive duplicates', asyn
     assert.equal(invalidKey.status, 400);
     assert.equal(
       (await invalidKey.json()).error,
-      'La clave debe empezar por una letra y solo puede contener letras, números, punto, guion y guion bajo.'
+      'The key must start with a letter and can only contain letters, numbers, dot, dash, and underscore.'
     );
 
     const second = await handlePostConfigs(
@@ -159,6 +159,6 @@ test('config handlers validate key format and case-insensitive duplicates', asyn
     );
 
     assert.equal(renameConflict.status, 400);
-    assert.equal((await renameConflict.json()).error, 'Ya existe un parámetro con esa clave.');
+    assert.equal((await renameConflict.json()).error, 'A parameter with that key already exists.');
   });
 });

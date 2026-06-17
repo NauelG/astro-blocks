@@ -22,6 +22,7 @@ import {
   showConfirm,
   showToast,
 } from './common.js';
+import { ct } from '../i18n/client.js';
 import { mountBlockForm, type BlockFormHandle, type ArrayLimitInfo } from './block-form.js';
 
 const trashIconSvg =
@@ -166,7 +167,7 @@ export function initPageEditor(): void {
     }
   }
 
-  function setFormTitle(label: string, submitLabel = 'Guardar'): void {
+  function setFormTitle(label: string, submitLabel = ct('common.save')): void {
     if (titleEl) titleEl.textContent = label;
     if (submitBtn) submitBtn.textContent = submitLabel;
   }
@@ -209,23 +210,23 @@ export function initPageEditor(): void {
     imageThumb?.classList.toggle('cms-hidden', !hasImage);
     if (imageThumb && hasImage) {
       imageThumb.src = url;
-      imageThumb.alt = 'Imagen SEO';
+      imageThumb.alt = ct('pageEditor.seoImageAlt');
     }
 
     imageEmpty?.classList.toggle('cms-hidden', hasImage);
     imageRemoveBtn?.classList.toggle('cms-hidden', !hasImage);
-    if (imageUploadBtn) imageUploadBtn.textContent = hasImage ? 'Cambiar' : 'Subir imagen';
+    if (imageUploadBtn) imageUploadBtn.textContent = hasImage ? ct('pageEditor.changeImage') : ct('pageEditor.uploadImage');
   }
 
   function summaryValue(value: unknown): string {
     if (typeof value === 'string') return value.trim();
     if (typeof value === 'number' && !Number.isNaN(value)) return String(value);
-    if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+    if (typeof value === 'boolean') return value ? ct('common.yes') : ct('common.no');
     return '';
   }
 
   function objectArrayItemSummary(def: ObjectArrayItemDef, rawItem: unknown, itemIndex: number): string {
-    if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) return `Elemento ${itemIndex + 1}`;
+    if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) return ct('pageEditor.blockElement', { n: itemIndex + 1 });
 
     const item = rawItem as Record<string, unknown>;
 
@@ -239,20 +240,23 @@ export function initPageEditor(): void {
       if (candidate) return candidate;
     }
 
-    return `Elemento ${itemIndex + 1}`;
+    return ct('pageEditor.blockElement', { n: itemIndex + 1 });
   }
 
   function arraySummary(def: ArrayPropDef, rawValue: unknown): string {
     if (!Array.isArray(rawValue)) return '';
-    if (rawValue.length === 0) return `${def.label}: 0 elementos`;
+    const count = rawValue.length;
+    if (count === 0) return `${def.label}: ${ct('pageEditor.arrayCount', { count: 0 })}`;
 
     if (isPrimitivePropDef(def.item)) {
       const first = summaryValue(rawValue[0]);
-      return first ? `${rawValue.length} elementos · ${first}` : `${rawValue.length} elementos`;
+      return first
+        ? `${ct('pageEditor.arrayCount', { count })} · ${first}`
+        : ct('pageEditor.arrayCount', { count });
     }
 
     const firstObjectSummary = objectArrayItemSummary(def.item, rawValue[0], 0);
-    return `${rawValue.length} elementos · ${firstObjectSummary}`;
+    return `${ct('pageEditor.arrayCount', { count })} · ${firstObjectSummary}`;
   }
 
   function blockSummary(block: BlockInstance): string {
@@ -266,7 +270,7 @@ export function initPageEditor(): void {
       if (values.length >= 2) break;
     }
 
-    return values.length > 0 ? values.join(' · ') : 'Configura las propiedades de este bloque';
+    return values.length > 0 ? values.join(' · ') : ct('pageEditor.configureBlock');
   }
 
   function pageSlugToText(page: Pick<CmsPage, 'slug'>): string {
@@ -319,19 +323,19 @@ export function initPageEditor(): void {
         const slug = pageSlugToText(page);
         return (
           '<tr>' +
-          `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-page-edit" data-id="${escapeHtml(page.id)}" aria-label="Editar">${pencilIconSvg}</button></td>` +
-          `<td>${escapeHtml(page.title || '(sin título)')}</td>` +
+          `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-page-edit" data-id="${escapeHtml(page.id)}" aria-label="${ct('common.edit')}">${pencilIconSvg}</button></td>` +
+          `<td>${escapeHtml(page.title || ct('dashboard.noTitle'))}</td>` +
           `<td class="cms-table-cell-monospace">${escapeHtml(slug)}</td>` +
-          `<td><span class="cms-badge ${isPublished ? 'cms-badge-success' : 'cms-badge-neutral'}">${escapeHtml(isPublished ? 'Publicada' : 'Borrador')}</span></td>` +
-          `<td><span class="cms-indexable-dot cms-indexable-dot--${page.indexable !== false ? 'yes' : 'no'}" role="img" aria-label="${page.indexable !== false ? 'Indexable' : 'No indexable'}"></span></td>` +
-          `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-page-delete" data-id="${escapeHtml(page.id)}" aria-label="Eliminar">${trashIconSvg}</button></td>` +
+          `<td><span class="cms-badge ${isPublished ? 'cms-badge-success' : 'cms-badge-neutral'}">${escapeHtml(isPublished ? ct('status.published') : ct('status.draft'))}</span></td>` +
+          `<td><span class="cms-indexable-dot cms-indexable-dot--${page.indexable !== false ? 'yes' : 'no'}" role="img" aria-label="${page.indexable !== false ? ct('status.indexable') : ct('status.notIndexable')}"></span></td>` +
+          `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-page-delete" data-id="${escapeHtml(page.id)}" aria-label="${ct('common.delete')}">${trashIconSvg}</button></td>` +
           '</tr>'
         );
       })
       .join('');
 
     const publishedCount = pagesState.filter((page) => page.status === 'published').length;
-    if (pagesCount) pagesCount.textContent = `${list.length} páginas · ${publishedCount} publicadas`;
+    if (pagesCount) pagesCount.textContent = ct('pages.count', { count: list.length, published: publishedCount });
     pagesEmpty?.classList.toggle('cms-hidden', list.length > 0);
     bindPageRowEvents();
   }
@@ -495,14 +499,14 @@ export function initPageEditor(): void {
       li.dataset.index = String(index);
       li.innerHTML =
         '<div class="cms-block-item-header">' +
-        `<span class="cms-drag-handle" aria-label="Arrastrar">${dragHandleSvg}</span>` +
+        `<span class="cms-drag-handle" aria-label="${ct('common.drag')}">${dragHandleSvg}</span>` +
         '<div class="cms-block-item-meta">' +
         `<span class="cms-block-item-name">${escapeHtml(name)}</span>` +
         `<span class="cms-block-item-summary">${escapeHtml(summary)}</span>` +
         '</div>' +
-        `<button type="button" class="cms-block-item-toggle" aria-expanded="${isOpen ? 'true' : 'false'}" aria-label="Expandir" data-index="${index}">${isOpen ? chevronUpSvg : chevronDownSvg}</button>` +
-        `<button type="button" class="cms-block-item-duplicate" aria-label="Duplicar bloque" data-index="${index}">${copyIconSvg}</button>` +
-        `<button type="button" class="cms-table-btn-delete cms-block-item-delete" aria-label="Eliminar bloque" data-index="${index}">${trashIconSvg}</button>` +
+        `<button type="button" class="cms-block-item-toggle" aria-expanded="${isOpen ? 'true' : 'false'}" aria-label="${isOpen ? ct('common.collapse') : ct('common.expand')}" data-index="${index}">${isOpen ? chevronUpSvg : chevronDownSvg}</button>` +
+        `<button type="button" class="cms-block-item-duplicate" aria-label="${ct('common.duplicate')}" data-index="${index}">${copyIconSvg}</button>` +
+        `<button type="button" class="cms-table-btn-delete cms-block-item-delete" aria-label="${ct('common.delete')}" data-index="${index}">${trashIconSvg}</button>` +
         '</div>' +
         `<div class="cms-block-item-body${isOpen ? '' : ' cms-hidden'}"></div>`;
 
@@ -548,9 +552,9 @@ export function initPageEditor(): void {
         },
         onArrayLimitReached(info: ArrayLimitInfo) {
           const limitLabel = info.limit === 'max'
-            ? `Has alcanzado el máximo de ${info.value} elemento${info.value === 1 ? '' : 's'} en este campo.`
-            : `Este campo requiere al menos ${info.value} elemento${info.value === 1 ? '' : 's'}.`;
-          void showAlert(limitLabel, 'Límite del campo');
+            ? ct('pageEditor.arrayMaxReached', { value: info.value })
+            : ct('pageEditor.arrayMinRequired', { value: info.value });
+          void showAlert(limitLabel, ct('pageEditor.fieldLimit'));
         },
         inlineErrors: blockErrors,
         fieldPrefix: `page-block-${index}`,
@@ -580,7 +584,7 @@ export function initPageEditor(): void {
         openBlockIndex = index + 1;
         inlineErrors.clear();
         renderBlocksList();
-        showToast('Bloque duplicado.', 'info', 'Editor');
+        showToast(ct('pageEditor.blockDuplicated'), 'info', 'Editor');
       });
     });
 
@@ -611,7 +615,7 @@ export function initPageEditor(): void {
 
         inlineErrors.clear();
         renderBlocksList();
-        showToast('Bloque eliminado.', 'info', 'Editor');
+        showToast(ct('pageEditor.blockDeleted'), 'info', 'Editor');
       });
     });
 
@@ -670,7 +674,7 @@ export function initPageEditor(): void {
     annotateStaticLocalizedLabels();
     await loadSchemaMap();
     renderBlocksList();
-    setFormTitle('Nueva página', 'Guardar');
+    setFormTitle(ct('pageEditor.newPage'));
     updateStatusButtons();
     openDialog(dialog);
   }
@@ -708,13 +712,13 @@ export function initPageEditor(): void {
     annotateStaticLocalizedLabels();
     await loadSchemaMap();
     renderBlocksList();
-    setFormTitle('Editar página', 'Guardar');
+    setFormTitle(ct('pageEditor.editPage'));
     updateStatusButtons();
     openDialog(dialog);
   }
 
   async function deletePage(id: string): Promise<void> {
-    const ok = await showConfirm('¿Eliminar esta página?', 'Eliminar');
+    const ok = await showConfirm(ct('pageEditor.deleteConfirm'), ct('common.delete'));
     if (!ok) return;
 
     try {
@@ -722,11 +726,11 @@ export function initPageEditor(): void {
         method: 'DELETE',
         headers: authHeaders(false),
       });
-      if (response.status !== 204) throw new Error('Error al eliminar');
+      if (response.status !== 204) throw new Error(ct('pageEditor.pageDeleteError'));
       await refreshPages();
-      showToast('Página eliminada correctamente.', 'success', 'Páginas');
+      showToast(ct('pageEditor.pageDeleted'), 'success', ct('nav.pages'));
     } catch {
-      await showAlert('Error al eliminar', 'Error');
+      await showAlert(ct('pageEditor.pageDeleteError'), ct('dialog.defaultErrorTitle'));
     }
   }
 
@@ -776,7 +780,7 @@ export function initPageEditor(): void {
 
       if (!schema || !schema.items) {
         return {
-          message: `Bloque de tipo desconocido: ${block.type}.`,
+          message: ct('pageEditor.unknownBlock', { type: block.type }),
           blockIndex: index,
         };
       }
@@ -806,7 +810,7 @@ export function initPageEditor(): void {
     const validationIssue = validateCurrentBlocks();
     if (validationIssue) {
       applyValidationIssue(validationIssue);
-      await showAlert(validationIssue.message, 'No se puede guardar');
+      await showAlert(validationIssue.message, ct('pageEditor.cannotSave'));
       return;
     }
 
@@ -832,9 +836,9 @@ export function initPageEditor(): void {
 
       closeDialog(dialog);
       await refreshPages();
-      showToast(id ? 'Página actualizada correctamente.' : 'Página creada correctamente.', 'success', 'Páginas');
+      showToast(id ? ct('pageEditor.pageUpdated') : ct('pageEditor.pageCreated'), 'success', ct('nav.pages'));
     } catch {
-      await showAlert('Error al guardar', 'Error');
+      await showAlert(ct('pageEditor.saveError'), ct('dialog.defaultErrorTitle'));
     }
   }
 
@@ -882,14 +886,14 @@ export function initPageEditor(): void {
       const fieldsCount = Object.keys(schema.items || {}).length;
       li.innerHTML =
         `<span class="cms-blocks-select-item-title">${escapeHtml(schema.name || type)}</span>` +
-        `<p class="cms-blocks-select-item-text">${fieldsCount} campo${fieldsCount === 1 ? '' : 's'} configurables</p>`;
+        `<p class="cms-blocks-select-item-text">${fieldsCount === 1 ? ct('pageEditor.fieldsConfigurable', { count: fieldsCount }) : ct('pageEditor.fieldsConfigurablePlural', { count: fieldsCount })}</p>`;
       li.addEventListener('click', () => {
         blocksList.push({ type, props: {} });
         openBlockIndex = blocksList.length - 1;
         inlineErrors.clear();
         renderBlocksList();
         closeDialog(blockSelectModal);
-        showToast(`Bloque "${schema.name || type}" añadido.`, 'success', 'Editor');
+        showToast(ct('pageEditor.blockAdded', { name: schema.name || type }), 'success', 'Editor');
       });
       blockSelectList.appendChild(li);
     }

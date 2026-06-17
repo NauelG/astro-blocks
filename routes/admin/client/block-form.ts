@@ -39,6 +39,7 @@ import {
 } from '../../../utils/block-validation.js';
 import { isSchemaPropLocalizable } from '../../../utils/localization.js';
 import { escapeHtml, getActiveContentLocale, getCmsToken } from './common.js';
+import { ct } from '../i18n/client.js';
 import { toImageValue, parseImageValue, mediaEntryToImageValue, serializeImageValueAttr } from '../../../utils/image-value.js';
 import { fetchMedia, formatBytes, formatDimensions, formatMediaDate } from './media-fetch.js';
 import type { MediaEntry as MediaFetchEntry } from './media-fetch.js';
@@ -863,9 +864,9 @@ function renderArrayPrimitiveItem(
   return (
     `<li class="cms-array-item cms-array-item--primitive" data-array-item-row="${itemIndex}" data-error-key="${escapePickerHtml(errorKey(propName, itemIndex))}">` +
     '<div class="cms-array-item-inline">' +
-    `<span class="cms-drag-handle cms-array-item-drag" aria-label="Arrastrar">${dragHandleSvg}</span>` +
+    `<span class="cms-drag-handle cms-array-item-drag" aria-label="${ct('common.drag')}">${dragHandleSvg}</span>` +
     `<div class="cms-array-item-input">${inputControl}</div>` +
-    `<button type="button" class="cms-array-item-delete" data-array-delete="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}" aria-label="Eliminar elemento">${trashIconSvg}</button>` +
+    `<button type="button" class="cms-array-item-delete" data-array-delete="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}" aria-label="${ct('common.delete')}">${trashIconSvg}</button>` +
     '</div>' +
     errorHtml +
     '</li>'
@@ -886,12 +887,13 @@ function renderArrayObjectItem(
   const rowErrorHtml = rowError ? `<p class="cms-field-error">${escapeHtml(rowError)}</p>` : '';
   const isOpen = openItemIndex === itemIndex;
 
-  let summary = `Elemento ${itemIndex + 1}`;
+  const defaultSummary = ct('pageEditor.blockElement', { n: itemIndex + 1 });
+  let summary = defaultSummary;
   if (objectDef.summaryField) {
     const fromSummaryField = item[objectDef.summaryField];
     if (typeof fromSummaryField === 'string' && fromSummaryField.trim()) summary = fromSummaryField.trim();
   }
-  if (summary === `Elemento ${itemIndex + 1}`) {
+  if (summary === defaultSummary) {
     for (const fieldName of Object.keys(objectDef.fields || {})) {
       const v = item[fieldName];
       if (typeof v === 'string' && v.trim()) { summary = v.trim(); break; }
@@ -927,11 +929,11 @@ function renderArrayObjectItem(
   return (
     `<li class="cms-array-item cms-array-item--object" data-array-item-row="${itemIndex}" data-error-key="${escapePickerHtml(errorKey(propName, itemIndex))}">` +
     '<div class="cms-array-item-inline">' +
-    `<span class="cms-drag-handle cms-array-item-drag" aria-label="Arrastrar">${dragHandleSvg}</span>` +
+    `<span class="cms-drag-handle cms-array-item-drag" aria-label="${ct('common.drag')}">${dragHandleSvg}</span>` +
     `<span class="cms-array-item-summary">${escapeHtml(summary)}</span>` +
     '<div class="cms-array-item-actions">' +
-    `<button type="button" class="cms-array-item-toggle" data-array-toggle="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}" aria-expanded="${isOpen ? 'true' : 'false'}" aria-label="${isOpen ? 'Contraer' : 'Expandir'}">${isOpen ? chevronUpSvg : chevronDownSvg}</button>` +
-    `<button type="button" class="cms-array-item-delete" data-array-delete="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}" aria-label="Eliminar elemento">${trashIconSvg}</button>` +
+    `<button type="button" class="cms-array-item-toggle" data-array-toggle="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}" aria-expanded="${isOpen ? 'true' : 'false'}" aria-label="${isOpen ? ct('common.collapse') : ct('common.expand')}">${isOpen ? chevronUpSvg : chevronDownSvg}</button>` +
+    `<button type="button" class="cms-array-item-delete" data-array-delete="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}" aria-label="${ct('common.delete')}">${trashIconSvg}</button>` +
     '</div>' +
     '</div>' +
     `<div class="cms-array-item-body${isOpen ? '' : ' cms-hidden'}">${fieldsHtml}</div>` +
@@ -971,11 +973,11 @@ function renderArrayField(
     '<div class="cms-array-field-meta">' +
     `<span class="cms-array-field-counter">${items.length} elemento${items.length === 1 ? '' : 's'}</span>` +
     (limits ? `<span class="cms-array-field-hint">${escapeHtml(limits)}</span>` : '') +
-    `<button type="button" class="cms-btn cms-btn-secondary cms-array-field-add" data-array-add="true" data-array-prop="${escapePickerHtml(propName)}" ${maxReached ? 'disabled' : ''}>Añadir</button>` +
+    `<button type="button" class="cms-btn cms-btn-secondary cms-array-field-add" data-array-add="true" data-array-prop="${escapePickerHtml(propName)}" ${maxReached ? 'disabled' : ''}>${ct('blockForm.addItem')}</button>` +
     '</div>' +
     '</div>' +
     `<ul class="cms-array-list" data-array-list="true" data-array-prop="${escapePickerHtml(propName)}" data-array-sortable="${sortableEnabled ? 'true' : 'false'}">${rowsHtml}</ul>` +
-    (maxReached ? `<p class="cms-muted cms-array-field-hint">Has alcanzado el máximo de ${maxItems} elementos.</p>` : '') +
+    (maxReached ? `<p class="cms-muted cms-array-field-hint">${ct('blockForm.maxReached', { max: maxItems })}</p>` : '') +
     arrayErrorHtml +
     '</div>'
   );

@@ -122,7 +122,7 @@ test('handlePostLanguages rejects missing code', async () => {
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'El código de idioma es obligatorio.');
+    assert.equal(body.error, 'Language code is required.');
   });
 });
 
@@ -138,7 +138,7 @@ test('handlePostLanguages rejects invalid code format', async () => {
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'Código de idioma no válido. Usa formato como "es" o "pt-br".');
+    assert.equal(body.error, 'Invalid language code. Use format like "es" or "pt-br".');
   });
 });
 
@@ -155,7 +155,7 @@ test('handlePostLanguages rejects duplicate language code', async () => {
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'Ya existe un idioma con ese código.');
+    assert.equal(body.error, 'A language with that code already exists.');
   });
 });
 
@@ -172,7 +172,7 @@ test('handlePostLanguages normalizes code to lowercase before duplicate check', 
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'Ya existe un idioma con ese código.');
+    assert.equal(body.error, 'A language with that code already exists.');
   });
 });
 
@@ -191,7 +191,7 @@ test('handleDeleteLanguage refuses to delete the last language', async () => {
     const response = await handleDeleteLanguage('es');
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'No se puede eliminar el último idioma.');
+    assert.equal(body.error, 'Cannot delete the last language.');
   });
 });
 
@@ -226,7 +226,7 @@ test('handlePutLanguage refuses to disable the only enabled language', async () 
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.equal(body.error, 'Debe existir al menos un idioma habilitado.');
+    assert.equal(body.error, 'At least one enabled language must exist.');
   });
 });
 

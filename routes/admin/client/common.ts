@@ -4,6 +4,7 @@ Licensed under the Business Source License 1.1
 */
 
 import type { UiLocale } from '../i18n/types.js';
+import { ct } from '../i18n/client.js';
 
 type CmsUser = { id: string; email: string; role: string } | null;
 
@@ -106,7 +107,7 @@ export async function showAlert(message: string, title = 'Error'): Promise<void>
   alert(message);
 }
 
-export async function showConfirm(message: string, confirmLabel = 'Confirmar'): Promise<boolean> {
+export async function showConfirm(message: string, confirmLabel = ct('dialog.defaultConfirmLabel')): Promise<boolean> {
   const api = getCmsWindow().cmsConfirm;
   if (api) return api({ message, confirmLabel });
   return confirm(message);
@@ -136,7 +137,7 @@ export function escapeHtml(value: string): string {
 }
 
 export function formatDisplayDate(value?: string | null): string {
-  if (!value) return 'Sin fecha';
+  if (!value) return ct('common.noDate');
   try {
     return new Date(value).toLocaleDateString(undefined, {
       day: '2-digit',

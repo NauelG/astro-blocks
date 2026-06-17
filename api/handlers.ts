@@ -53,6 +53,31 @@ import type {
   User,
 } from '../types/index.js';
 import * as data from './data.js';
+import { resolveUiLocale } from '../routes/admin/i18n/resolve.js';
+import { catalogs } from '../routes/admin/i18n/catalogs.js';
+import { t as translateFn } from '../routes/admin/i18n/t.js';
+
+/** Resolve the UI locale from the incoming API request (cookie > Accept-Language > 'en'). */
+function resolveRequestUiLocale(request: Request): import('../routes/admin/i18n/types.js').UiLocale {
+  return resolveUiLocale({
+    cookie: request.headers.get('cookie'),
+    acceptLanguage: request.headers.get('accept-language'),
+  });
+}
+
+/** Return a localized JSON error response. The wire shape { error: string } is preserved. */
+function localizedJsonError(
+  request: Request,
+  key: string,
+  status = 400,
+  params?: Record<string, string | number>,
+  extra?: Record<string, unknown>
+): Response {
+  const locale = resolveRequestUiLocale(request);
+  const catalog = catalogs[locale];
+  const message = translateFn(catalog, key, params);
+  return jsonError(message, status, extra);
+}
 
 const JWT_SECRET = new TextEncoder().encode(process.env.CMS_JWT_SECRET || 'cms-jwt-secret-change-me');
 const JWT_EXPIRY = '7d';
@@ -230,7 +255,7 @@ async function parseJsonBody<T>(request: Request): Promise<{ data: T | null; err
   try {
     return { data: (await request.json()) as T, error: null };
   } catch {
-    return { data: null, error: jsonError('Invalid body') };
+    return { data: null, error: localizedJsonError(request, 'errors.invalidBody') };
   }
 }
 
@@ -243,13 +268,14 @@ function scryptAsync(password: string, salt: crypto.BinaryLike, keylen: number):
   });
 }
 
+/** Returns a catalog error key (not a user-facing string) or null. */
 function validateMenuItemsPaths(items: unknown): string | null {
-  if (!Array.isArray(items)) return 'Los elementos del menú deben ser un array.';
+  if (!Array.isArray(items)) return 'errors.menuItemsArray';
 
   for (const item of items as MenuItem[]) {
-    if (!item || typeof item !== 'object') return 'Elemento del menú no válido.';
+    if (!item || typeof item !== 'object') return 'errors.invalidMenuItem';
     if (typeof item.path !== 'string' || item.path.trim() === '') {
-      return 'La ruta es obligatoria en todos los elementos del menú.';
+      return 'errors.menuPathRequired';
     }
     if (Array.isArray(item.children)) {
       const childError = validateMenuItemsPaths(item.children);
@@ -260,14 +286,15 @@ function validateMenuItemsPaths(items: unknown): string | null {
   return null;
 }
 
+/** Returns a catalog error key (not a user-facing string) or null. */
 function validateMenuSelector(menusData: { menus: Menu[] }, selector: string, excludeMenuId: string | null): string | null {
-  if (!selector) return 'El selector es obligatorio.';
+  if (!selector) return 'errors.menuSelectorRequired';
   if (!data.MENU_SELECTOR_REGEX.test(selector)) {
-    return 'El selector solo puede contener letras, números, guiones y guiones bajos (sin espacios).';
+    return 'errors.invalidMenuSelector';
   }
 
   const taken = menusData.menus.some((menu) => menu.selector === selector && menu.id !== excludeMenuId);
-  if (taken) return 'Ya existe un menú con ese selector.';
+  if (taken) return 'errors.menuSelectorExists';
 
   return null;
 }
@@ -297,11 +324,11 @@ function hasDuplicateConfigKey(configs: ConfigEntry[], key: string, excludeId?: 
   });
 }
 
-function normalizeConfigPayload(body: Record<string, unknown>, current?: ConfigEntry): ConfigEntry | { error: string } {
+function normalizeConfigPayload(body: Record<string, unknown>, current?: ConfigEntry): ConfigEntry | { errorKey: string } {
   const key = normalizeConfigKey(body.key !== undefined ? body.key : current?.key);
-  if (!key) return { error: 'La clave es obligatoria.' };
+  if (!key) return { errorKey: 'errors.configKeyRequired' };
   if (!CONFIG_KEY_REGEX.test(key)) {
-    return { error: 'La clave debe empezar por una letra y solo puede contener letras, números, punto, guion y guion bajo.' };
+    return { errorKey: 'errors.invalidConfigKey' };
   }
 
   const valueInput = body.value !== undefined ? body.value : current?.value;
@@ -319,20 +346,23 @@ function normalizeConfigPayload(body: Record<string, unknown>, current?: ConfigE
   };
 }
 
-function normalizeRedirectPayload(body: Record<string, unknown>, current?: RedirectRule): RedirectRule | { error: string } {
+function normalizeRedirectPayload(
+  body: Record<string, unknown>,
+  current?: RedirectRule
+): RedirectRule | { errorKey: string; fieldKey?: string } {
   const fromInput = body.from !== undefined ? body.from : current?.from;
   const toInput = body.to !== undefined ? body.to : current?.to;
 
   const fromError = validateRedirectPathInput(fromInput, 'from');
-  if (fromError) return { error: fromError };
+  if (fromError) return fromError;
 
   const toError = validateRedirectPathInput(toInput, 'to');
-  if (toError) return { error: toError };
+  if (toError) return toError;
 
   const from = normalizeRedirectPath(String(fromInput || '/'));
   const to = normalizeRedirectPath(String(toInput || '/'));
 
-  if (from === to) return { error: 'La ruta de origen y la de destino no pueden ser iguales.' };
+  if (from === to) return { errorKey: 'errors.redirectSameFromTo' };
 
   return {
     id: current?.id || '',
@@ -350,7 +380,7 @@ function validateLocalePrefixConflict(
   locale: string,
   defaultLocale: string,
   languagesData: LanguagesData
-): string | null {
+): { errorKey: string; params: Record<string, string> } | null {
   if (locale !== defaultLocale) return null;
 
   const segments = splitSlugSegments(slug);
@@ -365,7 +395,7 @@ function validateLocalePrefixConflict(
     .filter(Boolean);
 
   if (enabledLocales.includes(first) && first !== defaultLocale) {
-    return `El slug no puede comenzar con "${first}" porque está reservado para prefijos de idioma.`;
+    return { errorKey: 'errors.slugLocaleConflict', params: { locale: first } };
   }
 
   return null;
@@ -626,8 +656,10 @@ export async function getAuth(request: Request): Promise<AuthResult | null> {
   }
 }
 
-export function requireOwner(user?: AuthUser | null): Response | null {
-  if (!user || user.role !== 'owner') return jsonError('Forbidden', 403);
+export function requireOwner(user?: AuthUser | null, request?: Request): Response | null {
+  if (!user || user.role !== 'owner') {
+    return request ? localizedJsonError(request, 'errors.forbidden', 403) : jsonError('Forbidden', 403);
+  }
   return null;
 }
 
@@ -637,7 +669,7 @@ export async function handleLogin(request: Request): Promise<Response> {
 
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body.password === 'string' ? body.password : '';
-  if (!email || !password) return jsonError('Email and password required');
+  if (!email || !password) return localizedJsonError(request, 'errors.emailPasswordRequired');
 
   const usersData = await data.loadUsers();
   const users = usersData.users || [];
@@ -655,15 +687,17 @@ export async function handleLogin(request: Request): Promise<Response> {
 
   const user = users.find((entry) => entry.email === email);
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
-    return jsonError('Invalid credentials', 401);
+    return localizedJsonError(request, 'errors.invalidCredentials', 401);
   }
 
   const token = await createToken(user);
   return Response.json({ token, user: { id: user.id, email: user.email, role: user.role } });
 }
 
-export async function handleAuthMe(user?: AuthUser | null): Promise<Response> {
-  if (!user) return jsonError('Unauthorized', 401);
+export async function handleAuthMe(user?: AuthUser | null, request?: Request): Promise<Response> {
+  if (!user) {
+    return request ? localizedJsonError(request, 'errors.unauthorized', 401) : jsonError('Unauthorized', 401);
+  }
   return Response.json({ user });
 }
 
@@ -686,7 +720,7 @@ export async function handleGetUsers(user?: AuthUser | null): Promise<Response> 
 }
 
 export async function handlePostUsers(request: Request, authUser?: AuthUser | null): Promise<Response> {
-  const forbidden = requireOwner(authUser);
+  const forbidden = requireOwner(authUser, request);
   if (forbidden) return forbidden;
 
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
@@ -695,10 +729,10 @@ export async function handlePostUsers(request: Request, authUser?: AuthUser | nu
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body.password === 'string' ? body.password : '';
   const role = body.role === 'owner' ? 'owner' : 'user';
-  if (!email || !password) return jsonError('Email and password required');
+  if (!email || !password) return localizedJsonError(request, 'errors.emailPasswordRequired');
 
   const usersData = await data.loadUsers();
-  if (usersData.users.some((user) => user.email === email)) return jsonError('Email already exists');
+  if (usersData.users.some((user) => user.email === email)) return localizedJsonError(request, 'errors.emailExists');
 
   const createdAt = new Date().toISOString();
   const newUser: User = {
@@ -715,7 +749,7 @@ export async function handlePostUsers(request: Request, authUser?: AuthUser | nu
 }
 
 export async function handlePutUser(id: string, request: Request, authUser?: AuthUser | null): Promise<Response> {
-  const forbidden = requireOwner(authUser);
+  const forbidden = requireOwner(authUser, request);
   if (forbidden) return forbidden;
 
   const usersData = await data.loadUsers();
@@ -731,7 +765,7 @@ export async function handlePutUser(id: string, request: Request, authUser?: Aut
   if (body.role !== undefined) {
     const newRole = body.role === 'owner' ? 'owner' : 'user';
     if (target.role === 'owner' && newRole === 'user' && ownerCount <= 1) {
-      return jsonError('No se puede quitar el único propietario');
+      return localizedJsonError(request, 'errors.cannotRemoveLastOwner', 400);
     }
     usersData.users[index] = { ...target, role: newRole };
   }
@@ -745,8 +779,8 @@ export async function handlePutUser(id: string, request: Request, authUser?: Aut
   return Response.json({ id: updated.id, email: updated.email, role: updated.role, createdAt: updated.createdAt });
 }
 
-export async function handleDeleteUser(id: string, authUser?: AuthUser | null): Promise<Response> {
-  const forbidden = requireOwner(authUser);
+export async function handleDeleteUser(id: string, authUser?: AuthUser | null, request?: Request): Promise<Response> {
+  const forbidden = requireOwner(authUser, request);
   if (forbidden) return forbidden;
 
   const usersData = await data.loadUsers();
@@ -755,7 +789,11 @@ export async function handleDeleteUser(id: string, authUser?: AuthUser | null): 
 
   const target = usersData.users[index];
   const ownerCount = usersData.users.filter((user) => user.role === 'owner').length;
-  if (target.role === 'owner' && ownerCount <= 1) return jsonError('No se puede eliminar al único propietario');
+  if (target.role === 'owner' && ownerCount <= 1) {
+    return request
+      ? localizedJsonError(request, 'errors.cannotDeleteLastOwner', 400)
+      : jsonError('Cannot delete the only owner.', 400);
+  }
 
   usersData.users.splice(index, 1);
   await data.saveUsers(usersData);
@@ -776,13 +814,13 @@ export async function handlePostLanguages(request: Request, context: HandlerCont
   const enabled = body.enabled !== false;
   const isDefault = body.isDefault === true;
 
-  if (!code) return jsonError('El código de idioma es obligatorio.');
+  if (!code) return localizedJsonError(request, 'errors.languageCodeRequired');
   if (!/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(code)) {
-    return jsonError('Código de idioma no válido. Usa formato como "es" o "pt-br".');
+    return localizedJsonError(request, 'errors.invalidLanguageCode');
   }
 
   if (languagesData.languages.some((language) => normalizeLanguageCode(language.code) === code)) {
-    return jsonError('Ya existe un idioma con ese código.');
+    return localizedJsonError(request, 'errors.languageCodeExists');
   }
 
   const newLanguage: ContentLanguage = { code, label, enabled, isDefault };
@@ -825,7 +863,7 @@ export async function handlePutLanguage(code: string, request: Request, context:
   }
 
   if (!languagesData.languages.some((language) => language.enabled !== false)) {
-    return jsonError('Debe existir al menos un idioma habilitado.');
+    return localizedJsonError(request, 'errors.mustHaveEnabledLanguage');
   }
 
   if (!languagesData.languages.some((language) => language.isDefault && language.enabled !== false)) {
@@ -837,7 +875,7 @@ export async function handlePutLanguage(code: string, request: Request, context:
   return Response.json(languagesData.languages[index]);
 }
 
-export async function handleDeleteLanguage(code: string, context: HandlerContext = {}): Promise<Response> {
+export async function handleDeleteLanguage(code: string, context: HandlerContext = {}, request?: Request): Promise<Response> {
   const normalizedCode = normalizeLanguageCode(code);
 
   const [languagesData, pagesData, menusData, schemaResult] = await Promise.all([
@@ -849,7 +887,11 @@ export async function handleDeleteLanguage(code: string, context: HandlerContext
 
   const languageIndex = languagesData.languages.findIndex((language) => normalizeLanguageCode(language.code) === normalizedCode);
   if (languageIndex === -1) return jsonError('Not found', 404);
-  if (languagesData.languages.length <= 1) return jsonError('No se puede eliminar el último idioma.');
+  if (languagesData.languages.length <= 1) {
+    return request
+      ? localizedJsonError(request, 'errors.cannotDeleteLastLanguage')
+      : jsonError('Cannot delete the last language.');
+  }
 
   const localeKeys = getLanguageLocaleKeys(languagesData);
 
@@ -942,11 +984,11 @@ export async function handlePostPages(request: Request, context: HandlerContext 
   const blocks = Array.isArray(body.blocks) ? (body.blocks as BlockInstance[]) : [];
 
   if (hasDuplicateSlug(pagesData.pages, null, locale, defaultLocale, slug)) {
-    return jsonError('Ya existe una página con ese slug para este idioma.');
+    return localizedJsonError(request, 'errors.duplicateSlug');
   }
 
   const conflictError = validateLocalePrefixConflict(slug, locale, defaultLocale, languagesData);
-  if (conflictError) return jsonError(conflictError);
+  if (conflictError) return localizedJsonError(request, conflictError.errorKey, 400, conflictError.params);
 
   const localeKeys = getLanguageLocaleKeys(languagesData);
   const now = new Date().toISOString();
@@ -1000,11 +1042,11 @@ export async function handlePutPage(id: string, request: Request, context: Handl
   const seo = body.seo !== undefined ? normalizePageSeo(body.seo) : existingView.seo || {};
 
   if (hasDuplicateSlug(pagesData.pages, id, locale, defaultLocale, slug)) {
-    return jsonError('Ya existe una página con ese slug para este idioma.');
+    return localizedJsonError(request, 'errors.duplicateSlug');
   }
 
   const conflictError = validateLocalePrefixConflict(slug, locale, defaultLocale, languagesData);
-  if (conflictError) return jsonError(conflictError);
+  if (conflictError) return localizedJsonError(request, conflictError.errorKey, 400, conflictError.params);
 
   const localeKeys = getLanguageLocaleKeys(languagesData);
   const now = new Date().toISOString();
@@ -1087,14 +1129,14 @@ export async function handlePostMenus(request: Request, context: HandlerContext 
   const locale = resolveLocaleFromBody(body, request, languagesData);
 
   const selectorError = validateMenuSelector(menusData, payload.selector, null);
-  if (selectorError) return jsonError(selectorError);
+  if (selectorError) return localizedJsonError(request, selectorError);
 
   const pathError = validateMenuItemsPaths(payload.items);
-  if (pathError) return jsonError(pathError);
+  if (pathError) return localizedJsonError(request, pathError);
 
   const newMenu: Menu = {
     id: data.generateId(),
-    name: payload.name || 'Menú',
+    name: payload.name || 'Menu',
     selector: payload.selector || 'menu',
     items: {
       [locale]: payload.items,
@@ -1121,15 +1163,15 @@ export async function handlePutMenu(id: string, request: Request, context: Handl
   const locale = resolveLocaleFromBody(body, request, languagesData);
 
   const selectorError = validateMenuSelector(menusData, payload.selector, id);
-  if (selectorError) return jsonError(selectorError);
+  if (selectorError) return localizedJsonError(request, selectorError);
 
   const pathError = validateMenuItemsPaths(payload.items);
-  if (pathError) return jsonError(pathError);
+  if (pathError) return localizedJsonError(request, pathError);
 
   const current = menusData.menus[index];
   const updated: Menu = {
     ...current,
-    name: payload.name || current.name || 'Menú',
+    name: payload.name || current.name || 'Menu',
     selector: payload.selector || current.selector || 'menu',
     items: {
       ...(current.items || {}),
@@ -1167,10 +1209,15 @@ export async function handlePostRedirects(request: Request, context: HandlerCont
 
   const redirectsData = await data.loadRedirects();
   const parsed = normalizeRedirectPayload(body);
-  if ('error' in parsed) return jsonError(parsed.error);
+  if ('errorKey' in parsed) {
+    const locale = resolveRequestUiLocale(request);
+    const catalog = catalogs[locale];
+    const fieldLabel = parsed.fieldKey ? translateFn(catalog, parsed.fieldKey) : '';
+    return localizedJsonError(request, parsed.errorKey, 400, fieldLabel ? { field: fieldLabel } : undefined);
+  }
 
   if (hasDuplicateRedirectFrom(redirectsData.redirects, parsed.from)) {
-    return jsonError('Ya existe una redirección con esa ruta de origen.');
+    return localizedJsonError(request, 'errors.redirectFromExists');
   }
 
   const now = new Date().toISOString();
@@ -1197,10 +1244,15 @@ export async function handlePutRedirect(id: string, request: Request, context: H
 
   const current = redirectsData.redirects[index];
   const parsed = normalizeRedirectPayload(body, current);
-  if ('error' in parsed) return jsonError(parsed.error);
+  if ('errorKey' in parsed) {
+    const locale = resolveRequestUiLocale(request);
+    const catalog = catalogs[locale];
+    const fieldLabel = parsed.fieldKey ? translateFn(catalog, parsed.fieldKey) : '';
+    return localizedJsonError(request, parsed.errorKey, 400, fieldLabel ? { field: fieldLabel } : undefined);
+  }
 
   if (hasDuplicateRedirectFrom(redirectsData.redirects, parsed.from, id)) {
-    return jsonError('Ya existe una redirección con esa ruta de origen.');
+    return localizedJsonError(request, 'errors.redirectFromExists');
   }
 
   const updated: RedirectRule = {
@@ -1239,10 +1291,10 @@ export async function handlePostConfigs(request: Request, context: HandlerContex
 
   const configsData = await data.loadConfigs();
   const parsed = normalizeConfigPayload(body);
-  if ('error' in parsed) return jsonError(parsed.error);
+  if ('errorKey' in parsed) return localizedJsonError(request, parsed.errorKey);
 
   if (hasDuplicateConfigKey(configsData.configs, parsed.key)) {
-    return jsonError('Ya existe un parámetro con esa clave.');
+    return localizedJsonError(request, 'errors.configKeyExists');
   }
 
   const now = new Date().toISOString();
@@ -1269,10 +1321,10 @@ export async function handlePutConfig(id: string, request: Request, context: Han
 
   const current = configsData.configs[index];
   const parsed = normalizeConfigPayload(body, current);
-  if ('error' in parsed) return jsonError(parsed.error);
+  if ('errorKey' in parsed) return localizedJsonError(request, parsed.errorKey);
 
   if (hasDuplicateConfigKey(configsData.configs, parsed.key, id)) {
-    return jsonError('Ya existe un parámetro con esa clave.');
+    return localizedJsonError(request, 'errors.configKeyExists');
   }
 
   const updated: ConfigEntry = {
