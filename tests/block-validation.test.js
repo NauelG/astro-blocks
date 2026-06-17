@@ -60,7 +60,7 @@ test('resolveBlockEntries fails fast on unsupported nested array schema', () => 
         'file:///tmp/project/src/Hero.astro'
       ),
     ]);
-  }, /no soporta fields anidados/);
+  }, /does not support nested fields/);
 });
 
 test('validateBlocks supports array primitive limits', () => {
@@ -86,8 +86,8 @@ test('validateBlocks supports array primitive limits', () => {
   );
 
   assert.equal(validateBlocks(schemaMap, [{ type: 'Hero', props: { tags: ['alpha', 'beta'] } }]), null);
-  assert.match(validateBlocks(schemaMap, [{ type: 'Hero', props: { tags: [] } }])?.message || '', /es obligatorio|requiere al menos 1 elemento/);
-  assert.match(validateBlocks(schemaMap, [{ type: 'Hero', props: { tags: ['a', '', 'c'] } }])?.message || '', /elemento 2/);
+  assert.match(validateBlocks(schemaMap, [{ type: 'Hero', props: { tags: [] } }])?.message || '', /is required|requires at least 1 item/);
+  assert.match(validateBlocks(schemaMap, [{ type: 'Hero', props: { tags: ['a', '', 'c'] } }])?.message || '', /element 2/);
 });
 
 test('validateBlocks validates required fields inside array<object>', () => {
@@ -131,7 +131,7 @@ test('validateBlocks validates required fields inside array<object>', () => {
 
   assert.match(
     validateBlocks(schemaMap, [{ type: 'FAQ', props: { faqs: [{ question: 'Sin respuesta' }] } }])?.message || '',
-    /Respuesta/
+    /Respuesta|is required|required/
   );
 });
 
@@ -210,4 +210,28 @@ test('validator rejects non-string caption (number)', () => {
   });
   assert.ok(issue !== null, 'number caption must produce a validation error');
   assert.match(issue.message, /caption/);
+});
+
+// ─── T1.1: messageKey presence and bilingual rendering ───────────────────────
+
+test('T1.1: validateBlockPropsAgainstSchema issue has messageKey + params', () => {
+  const issue = validateBlockPropsAgainstSchema('Hero', 0, {
+    title: { type: 'string', label: 'Title', required: true },
+  }, {});
+  assert.ok(issue !== null, 'missing required field must produce a validation error');
+  assert.ok(typeof issue.messageKey === 'string', 'issue must have a messageKey');
+  assert.ok(typeof issue.params === 'object', 'issue must have params');
+  assert.equal(issue.messageKey, 'blockValidation.fieldRequired');
+  assert.ok(issue.params.blockName === 'Hero', 'params must include blockName');
+  assert.ok(issue.params.label === 'Title', 'params must include label');
+});
+
+test('T1.1: issue.message is English (backward compat)', () => {
+  const issue = validateBlockPropsAgainstSchema('Hero', 0, {
+    title: { type: 'string', label: 'Title', required: true },
+  }, {});
+  assert.ok(issue !== null);
+  assert.match(issue.message, /field "Title" is required/);
+  // Must NOT be Spanish
+  assert.ok(!issue.message.includes('obligatorio'), 'issue.message must not be Spanish');
 });

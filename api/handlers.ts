@@ -66,7 +66,7 @@ function resolveRequestUiLocale(request: Request): import('../routes/admin/i18n/
 }
 
 /** Return a localized JSON error response. The wire shape { error: string } is preserved. */
-function localizedJsonError(
+export function localizedJsonError(
   request: Request,
   key: string,
   status = 400,
@@ -596,15 +596,23 @@ async function loadSchemaMap(): Promise<{ schemaMap?: SchemaMap; error?: string;
   }
 }
 
-async function ensureValidBlocks(blocks: unknown): Promise<Response | null> {
+async function ensureValidBlocks(blocks: unknown, request?: Request): Promise<Response | null> {
   if (blocks === undefined) return null;
 
   if (!Array.isArray(blocks) || blocks.length > 0) {
     const result = await loadSchemaMap();
-    if (result.error) return jsonError(result.error, 500, { missing: result.missing || [] });
+    if (result.error) {
+      if (request) return localizedJsonError(request, 'errors.loadBlockSchemasFailed', 500, undefined, { missing: result.missing || [] });
+      return jsonError(result.error, 500, { missing: result.missing || [] });
+    }
 
     const validation = validateBlocks(result.schemaMap || {}, blocks);
-    if (validation) return jsonError(validation.message);
+    if (validation) {
+      if (request && validation.messageKey) {
+        return localizedJsonError(request, validation.messageKey, 400, validation.params);
+      }
+      return jsonError(validation.message);
+    }
   }
 
   return null;
@@ -754,7 +762,7 @@ export async function handlePutUser(id: string, request: Request, authUser?: Aut
 
   const usersData = await data.loadUsers();
   const index = usersData.users.findIndex((user) => user.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
@@ -785,7 +793,7 @@ export async function handleDeleteUser(id: string, authUser?: AuthUser | null, r
 
   const usersData = await data.loadUsers();
   const index = usersData.users.findIndex((user) => user.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
 
   const target = usersData.users[index];
   const ownerCount = usersData.users.filter((user) => user.role === 'owner').length;
@@ -846,7 +854,7 @@ export async function handlePutLanguage(code: string, request: Request, context:
 
   const languagesData = await data.loadLanguages();
   const index = languagesData.languages.findIndex((language) => normalizeLanguageCode(language.code) === normalizedCode);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const current = languagesData.languages[index];
   const next: ContentLanguage = {
@@ -886,7 +894,7 @@ export async function handleDeleteLanguage(code: string, context: HandlerContext
   ]);
 
   const languageIndex = languagesData.languages.findIndex((language) => normalizeLanguageCode(language.code) === normalizedCode);
-  if (languageIndex === -1) return jsonError('Not found', 404);
+  if (languageIndex === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
   if (languagesData.languages.length <= 1) {
     return request
       ? localizedJsonError(request, 'errors.cannotDeleteLastLanguage')
@@ -964,7 +972,7 @@ export async function handlePostPages(request: Request, context: HandlerContext 
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
-  const blocksError = await ensureValidBlocks(body.blocks);
+  const blocksError = await ensureValidBlocks(body.blocks, request);
   if (blocksError) return blocksError;
 
   const [pagesData, languagesData, schemaResult] = await Promise.all([
@@ -1017,7 +1025,7 @@ export async function handlePutPage(id: string, request: Request, context: Handl
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
-  const blocksError = await ensureValidBlocks(body.blocks);
+  const blocksError = await ensureValidBlocks(body.blocks, request);
   if (blocksError) return blocksError;
 
   const [pagesData, languagesData, schemaResult] = await Promise.all([
@@ -1027,7 +1035,7 @@ export async function handlePutPage(id: string, request: Request, context: Handl
   ]);
 
   const index = pagesData.pages.findIndex((page) => page.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const defaultLocale = getDefaultLanguageCode(languagesData);
   const locale = resolveLocaleFromBody(body, request, languagesData);
@@ -1081,7 +1089,7 @@ export async function handleDeletePage(id: string, request: Request, context: Ha
   const [pagesData, languagesData] = await Promise.all([data.loadPages(), data.loadLanguages()]);
 
   const index = pagesData.pages.findIndex((page) => page.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const locale = normalizeLocaleFromRequest(request, languagesData);
   const defaultLocale = getDefaultLanguageCode(languagesData);
@@ -1158,7 +1166,7 @@ export async function handlePutMenu(id: string, request: Request, context: Handl
   const payload = normalizeMenuPayload(body);
   const [menusData, languagesData] = await Promise.all([data.loadMenus(), data.loadLanguages()]);
   const index = menusData.menus.findIndex((menu) => menu.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const locale = resolveLocaleFromBody(body, request, languagesData);
 
@@ -1187,10 +1195,10 @@ export async function handlePutMenu(id: string, request: Request, context: Handl
   return Response.json(data.getMenuLocaleView(updated, locale, defaultLocale));
 }
 
-export async function handleDeleteMenu(id: string, context: HandlerContext = {}): Promise<Response> {
+export async function handleDeleteMenu(id: string, context: HandlerContext = {}, request?: Request): Promise<Response> {
   const menusData = await data.loadMenus();
   const index = menusData.menus.findIndex((menu) => menu.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
 
   menusData.menus.splice(index, 1);
   await data.saveMenus(menusData);
@@ -1240,7 +1248,7 @@ export async function handlePutRedirect(id: string, request: Request, context: H
 
   const redirectsData = await data.loadRedirects();
   const index = redirectsData.redirects.findIndex((entry) => entry.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const current = redirectsData.redirects[index];
   const parsed = normalizeRedirectPayload(body, current);
@@ -1269,10 +1277,10 @@ export async function handlePutRedirect(id: string, request: Request, context: H
   return Response.json(updated);
 }
 
-export async function handleDeleteRedirect(id: string, context: HandlerContext = {}): Promise<Response> {
+export async function handleDeleteRedirect(id: string, context: HandlerContext = {}, request?: Request): Promise<Response> {
   const redirectsData = await data.loadRedirects();
   const index = redirectsData.redirects.findIndex((entry) => entry.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
 
   redirectsData.redirects.splice(index, 1);
   await data.saveRedirects(redirectsData);
@@ -1317,7 +1325,7 @@ export async function handlePutConfig(id: string, request: Request, context: Han
 
   const configsData = await data.loadConfigs();
   const index = configsData.configs.findIndex((entry) => entry.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const current = configsData.configs[index];
   const parsed = normalizeConfigPayload(body, current);
@@ -1341,10 +1349,10 @@ export async function handlePutConfig(id: string, request: Request, context: Han
   return Response.json(updated);
 }
 
-export async function handleDeleteConfig(id: string, context: HandlerContext = {}): Promise<Response> {
+export async function handleDeleteConfig(id: string, context: HandlerContext = {}, request?: Request): Promise<Response> {
   const configsData = await data.loadConfigs();
   const index = configsData.configs.findIndex((entry) => entry.id === id);
-  if (index === -1) return jsonError('Not found', 404);
+  if (index === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
 
   configsData.configs.splice(index, 1);
   await data.saveConfigs(configsData);
@@ -1355,20 +1363,20 @@ export async function handleDeleteConfig(id: string, context: HandlerContext = {
 export async function handleUpload(request: Request): Promise<Response> {
   const formData = await request.formData();
   const file = formData.get('file');
-  if (!file || typeof (file as File).arrayBuffer !== 'function') return jsonError('No file');
+  if (!file || typeof (file as File).arrayBuffer !== 'function') return localizedJsonError(request, 'errors.noFile');
 
   const blob = file as File;
 
   // Validate MIME type BEFORE disk write
   const mimeType = blob.type || '';
   if (!mimeType || !ALLOWED_IMAGE_MIME.has(mimeType)) {
-    return jsonError('Unsupported file type. Allowed: jpg, png, webp, svg, gif', 415);
+    return localizedJsonError(request, 'errors.unsupportedFileType', 415);
   }
 
   // Validate size BEFORE disk write
   if (blob.size > MAX_UPLOAD_BYTES) {
     const limitMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
-    return jsonError(`File too large. Maximum size is ${limitMb} MB`, 413);
+    return localizedJsonError(request, 'errors.fileTooLarge', 413, { limitMb: String(limitMb) });
   }
 
   const buffer = await blob.arrayBuffer();
@@ -1433,7 +1441,7 @@ export async function handleDeleteUpload(request: Request): Promise<Response> {
 
   const url = body.url ?? '';
   const filePath = resolveUploadPath(url);
-  if (!filePath) return jsonError('Invalid or disallowed URL');
+  if (!filePath) return localizedJsonError(request, 'errors.invalidUrl');
 
   // Look up the entry BEFORE removing from registry so we can access its variants
   const mediaData = await data.loadMedia();
@@ -1460,7 +1468,7 @@ export async function handleDeleteUpload(request: Request): Promise<Response> {
     await fs.unlink(filePath);
   } catch (deleteError) {
     if ((deleteError as NodeJS.ErrnoException).code !== 'ENOENT') {
-      return jsonError('Delete failed', 500);
+      return localizedJsonError(request, 'errors.deleteFailed', 500);
     }
   }
 
@@ -1473,7 +1481,7 @@ export async function handleDeleteUpload(request: Request): Promise<Response> {
 
 export async function handleGetMedia(request: Request): Promise<Response> {
   const auth = await getAuth(request);
-  if (!auth) return jsonError('Unauthorized', 401);
+  if (!auth) return localizedJsonError(request, 'errors.unauthorized', 401);
 
   // Parse query parameters: q, page, limit
   const url = new URL(request.url);
@@ -1514,17 +1522,17 @@ export async function handleGetMedia(request: Request): Promise<Response> {
  */
 export async function handleUpdateMediaAlt(id: string, request: Request): Promise<Response> {
   const auth = await getAuth(request);
-  if (!auth) return jsonError('Unauthorized', 401);
+  if (!auth) return localizedJsonError(request, 'errors.unauthorized', 401);
 
   const { data: body, error } = await parseJsonBody<{ alt?: unknown }>(request);
   if (error || !body) return error as Response;
 
   if (typeof body.alt !== 'string') {
-    return jsonError('Bad request: alt must be a string', 400);
+    return localizedJsonError(request, 'errors.altMustBeString');
   }
 
   const updated = await data.updateMediaEntryAlt(id, body.alt);
-  if (!updated) return jsonError('Not found', 404);
+  if (!updated) return localizedJsonError(request, 'errors.notFound', 404);
 
   return Response.json({ entry: updated });
 }
@@ -1536,11 +1544,11 @@ export async function handleUpdateMediaAlt(id: string, request: Request): Promis
  */
 export async function handleGetMediaUsage(id: string, request: Request): Promise<Response> {
   const auth = await getAuth(request);
-  if (!auth) return jsonError('Unauthorized', 401);
+  if (!auth) return localizedJsonError(request, 'errors.unauthorized', 401);
 
   const m = await data.loadMedia();
   const entry = m.uploads.find((e) => e.id === id);
-  if (!entry) return jsonError('Not found', 404);
+  if (!entry) return localizedJsonError(request, 'errors.notFound', 404);
 
   const result = await data.findMediaUsages(entry.url);
   return Response.json(result);
@@ -1554,22 +1562,22 @@ export async function handleGetMediaUsage(id: string, request: Request): Promise
  */
 export async function handleReplaceUpload(request: Request, id: string): Promise<Response> {
   const auth = await getAuth(request);
-  if (!auth) return jsonError('Unauthorized', 401);
+  if (!auth) return localizedJsonError(request, 'errors.unauthorized', 401);
 
   const m = await data.loadMedia();
   const entry = m.uploads.find((e) => e.id === id);
-  if (!entry) return jsonError('Not found', 404);
+  if (!entry) return localizedJsonError(request, 'errors.notFound', 404);
 
   let formData: FormData;
   try {
     formData = await request.formData();
   } catch {
-    return jsonError('Invalid multipart body', 400);
+    return localizedJsonError(request, 'errors.invalidMultipartBody');
   }
 
   const file = formData.get('file');
   if (!file || typeof (file as File).arrayBuffer !== 'function') {
-    return jsonError('No file', 400);
+    return localizedJsonError(request, 'errors.noFile');
   }
 
   const blob = file as File;
@@ -1577,21 +1585,21 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   // MIME validation — same two-phase as handleUpload
   const mimeType = blob.type || '';
   if (!mimeType || !ALLOWED_IMAGE_MIME.has(mimeType)) {
-    return jsonError('Unsupported file type. Allowed: jpg, png, webp, svg, gif', 415);
+    return localizedJsonError(request, 'errors.unsupportedFileType', 415);
   }
   if (mimeType !== entry.mimeType) {
-    return jsonError(`Replacement must be the same type: expected ${entry.mimeType}`, 415);
+    return localizedJsonError(request, 'errors.replaceSameType', 415, { mimeType: entry.mimeType });
   }
 
   // Size guard
   if (blob.size > MAX_UPLOAD_BYTES) {
     const limitMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
-    return jsonError(`File too large. Maximum size is ${limitMb} MB`, 413);
+    return localizedJsonError(request, 'errors.fileTooLarge', 413, { limitMb: String(limitMb) });
   }
 
   // Resolve the on-disk path (reuses traversal guard)
   const filePath = resolveUploadPath(entry.url);
-  if (!filePath) return jsonError('Internal error: cannot resolve upload path', 500);
+  if (!filePath) return localizedJsonError(request, 'errors.invalidUrl', 500);
 
   // Overwrite bytes ATOMICALLY: write to a temp file then rename into place.
   // rename(2) is atomic on POSIX, so a read never observes a half-written file.
@@ -1605,7 +1613,7 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
     // Clean up the temp file on error (best-effort) and abort before any
     // variant unlink or registry update so the original stays intact.
     try { await fs.unlink(tmpPath); } catch { /* ignore */ }
-    return jsonError('Failed to write replacement file', 500);
+    return localizedJsonError(request, 'errors.replaceWriteFailed', 500);
   }
 
   // Recompute dimensions
@@ -1636,7 +1644,7 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
     width: capturedWidth,
     height: capturedHeight,
   });
-  if (!result) return jsonError('Not found', 404);
+  if (!result) return localizedJsonError(request, 'errors.notFound', 404);
 
   const { entry: updated, oldVariants } = result;
 
@@ -1742,14 +1750,14 @@ export async function handlePutGlobalBlock(
   registry: GlobalBlockRuntimeEntry[]
 ): Promise<Response> {
   const decl = registry.find((entry) => entry.slug === slug);
-  if (!decl) return jsonError(`Global block slug "${slug}" not found`, 404);
+  if (!decl) return localizedJsonError(request, 'errors.globalBlockNotFound', 404, { slug });
 
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
-  if (!Object.prototype.hasOwnProperty.call(body, 'props')) return jsonError('props is required');
+  if (!Object.prototype.hasOwnProperty.call(body, 'props')) return localizedJsonError(request, 'errors.propsRequired');
   if (typeof body.props !== 'object' || body.props === null || Array.isArray(body.props)) {
-    return jsonError('props must be a plain object');
+    return localizedJsonError(request, 'errors.propsMustBePlainObject');
   }
 
   const incomingProps = body.props as Record<string, unknown>;
@@ -1759,7 +1767,7 @@ export async function handlePutGlobalBlock(
     data.loadLanguages(),
     loadSchemaMap(),
   ]);
-  if (schemaResult.error) return jsonError(schemaResult.error, 500);
+  if (schemaResult.error) return localizedJsonError(request, 'errors.schemaLoadFailed', 500);
 
   const locale = resolveLocaleFromBody(body, request, languagesData);
   const localeKeys = getLanguageLocaleKeys(languagesData);
@@ -1781,7 +1789,7 @@ export async function handlePutGlobalBlock(
       }
     }
     const issue = validateBlockPropsAgainstSchema(schema.name || decl.schemaName, 0, schemaItems, propsForValidation);
-    if (issue) return jsonError(issue.message, 400);
+    if (issue) return localizedJsonError(request, issue.messageKey, 400, issue.params);
   }
 
   // Merge incoming (scalar-per-locale) props into existing props so other locales are preserved.
@@ -1819,7 +1827,7 @@ export async function handlePutGlobalBlock(
   });
 }
 
-export async function handleInvalidateCache(context: HandlerContext = {}): Promise<Response> {
+export async function handleInvalidateCache(request: Request, context: HandlerContext = {}): Promise<Response> {
   if (!context.cache?.enabled) {
     return Response.json({
       ok: true,
@@ -1840,7 +1848,7 @@ export async function handleInvalidateCache(context: HandlerContext = {}): Promi
       message: 'Cache invalidated successfully.',
     });
   } catch (error) {
-    return jsonError('Cache invalidation failed', 500, {
+    return localizedJsonError(request, 'errors.cacheInvalidationFailed', 500, undefined, {
       detail: error instanceof Error ? error.message : String(error),
     });
   }

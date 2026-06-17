@@ -34,10 +34,14 @@ async function withTempProject(fn) {
 
 // --- handleInvalidateCache ---
 
+// Minimal Request object sufficient for all cache handler tests.
+// localizedJsonError requires a Request; the early-return paths do not use it.
+const DUMMY_REQUEST = new Request('http://localhost/cms/api/cache/invalidate');
+
 test('handleInvalidateCache returns ok and cacheEnabled:false when no context is provided', async () => {
   await withTempProject(async () => {
     // No context — defaults to {} which has no cache
-    const response = await handleInvalidateCache();
+    const response = await handleInvalidateCache(DUMMY_REQUEST);
 
     assert.equal(response.status, 200);
     const body = await response.json();
@@ -49,7 +53,7 @@ test('handleInvalidateCache returns ok and cacheEnabled:false when no context is
 
 test('handleInvalidateCache returns ok and cacheEnabled:false when context has no cache property', async () => {
   await withTempProject(async () => {
-    const response = await handleInvalidateCache({});
+    const response = await handleInvalidateCache(DUMMY_REQUEST, {});
 
     assert.equal(response.status, 200);
     const body = await response.json();
@@ -60,7 +64,7 @@ test('handleInvalidateCache returns ok and cacheEnabled:false when context has n
 
 test('handleInvalidateCache returns ok and cacheEnabled:false when context.cache is null', async () => {
   await withTempProject(async () => {
-    const response = await handleInvalidateCache({ cache: null });
+    const response = await handleInvalidateCache(DUMMY_REQUEST, { cache: null });
 
     assert.equal(response.status, 200);
     const body = await response.json();
@@ -71,7 +75,7 @@ test('handleInvalidateCache returns ok and cacheEnabled:false when context.cache
 
 test('handleInvalidateCache returns ok and cacheEnabled:false when context.cache.enabled is falsy', async () => {
   await withTempProject(async () => {
-    const response = await handleInvalidateCache({ cache: { enabled: false } });
+    const response = await handleInvalidateCache(DUMMY_REQUEST, { cache: { enabled: false } });
 
     assert.equal(response.status, 200);
     const body = await response.json();
@@ -94,7 +98,7 @@ test('handleInvalidateCache calls cache.invalidate for global paths and tags whe
       },
     };
 
-    const response = await handleInvalidateCache({ cache: mockCache });
+    const response = await handleInvalidateCache(DUMMY_REQUEST, { cache: mockCache });
 
     assert.equal(response.status, 200);
     const body = await response.json();
@@ -119,7 +123,7 @@ test('handleInvalidateCache returns 500 when cache.invalidate throws', async () 
       },
     };
 
-    const response = await handleInvalidateCache({ cache: faultyCache });
+    const response = await handleInvalidateCache(DUMMY_REQUEST, { cache: faultyCache });
 
     assert.equal(response.status, 500);
     const body = await response.json();

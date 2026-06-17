@@ -77,7 +77,10 @@ export function buildSchemaMap(entries: ResolvedBlockEntry[]): SchemaMap {
   }, {});
 }
 
-export function validateBlocks(schemaMap: SchemaMap, blocks: unknown): { message: string } | null {
+export function validateBlocks(
+  schemaMap: SchemaMap,
+  blocks: unknown
+): { message: string; messageKey?: string; params?: Record<string, string | number> } | null {
   if (!Array.isArray(blocks) || blocks.length === 0) return null;
 
   for (let index = 0; index < blocks.length; index += 1) {
@@ -85,12 +88,12 @@ export function validateBlocks(schemaMap: SchemaMap, blocks: unknown): { message
     const type = block && typeof block === 'object' ? block.type : undefined;
 
     if (typeof type !== 'string' || type.trim() === '') {
-      return { message: `Block at index ${index}: missing or invalid type.` };
+      return { message: `Block at index ${index}: missing or invalid type.`, messageKey: 'errors.blockTypeMissing', params: { n: index } };
     }
 
     const schema = schemaMap[type];
     if (!schema || !schema.items) {
-      return { message: `Block at index ${index}: unknown type "${type}".` };
+      return { message: `Block at index ${index}: unknown type "${type}".`, messageKey: 'errors.blockTypeUnknown', params: { n: index, type: String(type) } };
     }
 
     const props = block?.props && typeof block.props === 'object' && !Array.isArray(block.props)
@@ -99,7 +102,7 @@ export function validateBlocks(schemaMap: SchemaMap, blocks: unknown): { message
 
     const issue = validateBlockPropsAgainstSchema(schema.name || type, index, schema.items || {}, props);
     if (issue) {
-      return { message: issue.message };
+      return { message: issue.message, messageKey: issue.messageKey, params: issue.params };
     }
   }
 

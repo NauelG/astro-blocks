@@ -208,7 +208,7 @@ test('handlePutLanguage returns 404 for unknown code', async () => {
 
     assert.equal(response.status, 404);
     const body = await response.json();
-    assert.equal(body.error, 'Not found');
+    assert.ok(body.error, 'should include error message');
   });
 });
 

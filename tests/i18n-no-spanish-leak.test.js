@@ -49,6 +49,8 @@ const ROOT = path.resolve(import.meta.dirname, '..');
  */
 const SCAN_DIRS = [
   path.join(ROOT, 'routes', 'admin'),
+  path.join(ROOT, 'utils'),
+  path.join(ROOT, 'api'),
 ];
 
 /** Files to include: only .astro and .ts under the scan directories. */
@@ -62,6 +64,8 @@ const EXCLUDED_FILES = new Set([
   path.join(ROOT, 'routes', 'admin', 'i18n', 'es.ts'),
   // en.ts might contain "…" or Loading… — no Spanish needed, included for symmetry
   path.join(ROOT, 'routes', 'admin', 'i18n', 'en.ts'),
+  // block-validation.ts: build-time messages have been translated to English (H1 fix).
+  // No exclusion needed — the file is now fully scannable.
 ]);
 
 /**

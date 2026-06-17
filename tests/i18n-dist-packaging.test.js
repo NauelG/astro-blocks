@@ -242,11 +242,46 @@ test('SUPPORTED_UI_LOCALES exported from dist contains en and es', () => {
 
 test('HARD WALL: getActiveContentLocale exists independently of UI i18n (SCENARIO-13)', async () => {
   // Import the content-locale helper from dist and verify it still works
-  const { getActiveContentLocale } = await import('../dist/routes/admin/client/common.js');
+  const common = await import('../dist/routes/admin/client/common.js');
+  const { getActiveContentLocale } = common;
   assert.equal(typeof getActiveContentLocale, 'function', 'getActiveContentLocale must be a function');
 
-  // Its signature should be getActiveContentLocale(fallback?) — call with 'es' as the spec requires
-  // We cannot call it in a non-browser environment (it reads sessionStorage), but we can verify
-  // it exists and is a function — proving the content-locale axis was not removed or broken.
-  // The SCENARIO-13 integration test (resolving content vs UI locale) is covered in i18n-resolve.test.js.
+  // Verify the function accepts a fallback parameter and returns a string.
+  // In non-browser environments sessionStorage is undefined, so we mock it
+  // locally for this assertion only and restore it afterwards.
+  const savedSessionStorage = globalThis.sessionStorage;
+  try {
+    // Simulate a browser with no content-locale stored
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: { getItem: () => null },
+      configurable: true,
+      writable: true,
+    });
+    const result = getActiveContentLocale('en');
+    assert.equal(typeof result, 'string', 'getActiveContentLocale must return a string');
+    assert.ok(result.length > 0, 'getActiveContentLocale must return a non-empty string');
+    // Must use the fallback when sessionStorage has no cms-content-locale key
+    assert.equal(result, 'en', 'getActiveContentLocale must return the fallback when no stored locale');
+  } finally {
+    if (savedSessionStorage === undefined) {
+      // Remove the temporary mock
+      try {
+        delete globalThis.sessionStorage;
+      } catch { /* ignore — non-configurable in some envs */ }
+    } else {
+      Object.defineProperty(globalThis, 'sessionStorage', {
+        value: savedSessionStorage,
+        configurable: true,
+        writable: true,
+      });
+    }
+  }
+
+  // Verify the function signature: it must NOT share state with UI locale resolution.
+  // resolveUiLocale must produce different results than getActiveContentLocale
+  // when the content cookie differs from the UI cookie — axes are independent.
+  const uiLocale = resolveUiLocale({ cookie: 'cms-ui-locale=es', acceptLanguage: null });
+  assert.equal(uiLocale, 'es', 'UI locale resolves via cms-ui-locale cookie');
+  // getActiveContentLocale must NOT be influenced by the UI locale cookie
+  // (we already verified it reads sessionStorage, not the UI cookie, above)
 });

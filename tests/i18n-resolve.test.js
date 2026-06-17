@@ -102,6 +102,13 @@ test('readUiLocaleCookie: rejects malformed value', () => {
   assert.equal(readUiLocaleCookie('cms-ui-locale=xyz'), null);
 });
 
+// T1.4 — early-exit bug: an unsupported cms-ui-locale must NOT block a supported one later
+test('readUiLocaleCookie: continues past unsupported locale to find valid one later (T1.4)', () => {
+  // Cookie header with two cms-ui-locale entries; first is unsupported (fr), second is valid (en).
+  // The old code did `return null` on the first hit — this must now be `continue`.
+  assert.equal(readUiLocaleCookie('cms-ui-locale=fr; cms-ui-locale=en'), 'en');
+});
+
 // ─── resolveUiLocale ──────────────────────────────────────────────────────────
 
 test('resolveUiLocale: SCENARIO-1 no cookie, unsupported Accept-Language => en', () => {

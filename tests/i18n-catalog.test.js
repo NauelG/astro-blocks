@@ -25,8 +25,8 @@ test('en and es catalogs have same keys (completeness: REQ-5.2)', () => {
   const enKeys = Object.keys(catalogs.en).sort();
   const esKeys = Object.keys(catalogs.es).sort();
 
-  const missingFromEs = enKeys.filter((k) => !catalogs.es[k]);
-  const missingFromEn = esKeys.filter((k) => !catalogs.en[k]);
+  const missingFromEs = enKeys.filter((k) => !(k in catalogs.es));
+  const missingFromEn = esKeys.filter((k) => !(k in catalogs.en));
 
   if (missingFromEs.length > 0) {
     assert.fail(`Keys in en but missing/empty in es: ${missingFromEs.slice(0, 10).join(', ')}`);
@@ -82,4 +82,18 @@ test('catalogs has expected namespaces: nav, errors, auth, common', () => {
 test('catalog has at least 80 keys (completeness sanity check)', () => {
   const keyCount = Object.keys(catalogs.en).length;
   assert.ok(keyCount >= 80, `Expected at least 80 keys in en catalog, got ${keyCount}`);
+});
+
+test('es values differ from en for at least some keys (es≠en sanity: REQ-5.3)', () => {
+  // A catalog where every key has the same value in es and en is almost
+  // certainly untranslated. Require at least 30% of keys to differ.
+  const enEntries = Object.entries(catalogs.en);
+  const identicalCount = enEntries.filter(([k, v]) => catalogs.es[k] === v).length;
+  const diffCount = enEntries.length - identicalCount;
+  const diffRatio = diffCount / enEntries.length;
+
+  assert.ok(
+    diffRatio >= 0.3,
+    `es catalog appears untranslated: only ${diffCount}/${enEntries.length} keys differ from en (${(diffRatio * 100).toFixed(1)}% < 30% required)`
+  );
 });
