@@ -126,10 +126,8 @@ const usersI18n = {
     <button type="submit" form="user-detail-form" class="cms-btn cms-btn-primary" id="user-detail-submit" slot="actions-right">{t('common.save')}</button>
   </DetailModal>
 
-  {/* Bridge: inject server-translated strings into the is:inline script below */}
-  <script define:vars={{ usersI18n }}></script>
-
-  <script is:inline>
+  {/* Strings injected via define:vars directly into the script that consumes them */}
+  <script define:vars={{ usersI18n }}>
     (function() {
       function run() {
         var token = (typeof window !== 'undefined' && window.getCmsToken) ? window.getCmsToken() : '';

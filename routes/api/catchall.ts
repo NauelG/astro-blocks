@@ -7,6 +7,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { APIContext } from 'astro';
 import * as handlers from '../../api/handlers.js';
+import { localizedJsonError } from '../../api/handlers.js';
 import type { GlobalBlockRuntimeEntry } from '../../types/index.js';
 
 export const prerender = false;
@@ -66,7 +67,7 @@ export async function GET({ request }: APIContext): Promise<Response> {
     return handlers.handleGetGlobalBlock(seg[1], registry, request);
   }
 
-  return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+  return localizedJsonError(request, 'errors.notFound', 404);
 }
 
 export async function POST({ request, cache }: APIContext): Promise<Response> {
@@ -83,7 +84,7 @@ export async function POST({ request, cache }: APIContext): Promise<Response> {
   if (seg[0] === 'configs' && seg.length === 1) return handlers.handlePostConfigs(request, { cache });
   if (seg[0] === 'upload' && seg.length === 1) return handlers.handleUpload(request);
   if (seg[0] === 'media' && seg[2] === 'replace' && seg.length === 3) return handlers.handleReplaceUpload(request, seg[1]);
-  if (seg[0] === 'cache' && seg[1] === 'invalidate' && seg.length === 2) return handlers.handleInvalidateCache({ cache });
+  if (seg[0] === 'cache' && seg[1] === 'invalidate' && seg.length === 2) return handlers.handleInvalidateCache(request, { cache });
   if (seg[0] === 'users' && seg.length === 1) return handlers.handlePostUsers(request, authResult.user);
   if (seg[0] === 'languages' && seg.length === 1) {
     const forbidden = handlers.requireOwner(authResult.user);
@@ -91,7 +92,7 @@ export async function POST({ request, cache }: APIContext): Promise<Response> {
     return handlers.handlePostLanguages(request, { cache });
   }
 
-  return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+  return localizedJsonError(request, 'errors.notFound', 404);
 }
 
 export async function PUT({ request, cache }: APIContext): Promise<Response> {
@@ -120,7 +121,7 @@ export async function PUT({ request, cache }: APIContext): Promise<Response> {
     return handlers.handlePutGlobalBlock(seg[1], request, { cache }, registry);
   }
 
-  return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+  return localizedJsonError(request, 'errors.notFound', 404);
 }
 
 export async function PATCH({ request }: APIContext): Promise<Response> {
@@ -134,7 +135,7 @@ export async function PATCH({ request }: APIContext): Promise<Response> {
     return handlers.handleUpdateMediaAlt(seg[1], request);
   }
 
-  return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+  return localizedJsonError(request, 'errors.notFound', 404);
 }
 
 export async function DELETE({ request, cache }: APIContext): Promise<Response> {
@@ -144,9 +145,9 @@ export async function DELETE({ request, cache }: APIContext): Promise<Response> 
   const seg = getPathSegments(request.url);
 
   if (seg[0] === 'pages' && seg.length === 2) return handlers.handleDeletePage(seg[1], request, { cache });
-  if (seg[0] === 'menus' && seg.length === 2) return handlers.handleDeleteMenu(seg[1], { cache });
-  if (seg[0] === 'redirects' && seg.length === 2) return handlers.handleDeleteRedirect(seg[1], { cache });
-  if (seg[0] === 'configs' && seg.length === 2) return handlers.handleDeleteConfig(seg[1], { cache });
+  if (seg[0] === 'menus' && seg.length === 2) return handlers.handleDeleteMenu(seg[1], { cache }, request);
+  if (seg[0] === 'redirects' && seg.length === 2) return handlers.handleDeleteRedirect(seg[1], { cache }, request);
+  if (seg[0] === 'configs' && seg.length === 2) return handlers.handleDeleteConfig(seg[1], { cache }, request);
   if (seg[0] === 'users' && seg.length === 2) return handlers.handleDeleteUser(seg[1], authResult.user, request);
   if (seg[0] === 'upload' && seg.length === 1) return handlers.handleDeleteUpload(request);
   if (seg[0] === 'languages' && seg.length === 2) {
@@ -155,5 +156,5 @@ export async function DELETE({ request, cache }: APIContext): Promise<Response> 
     return handlers.handleDeleteLanguage(seg[1], { cache }, request);
   }
 
-  return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+  return localizedJsonError(request, 'errors.notFound', 404);
 }

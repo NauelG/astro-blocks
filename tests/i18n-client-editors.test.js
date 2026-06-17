@@ -85,7 +85,7 @@ test('ct equivalent: createT("en") resolves globalBlocks.saved', () => {
 
 test('ct equivalent: createT("es") resolves globalBlocks.networkError', () => {
   const t = createT('es');
-  assert.equal(t('globalBlocks.networkError'), 'Error de red al guardar. Revisá la conexión.');
+  assert.equal(t('globalBlocks.networkError'), 'Error de red al guardar. Revisa la conexión.');
 });
 
 test('ct equivalent: createT("en") resolves pageEditor.arrayMaxReached with interpolation', () => {

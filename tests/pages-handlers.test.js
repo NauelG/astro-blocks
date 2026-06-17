@@ -185,7 +185,9 @@ test('handlePostPages returns 400 when blocks fail schema prop validation', asyn
 
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.match(body.error, /campo "Title" es obligatorio/);
+    // T1.1: block-validation now returns messageKey-based messages localized per request locale.
+    // Default request (no cookie, no Accept-Language) resolves to English.
+    assert.match(body.error, /field "Title" is required/);
   });
 });
 

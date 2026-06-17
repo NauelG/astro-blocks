@@ -12,6 +12,7 @@ Licensed under the Business Source License 1.1
 import { getCmsToken, getCmsWindow } from './common.js';
 import { fetchMedia, formatBytes, formatDimensions, formatMediaDate } from './media-fetch.js';
 import type { MediaListEnvelope, MediaEntry } from './media-fetch.js';
+import { ct } from '../i18n/client.js';
 
 const trashIconSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
@@ -49,9 +50,13 @@ function renderCard(entry: MediaEntry): string {
   const dims = formatDimensions(entry.width, entry.height);
   const metaDims = dims !== '—' ? `<span class="cms-media-card-meta-dim">${escapeHtml(dims)}</span><span class="cms-media-card-meta-sep" aria-hidden="true">·</span>` : '';
   const metaRow = `
-    <div class="cms-media-card-meta cms-muted" aria-label="Image metadata">
+    <div class="cms-media-card-meta cms-muted" aria-label="${escapeAttr(ct('media.imageMetaAriaLabel'))}">
       ${metaDims}<span class="cms-media-card-meta-size">${escapeHtml(formatBytes(entry.size))}</span><span class="cms-media-card-meta-sep" aria-hidden="true">·</span><span class="cms-media-card-meta-type">${escapeHtml(entry.mimeType)}</span><span class="cms-media-card-meta-sep" aria-hidden="true">·</span><span class="cms-media-card-meta-date">${escapeHtml(formatMediaDate(entry.createdAt))}</span>
     </div>`;
+  const altLabel = escapeAttr(ct('media.altLabel', { filename: entry.filename }));
+  const replaceLbl = escapeAttr(`${ct('media.replaceLabel')} ${entry.filename}`);
+  const deleteLbl = escapeAttr(`${ct('media.deleteLabel')} ${entry.filename}`);
+  const altPlaceholder = escapeAttr(ct('media.altPlaceholder'));
 
   return `
     <div class="cms-media-card" role="listitem" data-media-url="${escapeAttr(entry.url)}" data-media-id="${escapeAttr(entry.id)}">
@@ -61,32 +66,32 @@ function renderCard(entry: MediaEntry): string {
       <div class="cms-media-card-info">
         <span class="cms-media-card-name" title="${escapeAttr(entry.filename)}">${escapeHtml(entry.filename)}</span>
         ${metaRow}
-        <label class="cms-visually-hidden" for="alt-${escapeAttr(entry.id)}">Alt text for ${escapeAttr(entry.filename)}</label>
+        <label class="cms-visually-hidden" for="alt-${escapeAttr(entry.id)}">${altLabel}</label>
         <input
           id="alt-${escapeAttr(entry.id)}"
           type="text"
           class="cms-input cms-media-card-alt"
           data-alt-id="${escapeAttr(entry.id)}"
           value="${escapeAttr(entry.alt ?? '')}"
-          placeholder="Describe this image…"
+          placeholder="${altPlaceholder}"
           autocomplete="off"
-          aria-label="Alt text for ${escapeAttr(entry.filename)}"
+          aria-label="${altLabel}"
         />
       </div>
       <div class="cms-media-card-actions">
         <button
           type="button"
           class="cms-media-card-replace cms-btn-icon"
-          aria-label="Replace ${escapeAttr(entry.filename)}"
+          aria-label="${replaceLbl}"
           data-replace-id="${escapeAttr(entry.id)}"
           data-replace-filename="${escapeAttr(entry.filename)}"
           data-replace-mime="${escapeAttr(entry.mimeType)}"
-          title="Replace ${escapeAttr(entry.filename)}"
+          title="${replaceLbl}"
         >${replaceIconSvg}</button>
         <button
           type="button"
           class="cms-media-card-delete cms-btn-icon"
-          aria-label="Delete ${escapeAttr(entry.filename)}"
+          aria-label="${deleteLbl}"
           data-delete-url="${escapeAttr(entry.url)}"
           data-delete-filename="${escapeAttr(entry.filename)}"
           data-delete-id="${escapeAttr(entry.id)}"
@@ -120,8 +125,8 @@ function renderGrid(envelope: MediaListEnvelope): void {
     gridCard.innerHTML = `
       <div id="cms-media-empty-state" class="cms-media-empty-state">
         <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:0.3"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-        <p class="cms-media-empty-title">No images uploaded yet</p>
-        <p class="cms-muted">Upload your first image using the area above.</p>
+        <p class="cms-media-empty-title">${escapeHtml(ct('media.empty.title'))}</p>
+        <p class="cms-muted">${escapeHtml(ct('media.empty.text'))}</p>
       </div>
     `;
     if (countEl) countEl.textContent = '';
@@ -135,11 +140,11 @@ function renderGrid(envelope: MediaListEnvelope): void {
     // Search returned no results
     gridCard.innerHTML = `
       <div id="cms-media-empty-state" class="cms-media-empty-state">
-        <p class="cms-media-empty-title">No matching images</p>
-        <p class="cms-muted">Try a different search term.</p>
+        <p class="cms-media-empty-title">${escapeHtml(ct('media.noMatchTitle'))}</p>
+        <p class="cms-muted">${escapeHtml(ct('media.noMatchText'))}</p>
       </div>
     `;
-    if (countEl) countEl.textContent = `0 of ${total} images`;
+    if (countEl) countEl.textContent = ct('media.countOf', { shown: '0', total: String(total) });
     if (pageIndicator) pageIndicator.textContent = '';
     if (prevBtn) prevBtn.disabled = true;
     if (nextBtn) nextBtn.disabled = true;
@@ -148,13 +153,13 @@ function renderGrid(envelope: MediaListEnvelope): void {
 
   // Render grid items
   const items = uploads.map(renderCard).join('');
-  gridCard.innerHTML = `<div id="cms-media-grid" class="cms-media-grid" aria-label="Image library" role="list">${items}</div>`;
+  gridCard.innerHTML = `<div id="cms-media-grid" class="cms-media-grid" aria-label="${escapeAttr(ct('media.imageLibraryAriaLabel'))}" role="list">${items}</div>`;
 
   // Update count region (aria-live polite)
-  if (countEl) countEl.textContent = `${total} image${total !== 1 ? 's' : ''}`;
+  if (countEl) countEl.textContent = total === 1 ? ct('media.count', { total: String(total) }) : ct('media.countPlural', { total: String(total) });
 
   // Update page indicator
-  if (pageIndicator) pageIndicator.textContent = `Page ${page} of ${totalPages}`;
+  if (pageIndicator) pageIndicator.textContent = ct('media.pageIndicator', { page: String(page), totalPages: String(totalPages) });
 
   // Update pagination button states
   if (prevBtn) prevBtn.disabled = page <= 1;
@@ -190,17 +195,17 @@ async function uploadFile(file: File): Promise<void> {
   });
 
   if (res.ok) {
-    cmsWindow.cmsToast?.({ title: 'Upload successful', message: `${file.name} uploaded.`, tone: 'success' });
+    cmsWindow.cmsToast?.({ title: ct('media.uploadSuccess'), message: ct('media.uploadSuccessMessage', { filename: file.name }), tone: 'success' });
     // Reset to page 1 to show newly uploaded file
     state.page = 1;
     await loadMedia();
   } else {
-    let errorMsg = 'Upload failed.';
+    let errorMsg = ct('media.uploadFailed');
     try {
       const body = await res.json() as { error?: string };
       if (body.error) errorMsg = body.error;
     } catch { /* ignore */ }
-    cmsWindow.cmsToast?.({ title: 'Upload error', message: errorMsg, tone: 'error' });
+    cmsWindow.cmsToast?.({ title: ct('media.uploadError'), message: errorMsg, tone: 'error' });
   }
 }
 
@@ -235,13 +240,13 @@ async function deleteMedia(url: string, filename: string, id: string, triggerBtn
       .slice(0, 5)
       .map((u) => `  - ${u.label}`)
       .join('\n');
-    const more = usage.count > 5 ? `\n  - …and ${usage.count - 5} more` : '';
-    confirmMessage = `Used in ${usage.count} place(s):\n${labelList}${more}\n\nDelete "${filename}" anyway?`;
+    const more = usage.count > 5 ? `\n${ct('media.deleteConfirmUsedMore', { more: String(usage.count - 5) })}` : '';
+    confirmMessage = ct('media.deleteConfirmUsed', { count: String(usage.count), list: labelList + more, filename });
   } else {
-    confirmMessage = `Delete "${filename}"?`;
+    confirmMessage = ct('media.deleteConfirmSingle', { filename });
   }
 
-  const confirmed = await cmsWindow.cmsConfirm?.({ message: confirmMessage, confirmLabel: 'Delete' });
+  const confirmed = await cmsWindow.cmsConfirm?.({ message: confirmMessage, confirmLabel: ct('media.deleteLabel') });
   if (!confirmed) return;
 
   const token = getCmsToken();
@@ -255,13 +260,13 @@ async function deleteMedia(url: string, filename: string, id: string, triggerBtn
   });
 
   if (res.ok || res.status === 204) {
-    cmsWindow.cmsToast?.({ title: 'Deleted', message: `${filename} removed.`, tone: 'success' });
+    cmsWindow.cmsToast?.({ title: ct('media.deleted'), message: ct('media.deletedMessage', { filename }), tone: 'success' });
     await loadMedia();
     // Return focus to prev/next if possible, else search
     const searchInput = document.getElementById('cms-media-search') as HTMLInputElement | null;
     searchInput?.focus();
   } else {
-    cmsWindow.cmsToast?.({ title: 'Delete failed', message: 'Could not remove the image.', tone: 'error' });
+    cmsWindow.cmsToast?.({ title: ct('media.deleteFailed'), message: ct('media.deleteFailedMessage'), tone: 'error' });
     triggerBtn.focus();
   }
 }
@@ -301,7 +306,7 @@ async function replaceMedia(id: string, filename: string, mimeType: string, trig
     // Show processing hint
     triggerBtn.disabled = true;
     triggerBtn.setAttribute('aria-busy', 'true');
-    cmsWindow.cmsToast?.({ title: 'Replacing…', message: `Processing ${filename}`, tone: 'success' });
+    cmsWindow.cmsToast?.({ title: ct('media.replacing'), message: ct('media.replacingMessage', { filename }), tone: 'success' });
 
     const fd = new FormData();
     fd.append('file', file);
@@ -314,21 +319,21 @@ async function replaceMedia(id: string, filename: string, mimeType: string, trig
       });
 
       if (res.ok) {
-        cmsWindow.cmsToast?.({ title: 'Replace successful', message: `${filename} replaced. Variants regenerating.`, tone: 'success' });
+        cmsWindow.cmsToast?.({ title: ct('media.replaceSuccess'), message: ct('media.replaceSuccessMessage', { filename }), tone: 'success' });
         await loadMedia();
       } else {
-        let errorMsg = 'Replace failed.';
+        let errorMsg = ct('media.replaceFailed');
         try {
           const body = await res.json() as { error?: string };
           if (body.error) errorMsg = body.error;
         } catch { /* ignore */ }
-        cmsWindow.cmsToast?.({ title: '⚠ Replace error', message: errorMsg, tone: 'error' });
+        cmsWindow.cmsToast?.({ title: ct('media.replaceError'), message: errorMsg, tone: 'error' });
         triggerBtn.disabled = false;
         triggerBtn.removeAttribute('aria-busy');
         triggerBtn.focus();
       }
     } catch {
-      cmsWindow.cmsToast?.({ title: '⚠ Replace error', message: 'Network error. Please try again.', tone: 'error' });
+      cmsWindow.cmsToast?.({ title: ct('media.replaceError'), message: ct('media.replaceNetworkError'), tone: 'error' });
       triggerBtn.disabled = false;
       triggerBtn.removeAttribute('aria-busy');
       triggerBtn.focus();
@@ -366,9 +371,9 @@ async function patchMediaAlt(id: string, alt: string): Promise<void> {
   });
 
   if (res.ok) {
-    cmsWindow.cmsToast?.({ title: 'Alt text saved', message: 'Default alt text updated.', tone: 'success' });
+    cmsWindow.cmsToast?.({ title: ct('media.altSaved'), message: ct('media.altSavedMessage'), tone: 'success' });
   } else {
-    cmsWindow.cmsToast?.({ title: 'Save failed', message: 'Could not save alt text.', tone: 'error' });
+    cmsWindow.cmsToast?.({ title: ct('media.altSaveFailed'), message: ct('media.altSaveFailedMessage'), tone: 'error' });
   }
 }
 

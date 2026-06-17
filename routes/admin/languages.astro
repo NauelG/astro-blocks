@@ -140,10 +140,8 @@ const languagesI18n = {
     <button type="submit" form="language-detail-form" class="cms-btn cms-btn-primary" id="language-detail-submit" slot="actions-right">{t('common.save')}</button>
   </DetailModal>
 
-  {/* Bridge: inject server-translated strings into the is:inline script below */}
-  <script define:vars={{ languagesI18n }}></script>
-
-  <script is:inline>
+  {/* Strings injected via define:vars directly into the script that consumes them */}
+  <script define:vars={{ languagesI18n }}>
     (function() {
       function getToken() {
         if (typeof window === 'undefined') return '';

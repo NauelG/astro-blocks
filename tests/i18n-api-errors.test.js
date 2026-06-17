@@ -28,6 +28,7 @@ import {
   handleDeleteLanguage,
   handlePostMenus,
   handlePutMenu,
+  handleDeleteMenu,
   handlePostConfigs,
   handlePutConfig,
   handlePostPages,
@@ -428,5 +429,142 @@ test('requireOwner returns Spanish error when request is provided (es cookie)', 
     assert.equal(res.status, 403);
     const body = await res.json();
     assert.match(body.error, /denegado/i, 'Must be Spanish');
+  });
+});
+
+// ─── handleDeleteUser — not-found localization ────────────────────────────────
+
+test('handleDeleteUser returns English not-found error for unknown id (en cookie)', async () => {
+  await withTempProject(async () => {
+    const request = makeRequest('http://localhost/cms/api/users/nonexistent', {
+      headers: withUiLocale('en'),
+    });
+    const res = await handleDeleteUser('nonexistent-id', { role: 'owner' }, request);
+    assert.equal(res.status, 404);
+    const body = await res.json();
+    assert.ok(typeof body.error === 'string');
+    assert.match(body.error, /not found/i, 'Must be English');
+    assert.doesNotMatch(body.error, /encontrado/i, 'Must not be Spanish');
+  });
+});
+
+test('handleDeleteUser returns Spanish not-found error for unknown id (es cookie)', async () => {
+  await withTempProject(async () => {
+    const request = makeRequest('http://localhost/cms/api/users/nonexistent', {
+      headers: withUiLocale('es'),
+    });
+    const res = await handleDeleteUser('nonexistent-id', { role: 'owner' }, request);
+    assert.equal(res.status, 404);
+    const body = await res.json();
+    assert.ok(typeof body.error === 'string');
+    assert.match(body.error, /encontrado/i, 'Must be Spanish');
+  });
+});
+
+test('handleDeleteUser returns Spanish cannotDeleteLastOwner error (es cookie)', async () => {
+  await withTempProject(async () => {
+    // Bootstrap an owner user
+    await handleLogin(makeRequest('http://localhost/cms/api/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'owner@test.com', password: 'secret' }),
+    }));
+
+    // Load users to find the owner id
+    const { loadUsers } = await import('../dist/api/data.js');
+    const usersData = await loadUsers();
+    const owner = usersData.users.find((u) => u.role === 'owner');
+    assert.ok(owner, 'owner must exist');
+
+    const request = makeRequest(`http://localhost/cms/api/users/${owner.id}`, {
+      headers: withUiLocale('es'),
+    });
+    const res = await handleDeleteUser(owner.id, { role: 'owner' }, request);
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.ok(typeof body.error === 'string');
+    assert.match(body.error, /propietario|único/i, 'Must be Spanish cannotDeleteLastOwner');
+  });
+});
+
+test('handleDeleteUser returns English cannotDeleteLastOwner error (en cookie)', async () => {
+  await withTempProject(async () => {
+    // Bootstrap an owner user
+    await handleLogin(makeRequest('http://localhost/cms/api/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'owner2@test.com', password: 'secret' }),
+    }));
+
+    const { loadUsers } = await import('../dist/api/data.js');
+    const usersData = await loadUsers();
+    const owner = usersData.users.find((u) => u.role === 'owner');
+    assert.ok(owner, 'owner must exist');
+
+    const request = makeRequest(`http://localhost/cms/api/users/${owner.id}`, {
+      headers: withUiLocale('en'),
+    });
+    const res = await handleDeleteUser(owner.id, { role: 'owner' }, request);
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.ok(typeof body.error === 'string');
+    assert.match(body.error, /owner/i, 'Must be English cannotDeleteLastOwner');
+    assert.doesNotMatch(body.error, /propietario/i, 'Must not be Spanish');
+  });
+});
+
+// ─── handleDeleteMenu — not-found localization ────────────────────────────────
+
+test('handleDeleteMenu returns English not-found error for unknown id (en cookie)', async () => {
+  await withTempProject(async () => {
+    const request = makeRequest('http://localhost/cms/api/menus/nonexistent', {
+      headers: withUiLocale('en'),
+    });
+    const res = await handleDeleteMenu('nonexistent-id', {}, request);
+    assert.equal(res.status, 404);
+    const body = await res.json();
+    assert.ok(typeof body.error === 'string');
+    assert.match(body.error, /not found/i, 'Must be English');
+    assert.doesNotMatch(body.error, /encontrado/i, 'Must not be Spanish');
+  });
+});
+
+test('handleDeleteMenu returns Spanish not-found error for unknown id (es cookie)', async () => {
+  await withTempProject(async () => {
+    const request = makeRequest('http://localhost/cms/api/menus/nonexistent', {
+      headers: withUiLocale('es'),
+    });
+    const res = await handleDeleteMenu('nonexistent-id', {}, request);
+    assert.equal(res.status, 404);
+    const body = await res.json();
+    assert.ok(typeof body.error === 'string');
+    assert.match(body.error, /encontrado/i, 'Must be Spanish');
+  });
+});
+
+// ─── handleDeleteLanguage — not-found localization ────────────────────────────
+
+test('handleDeleteLanguage returns English not-found error for unknown code (en cookie)', async () => {
+  await withTempProject(async () => {
+    const request = makeRequest('http://localhost/cms/api/languages/xx', {
+      headers: withUiLocale('en'),
+    });
+    const res = await handleDeleteLanguage('xx', {}, request);
+    assert.equal(res.status, 404);
+    const body = await res.json();
+    assert.ok(typeof body.error === 'string');
+    assert.match(body.error, /not found/i, 'Must be English');
+    assert.doesNotMatch(body.error, /encontrado/i, 'Must not be Spanish');
+  });
+});
+
+test('handleDeleteLanguage returns Spanish not-found error for unknown code (es cookie)', async () => {
+  await withTempProject(async () => {
+    const request = makeRequest('http://localhost/cms/api/languages/xx', {
+      headers: withUiLocale('es'),
+    });
+    const res = await handleDeleteLanguage('xx', {}, request);
+    assert.equal(res.status, 404);
+    const body = await res.json();
+    assert.ok(typeof body.error === 'string');
+    assert.match(body.error, /encontrado/i, 'Must be Spanish');
   });
 });

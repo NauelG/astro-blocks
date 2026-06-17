@@ -455,7 +455,9 @@ export function initPageEditor(): void {
     inlineErrors.clear();
 
     if (issue.blockIndex !== undefined && issue.propName) {
-      inlineErrors.set(errorKey(issue.blockIndex, issue.propName, issue.itemIndex, issue.fieldName), issue.message);
+      // Use ct() for localized inline error; fall back to .message (English) if no messageKey
+      const localizedMsg = issue.messageKey ? ct(issue.messageKey, issue.params) : issue.message;
+      inlineErrors.set(errorKey(issue.blockIndex, issue.propName, issue.itemIndex, issue.fieldName), localizedMsg);
       openBlockIndex = issue.blockIndex;
 
       if (issue.itemIndex !== undefined) {
@@ -653,7 +655,7 @@ export function initPageEditor(): void {
 
   function resetFormForNew(): void {
     if (idInput) idInput.value = '';
-    if (titleInput) titleInput.value = 'Untitled';
+    if (titleInput) titleInput.value = ct('pageEditor.defaultTitle');
     if (slugInput) slugInput.value = '/';
     if (statusInput) statusInput.value = 'draft';
     if (indexableInput) indexableInput.checked = true;
@@ -780,6 +782,8 @@ export function initPageEditor(): void {
 
       if (!schema || !schema.items) {
         return {
+          messageKey: 'pageEditor.unknownBlock',
+          params: { type: block.type },
           message: ct('pageEditor.unknownBlock', { type: block.type }),
           blockIndex: index,
         };
@@ -810,7 +814,9 @@ export function initPageEditor(): void {
     const validationIssue = validateCurrentBlocks();
     if (validationIssue) {
       applyValidationIssue(validationIssue);
-      await showAlert(validationIssue.message, ct('pageEditor.cannotSave'));
+      // Use ct() for localized alert message; fall back to English .message if no messageKey
+      const alertMsg = validationIssue.messageKey ? ct(validationIssue.messageKey, validationIssue.params) : validationIssue.message;
+      await showAlert(alertMsg, ct('pageEditor.cannotSave'));
       return;
     }
 
@@ -819,7 +825,7 @@ export function initPageEditor(): void {
     const id = idInput?.value?.trim() || '';
     const payload = {
       locale: getActiveContentLocale('es') || undefined,
-      title: titleInput?.value || 'Untitled',
+      title: titleInput?.value || ct('pageEditor.defaultTitle'),
       slug: slugInput?.value || '/',
       status: statusInput?.value || 'draft',
       indexable: indexableInput?.checked ?? true,

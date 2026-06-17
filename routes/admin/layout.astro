@@ -57,7 +57,7 @@ const t = createT(uiLocale);
                 type="email"
                 id="cms-email-input"
                 name="email"
-                placeholder="Email"
+                placeholder={t('auth.emailPlaceholder')}
                 class="cms-input"
                 autocomplete="username"
               />
@@ -231,6 +231,32 @@ const t = createT(uiLocale);
       </button>
     </div>
     <div id="cms-toast-region" class="cms-toast-region" aria-live="polite" aria-atomic="true"></div>
+    <!-- T1.3: Auth i18n bridge MUST come before the auth script that reads it.
+         Classic scripts execute in source order — the bridge must be declared first
+         so window.__cmsAuthI18n is populated when the auth IIFE runs. -->
+    <script define:vars={{
+      _authLoading: t('auth.loading'),
+      _authSignIn: t('auth.signIn'),
+      _authCreateFirstUser: t('auth.createFirstUser'),
+      _authEnterLabel: t('auth.enterLabel'),
+      _authCreateAccountLabel: t('auth.createAccountLabel'),
+      _authEmailPasswordRequired: t('auth.emailPasswordRequired'),
+      _authLoginError: t('auth.loginError'),
+      _authSessionLabel: t('auth.sessionLabel'),
+      _authRoleOwner: t('users.roleOwner'),
+    }}>
+      window.__cmsAuthI18n = {
+        loading: _authLoading,
+        signIn: _authSignIn,
+        createFirstUser: _authCreateFirstUser,
+        enterLabel: _authEnterLabel,
+        createAccountLabel: _authCreateAccountLabel,
+        emailPasswordRequired: _authEmailPasswordRequired,
+        loginError: _authLoginError,
+        sessionLabel: _authSessionLabel,
+        roleOwner: _authRoleOwner,
+      };
+    </script>
     <script>
       (function() {
         if (typeof document === 'undefined') return;
@@ -253,7 +279,7 @@ const t = createT(uiLocale);
             profileEmail.textContent = _i18n.sessionLabel || 'Panel session';
             return;
           }
-          profileEmail.textContent = user.role === 'owner' ? `${user.email} · Owner` : user.email;
+          profileEmail.textContent = user.role === 'owner' ? `${user.email} · ${_i18n.roleOwner || 'Owner'}` : user.email;
         }
         function show(hasToken: boolean) {
           if (loginForm) loginForm.classList.toggle('cms-hidden', hasToken);
@@ -346,28 +372,6 @@ const t = createT(uiLocale);
           });
         }
       })();
-    </script>
-    <!-- Fix 1: Inject SSR-translated login strings for use in the client login script -->
-    <script define:vars={{
-      _authLoading: t('auth.loading'),
-      _authSignIn: t('auth.signIn'),
-      _authCreateFirstUser: t('auth.createFirstUser'),
-      _authEnterLabel: t('auth.enterLabel'),
-      _authCreateAccountLabel: t('auth.createAccountLabel'),
-      _authEmailPasswordRequired: t('auth.emailPasswordRequired'),
-      _authLoginError: t('auth.loginError'),
-      _authSessionLabel: t('auth.sessionLabel'),
-    }}>
-      window.__cmsAuthI18n = {
-        loading: _authLoading,
-        signIn: _authSignIn,
-        createFirstUser: _authCreateFirstUser,
-        enterLabel: _authEnterLabel,
-        createAccountLabel: _authCreateAccountLabel,
-        emailPasswordRequired: _authEmailPasswordRequired,
-        loginError: _authLoginError,
-        sessionLabel: _authSessionLabel,
-      };
     </script>
     <!-- Task 2.4: Emit SSR-resolved uiLocale to client via window bridge (Design Decision #3) -->
     <script define:vars={{ uiLocale }}>
