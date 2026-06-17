@@ -97,7 +97,28 @@ async function captureReadmeScreenshots(baseUrl, token) {
   const context = await browser.newContext({
     viewport: { width: 1720, height: 1100 },
     deviceScaleFactor: 1,
+    // Force English Accept-Language so the admin UI language detection falls back
+    // to 'en' even before the cookie is set.
+    locale: 'en-US',
   });
+
+  // Force the admin UI language to English via the cms-ui-locale cookie.
+  // The admin resolves the UI locale server-side on every SSR request; without
+  // this cookie the rendered language would depend on the host machine's locale,
+  // producing non-English screenshots on Spanish-locale CI runners.
+  // Path=/cms must match the admin mount point so the cookie is sent on /cms/* requests.
+  const parsedUrl = new URL(baseUrl);
+  await context.addCookies([
+    {
+      name: 'cms-ui-locale',
+      value: 'en',
+      domain: parsedUrl.hostname,
+      path: '/cms',
+      sameSite: 'Lax',
+      httpOnly: false,
+      secure: false,
+    },
+  ]);
 
   await context.addInitScript(
     ({ authToken, user }) => {

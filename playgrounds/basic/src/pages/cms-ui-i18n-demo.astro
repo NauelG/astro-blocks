@@ -1,0 +1,226 @@
+---
+/*
+ * Playground demo: Admin UI i18n — language switch (en / es)
+ *
+ * This is a REAL working SSR demo: the detected UI locale changes the
+ * rendered output. Set the cms-ui-locale cookie (or your browser's
+ * Accept-Language) to see the page switch between English and Spanish.
+ *
+ * NOTE: resolveUiLocale and createT are NOT part of the package's public
+ * exports (@astroblocks/astro-blocks). They are internal to the admin panel.
+ * This demo replicates the same resolution logic inline so a consumer can
+ * understand how the feature works without accessing package internals.
+ *
+ * To expose these as public API, add entries to the "exports" field in
+ * the root package.json (e.g. "./ui-locale": "./dist/routes/admin/i18n/resolve.js").
+ *
+ * Resolution precedence (mirrors the real admin logic — REQ-5):
+ *   1. Cookie cms-ui-locale=en|es  (set by the in-admin switcher)
+ *   2. Accept-Language header       (browser language preference)
+ *   3. 'en' fallback               (always safe default)
+ */
+
+// ─── Inline locale resolution (mirrors resolveUiLocale from the admin i18n module) ─
+
+const SUPPORTED = ['en', 'es'];
+
+function parseCookieLocale(cookieHeader) {
+  if (!cookieHeader) return null;
+  for (const pair of cookieHeader.split(';')) {
+    const eq = pair.indexOf('=');
+    if (eq === -1) continue;
+    const name = pair.slice(0, eq).trim();
+    const value = pair.slice(eq + 1).trim();
+    if (name === 'cms-ui-locale') {
+      const v = decodeURIComponent(value).toLowerCase();
+      return SUPPORTED.includes(v) ? v : null;
+    }
+  }
+  return null;
+}
+
+function parseAcceptLocale(header) {
+  if (!header) return null;
+  const parts = header.split(',').map((p) => {
+    const [tag, q] = p.trim().split(';q=');
+    return { tag: (tag ?? '').trim(), q: q ? parseFloat(q) : 1.0 };
+  }).sort((a, b) => b.q - a.q);
+  for (const { tag } of parts) {
+    const exact = tag.toLowerCase();
+    if (SUPPORTED.includes(exact)) return exact;
+    const primary = exact.split('-')[0];
+    if (primary && SUPPORTED.includes(primary)) return primary;
+  }
+  return null;
+}
+
+const cookieHeader = Astro.request.headers.get('cookie');
+const acceptLang = Astro.request.headers.get('accept-language');
+
+const fromCookie = parseCookieLocale(cookieHeader);
+const fromHeader = parseAcceptLocale(acceptLang);
+const uiLocale = fromCookie ?? fromHeader ?? 'en';
+
+// ─── Inline mini-catalog (mirrors a subset of the en/es catalogs) ──────────────
+
+const labels = {
+  en: {
+    pageTitle:   'Admin UI i18n Demo — AstroBlocks Playground',
+    heading:     'Admin UI i18n Live Demo',
+    localeLabel: 'Detected UI locale',
+    sourceLabel: 'Resolution source',
+    k1:          'Dashboard',
+    k2:          'Save',
+    k3:          'Cancel',
+    k4:          'Loading…',
+    switchNote:  'Switch language',
+    adminLink:   'Open the CMS admin',
+  },
+  es: {
+    pageTitle:   'Demo UI i18n de Admin — Playground de AstroBlocks',
+    heading:     'Demo en Vivo de UI i18n del Admin',
+    localeLabel: 'Idioma de UI detectado',
+    sourceLabel: 'Fuente de resolución',
+    k1:          'Panel de control',
+    k2:          'Guardar',
+    k3:          'Cancelar',
+    k4:          'Cargando…',
+    switchNote:  'Cambiar idioma',
+    adminLink:   'Abrir el CMS',
+  },
+};
+
+const L = labels[uiLocale];
+const resolutionSource = fromCookie
+  ? `Cookie cms-ui-locale=${fromCookie}`
+  : fromHeader
+    ? `Accept-Language header (${acceptLang})`
+    : 'Default fallback (en)';
+---
+
+<!doctype html>
+<html lang={uiLocale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{L.pageTitle}</title>
+    <meta name="robots" content="noindex" />
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: system-ui, sans-serif;
+        line-height: 1.6;
+        padding: 2rem;
+        max-width: 720px;
+        margin: 0 auto;
+        color: #1b1b1b;
+      }
+      h1 { font-size: 1.75rem; margin-bottom: 0.5rem; }
+      h2 { font-size: 1.2rem; margin-top: 2rem; margin-bottom: 0.5rem; color: #444; }
+      p, li { margin-bottom: 0.5rem; }
+      table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+      th, td { border: 1px solid #ddd; padding: 0.5rem 0.75rem; text-align: left; }
+      th { background: #f5f5f5; }
+      code {
+        background: #f0f0f0;
+        padding: 0.15em 0.4em;
+        border-radius: 3px;
+        font-size: 0.9em;
+        font-family: 'Courier New', monospace;
+      }
+      .locale-badge {
+        display: inline-block;
+        font-size: 0.8rem;
+        padding: 0.2em 0.7em;
+        border-radius: 999px;
+        font-weight: 700;
+        background: #dbeafe;
+        color: #1e40af;
+        margin-left: 0.5rem;
+      }
+      .admin-link {
+        display: inline-block;
+        margin-top: 1rem;
+        padding: 0.6rem 1.2rem;
+        background: #2563eb;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+      }
+      .admin-link:hover { background: #1d4ed8; }
+      .note {
+        background: #fef9c3;
+        border-left: 4px solid #f59e0b;
+        padding: 0.75rem 1rem;
+        margin-top: 1.5rem;
+        border-radius: 0 4px 4px 0;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 0.75rem;
+        padding: 0.15em 0.6em;
+        border-radius: 999px;
+        font-weight: 600;
+        background: #dcfce7;
+        color: #166534;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>
+      {L.heading} <span class="tag">Playground</span>
+      <span class="locale-badge">{uiLocale}</span>
+    </h1>
+
+    <p>
+      This page is rendered <strong>server-side on every request</strong>. The active locale
+      (<code>{uiLocale}</code>) is resolved from your request headers — no client-side flash.
+      The <code>&lt;html lang&gt;</code> attribute above is already set to <code>{uiLocale}</code>.
+    </p>
+
+    <h2>{L.localeLabel}</h2>
+    <table>
+      <tr><th>{L.localeLabel}</th><td><strong>{uiLocale}</strong></td></tr>
+      <tr><th>{L.sourceLabel}</th><td><code>{resolutionSource}</code></td></tr>
+    </table>
+
+    <h2>Translated strings via the active locale</h2>
+    <table>
+      <tr><th>Key</th><th>Value ({uiLocale})</th></tr>
+      <tr><td><code>nav.dashboard</code></td><td>{L.k1}</td></tr>
+      <tr><td><code>actions.save</code></td><td>{L.k2}</td></tr>
+      <tr><td><code>actions.cancel</code></td><td>{L.k3}</td></tr>
+      <tr><td><code>status.loading</code></td><td>{L.k4}</td></tr>
+    </table>
+
+    <h2>{L.switchNote}</h2>
+    <p>
+      Set the <code>cms-ui-locale</code> cookie to switch language:
+    </p>
+    <ul>
+      <li>
+        English: <code>document.cookie = 'cms-ui-locale=en; path=/; max-age=31536000'</code>
+      </li>
+      <li>
+        Español: <code>document.cookie = 'cms-ui-locale=es; path=/; max-age=31536000'</code>
+      </li>
+    </ul>
+    <p>
+      Or set your browser's preferred language to Spanish and clear the cookie —
+      the <code>Accept-Language</code> header will auto-resolve to <code>es</code>.
+    </p>
+
+    <a class="admin-link" href="/cms">{L.adminLink} →</a>
+
+    <div class="note">
+      <strong>API finding:</strong> <code>resolveUiLocale</code> and <code>createT</code> are
+      <strong>NOT currently exported</strong> from the package's public API
+      (<code>@astroblocks/astro-blocks</code>). This demo replicates their logic inline.
+      To consume them in your own SSR pages, the package should add an export such as
+      <code>"./ui-locale": "./dist/routes/admin/i18n/resolve.js"</code> to its
+      <code>exports</code> map.
+    </div>
+  </body>
+</html>

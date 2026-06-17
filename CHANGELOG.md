@@ -9,6 +9,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Title
+
+Admin UI internationalisation (English and Spanish)
+
+### Added
+
+- **Admin UI language support (en / es):** the CMS admin panel now renders in English or Spanish. The active language is resolved server-side on every SSR request so the first paint is always correct — no flash. Resolution order: `cms-ui-locale` cookie override → `Accept-Language` header (primary-subtag matching, e.g. `es-MX → es`) → English fallback.
+- **Dynamic `<html lang>` attribute:** the `<html>` element now reflects the SSR-resolved UI language on every page (`lang="en"` or `lang="es"`), satisfying WCAG 3.1.1.
+- **Language switcher:** an accessible native `<select>` control in the profile dropdown allows the user to switch between English and Spanish. Selecting a language writes the `cms-ui-locale` cookie (`Path=/cms; SameSite=Lax; Max-Age=31536000`, not HttpOnly), mirrors to `localStorage`, and reloads the page so the next SSR render picks up the new preference. The switcher is keyboard-operable (Tab + Enter/Space), has a translated accessible name, and meets WCAG 2.2 minimum target size (SC 2.5.8).
+- **Full catalog (~400 keys):** all admin UI strings across 12 route pages, 3 dialog components, and 9 client-side editors are extracted into flat dot-namespaced catalogs (`routes/admin/i18n/en.ts` and `routes/admin/i18n/es.ts`). Both catalogs must remain complete — missing or extra keys cause a TypeScript type error.
+- **Localised API errors:** user-facing error and validation messages from `api/handlers.ts` are now returned in the active UI language. The API resolves the UI locale from the `cms-ui-locale` cookie on the incoming request (independent of the content-locale axis). The wire shape `{ error: string }` is unchanged — no client update required.
+- **Client editors fully localised:** all `cmsToast`, `cmsAlert`, and `cmsConfirm` strings in the 9 browser-side editor modules now use `ct(key)` from `routes/admin/i18n/client.ts`, which reads the SSR-injected locale from the `window` bridge and renders in the correct language without a second detection or any flicker.
+- **Spanish-leak guard (`tests/i18n-no-spanish-leak.test.js`):** a new automated test scans all admin source files for hardcoded Spanish string literals (accented characters + Spanish wordlist). It fails if any are found outside the Spanish catalog and explicitly exempted locations (`es.ts`, the copyright header, the language endonym "Español"). Self-tests prove the guard catches planted leaks.
+- **Packaging tests (`tests/i18n-dist-packaging.test.js`):** assert that all 7 i18n module files ship in `dist/routes/admin/i18n/`, that `resolveUiLocale` defaults to English, and that the full catalog (≥ 300 keys) is accessible from the built dist.
+- **Hard wall preserved:** `getActiveContentLocale`, `normalizeLocaleFromRequest`, the `x-cms-locale` header pipeline, and the content locale topbar selector are untouched. The UI locale cookie (`cms-ui-locale`) uses a key distinct from the content locale storage (`cms-content-locale`) to prevent any collision.
+
 ## [3.0.3] - 2026-06-15
 
 ### Title
