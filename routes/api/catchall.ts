@@ -41,7 +41,7 @@ export async function GET({ request }: APIContext): Promise<Response> {
   if (seg[0] === 'auth' && seg[1] === 'status' && seg.length === 2) return handlers.handleAuthStatus();
   if (seg[0] === 'auth' && seg[1] === 'me' && seg.length === 2) {
     const auth = await handlers.getAuth(request);
-    return handlers.handleAuthMe(auth?.user);
+    return handlers.handleAuthMe(auth?.user, request);
   }
 
   const authResult = await ensureAuth(request);
@@ -147,12 +147,12 @@ export async function DELETE({ request, cache }: APIContext): Promise<Response> 
   if (seg[0] === 'menus' && seg.length === 2) return handlers.handleDeleteMenu(seg[1], { cache });
   if (seg[0] === 'redirects' && seg.length === 2) return handlers.handleDeleteRedirect(seg[1], { cache });
   if (seg[0] === 'configs' && seg.length === 2) return handlers.handleDeleteConfig(seg[1], { cache });
-  if (seg[0] === 'users' && seg.length === 2) return handlers.handleDeleteUser(seg[1], authResult.user);
+  if (seg[0] === 'users' && seg.length === 2) return handlers.handleDeleteUser(seg[1], authResult.user, request);
   if (seg[0] === 'upload' && seg.length === 1) return handlers.handleDeleteUpload(request);
   if (seg[0] === 'languages' && seg.length === 2) {
     const forbidden = handlers.requireOwner(authResult.user);
     if (forbidden) return forbidden;
-    return handlers.handleDeleteLanguage(seg[1], { cache });
+    return handlers.handleDeleteLanguage(seg[1], { cache }, request);
   }
 
   return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });

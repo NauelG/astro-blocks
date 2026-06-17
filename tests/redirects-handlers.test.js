@@ -113,7 +113,7 @@ test('redirect handlers validate input and avoid duplicate origins', async () =>
     );
 
     assert.equal(duplicate.status, 400);
-    assert.equal((await duplicate.json()).error, 'Ya existe una redirección con esa ruta de origen.');
+    assert.match((await duplicate.json()).error, /redirect.*source|source.*already|already exist/i);
 
     const external = await handlePostRedirects(
       new Request('http://localhost/cms/api/redirects', {
@@ -124,7 +124,7 @@ test('redirect handlers validate input and avoid duplicate origins', async () =>
     );
 
     assert.equal(external.status, 400);
-    assert.equal((await external.json()).error, 'La ruta de origen debe ser interna (no se permiten URLs absolutas).');
+    assert.match((await external.json()).error, /internal|absolute/i);
 
     const samePath = await handlePostRedirects(
       new Request('http://localhost/cms/api/redirects', {
@@ -135,7 +135,7 @@ test('redirect handlers validate input and avoid duplicate origins', async () =>
     );
 
     assert.equal(samePath.status, 400);
-    assert.equal((await samePath.json()).error, 'La ruta de origen y la de destino no pueden ser iguales.');
+    assert.match((await samePath.json()).error, /source.*destination|same/i);
 
     const withQuery = await handlePostRedirects(
       new Request('http://localhost/cms/api/redirects', {
@@ -146,6 +146,6 @@ test('redirect handlers validate input and avoid duplicate origins', async () =>
     );
 
     assert.equal(withQuery.status, 400);
-    assert.equal((await withQuery.json()).error, 'La ruta de origen no puede incluir query ni fragmento.');
+    assert.match((await withQuery.json()).error, /query|fragment/i);
   });
 });

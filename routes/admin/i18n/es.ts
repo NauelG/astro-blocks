@@ -161,6 +161,7 @@ export const es = {
   'pageEditor.fieldsConfigurablePlural': '{count} campos configurables',
   'pageEditor.configureBlock': 'Configura las propiedades de este bloque',
   'pageEditor.blockElement': 'Elemento {n}',
+  'pageEditor.arrayCount': '{count} elementos',
   'pageEditor.blockDuplicated': 'Bloque duplicado.',
   'pageEditor.blockDeleted': 'Bloque eliminado.',
   'pageEditor.blockAdded': 'Bloque "{name}" añadido.',
@@ -213,6 +214,10 @@ export const es = {
   'redirects.code301': 'Permanente',
   'redirects.code302': 'Temporal',
   'redirects.deleteConfirm': '¿Eliminar la redirección {from} → {to}?',
+  'redirects.pathRequired': '{field} es obligatorio.',
+  'redirects.pathMustBeInternal': '{field} debe ser interno (no se permiten URLs absolutas).',
+  'redirects.pathMustStartSlash': '{field} debe comenzar con "/".',
+  'redirects.pathNoQueryFragment': '{field} no puede incluir query ni fragmento.',
 
   // ─── Configs / Parameters ─────────────────────────────────────────────────
   'configs.eyebrow': 'Configuración',
@@ -444,7 +449,9 @@ export const es = {
   'errors.menuPathRequired': 'La ruta es obligatoria en todos los elementos del menú.',
   'errors.configKeyRequired': 'La clave es obligatoria.',
   'errors.invalidConfigKey': 'La clave debe empezar por una letra y solo puede contener letras, números, punto, guion y guion bajo.',
+  'errors.configKeyExists': 'Ya existe un parámetro con esa clave.',
   'errors.redirectSameFromTo': 'La ruta de origen y la de destino no pueden ser iguales.',
+  'errors.redirectFromExists': 'Ya existe una redirección con esa ruta de origen.',
   'errors.blockSchemaMissing': 'Esquema de bloque faltante.',
   'errors.loadBlockSchemasFailed': 'Error al cargar los esquemas de bloques.',
 } satisfies Catalog & { [K in keyof typeof en]: string };

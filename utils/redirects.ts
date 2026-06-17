@@ -10,8 +10,14 @@ const ABSOLUTE_URL_REGEX = /^https?:\/\//i;
 
 type RedirectPathField = 'from' | 'to';
 
-function fieldLabel(field: RedirectPathField): string {
-  return field === 'from' ? 'origen' : 'destino';
+/** Catalog key for the field label — used as the {field} interpolation param. */
+function fieldLabelKey(field: RedirectPathField): string {
+  return field === 'from' ? 'redirects.labelFrom' : 'redirects.labelTo';
+}
+
+export interface RedirectPathError {
+  errorKey: string;
+  fieldKey: string;
 }
 
 export function normalizeRedirectStatusCode(value: unknown): RedirectStatusCode {
@@ -22,14 +28,14 @@ export function normalizeRedirectPath(pathname: string): string {
   return normalizePathname(pathname);
 }
 
-export function validateRedirectPathInput(value: unknown, field: RedirectPathField): string | null {
+export function validateRedirectPathInput(value: unknown, field: RedirectPathField): RedirectPathError | null {
   const path = typeof value === 'string' ? value.trim() : '';
-  const label = fieldLabel(field);
+  const fieldKey = fieldLabelKey(field);
 
-  if (!path) return `La ruta de ${label} es obligatoria.`;
-  if (ABSOLUTE_URL_REGEX.test(path)) return `La ruta de ${label} debe ser interna (no se permiten URLs absolutas).`;
-  if (!path.startsWith('/')) return `La ruta de ${label} debe comenzar con "/".`;
-  if (path.includes('?') || path.includes('#')) return `La ruta de ${label} no puede incluir query ni fragmento.`;
+  if (!path) return { errorKey: 'redirects.pathRequired', fieldKey };
+  if (ABSOLUTE_URL_REGEX.test(path)) return { errorKey: 'redirects.pathMustBeInternal', fieldKey };
+  if (!path.startsWith('/')) return { errorKey: 'redirects.pathMustStartSlash', fieldKey };
+  if (path.includes('?') || path.includes('#')) return { errorKey: 'redirects.pathNoQueryFragment', fieldKey };
 
   return null;
 }

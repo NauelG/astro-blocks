@@ -5,6 +5,7 @@ Licensed under the Business Source License 1.1
 
 import type { ConfigEntry, ConfigsData } from '../../../types/index.js';
 import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, openDialog, showAlert, showConfirm, showToast } from './common.js';
+import { ct } from '../i18n/client.js';
 
 const pencilSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
@@ -64,7 +65,7 @@ export function initConfigsEditor(): void {
 
   function openNew(): void {
     resetForm();
-    setFormTitle('Nuevo parámetro', 'Crear');
+    setFormTitle(ct('configs.newParamForm'), ct('common.create'));
     openDialog(dialog);
     keyField.focus();
   }
@@ -79,16 +80,16 @@ export function initConfigsEditor(): void {
     valueField.value = entry.value || '';
     descriptionField.value = entry.description || '';
     setError('');
-    setFormTitle('Editar parámetro', 'Guardar');
+    setFormTitle(ct('configs.editParamForm'), ct('common.save'));
     openDialog(dialog);
     keyField.focus();
   }
 
   function validateForm(): string | null {
     const keyValue = keyField.value.trim();
-    if (!keyValue) return 'La clave es obligatoria.';
+    if (!keyValue) return ct('errors.configKeyRequired');
     if (!configKeyRegex.test(keyValue)) {
-      return 'La clave debe empezar por una letra y solo puede contener letras, números, punto, guion y guion bajo.';
+      return ct('errors.invalidConfigKey');
     }
     return null;
   }
@@ -121,7 +122,7 @@ export function initConfigsEditor(): void {
         if (!id) return;
 
         const entry = configsState.find((item) => item.id === id);
-        const confirmed = await showConfirm(`¿Eliminar el parámetro ${entry?.key || ''}?`, 'Eliminar');
+        const confirmed = await showConfirm(ct('configs.deleteConfirm', { key: entry?.key || '' }), ct('common.delete'));
         if (!confirmed) return;
 
         try {
@@ -129,7 +130,7 @@ export function initConfigsEditor(): void {
             method: 'DELETE',
             headers: authHeaders(false),
           });
-          showToast('Parámetro eliminado.', 'success');
+          showToast(ct('configs.deleted'), 'success');
           await refreshConfigs();
         } catch (error) {
           await showAlert(error instanceof Error ? error.message : String(error));
@@ -143,16 +144,16 @@ export function initConfigsEditor(): void {
     configsTableBody.innerHTML = list
       .map((entry) => (
         `<tr data-id="${escapeHtml(entry.id)}">` +
-        `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-config-edit" data-id="${escapeHtml(entry.id)}" aria-label="Editar">${pencilSvg}</button></td>` +
+        `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-config-edit" data-id="${escapeHtml(entry.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
         `<td class="cms-table-cell-monospace">${escapeHtml(entry.key)}</td>` +
         `<td class="cms-table-cell-monospace cms-configs-value-cell">${escapeHtml(maskConfigValue(entry.value || ''))}</td>` +
         `<td class="cms-configs-description-cell" title="${escapeHtml(entry.description || '')}">${escapeHtml(entry.description || '—')}</td>` +
-        `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-config-delete" data-id="${escapeHtml(entry.id)}" aria-label="Eliminar">${trashSvg}</button></td>` +
+        `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-config-delete" data-id="${escapeHtml(entry.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
         '</tr>'
       ))
       .join('');
 
-    if (countEl) countEl.textContent = `${list.length} parámetros`;
+    if (countEl) countEl.textContent = ct('configs.count', { count: list.length });
     emptyEl?.classList.toggle('cms-hidden', list.length > 0);
     bindRows();
   }
@@ -192,7 +193,7 @@ export function initConfigsEditor(): void {
     });
 
     closeDialog(dialog);
-    showToast(id ? 'Parámetro actualizado.' : 'Parámetro creado.', 'success');
+    showToast(id ? ct('configs.updated') : ct('configs.created'), 'success');
     await refreshConfigs();
   }
 

@@ -20,11 +20,22 @@ test('normalizeRedirectPath canonicalizes trailing and repeated slashes', () => 
 });
 
 test('validateRedirectPathInput rejects external urls, query and hash', () => {
-  assert.equal(validateRedirectPathInput('', 'from'), 'La ruta de origen es obligatoria.');
-  assert.equal(validateRedirectPathInput('https://example.com/old', 'from'), 'La ruta de origen debe ser interna (no se permiten URLs absolutas).');
-  assert.equal(validateRedirectPathInput('old', 'to'), 'La ruta de destino debe comenzar con "/".');
-  assert.equal(validateRedirectPathInput('/old?a=1', 'from'), 'La ruta de origen no puede incluir query ni fragmento.');
-  assert.equal(validateRedirectPathInput('/old#section', 'to'), 'La ruta de destino no puede incluir query ni fragmento.');
+  // Now returns { errorKey, fieldKey } objects instead of strings (localization is done at handler level)
+  const emptyFrom = validateRedirectPathInput('', 'from');
+  assert.deepEqual(emptyFrom, { errorKey: 'redirects.pathRequired', fieldKey: 'redirects.labelFrom' });
+
+  const externalFrom = validateRedirectPathInput('https://example.com/old', 'from');
+  assert.deepEqual(externalFrom, { errorKey: 'redirects.pathMustBeInternal', fieldKey: 'redirects.labelFrom' });
+
+  const noSlashTo = validateRedirectPathInput('old', 'to');
+  assert.deepEqual(noSlashTo, { errorKey: 'redirects.pathMustStartSlash', fieldKey: 'redirects.labelTo' });
+
+  const queryFrom = validateRedirectPathInput('/old?a=1', 'from');
+  assert.deepEqual(queryFrom, { errorKey: 'redirects.pathNoQueryFragment', fieldKey: 'redirects.labelFrom' });
+
+  const hashTo = validateRedirectPathInput('/old#section', 'to');
+  assert.deepEqual(hashTo, { errorKey: 'redirects.pathNoQueryFragment', fieldKey: 'redirects.labelTo' });
+
   assert.equal(validateRedirectPathInput('/valid-path', 'from'), null);
 });
 

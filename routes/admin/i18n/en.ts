@@ -161,6 +161,7 @@ export const en = {
   'pageEditor.fieldsConfigurablePlural': '{count} configurable fields',
   'pageEditor.configureBlock': 'Configure this block\'s properties',
   'pageEditor.blockElement': 'Element {n}',
+  'pageEditor.arrayCount': '{count} items',
   'pageEditor.blockDuplicated': 'Block duplicated.',
   'pageEditor.blockDeleted': 'Block deleted.',
   'pageEditor.blockAdded': 'Block "{name}" added.',
@@ -213,6 +214,10 @@ export const en = {
   'redirects.code301': 'Permanent',
   'redirects.code302': 'Temporary',
   'redirects.deleteConfirm': 'Delete redirect {from} → {to}?',
+  'redirects.pathRequired': '{field} is required.',
+  'redirects.pathMustBeInternal': '{field} must be internal (absolute URLs are not allowed).',
+  'redirects.pathMustStartSlash': '{field} must start with "/".',
+  'redirects.pathNoQueryFragment': '{field} cannot include query or fragment.',
 
   // ─── Configs / Parameters ─────────────────────────────────────────────────
   'configs.eyebrow': 'Configuration',
@@ -444,7 +449,9 @@ export const en = {
   'errors.menuPathRequired': 'Path is required in all menu items.',
   'errors.configKeyRequired': 'Key is required.',
   'errors.invalidConfigKey': 'The key must start with a letter and can only contain letters, numbers, dot, dash, and underscore.',
+  'errors.configKeyExists': 'A parameter with that key already exists.',
   'errors.redirectSameFromTo': 'The source and destination paths cannot be the same.',
+  'errors.redirectFromExists': 'A redirect with that source path already exists.',
   'errors.blockSchemaMissing': 'Block schema missing.',
   'errors.loadBlockSchemasFailed': 'Failed to load block schemas.',
 } satisfies Catalog;

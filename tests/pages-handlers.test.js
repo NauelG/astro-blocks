@@ -134,7 +134,7 @@ test('handlePostPages returns 400 on duplicate slug', async () => {
     );
 
     assert.equal(duplicate.status, 400);
-    assert.equal((await duplicate.json()).error, 'Ya existe una página con ese slug para este idioma.');
+    assert.equal((await duplicate.json()).error, 'A page with that slug already exists for this language.');
   });
 });
 
@@ -293,7 +293,7 @@ test('handlePutPage returns 400 on duplicate slug during update', async () => {
     );
 
     assert.equal(conflict.status, 400);
-    assert.equal((await conflict.json()).error, 'Ya existe una página con ese slug para este idioma.');
+    assert.equal((await conflict.json()).error, 'A page with that slug already exists for this language.');
   });
 });
 
