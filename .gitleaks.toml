@@ -1,0 +1,33 @@
+# gitleaks configuration for @astroblocks/astro-blocks.
+# Run on-demand: `npm run secrets`.
+# Runs on pre-commit via scripts/hooks/pre-commit (install with `npm run hooks:install`).
+
+title = "astro-blocks gitleaks config"
+
+[extend]
+# Build on top of gitleaks' default ruleset (AWS keys, generic API tokens, etc.).
+useDefault = true
+
+[allowlist]
+description = "Demo data, example files, and test fixtures are not real secrets."
+paths = [
+  # Playground demo data — contains bcrypt-style passwordHash values that are
+  # intentionally non-secret example credentials.
+  '''playgrounds/.*''',
+  # Example and template files — placeholder values only.
+  '''.*\.example$''',
+  # Test fixtures — synthetic data used in automated tests.
+  '''tests/.*''',
+  # Vendored agent/skill documentation — contains illustrative example tokens
+  # (mock API keys, sample secrets in code snippets), not real credentials.
+  '''\.agents/.*''',
+  '''\.claude/.*''',
+  # The allowlist file itself.
+  '''\.gitleaks\.toml$''',
+]
+regexes = [
+  # Common placeholder values used in docs and examples.
+  '''change-me''',
+  '''your-secret-here''',
+  '''example-password''',
+]

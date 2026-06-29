@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook: scan staged changes for leaked secrets with gitleaks.
+# Installed via `npm run hooks:install` (sets core.hooksPath → scripts/hooks).
+#
+# Degrades gracefully: if gitleaks is not installed, it WARNS and lets the commit
+# through rather than blocking work. Install it for real protection:
+#   brew install gitleaks   (macOS)
+#   https://github.com/gitleaks/gitleaks#installing
+#
+set -euo pipefail
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "WARNING: gitleaks not installed — skipping secret scan."
+  echo "   Install for protection:  brew install gitleaks"
+  exit 0
+fi
+
+# `protect --staged` scans only what is staged for this commit.
+gitleaks protect --staged --redact --config .gitleaks.toml -v

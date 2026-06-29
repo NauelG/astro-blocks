@@ -1,0 +1,49 @@
+name: Feature request
+description: Propose a new capability or improvement to the @astroblocks/astro-blocks integration
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for thinking about how to improve `@astroblocks/astro-blocks`.
+
+        Feature requests are most useful when they describe a **generic improvement to
+        the integration** — something that benefits all consumers — rather than a
+        site-specific requirement or a change to your own block implementations.
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Problem / motivation
+      description: |
+        What problem are you trying to solve? Why does this belong in the integration
+        rather than in your consumer project?
+      placeholder: |
+        When I try to do X with the integration, I cannot because Y.
+        This affects all consumers who need Z, not just my specific site.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe what you want the integration to do. Be as specific as you can — API shape, option names, route changes, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you consider? Why is this the right solution?
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight
+      options:
+        - label: This is a generic improvement to the integration that benefits all consumers, not a site-specific requirement.
+          required: true
+        - label: I searched existing issues and pull requests — this has not been requested before.
+          required: true

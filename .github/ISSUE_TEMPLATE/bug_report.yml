@@ -1,0 +1,79 @@
+name: Bug report
+description: Report a problem in the @astroblocks/astro-blocks integration (not in your own site content or data)
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve `@astroblocks/astro-blocks`.
+
+        Please confirm the problem is in the **integration itself** — the plugin setup,
+        admin UI, API handlers, routes, or utilities — not in your own site content, page
+        templates, or block implementations that live in your consumer project.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - admin UI
+        - API / handlers
+        - plugin / integration setup
+        - routes (page rendering, sitemap, robots, uploads)
+        - media library
+        - i18n
+        - content data (pages, menus, blocks, config)
+        - build / packaging
+        - docs
+        - other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What went wrong? What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: A minimal, ordered list of steps. Include the exact commands you ran.
+      placeholder: |
+        1. Install `@astroblocks/astro-blocks@3.x.x` in an Astro 6 project with SSR adapter.
+        2. Add the integration to `astro.config.mjs` with options `{ ... }`.
+        3. Run `npm run dev`.
+        4. Navigate to `/cms` — observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Run the commands below and paste the output here.
+      placeholder: |
+        npm ls @astroblocks/astro-blocks   # package version
+        node -e "import('astro').then(m => console.log(m.version ?? 'check package.json'))"
+        node --version
+        OS: macOS 15 / Ubuntu 24 / Windows 11 ...
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / error output
+      description: Paste relevant terminal output, stack traces, or browser console errors.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: This is a bug in the `@astroblocks/astro-blocks` integration itself, not in my own site content, block implementations, or consumer project code.
+          required: true

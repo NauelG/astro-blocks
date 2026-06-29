@@ -1,0 +1,12 @@
+# Normalize line endings to LF on commit (matches .editorconfig end_of_line = lf).
+* text=auto eol=lf
+
+# Binary assets — never normalize or diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary

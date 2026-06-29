@@ -72,7 +72,9 @@
     "preversion": "npm test",
     "version": "node scripts/sync-readme-version.mjs && node scripts/coverage.mjs --no-build && node scripts/coverage-badge.mjs && npm run screenshots:readme && npm run screenshots:media && git add README.md img/",
     "prepack": "npm run build",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "hooks:install": "git config core.hooksPath scripts/hooks",
+    "secrets": "gitleaks detect --config .gitleaks.toml --redact -v"
   },
   "dependencies": {
     "@lucide/astro": "^1.18.0",
