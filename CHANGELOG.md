@@ -9,6 +9,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.1.1] - 2026-06-29
+
+### Title
+
+Project governance and contributor documentation
+
+### Added
+
+- Contributor intake: GitHub issue forms (bug report, feature request), an issue template config, and a pull request template.
+- Community health files: `SECURITY.md` (vulnerability disclosure policy) and `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1).
+- `DECISIONS.md` — a discoverable Architecture Decision Record log documenting key project decisions.
+- Repository hygiene: `.editorconfig`, `.gitattributes`, and Dependabot configuration for npm and GitHub Actions.
+- Secret scanning: a gitleaks configuration and a graceful-degradation pre-commit hook, wired via the new `hooks:install` and `secrets` npm scripts.
+
+### Notes
+
+- These additions affect the repository and contributor workflow only. The published package tarball is unchanged from 3.1.0 (the new files are not part of `package.json#files`).
+
 ## [3.1.0] - 2026-06-17
 
 ### Title
