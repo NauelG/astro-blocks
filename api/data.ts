@@ -541,6 +541,11 @@ export async function loadMedia(): Promise<MediaData> {
         ...(typeof e.alt === 'string' && { alt: e.alt }),
         ...(typeof e.width === 'number' && Number.isFinite(e.width) && e.width > 0 && { width: e.width }),
         ...(typeof e.height === 'number' && Number.isFinite(e.height) && e.height > 0 && { height: e.height }),
+        // fileCategory: pass-through when explicitly set, otherwise derive from mimeType (backward compat ADR-2).
+        // Never mutates the file on disk — derivation is in-memory only.
+        fileCategory: (e.fileCategory === 'image' || e.fileCategory === 'document')
+          ? e.fileCategory
+          : ((e.mimeType as string).startsWith('image/') ? 'image' : 'document'),
         // Pass-through status only when it is a valid literal
         ...(typeof e.status === 'string' && VALID_STATUSES.has(e.status) && { status: e.status as MediaEntry['status'] }),
         // Pass-through variants only when each element is a valid {format, width, url}

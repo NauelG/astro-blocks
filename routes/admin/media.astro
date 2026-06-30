@@ -11,6 +11,22 @@ import { Image as ImageIcon } from '@lucide/astro';
 import { loadMedia, loadSite } from '../../api/data.js';
 import { resolveUiLocale } from './i18n/resolve.js';
 import { createT } from './i18n/t.js';
+import { DEFAULT_ALLOWED_FILE_TYPES } from '../../utils/file-types.js';
+
+// Build the dynamic accept attribute for the upload dropzone.
+// Reads the global allowlist injected by vite.define at build time;
+// falls back to DEFAULT_ALLOWED_FILE_TYPES when the env var is absent (dev/test).
+const _rawAllowedTypes: string = import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES ?? '';
+const _parsedAllowedTypes: string[] = (() => {
+  if (_rawAllowedTypes) {
+    try {
+      const parsed = JSON.parse(_rawAllowedTypes) as unknown;
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed as string[];
+    } catch { /* ignore */ }
+  }
+  return DEFAULT_ALLOWED_FILE_TYPES;
+})();
+const uploadAccept = _parsedAllowedTypes.join(',');
 
 const site = await loadSite();
 const mediaData = await loadMedia();
@@ -85,7 +101,7 @@ function formatMediaDate(isoString: string): string {
         <input
           type="file"
           id="cms-media-file-input"
-          accept="image/*"
+          accept={uploadAccept}
           class="cms-hidden"
           aria-label={t('media.fileInputAriaLabel')}
           multiple
@@ -125,16 +141,30 @@ function formatMediaDate(isoString: string): string {
         </div>
       ) : (
         <div id="cms-media-grid" class="cms-media-grid" aria-label={t('media.imageLibraryAriaLabel')} role="list">
-          {uploads.map((entry) => (
+          {uploads.map((entry) => {
+            // Prefer the stored fileCategory field (Slice B); derive from MIME for legacy entries.
+            const isDocument = (entry as typeof entry & { fileCategory?: string }).fileCategory === 'document'
+              || (!(entry as typeof entry & { fileCategory?: string }).fileCategory && !entry.mimeType.startsWith('image/'));
+            return (
             <div class="cms-media-card" role="listitem" data-media-url={entry.url} data-media-id={entry.id}>
-              <div class="cms-media-card-thumb">
-                <img
-                  src={entry.url}
-                  alt={entry.filename}
-                  class="cms-media-card-img"
-                  loading="lazy"
-                />
-              </div>
+              {isDocument ? (
+                <div
+                  class="cms-media-card-thumb cms-media-card-thumb--doc"
+                  role="img"
+                  aria-label={`${entry.filename} (${entry.mimeType} document)`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="cms-media-doc-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </div>
+              ) : (
+                <div class="cms-media-card-thumb">
+                  <img
+                    src={entry.url}
+                    alt={entry.filename}
+                    class="cms-media-card-img"
+                    loading="lazy"
+                  />
+                </div>
+              )}
               <div class="cms-media-card-info">
                 <span class="cms-media-card-name" title={entry.filename}>{entry.filename}</span>
                 <div class="cms-media-card-meta cms-muted" aria-label={t('media.imageMetaAriaLabel')}>
@@ -175,7 +205,7 @@ function formatMediaDate(isoString: string): string {
                 </button>
               </div>
             </div>
-          ))}
+          ); })}
         </div>
       )}
     </div>

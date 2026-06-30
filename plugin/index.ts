@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url';
 import type { AstroIntegration } from 'astro';
 import { buildSchemaMap, resolveBlockEntries } from '../utils/blocks.js';
 import { COMPONENT_PATH_KEY } from '../contract/index.js';
-import type { AstroBlocksOptions, GlobalBlockDeclaration } from '../types/index.js';
+import type { AstroBlocksOptions, GlobalBlockDeclaration, PrimitivePropDef } from '../types/index.js';
+import { DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmsDir = path.resolve(__dirname, '..');
@@ -28,7 +29,25 @@ type ResolvedPluginOptions = AstroBlocksOptions & {
   i18n: {
     routingStrategy: 'path-prefix' | 'subdomain' | 'domain';
   };
+  allowedFileTypes: string[];
 };
+
+/**
+ * Deduplicate and lowercase an array of strings.
+ * Consistent with the normalisation performed by api/handlers.ts getAllowedFileTypes().
+ */
+function dedupeLowercase(values: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const v of values) {
+    const lower = v.toLowerCase();
+    if (!seen.has(lower)) {
+      seen.add(lower);
+      result.push(lower);
+    }
+  }
+  return result;
+}
 
 function getProjectRoot(config?: { root?: string | URL }): string {
   const raw = process.env.ASTRO_BLOCKS_PROJECT_ROOT || config?.root || process.cwd();
@@ -155,10 +174,61 @@ function resolveOptions(options: AstroBlocksOptions): ResolvedPluginOptions {
     i18n: {
       routingStrategy,
     },
+    allowedFileTypes: (() => {
+      const rawAllowedFileTypes = options.allowedFileTypes ?? DEFAULT_ALLOWED_FILE_TYPES;
+      if (Array.isArray(rawAllowedFileTypes) && rawAllowedFileTypes.length === 0) {
+        console.warn('[astro-blocks] allowedFileTypes is empty — all file uploads will be rejected. Omit the option (or pass null) to use the default list.');
+      }
+      return dedupeLowercase(rawAllowedFileTypes);
+    })(),
   };
 }
 
 export type { AstroBlocksOptions } from '../types/index.js';
+export { DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-types.js';
+
+/**
+ * Advisory validator for 'file' prop accept arrays (ADR-6).
+ *
+ * ADVISORY ONLY — this function warns; it does NOT mutate def.accept or drop
+ * any MIMEs. The admin picker (Slice D) enforces the intersection of accept ∩
+ * allowedFileTypes at render time. This call exists solely to surface
+ * misconfiguration early at plugin setup, not to alter runtime behaviour.
+ *
+ * For each block schema's file prop with an `accept` array, emits exactly one
+ * console.warn per MIME that is outside the global allowlist.
+ * If `accept` is omitted, no warn is emitted (picker uses full allowlist).
+ * Never throws — matches the tolerant warn style of the i18n fallback.
+ *
+ * @param blocks - Array of block schema definitions (the plugin options.blocks array).
+ * @param allowedFileTypes - The resolved global allowlist from resolveOptions.
+ */
+export function validateFileProps(
+  blocks: Array<{ name: string; items?: Record<string, unknown> }>,
+  allowedFileTypes: string[]
+): void {
+  const globalAllowed = new Set(allowedFileTypes.map((m) => m.toLowerCase()));
+
+  for (const block of blocks) {
+    const items = block.items ?? {};
+    for (const [propName, rawDef] of Object.entries(items)) {
+      if (!rawDef || typeof rawDef !== 'object' || Array.isArray(rawDef)) continue;
+      const def = rawDef as Partial<PrimitivePropDef>;
+      if (def.type !== 'file') continue;
+      const accept = def.accept;
+      if (!Array.isArray(accept)) continue; // omitted → no warn, picker uses full allowlist
+
+      for (const mime of accept) {
+        const lower = typeof mime === 'string' ? mime.toLowerCase() : '';
+        if (!globalAllowed.has(lower)) {
+          console.warn(
+            `[astro-blocks] Block "${block.name}" file prop "${propName}": accept type "${mime}" is not in allowedFileTypes and will be ignored by the media picker.`
+          );
+        }
+      }
+    }
+  }
+}
 
 export default function astroBlocks(options: AstroBlocksOptions): AstroIntegration {
   const resolvedOptions = resolveOptions(options);
@@ -189,6 +259,8 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
         if (Array.isArray(resolvedOptions.globalBlocks)) {
           validateGlobalBlocks(resolvedOptions.globalBlocks);
         }
+
+        validateFileProps(resolvedOptions.blocks, resolvedOptions.allowedFileTypes);
 
         if (resolvedOptions.i18n.routingStrategy !== 'path-prefix') {
           console.warn(
@@ -234,6 +306,7 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
         vite.define['import.meta.env.ASTRO_BLOCKS_CACHE_MAX_AGE'] = JSON.stringify(resolvedOptions.cache.maxAge);
         vite.define['import.meta.env.ASTRO_BLOCKS_CACHE_SWR'] = JSON.stringify(resolvedOptions.cache.swr);
         vite.define['import.meta.env.ASTRO_BLOCKS_ROUTING_STRATEGY'] = JSON.stringify(resolvedOptions.i18n.routingStrategy);
+        vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'] = JSON.stringify(resolvedOptions.allowedFileTypes);
 
         const existingNoExternal = vite.ssr?.noExternal ?? [];
         const cmsNoExternal = ['animate.css', '@picocss/pico'];

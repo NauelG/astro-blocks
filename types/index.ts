@@ -3,7 +3,7 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-export type PrimitivePropType = 'string' | 'text' | 'number' | 'boolean' | 'image' | 'link' | 'select';
+export type PrimitivePropType = 'string' | 'text' | 'number' | 'boolean' | 'image' | 'link' | 'select' | 'file';
 export type PropType = PrimitivePropType | 'array';
 
 export interface PrimitivePropDef {
@@ -12,6 +12,10 @@ export interface PrimitivePropDef {
   required?: boolean;
   options?: string[];
   localizable?: boolean;
+  /** For file props: allowed MIME types (subset of global allowedFileTypes). */
+  accept?: string[];
+  /** For file props: default download behavior — when true, fileDownloadUrl appends ?download. */
+  download?: boolean;
 }
 
 export interface ObjectArrayItemDef {
@@ -252,6 +256,19 @@ export interface ImageFieldValue {
   height?: number;
 }
 
+/**
+ * Represents the value stored for a file-type block prop.
+ * The `url` is the only required field; all other fields are optional.
+ * Mirrors ImageFieldValue — same hidden-input JSON pattern, different semantics.
+ */
+export interface FileFieldValue {
+  url: string;
+  filename?: string;
+  mimeType?: string;
+  /** When true, fileDownloadUrl appends ?download to trigger Content-Disposition: attachment. */
+  download?: boolean;
+}
+
 export interface MediaVariant {
   format: 'webp' | 'avif';
   width: number;
@@ -275,6 +292,13 @@ export interface MediaEntry {
   variants?: MediaVariant[];
   /** Processing status of variant generation. */
   status?: 'processing' | 'ready' | 'failed';
+  /**
+   * Discriminator for the media entry type.
+   * 'image' → mimeType starts with 'image/'.
+   * 'document' → all other file types (e.g. PDF).
+   * Derived from mimeType on load when absent (backward compat).
+   */
+  fileCategory?: 'image' | 'document';
 }
 
 export interface MediaData {
@@ -294,4 +318,10 @@ export interface AstroBlocksOptions {
   i18n?: {
     routingStrategy?: PublicRoutingStrategy;
   };
+  /**
+   * Global allowlist of MIME types accepted by the media upload endpoint.
+   * Defaults to DEFAULT_ALLOWED_FILE_TYPES when not provided.
+   * Values are lowercased and deduplicated by resolveOptions.
+   */
+  allowedFileTypes?: string[];
 }

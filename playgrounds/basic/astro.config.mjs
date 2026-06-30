@@ -6,6 +6,7 @@ import { schema as contentListSchema } from './src/components/ContentList.schema
 import { schema as globalHeaderSchema } from './src/components/GlobalHeader.schema.ts';
 import { schema as globalFooterSchema } from './src/components/GlobalFooter.schema.ts';
 import { schema as mediaShowcaseSchema } from './src/components/MediaShowcase.schema.ts';
+import { schema as downloadButtonSchema } from './src/components/DownloadButton.schema.ts';
 
 export default defineConfig({
   output: 'static',
@@ -22,7 +23,7 @@ export default defineConfig({
   integrations: [
     astroBlocks({
       layoutPath: './src/layouts/Layout.astro',
-      blocks: [heroSchema, contentListSchema, mediaShowcaseSchema],
+      blocks: [heroSchema, contentListSchema, mediaShowcaseSchema, downloadButtonSchema],
       globalBlocks: [
         { slug: 'header-cta', schema: globalHeaderSchema, label: 'Header CTA' },
         { slug: 'footer-extra', schema: globalFooterSchema, label: 'Footer content' },

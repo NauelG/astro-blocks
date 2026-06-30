@@ -101,10 +101,24 @@ test('T14-10b: ensureDefaultFiles does not overwrite existing media.json', async
   });
 });
 
-// T14-01: Upload with disallowed MIME → HTTP 415
-test('T14-01: upload with disallowed MIME type returns 415', async () => {
+// T14-01: PDF upload accepted with default allowlist (R2.2, R10.1)
+test('T14-01: PDF upload accepted with default allowlist', async () => {
   await withTempProject(async () => {
     const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'document.pdf', 'application/pdf');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(body.url, 'should return url');
+    assert.ok(body.entry, 'should return entry');
+    assert.equal(body.entry.mimeType, 'application/pdf');
+    assert.ok(body.url.endsWith('.pdf'), 'url should end with .pdf');
+  });
+});
+
+// SEC-DENY-01: denylisted MIME type (text/html) is rejected with 415 (R2.4, R10.1)
+test('SEC-DENY-01: upload with denylisted MIME (text/html) returns 415', async () => {
+  await withTempProject(async () => {
+    const req = makeUploadRequest(Buffer.from('Hello!'), 'page.html', 'text/html');
     const res = await handleUpload(req);
     assert.equal(res.status, 415);
     const body = await res.json();
@@ -117,6 +131,71 @@ test('T14-01b: upload with empty MIME type returns 415', async () => {
     const req = makeUploadRequest(new Uint8Array([1, 2, 3]), 'file.dat', '');
     const res = await handleUpload(req);
     assert.equal(res.status, 415);
+  });
+});
+
+// R6.1-A: JPEG upload → fileCategory 'image' (B3)
+test('R6.1-A: JPEG upload sets fileCategory to image', async () => {
+  await withTempProject(async () => {
+    const req = makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), 'photo.jpg', 'image/jpeg');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    await drainVariantJobs();
+    const mediaData = await loadMedia();
+    const entry = mediaData.uploads[0];
+    assert.equal(entry.fileCategory, 'image');
+  });
+});
+
+// R6.1-B: PDF upload → fileCategory 'document' (B3)
+test('R6.1-B: PDF upload sets fileCategory to document', async () => {
+  await withTempProject(async () => {
+    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'doc.pdf', 'application/pdf');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    await drainVariantJobs();
+    const mediaData = await loadMedia();
+    const entry = mediaData.uploads[0];
+    assert.equal(entry.fileCategory, 'document');
+  });
+});
+
+// R4.3-A: PDF upload → no width/height on entry (B3 — imageSize skipped for non-raster)
+test('R4.3-A: PDF upload has no width or height on registry entry', async () => {
+  await withTempProject(async () => {
+    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'doc.pdf', 'application/pdf');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    await drainVariantJobs();
+    const mediaData = await loadMedia();
+    const entry = mediaData.uploads[0];
+    assert.ok(entry.width === undefined || entry.width === null, 'PDF entry should have no width');
+    assert.ok(entry.height === undefined || entry.height === null, 'PDF entry should have no height');
+  });
+});
+
+// R2.5-A: PDF blob with wrong filename gets .pdf extension (B3)
+test('R2.5-A: PDF blob with wrong filename gets .pdf extension from MIME', async () => {
+  await withTempProject(async () => {
+    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'document.docx', 'application/pdf');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(body.url.endsWith('.pdf'), `url ${body.url} should end with .pdf`);
+  });
+});
+
+// R2.2-B: PDF entry has fileCategory 'document' (second check via T14-01 extended)
+test('R2.2-B: PDF upload — loadMedia entry has fileCategory document', async () => {
+  await withTempProject(async () => {
+    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'doc.pdf', 'application/pdf');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    const mediaData = await loadMedia();
+    const entry = mediaData.uploads.find((e) => e.url === body.url);
+    assert.ok(entry, 'entry should exist in registry');
+    assert.equal(entry.fileCategory, 'document');
   });
 });
 
@@ -1033,5 +1112,109 @@ test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleReplaceUpload honors 
     });
     const bigRes = await handlersFresh.handleReplaceUpload(bigReq, id);
     assert.equal(bigRes.status, 413, 'over-override-limit replace should be rejected with 413');
+  });
+});
+
+// ─── B7: handleReplaceUpload PDF-specific tests ────────────────────────────────
+//
+// These tests verify that the same-MIME constraint applies to non-image files (PDF)
+// and that the evaluateUpload gate works correctly on the replace path.
+
+/** Mint a JWT for handleReplaceUpload auth. */
+async function mintJwt() {
+  const { SignJWT } = await import('jose');
+  return new SignJWT({ email: 'test@e.com', role: 'owner' })
+    .setSubject('uid')
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('1h')
+    .sign(new TextEncoder().encode('cms-jwt-secret-change-me'));
+}
+
+// R3.2-A: PDF replaces PDF → 200 (same-MIME constraint satisfied, gate passes)
+test('R3.2-A: PDF can replace an existing PDF entry (same-MIME constraint satisfied)', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Seed a PDF entry on disk
+    const subdir = '2026/06';
+    const dir = path.join(tempRoot, 'public', 'uploads', subdir);
+    await fs.mkdir(dir, { recursive: true });
+    const filename = 'b7-replace.pdf';
+    await fs.writeFile(path.join(dir, filename), new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+    const url = `/uploads/${subdir}/${filename}`;
+    const id = generateId();
+    await appendMediaEntry({
+      id, url, filename, size: 4, mimeType: 'application/pdf',
+      fileCategory: 'document', createdAt: new Date().toISOString(), status: 'ready',
+    });
+
+    const token = await mintJwt();
+    const fd = new FormData();
+    fd.append('file', new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31])], filename, { type: 'application/pdf' }));
+    const req = new Request(`http://localhost/cms/api/media/${id}/replace`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+    });
+
+    const res = await handleReplaceUpload(req, id);
+    assert.equal(res.status, 200, 'PDF→PDF replace should succeed with 200');
+
+    const mediaData = await loadMedia();
+    const entry = mediaData.uploads.find((e) => e.id === id);
+    assert.ok(entry, 'entry should still exist');
+    assert.equal(entry.mimeType, 'application/pdf');
+  });
+});
+
+// R3.2-B: image/jpeg cannot replace application/pdf → 415 (same-MIME constraint)
+test('R3.2-B: image/jpeg cannot replace an existing PDF entry (same-MIME constraint, 415)', async () => {
+  await withTempProject(async (tempRoot) => {
+    const subdir = '2026/06';
+    const dir = path.join(tempRoot, 'public', 'uploads', subdir);
+    await fs.mkdir(dir, { recursive: true });
+    const filename = 'b7-replace-cross.pdf';
+    await fs.writeFile(path.join(dir, filename), new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+    const url = `/uploads/${subdir}/${filename}`;
+    const id = generateId();
+    await appendMediaEntry({
+      id, url, filename, size: 4, mimeType: 'application/pdf',
+      fileCategory: 'document', createdAt: new Date().toISOString(), status: 'ready',
+    });
+
+    const token = await mintJwt();
+    const fd = new FormData();
+    fd.append('file', new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'photo.jpg', { type: 'image/jpeg' }));
+    const req = new Request(`http://localhost/cms/api/media/${id}/replace`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+    });
+
+    const res = await handleReplaceUpload(req, id);
+    assert.ok(
+      res.status === 415 || res.status === 409,
+      `jpeg→pdf cross-type replace should return 415 or 409; got ${res.status}`
+    );
+  });
+});
+
+// ─── M-1: MIME absent from MIME_TO_EXT yields 415 ────────────────────────────
+//
+// FIX M-1 adds a guard in handleUpload: after the allowlist gate passes, if
+// MIME_TO_EXT has no mapping for the MIME type the handler returns 415 rather
+// than writing a filename ending in "undefined".
+//
+// Direct test of the allowlisted+unmapped combo is not reachable via the prebuilt
+// dist because import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES is a Vite compile-
+// time constant and cannot be overridden at node --test runtime. The test below
+// asserts the closest reachable invariant: a MIME absent from MIME_TO_EXT is
+// rejected with 415. In the current build this is caught by the allowlist gate
+// (step 3 of evaluateUpload), but with the new guard the 415 is also guaranteed
+// deterministically even if a future allowlist override included an unmapped MIME.
+test('M-1: upload with MIME absent from MIME_TO_EXT yields 415 (unmapped extension guard)', async () => {
+  await withTempProject(async () => {
+    // 'image/x-custom' is not in DEFAULT_ALLOWED_FILE_TYPES and not in MIME_TO_EXT.
+    // It passes neither the allowlist nor the extension map, so it must be rejected with 415.
+    // The new guard (FIX M-1) ensures the same outcome even for allowlisted+unmapped MIMEs.
+    const req = makeUploadRequest(new Uint8Array([0x00, 0x01, 0x02]), 'file.bin', 'image/x-custom');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 415, 'MIME absent from MIME_TO_EXT must be rejected with 415');
+    const body = await res.json();
+    assert.ok(body.error, 'response must have error message');
   });
 });

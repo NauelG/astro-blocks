@@ -46,8 +46,11 @@ test('SEC-CDN-01: GET /uploads/*.svg returns Content-Disposition: attachment', a
     const res = await GET({ request: req });
 
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get('Content-Disposition'), 'attachment',
-      'SVG must be served with Content-Disposition: attachment to prevent inline rendering');
+    const disposition = res.headers.get('Content-Disposition');
+    assert.ok(
+      disposition !== null && disposition.includes('attachment'),
+      `SVG must be served with Content-Disposition: attachment to prevent inline rendering; got: ${disposition}`
+    );
     assert.equal(res.headers.get('Content-Type'), 'image/svg+xml');
   });
 });
@@ -142,6 +145,77 @@ test('SEC-CDN-07: GET /uploads/../etc/passwd returns 404 (traversal rejected)', 
   assert.equal(res.status, 404);
 });
 
+// R5.1-A: PDF served with Content-Type: application/pdf (B6)
+test('R5.1-A: GET /uploads/*.pdf returns Content-Type: application/pdf', async () => {
+  const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+
+  await withUploadedFile('2026/06/doc.pdf', pdfBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/doc.pdf');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('Content-Type'), 'application/pdf');
+  });
+});
+
+// R5.2-A: PDF served inline by default (no ?download → no attachment) (B6)
+test('R5.2-A: GET /uploads/*.pdf without ?download has no attachment disposition', async () => {
+  const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+
+  await withUploadedFile('2026/06/report.pdf', pdfBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/report.pdf');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    const disposition = res.headers.get('Content-Disposition');
+    assert.ok(
+      disposition === null || !disposition.includes('attachment'),
+      `Content-Disposition should not contain attachment; got: ${disposition}`
+    );
+  });
+});
+
+// R5.3-A: ?download forces Content-Disposition: attachment (B6)
+test('R5.3-A: GET /uploads/*.pdf?download returns Content-Disposition: attachment', async () => {
+  const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+
+  await withUploadedFile('2026/06/report.pdf', pdfBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/report.pdf?download');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    const disposition = res.headers.get('Content-Disposition');
+    assert.ok(
+      disposition !== null && disposition.includes('attachment'),
+      `Content-Disposition should contain attachment; got: ${disposition}`
+    );
+  });
+});
+
+// R5.5-A: Unknown extension served as application/octet-stream (B6)
+test('R5.5-A: GET /uploads/*.xyz returns Content-Type: application/octet-stream', async () => {
+  await withUploadedFile('2026/06/data.xyz', Buffer.from('some data'), async () => {
+    const req = new Request('http://localhost/uploads/2026/06/data.xyz');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('Content-Type'), 'application/octet-stream');
+  });
+});
+
+// R5.6-A: PDF response includes Cache-Control: no-cache (B6)
+test('R5.6-A: GET /uploads/*.pdf response includes Cache-Control: no-cache', async () => {
+  const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+
+  await withUploadedFile('2026/06/cached.pdf', pdfBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/cached.pdf');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('Cache-Control'), 'no-cache');
+  });
+});
+
 // CC-01: Any uploads-get response must include Cache-Control: no-cache header
 test('CC-01: GET /uploads/*.jpg response includes Cache-Control: no-cache', async () => {
   const jpegBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
@@ -157,6 +231,35 @@ test('CC-01: GET /uploads/*.jpg response includes Cache-Control: no-cache', asyn
   });
 });
 
+// L-1: ?download Content-Disposition filename must contain only safe characters (defense in depth)
+test('L-1: GET /uploads/*.pdf?download Content-Disposition filename contains only safe chars', async () => {
+  const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+
+  // Use a filename whose safe-by-construction characters are all in [A-Za-z0-9._-]
+  // The sanitization regex replaces anything outside that set with '_'.
+  // This test locks the boundary: the filename in the header must match the expected safe pattern.
+  await withUploadedFile('2026/06/report.pdf', pdfBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/report.pdf?download');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    const disposition = res.headers.get('Content-Disposition');
+    assert.ok(disposition !== null && disposition.includes('attachment'), `Expected attachment disposition; got: ${disposition}`);
+
+    // Extract the filename= value from the header
+    const match = disposition.match(/filename="([^"]*)"/);
+    assert.ok(match, `Content-Disposition header must include filename="..."; got: ${disposition}`);
+    const filename = match[1];
+
+    // The filename must consist only of safe characters: A-Z a-z 0-9 . _ -
+    assert.match(
+      filename,
+      /^[A-Za-z0-9._-]+$/,
+      `Content-Disposition filename must contain only [A-Za-z0-9._-]; got: "${filename}"`
+    );
+  });
+});
+
 // CC-02: SVG still gets Content-Disposition even with Cache-Control
 test('CC-02: GET /uploads/*.svg has both Cache-Control: no-cache and Content-Disposition: attachment', async () => {
   const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>';
@@ -167,7 +270,10 @@ test('CC-02: GET /uploads/*.svg has both Cache-Control: no-cache and Content-Dis
     assert.equal(res.status, 200);
     assert.equal(res.headers.get('Cache-Control'), 'no-cache',
       'SVG must also have Cache-Control: no-cache');
-    assert.equal(res.headers.get('Content-Disposition'), 'attachment',
-      'SVG must still have Content-Disposition: attachment');
+    const disposition = res.headers.get('Content-Disposition');
+    assert.ok(
+      disposition !== null && disposition.includes('attachment'),
+      `SVG must still have Content-Disposition: attachment; got: ${disposition}`
+    );
   });
 });

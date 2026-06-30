@@ -230,6 +230,16 @@
       "sinceVersion": "3.1.0",
       "updatedIn": "3.1.0",
       "docsPath": "#cms-routes"
+    },
+    {
+      "id": "non-image-file-uploads",
+      "title": "Non-image file uploads (PDF and document support)",
+      "summary": "Upload and serve non-image files such as PDFs alongside images. Configurable allowedFileTypes, hard security denylist, 'file' block prop type with per-component MIME accept and download flag, fileDownloadUrl helper, and accessible document tiles in the media library.",
+      "category": "media",
+      "status": "alpha",
+      "sinceVersion": "3.1.1",
+      "updatedIn": "3.1.1",
+      "docsPath": "docs/media.md"
     }
   ]
 }
