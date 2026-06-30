@@ -56,10 +56,17 @@ async function* walkDir(
   }
   for (const name of names) {
     const absPath = path.join(dir, name);
-    let stat: Awaited<ReturnType<typeof fs.stat>>;
+    let stat: Awaited<ReturnType<typeof fs.lstat>>;
     try {
-      stat = await fs.stat(absPath);
+      // Use lstat (not stat) so we inspect the symlink itself, not its target.
+      // Symlinks are skipped entirely to prevent path-traversal leaks via
+      // crafted uploads pointing outside the project root.
+      stat = await fs.lstat(absPath);
     } catch {
+      continue;
+    }
+    if (stat.isSymbolicLink()) {
+      // Skip symlinks — do not follow, do not include
       continue;
     }
     if (stat.isDirectory()) {
@@ -102,16 +109,25 @@ export async function buildExportStream(
     throw new Error('units must be a non-empty array');
   }
 
+  // Defense-in-depth: deduplicate units so callers cannot produce duplicate zip entries.
+  const dedupedUnits = [...new Set(units)];
+
   // Resolve the project root (allows injection for tests)
   const root = projectRoot ?? (process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd());
 
+  // SOURCE BUFFERING NOTE (v1 tradeoff): source file bytes are read into memory
+  // before the zip stream opens. The zip OUTPUT is streamed to the client;
+  // SOURCE buffering is a known v1 tradeoff acceptable for typical CMS backup sizes.
+  // True source streaming (pipe each file directly into the zip deflate entry) is a
+  // future optimization.
+  //
   // Collect all data file entries synchronously before starting the stream.
   // We need the bytes to compute checksums before building the manifest.
   const dataEntries: Array<{ entryName: string; bytes: Uint8Array }> = [];
   const uploadsEntries: Array<{ entryName: string; bytes: Uint8Array }> = [];
   const counts: Partial<Record<ExportUnit, number>> = {};
 
-  for (const unit of units) {
+  for (const unit of dedupedUnits) {
     const dataFiles = UNIT_TO_DATA_FILES[unit];
     let unitCount = 0;
 
@@ -164,7 +180,7 @@ export async function buildExportStream(
   }
 
   // Build the manifest (written last into the zip)
-  const manifest = buildManifest(units, counts, checksums);
+  const manifest = buildManifest(dedupedUnits, counts, checksums);
   const manifestBytes = strToBytes(JSON.stringify(manifest, null, 2));
 
   // Create the streaming zip

@@ -1963,10 +1963,14 @@ export async function handleExport(request: Request, authUser?: AuthUser | null)
   // Parse ?units=pages,media,... from the query string
   const url = new URL(request.url);
   const unitsParam = url.searchParams.get('units') ?? '';
-  const rawUnits = unitsParam
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const rawUnits = [
+    ...new Set(
+      unitsParam
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  ];
 
   if (rawUnits.length === 0) {
     return localizedJsonError(request, 'errors.invalidBody', 400);

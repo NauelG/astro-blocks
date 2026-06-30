@@ -250,3 +250,80 @@ test('B-1: buildExportStream rejects when units array is empty', async () => {
     );
   });
 });
+
+// H-1: deduplicate units — calling with ['pages','pages'] must produce exactly one data/pages.json entry
+
+test('H-1: buildExportStream with duplicate units produces exactly one data/pages.json entry', async () => {
+  await withTempProject(async (tempRoot) => {
+    const stream = await buildExportStream(['pages', 'pages'], tempRoot);
+    const buf = await collectStream(stream);
+    const entries = await extractZip(buf);
+
+    const pagesKeys = Object.keys(entries).filter((n) => n === 'data/pages.json');
+    assert.equal(
+      pagesKeys.length,
+      1,
+      `zip must contain exactly one data/pages.json entry, got ${pagesKeys.length}`,
+    );
+  });
+});
+
+test('H-1: buildExportStream manifest.units has no duplicate when called with duplicate units', async () => {
+  await withTempProject(async (tempRoot) => {
+    const stream = await buildExportStream(['pages', 'pages'], tempRoot);
+    const buf = await collectStream(stream);
+    const entries = await extractZip(buf);
+    const manifest = JSON.parse(entries['manifest.json'].toString('utf-8'));
+
+    const unique = [...new Set(manifest.units)];
+    assert.deepEqual(
+      manifest.units,
+      unique,
+      `manifest.units must not contain duplicates, got ${JSON.stringify(manifest.units)}`,
+    );
+  });
+});
+
+// I-1: walkDir must not follow symlinks — symlink inside uploads pointing outside must be skipped
+
+test('I-1: buildExportStream media unit does not include content of a symlink pointing outside uploads', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Create a secret file outside the project root
+    const secretContent = Buffer.from('TOP SECRET CONTENT');
+    const secretPath = path.join(os.tmpdir(), `astro-blocks-secret-${Date.now()}.txt`);
+    await fs.writeFile(secretPath, secretContent);
+
+    const uploadsDir = path.join(tempRoot, 'public', 'uploads');
+    await fs.mkdir(uploadsDir, { recursive: true });
+
+    let symlinkCreated = false;
+    try {
+      await fs.symlink(secretPath, path.join(uploadsDir, 'secret-link.txt'));
+      symlinkCreated = true;
+    } catch {
+      // Symlinks not available on this platform — skip symlink assertion
+    }
+
+    try {
+      const stream = await buildExportStream(['media'], tempRoot);
+      const buf = await collectStream(stream);
+      const entries = await extractZip(buf);
+
+      if (symlinkCreated) {
+        // The symlink entry must not appear in the zip
+        const symlinkEntries = Object.entries(entries).filter(([name, bytes]) => {
+          if (!name.startsWith('uploads/')) return false;
+          // Check if content matches the secret
+          return Buffer.from(bytes).equals(secretContent);
+        });
+        assert.equal(
+          symlinkEntries.length,
+          0,
+          `zip must not include content from a symlink pointing outside uploads, found ${symlinkEntries.map(([n]) => n).join(', ')}`,
+        );
+      }
+    } finally {
+      await fs.rm(secretPath, { force: true });
+    }
+  });
+});

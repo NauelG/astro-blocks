@@ -166,3 +166,51 @@ test('B-2: handleExport returns 403 when authUser role is not owner', async () =
     assert.equal(res.status, 403, `expected 403 for non-owner, got ${res.status}`);
   });
 });
+
+// H-1: deduplicate units — duplicate query param must not produce duplicate zip entries
+
+import { readableStreamToFflateUnzip } from '../dist/api/backup-stream.js';
+
+test('H-1: handleExport with ?units=pages,pages returns 200 and zip has exactly one data/pages.json entry', async () => {
+  await withTempProject(async () => {
+    const req = new Request('http://localhost/cms/api/export?units=pages,pages', {
+      method: 'GET',
+    });
+    const res = await handleExport(req, OWNER_USER);
+    assert.equal(res.status, 200, `expected 200 for duplicate units, got ${res.status}`);
+
+    // Consume and parse the zip
+    const reader = res.body.getReader();
+    const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    const totalLen = chunks.reduce((s, c) => s + c.length, 0);
+    const zipBuf = Buffer.allocUnsafe(totalLen);
+    let offset = 0;
+    for (const chunk of chunks) {
+      zipBuf.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    const entryNames = [];
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array(zipBuf));
+        controller.close();
+      },
+    });
+    await readableStreamToFflateUnzip(stream, async (name) => {
+      entryNames.push(name);
+    });
+
+    const pagesEntries = entryNames.filter((n) => n === 'data/pages.json');
+    assert.equal(
+      pagesEntries.length,
+      1,
+      `zip must contain exactly one data/pages.json entry, got ${pagesEntries.length}`,
+    );
+  });
+});
