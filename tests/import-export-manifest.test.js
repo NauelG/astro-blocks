@@ -81,6 +81,35 @@ test('A-3: validateManifest returns { ok: false } for null input', () => {
   assert.equal(result.ok, false);
 });
 
+// H-3: validateManifest must validate checksums values and units elements
+
+test('H-3: validateManifest returns { ok: false } when a checksums value is null', () => {
+  const valid = makeValidManifest();
+  const result = validateManifest({ ...valid, checksums: { 'data/users.json': null } });
+  assert.equal(result.ok, false);
+  assert.ok(result.reason, 'should provide a reason');
+});
+
+test('H-3: validateManifest returns { ok: false } when a checksums value is empty string', () => {
+  const valid = makeValidManifest();
+  const result = validateManifest({ ...valid, checksums: { 'data/users.json': '' } });
+  assert.equal(result.ok, false);
+  assert.ok(result.reason, 'should provide a reason');
+});
+
+test('H-3: validateManifest returns { ok: false } when units contains unknown value', () => {
+  const valid = makeValidManifest();
+  const result = validateManifest({ ...valid, units: ['pages', 'bogus'] });
+  assert.equal(result.ok, false);
+  assert.ok(result.reason, 'should provide a reason');
+});
+
+test('H-3: validateManifest returns { ok: true } for valid manifest with known units and non-empty checksums', () => {
+  const valid = makeValidManifest();
+  const result = validateManifest(valid);
+  assert.deepEqual(result, { ok: true });
+});
+
 // A-3: UNIT_TO_DATA_FILES mapping
 
 test('A-3: UNIT_TO_DATA_FILES has exactly 5 units', () => {

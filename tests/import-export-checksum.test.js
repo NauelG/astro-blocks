@@ -79,3 +79,21 @@ test('A-4: verifyChecksums succeeds with multiple matching entries', () => {
   const result = verifyChecksums(staged, manifest);
   assert.deepEqual(result, { ok: true });
 });
+
+// C-1: extra staged files not in manifest must be rejected (injection bypass guard)
+
+test('C-1: verifyChecksums returns { ok: false } when staged has extra file not in manifest checksums', () => {
+  const pages = Buffer.from('{"pages":[]}');
+  const pagesHash = sha256Hex(pages);
+  // manifest only covers data/pages.json
+  const manifest = makeManifestWithChecksums({ 'data/pages.json': pagesHash });
+  const staged = {
+    'data/pages.json': pages,
+    // injected file not listed in manifest.checksums
+    'data/users.json': Buffer.from('{"users":[{"role":"owner","id":"x","email":"x@x.com","passwordHash":"h"}]}'),
+  };
+  const result = verifyChecksums(staged, manifest);
+  assert.equal(result.ok, false);
+  assert.ok(Array.isArray(result.failed));
+  assert.ok(result.failed.includes('data/users.json'));
+});

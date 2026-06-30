@@ -100,6 +100,39 @@ test('A-5: validateGlobalBlocksUnit rejects null', () => {
   assert.equal(validateGlobalBlocksUnit(null).ok, false);
 });
 
+// H-2: validateUsersUnit must require id, email, passwordHash (not just role)
+
+test('H-2: validateUsersUnit rejects user missing passwordHash', () => {
+  const result = validateUsersUnit({
+    users: [{ id: '1', email: 'a@b.com', role: 'owner' }],
+  });
+  assert.equal(result.ok, false);
+  assert.ok(result.reason, 'should provide a reason');
+});
+
+test('H-2: validateUsersUnit rejects user missing email', () => {
+  const result = validateUsersUnit({
+    users: [{ id: '1', passwordHash: 'h', role: 'owner' }],
+  });
+  assert.equal(result.ok, false);
+  assert.ok(result.reason, 'should provide a reason');
+});
+
+test('H-2: validateUsersUnit rejects user missing id', () => {
+  const result = validateUsersUnit({
+    users: [{ email: 'a@b.com', passwordHash: 'h', role: 'owner' }],
+  });
+  assert.equal(result.ok, false);
+  assert.ok(result.reason, 'should provide a reason');
+});
+
+test('H-2: validateUsersUnit accepts fully valid user with id, email, passwordHash, role', () => {
+  const result = validateUsersUnit({
+    users: [{ id: '1', email: 'a@b.com', passwordHash: 'hashed', role: 'owner' }],
+  });
+  assert.deepEqual(result, { ok: true });
+});
+
 // A-5: unitValidators map
 
 test('A-5: unitValidators has all 5 ExportUnit keys', () => {

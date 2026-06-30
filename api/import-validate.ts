@@ -26,6 +26,15 @@ export function validateUsersUnit(data: unknown): ValidationResult {
       return { ok: false, reason: 'each user must be an object' };
     }
     const u = user as Record<string, unknown>;
+    if (typeof u['id'] !== 'string' || u['id'] === '') {
+      return { ok: false, reason: 'each user must have a non-empty string "id"' };
+    }
+    if (typeof u['email'] !== 'string' || u['email'] === '') {
+      return { ok: false, reason: 'each user must have a non-empty string "email"' };
+    }
+    if (typeof u['passwordHash'] !== 'string' || u['passwordHash'] === '') {
+      return { ok: false, reason: 'each user must have a non-empty string "passwordHash"' };
+    }
     if (!VALID_ROLES.has(u['role'] as string)) {
       return {
         ok: false,

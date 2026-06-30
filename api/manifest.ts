@@ -92,11 +92,24 @@ export function validateManifest(obj: unknown): { ok: boolean; reason?: string }
   if (!Array.isArray(m['units'])) {
     return { ok: false, reason: 'units must be an array' };
   }
+  // Validate every units element is a known ExportUnit.
+  const knownUnits = new Set<string>(Object.keys(UNIT_TO_DATA_FILES));
+  for (const unit of m['units'] as unknown[]) {
+    if (typeof unit !== 'string' || !knownUnits.has(unit)) {
+      return { ok: false, reason: `unknown unit "${unit}" — must be one of: ${[...knownUnits].join(', ')}` };
+    }
+  }
   if (typeof m['counts'] !== 'object' || m['counts'] === null) {
     return { ok: false, reason: 'counts must be an object' };
   }
   if (typeof m['checksums'] !== 'object' || m['checksums'] === null || Array.isArray(m['checksums'])) {
     return { ok: false, reason: 'checksums must be a non-null object' };
+  }
+  // Validate every checksums value is a non-empty string.
+  for (const [path, hash] of Object.entries(m['checksums'] as Record<string, unknown>)) {
+    if (typeof hash !== 'string' || hash === '') {
+      return { ok: false, reason: `checksums entry "${path}" must be a non-empty string` };
+    }
   }
   return { ok: true };
 }
@@ -126,6 +139,12 @@ export function verifyChecksums(
     const actualHash = sha256Hex(fileBytes);
     if (actualHash !== expectedHash) {
       failed.push(entryPath);
+    }
+  }
+  // Second pass: any staged path not present in manifest.checksums is an injection attempt.
+  for (const stagedPath of Object.keys(staged)) {
+    if (!(stagedPath in manifest.checksums)) {
+      failed.push(stagedPath);
     }
   }
   if (failed.length > 0) {

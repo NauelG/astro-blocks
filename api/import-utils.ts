@@ -30,9 +30,11 @@ export class CeilingExceededError extends Error {
  * Sorts ascending by name (ISO timestamps sort lexicographically).
  */
 export function selectBackupsToPrune(dirNames: string[], keep: number): string[] {
-  if (dirNames.length <= keep) return [];
+  // Clamp keep to a minimum of 1 so we never select everything for deletion.
+  const effectiveKeep = keep < 1 ? 1 : keep;
+  if (dirNames.length <= effectiveKeep) return [];
   const sorted = [...dirNames].sort(); // ISO names sort correctly lexicographically
-  return sorted.slice(0, sorted.length - keep);
+  return sorted.slice(0, sorted.length - effectiveKeep);
 }
 
 /**
@@ -57,17 +59,29 @@ export function assertWithinCeilings(
 }
 
 /**
+ * Parses a raw env var string to a positive integer.
+ * Returns `defaultValue` if the string is absent, non-numeric (NaN), zero, or negative.
+ */
+function parseCeilingEnvVar(raw: string | undefined, defaultValue: number): number {
+  if (!raw) return defaultValue;
+  const parsed = parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultValue;
+}
+
+/**
  * Reads the decompression ceiling env vars and returns their values.
  * Env var names are locked (do not rename):
  *   ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES  (default: 50 MB)
  *   ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES (default: 500 MB)
  */
 export function readCeilingEnvVars(): CeilingLimits {
-  const perFile = process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES']
-    ? parseInt(process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'], 10)
-    : DEFAULT_MAX_IMPORT_FILE_BYTES;
-  const total = process.env['ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES']
-    ? parseInt(process.env['ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES'], 10)
-    : DEFAULT_MAX_IMPORT_TOTAL_BYTES;
+  const perFile = parseCeilingEnvVar(
+    process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'],
+    DEFAULT_MAX_IMPORT_FILE_BYTES,
+  );
+  const total = parseCeilingEnvVar(
+    process.env['ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES'],
+    DEFAULT_MAX_IMPORT_TOTAL_BYTES,
+  );
   return { perFile, total };
 }

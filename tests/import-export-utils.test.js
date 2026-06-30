@@ -109,3 +109,53 @@ test('A-6: readCeilingEnvVars reads ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES', () => 
     else process.env['ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES'] = prev;
   }
 });
+
+// H-1: readCeilingEnvVars must reject NaN/zero/negative — fall back to default
+
+test('H-1: readCeilingEnvVars falls back to default perFile when env is non-numeric ("abc")', () => {
+  const prev = process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'];
+  try {
+    process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'] = 'abc';
+    const result = readCeilingEnvVars();
+    assert.equal(result.perFile, DEFAULT_MAX_IMPORT_FILE_BYTES);
+  } finally {
+    if (prev === undefined) delete process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'];
+    else process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'] = prev;
+  }
+});
+
+test('H-1: readCeilingEnvVars falls back to default perFile when env is "0"', () => {
+  const prev = process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'];
+  try {
+    process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'] = '0';
+    const result = readCeilingEnvVars();
+    assert.equal(result.perFile, DEFAULT_MAX_IMPORT_FILE_BYTES);
+  } finally {
+    if (prev === undefined) delete process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'];
+    else process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'] = prev;
+  }
+});
+
+test('H-1: readCeilingEnvVars falls back to default perFile when env is "-1"', () => {
+  const prev = process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'];
+  try {
+    process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'] = '-1';
+    const result = readCeilingEnvVars();
+    assert.equal(result.perFile, DEFAULT_MAX_IMPORT_FILE_BYTES);
+  } finally {
+    if (prev === undefined) delete process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'];
+    else process.env['ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES'] = prev;
+  }
+});
+
+// M-2: selectBackupsToPrune must clamp keep < 1 to 1 (never wipe all backups)
+
+test('M-2: selectBackupsToPrune with keep=0 returns only the oldest entries (clamps to keep=1)', () => {
+  const dirs = ['2024-01-01', '2024-01-02', '2024-01-03'];
+  const result = selectBackupsToPrune(dirs, 0);
+  // clamp-to-1: keeps the newest 1, so returns the oldest 2
+  assert.equal(result.length, 2);
+  assert.ok(result.includes('2024-01-01'));
+  assert.ok(result.includes('2024-01-02'));
+  assert.ok(!result.includes('2024-01-03'));
+});
