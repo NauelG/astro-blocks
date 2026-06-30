@@ -48,6 +48,8 @@ export async function GET({ request }: APIContext): Promise<Response> {
   const authResult = await ensureAuth(request);
   if ('status' in authResult) return new Response(JSON.stringify(authResult.body), { status: 401 });
 
+  if (seg[0] === 'export' && seg.length === 1) return handlers.handleExport(request, authResult.user);
+
   if (seg[0] === 'pages' && seg.length === 1) return handlers.handleGetPages(request);
   if (seg[0] === 'site' && seg.length === 1) return handlers.handleGetSite();
   if (seg[0] === 'menus' && seg.length === 1) return handlers.handleGetMenus(request);

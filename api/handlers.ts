@@ -55,6 +55,9 @@ import type {
   User,
 } from '../types/index.js';
 import * as data from './data.js';
+import { buildExportStream } from './backup.js';
+import { UNIT_TO_DATA_FILES } from './manifest.js';
+import type { ExportUnit } from './manifest.js';
 import { resolveUiLocale } from '../routes/admin/i18n/resolve.js';
 import { catalogs } from '../routes/admin/i18n/catalogs.js';
 import { t as translateFn } from '../routes/admin/i18n/t.js';
@@ -1936,5 +1939,65 @@ export async function handleInvalidateCache(request: Request, context: HandlerCo
     return localizedJsonError(request, 'errors.cacheInvalidationFailed', 500, undefined, {
       detail: error instanceof Error ? error.message : String(error),
     });
+  }
+}
+
+/**
+ * GET /cms/api/export?units=pages,media,...
+ *
+ * Owner-only streaming zip export of selected CMS units (ADR-4).
+ * Returns the zip archive as a ReadableStream with Content-Type application/zip.
+ */
+export async function handleExport(request: Request, authUser?: AuthUser | null): Promise<Response> {
+  // Auth gate: must be authenticated
+  if (!authUser) {
+    return request
+      ? localizedJsonError(request, 'errors.unauthorized', 401)
+      : jsonError('Unauthorized', 401);
+  }
+
+  // Owner-only gate
+  const forbidden = requireOwner(authUser, request);
+  if (forbidden) return forbidden;
+
+  // Parse ?units=pages,media,... from the query string
+  const url = new URL(request.url);
+  const unitsParam = url.searchParams.get('units') ?? '';
+  const rawUnits = unitsParam
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (rawUnits.length === 0) {
+    return localizedJsonError(request, 'errors.invalidBody', 400);
+  }
+
+  // Validate each unit against the known allowlist
+  const knownUnits = new Set<string>(Object.keys(UNIT_TO_DATA_FILES));
+  for (const unit of rawUnits) {
+    if (!knownUnits.has(unit)) {
+      return localizedJsonError(request, 'errors.invalidBody', 400);
+    }
+  }
+
+  const units = rawUnits as ExportUnit[];
+
+  try {
+    const stream = await buildExportStream(units);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `astro-blocks-export-${timestamp}.zip`;
+
+    return new Response(stream as unknown as BodyInit, {
+      status: 200,
+      headers: {
+        'content-type': 'application/zip',
+        'content-disposition': `attachment; filename="${filename}"`,
+      },
+    });
+  } catch (error) {
+    return jsonError(
+      error instanceof Error ? error.message : 'Export failed',
+      500,
+    );
   }
 }
