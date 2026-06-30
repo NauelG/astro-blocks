@@ -3,10 +3,10 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-import type { ArrayItemDef, ArrayPropDef, ObjectArrayItemDef, PrimitivePropDef, PrimitivePropType, PropDef } from '../types/index.js';
+import type { ArrayItemDef, ArrayPropDef, FileFieldValue, ObjectArrayItemDef, PrimitivePropDef, PrimitivePropType, PropDef } from '../types/index.js';
 import { isEmptyImageValue } from './image-value.js';
 
-const PRIMITIVE_TYPES = new Set<PrimitivePropType>(['string', 'text', 'number', 'boolean', 'image', 'link', 'select']);
+const PRIMITIVE_TYPES = new Set<PrimitivePropType>(['string', 'text', 'number', 'boolean', 'image', 'link', 'select', 'file']);
 // 'image' is intentionally NOT in STRING_LIKE_TYPES — image values are objects, not strings.
 const STRING_LIKE_TYPES = new Set<PrimitivePropType>(['string', 'text', 'link', 'select']);
 
@@ -218,6 +218,8 @@ const EN_BLOCK_MESSAGES: Record<string, string> = {
   'blockValidation.fieldInvalidOption': 'Block "{blockName}" (index {blockIndex}): field "{label}" has an invalid option.',
   'blockValidation.fieldMustBeNumber': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be a valid number.',
   'blockValidation.fieldMustBeBoolean': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be a boolean.',
+  'blockValidation.fieldMustBeFile': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be a file object.',
+  'blockValidation.fieldFileNeedsUrl': 'Block "{blockName}" (index {blockIndex}): field "{label}" requires a valid URL.',
   'blockValidation.arrayMustContainObjects': 'Block "{blockName}" (index {blockIndex}): "{label}" must contain valid objects.',
   'blockValidation.arrayRequired': 'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
   'blockValidation.arrayMustBeArray': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be an array.',
@@ -308,6 +310,42 @@ function validatePrimitiveValue(
           return issue('blockValidation.fieldDimInvalid', { ...base, dim }, blockIndex, propName, itemIndex, fieldName);
         }
       }
+    }
+    return null;
+  }
+
+  // File-type: handled entirely in its own branch before the generic empty check.
+  // A plain string for a file field is ALWAYS invalid — file values are objects.
+  if (def.type === 'file') {
+    // null/undefined → truly no value → empty
+    if (value === null || value === undefined) {
+      if (required) {
+        return issue('blockValidation.fieldRequired', base, blockIndex, propName, itemIndex, fieldName);
+      }
+      return null;
+    }
+
+    // Any non-object (incl. string) → always an error
+    if (!isRecord(value)) {
+      return issue('blockValidation.fieldMustBeFile', base, blockIndex, propName, itemIndex, fieldName);
+    }
+    // Cast through unknown: at this point we know value is Record<string,unknown>,
+    // and we validate each field manually below before trusting the shape.
+    const fileVal = value as unknown as FileFieldValue;
+    if (typeof fileVal.url !== 'string') {
+      return issue('blockValidation.fieldFileNeedsUrl', base, blockIndex, propName, itemIndex, fieldName);
+    }
+    if (required && fileVal.url.trim() === '') {
+      return issue('blockValidation.fieldCannotBeEmpty', base, blockIndex, propName, itemIndex, fieldName);
+    }
+    if (fileVal.filename !== undefined && typeof fileVal.filename !== 'string') {
+      return issue('blockValidation.fieldMustBeFile', base, blockIndex, propName, itemIndex, fieldName);
+    }
+    if (fileVal.mimeType !== undefined && typeof fileVal.mimeType !== 'string') {
+      return issue('blockValidation.fieldMustBeFile', base, blockIndex, propName, itemIndex, fieldName);
+    }
+    if (fileVal.download !== undefined && typeof fileVal.download !== 'boolean') {
+      return issue('blockValidation.fieldMustBeFile', base, blockIndex, propName, itemIndex, fieldName);
     }
     return null;
   }

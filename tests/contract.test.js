@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { defineBlockSchema } from '../dist/contract/index.js';
+import { defineBlockSchema, PROP_TYPES } from '../dist/contract/index.js';
 import { buildSchemaMap, resolveBlockEntries, validateBlocks } from '../dist/utils/blocks.js';
 
 test('defineBlockSchema preserves component path', () => {
@@ -24,6 +24,12 @@ test('resolveBlockEntries derives keys and rejects duplicates', () => {
   ]);
 
   assert.equal(entries[0].key, 'Hero');
+});
+
+// ─── C1-piece2: PROP_TYPES must include 'file' ───────────────────────────────
+test('C1-piece2: PROP_TYPES includes "file"', () => {
+  assert.ok(Array.isArray(PROP_TYPES), 'PROP_TYPES must be an array');
+  assert.ok(PROP_TYPES.includes('file'), 'PROP_TYPES must include "file"');
 });
 
 test('validateBlocks checks required props', () => {
