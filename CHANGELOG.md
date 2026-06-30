@@ -9,6 +9,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.2.0] - 2026-06-30
+
+### Title
+
+Non-image file uploads (PDF and document support)
+
+### Added
+
+- **Non-image file uploads:** the media library now accepts and serves allowlisted non-image files (PDF by default) alongside images. Non-image files are stored byte-for-byte in the same `public/uploads/YYYY/MM/` location as images; the backend never manipulates them (no `sharp`, no responsive variants).
+- **`allowedFileTypes` plugin option:** a configurable allowlist of MIME types governing which files may be uploaded. Defaults to the existing image types plus `application/pdf`. A `DEFAULT_ALLOWED_FILE_TYPES` constant is exported so integrators can extend the defaults (`allowedFileTypes: [...DEFAULT_ALLOWED_FILE_TYPES, 'application/msword']`).
+- **`file` block prop type:** `defineBlockSchema` now supports `{ type: 'file' }` with an optional per-component `accept: string[]` (a MIME subset of the global allowlist) and an optional `download?: boolean`. The admin media picker enforces the effective `accept ∩ allowedFileTypes` intersection, both in the file input and in the selectable library grid.
+- **`fileDownloadUrl` helper:** exported from `@astroblocks/astro-blocks/getFileValue` for rendering download links. Combined with the serving route, a component controls download behaviour: documents are served inline by default, and `?download` forces `Content-Disposition: attachment`.
+- **Accessible document tiles:** the admin media library renders non-image assets as accessible document tiles (`role="img"` with a descriptive label and a decorative icon) instead of broken image elements.
+- **Playground demo:** a `DownloadButton` component in `playgrounds/basic` demonstrating the `file` prop type end to end.
+
+### Changed
+
+- **PDF is now accepted by default.** Previously any non-image upload (including PDF) was rejected with HTTP 415. With the default `allowedFileTypes`, `application/pdf` uploads now succeed. This is the only behavioural default change; image-only setups are otherwise unaffected. Integrators who require the prior behaviour can set `allowedFileTypes` to image types only.
+
+### Security
+
+- A hard server-side denylist of dangerous types (e.g. `.html`, `.js`, `.exe`, `.sh`, executable/script MIME families) is always enforced on both upload and replace, on the MIME type and the MIME-derived extension, and takes precedence over `allowedFileTypes` — the allowlist can never enable a dangerous type. SVG remains served as `Content-Disposition: attachment`. The `Content-Disposition` filename is sanitised as a defence-in-depth measure.
+
+### Notes
+
+- Available under BUSL-1.1. The `MediaEntry` registry gains an additive optional `fileCategory: 'image' | 'document'` field, derived in memory for pre-existing entries — no data migration is required.
+
 ## [3.1.1] - 2026-06-29
 
 ### Title
