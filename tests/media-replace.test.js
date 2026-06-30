@@ -102,14 +102,15 @@ async function seedMediaEntry(tempRoot, options = {}) {
   return entry;
 }
 
-async function makeReplaceRequest(id, fileContent, fileName, mimeType, authToken) {
-  const fd = new FormData();
-  const file = new File([fileContent], fileName, { type: mimeType });
-  fd.append('file', file);
+function makeReplaceRequest(id, fileContent, fileName, mimeType, authToken) {
   return new Request(`http://localhost/cms/api/media/${id}/replace`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${authToken}` },
-    body: fd,
+    headers: {
+      Authorization: `Bearer ${authToken}`,
+      'Content-Type': mimeType,
+      'x-cms-filename': encodeURIComponent(fileName),
+    },
+    body: new Uint8Array(fileContent instanceof Uint8Array ? fileContent : Array.from(fileContent)),
   });
 }
 
@@ -124,7 +125,7 @@ test('RE-01: same-MIME replace → 200, bytes overwritten, status=processing, mi
     // New JPEG bytes (different content)
     const newContent = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x99, 0x88]);
     const token = await makeAuthToken();
-    const req = await makeReplaceRequest(entry.id, newContent, 'new-photo.jpg', 'image/jpeg', token);
+    const req = makeReplaceRequest(entry.id, newContent, 'new-photo.jpg', 'image/jpeg', token);
     const res = await handleReplaceUpload(req, entry.id);
 
     assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
@@ -158,7 +159,7 @@ test('RE-02: different-MIME replace → 415 with expected-type message', async (
     const entry = await seedMediaEntry(tempRoot, { mimeType: 'image/jpeg' });
 
     const token = await makeAuthToken();
-    const req = await makeReplaceRequest(entry.id, PNG_BYTES, 'new.png', 'image/png', token);
+    const req = makeReplaceRequest(entry.id, PNG_BYTES, 'new.png', 'image/png', token);
     const res = await handleReplaceUpload(req, entry.id);
 
     assert.equal(res.status, 415);
@@ -171,20 +172,23 @@ test('RE-02: different-MIME replace → 415 with expected-type message', async (
   });
 });
 
-// ─── RE-03: missing file → 400 ───────────────────────────────────────────────
+// ─── RE-03: empty body (no file bytes) → 400 ─────────────────────────────────
+// Under binary transport, "missing file" is represented as an empty body (byteLength === 0).
 
-test('RE-03: missing file → 400', async () => {
+test('RE-03: empty body (no file bytes) → 400', async () => {
   await withTempProject(async (tempRoot) => {
     const entry = await seedMediaEntry(tempRoot);
     const token = await makeAuthToken();
 
-    // FormData with no 'file' field
-    const fd = new FormData();
-    fd.append('other', 'value');
+    // Empty binary body — equivalent of "no file" in binary transport
     const req = new Request(`http://localhost/cms/api/media/${entry.id}/replace`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: fd,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'image/jpeg',
+        'x-cms-filename': 'test.jpg',
+      },
+      body: new Uint8Array(0),
     });
     const res = await handleReplaceUpload(req, entry.id);
     assert.equal(res.status, 400);
@@ -198,7 +202,7 @@ test('RE-03: missing file → 400', async () => {
 test('RE-04: unknown id → 404', async () => {
   await withTempProject(async () => {
     const token = await makeAuthToken();
-    const req = await makeReplaceRequest('nonexistent-id', JPEG_BYTES, 'img.jpg', 'image/jpeg', token);
+    const req = makeReplaceRequest('nonexistent-id', JPEG_BYTES, 'img.jpg', 'image/jpeg', token);
     const res = await handleReplaceUpload(req, 'nonexistent-id');
     assert.equal(res.status, 404);
   });
@@ -209,11 +213,14 @@ test('RE-04: unknown id → 404', async () => {
 test('RE-05: no auth → 401', async () => {
   await withTempProject(async (tempRoot) => {
     const entry = await seedMediaEntry(tempRoot);
-    const fd = new FormData();
-    fd.append('file', new File([JPEG_BYTES], 'img.jpg', { type: 'image/jpeg' }));
+    // Binary request with no Authorization header — should return 401
     const req = new Request(`http://localhost/cms/api/media/${entry.id}/replace`, {
       method: 'POST',
-      body: fd,
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'x-cms-filename': encodeURIComponent('img.jpg'),
+      },
+      body: JPEG_BYTES,
     });
     const res = await handleReplaceUpload(req, entry.id);
     assert.equal(res.status, 401);
@@ -229,7 +236,7 @@ test('RE-06: oversize file → 413', async () => {
 
     // 6 MB — over default 5 MB limit
     const bigContent = new Uint8Array(6 * 1024 * 1024);
-    const req = await makeReplaceRequest(entry.id, bigContent, 'big.jpg', 'image/jpeg', token);
+    const req = makeReplaceRequest(entry.id, bigContent, 'big.jpg', 'image/jpeg', token);
     const res = await handleReplaceUpload(req, entry.id);
     assert.equal(res.status, 413);
     const body = await res.json();
@@ -244,7 +251,7 @@ test('RE-07: non-allowed MIME type → 415', async () => {
     const entry = await seedMediaEntry(tempRoot);
     const token = await makeAuthToken();
 
-    const req = await makeReplaceRequest(entry.id, new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'doc.pdf', 'application/pdf', token);
+    const req = makeReplaceRequest(entry.id, new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'doc.pdf', 'application/pdf', token);
     const res = await handleReplaceUpload(req, entry.id);
     assert.equal(res.status, 415);
     const body = await res.json();
@@ -261,7 +268,7 @@ test('L-2: replace with denylisted MIME (text/html) → 415 (denylist gate runs 
     const entry = await seedMediaEntry(tempRoot, { mimeType: 'image/jpeg' });
     const token = await makeAuthToken();
 
-    const req = await makeReplaceRequest(
+    const req = makeReplaceRequest(
       entry.id,
       Buffer.from('<script>alert(1)</script>'),
       'evil.html',
@@ -296,7 +303,7 @@ test('P5: replace → entry processing + variants:[] AND getMediaVariants return
     // Replace bytes
     const newContent = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x12, 0x34]);
     const token = await makeAuthToken();
-    const req = await makeReplaceRequest(entry.id, newContent, 'replaced.jpg', 'image/jpeg', token);
+    const req = makeReplaceRequest(entry.id, newContent, 'replaced.jpg', 'image/jpeg', token);
     const res = await handleReplaceUpload(req, entry.id);
     assert.equal(res.status, 200);
     const body = await res.json();
@@ -320,5 +327,81 @@ test('P5: replace → entry processing + variants:[] AND getMediaVariants return
     const after = await getMediaVariants(url);
     assert.equal(after.status, 'ready', 'accessor flips to ready after markMediaVariantsReady');
     assert.equal(after.variants.length, 2, 'accessor exposes the new variants');
+  });
+});
+
+// ─── RE-CSRF-* ─────────────────────────────────────────────────────────────────
+
+// RE-CSRF-01a: same-category JPEG replace via binary transport → 200
+test('RE-CSRF-01a: binary-transport JPEG replace of JPEG entry → 200, size=buffer.byteLength', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entry = await seedMediaEntry(tempRoot, { mimeType: 'image/jpeg' });
+    const token = await makeAuthToken();
+
+    const newContent = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x01, 0x02, 0x03]);
+    const req = makeReplaceRequest(entry.id, newContent, 'new.jpg', 'image/jpeg', token);
+    const res = await handleReplaceUpload(req, entry.id);
+
+    assert.equal(res.status, 200, 'JPEG→JPEG replace via binary transport should succeed');
+    const body = await res.json();
+    assert.equal(body.entry.status, 'processing', 'entry status should be processing');
+    assert.deepEqual(body.entry.variants, [], 'variants should be cleared');
+    assert.equal(body.entry.size, newContent.byteLength, 'size must equal buffer.byteLength');
+  });
+});
+
+// RE-CSRF-01b: same-category PDF → PDF replace → 200
+test('RE-CSRF-01b: binary-transport PDF replace of PDF entry → 200', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entry = await seedMediaEntry(tempRoot, {
+      mimeType: 'application/pdf',
+      filename: 'doc.pdf',
+      content: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+    });
+    const token = await makeAuthToken();
+
+    const newContent = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37]);
+    const req = makeReplaceRequest(entry.id, newContent, 'new-doc.pdf', 'application/pdf', token);
+    const res = await handleReplaceUpload(req, entry.id);
+
+    assert.equal(res.status, 200, 'PDF→PDF replace via binary transport should succeed');
+  });
+});
+
+// RE-CSRF-01c: cross-category JPEG → PDF replace → 415 (same-category gate enforced)
+test('RE-CSRF-01c: binary-transport JPEG replacing PDF entry → 415 (same-category gate enforced)', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entry = await seedMediaEntry(tempRoot, {
+      mimeType: 'application/pdf',
+      filename: 'doc.pdf',
+      content: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+    });
+    const token = await makeAuthToken();
+
+    const req = makeReplaceRequest(entry.id, JPEG_BYTES, 'photo.jpg', 'image/jpeg', token);
+    const res = await handleReplaceUpload(req, entry.id);
+
+    assert.equal(res.status, 415, 'cross-category replace must be rejected with 415');
+  });
+});
+
+// RE-CSRF-07: entry.size equals buffer.byteLength on replace
+test('RE-CSRF-07: entry.size equals buffer.byteLength after replace', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Seed with 4 bytes
+    const entry = await seedMediaEntry(tempRoot, {
+      mimeType: 'image/jpeg',
+      content: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+    });
+    const token = await makeAuthToken();
+
+    // Replace with 6 bytes
+    const newContent = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x01]);
+    const req = makeReplaceRequest(entry.id, newContent, 'new.jpg', 'image/jpeg', token);
+    const res = await handleReplaceUpload(req, entry.id);
+
+    assert.equal(res.status, 200, 'replace should succeed');
+    const body = await res.json();
+    assert.equal(body.entry.size, 6, 'entry.size must equal buffer.byteLength (6)');
   });
 });

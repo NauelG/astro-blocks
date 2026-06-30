@@ -200,14 +200,20 @@ async function loadMedia(): Promise<void> {
 
 async function uploadFile(file: File): Promise<void> {
   const cmsWindow = getCmsWindow();
-  const fd = new FormData();
-  fd.append('file', file);
-
   const token = getCmsToken();
+  // Send the raw binary body with the file's real MIME as Content-Type. CSRF is not a
+  // concern: the API authenticates via the JWT in the Authorization header (not a cookie),
+  // and the non-form Content-Type + custom x-cms-filename header force a CORS preflight.
+  // The non-form Content-Type also avoids Astro's origin-check 403 behind reverse proxies
+  // (see the rationale in api/handlers.ts handleUpload).
   const res = await fetch('/cms/api/upload', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}` },
-    body: fd,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-cms-filename': encodeURIComponent(file.name),
+    },
+    body: file,
   });
 
   if (res.ok) {
@@ -324,14 +330,19 @@ async function replaceMedia(id: string, filename: string, mimeType: string, trig
     triggerBtn.setAttribute('aria-busy', 'true');
     cmsWindow.cmsToast?.({ title: ct('media.replacing'), message: ct('media.replacingMessage', { filename }), tone: 'success' });
 
-    const fd = new FormData();
-    fd.append('file', file);
-
     try {
+      // Send the raw binary body with the file's real MIME as Content-Type. CSRF is not a
+      // concern: the API authenticates via the JWT in the Authorization header (not a cookie).
+      // The non-form Content-Type also avoids Astro's origin-check 403 behind reverse proxies
+      // (see the rationale in api/handlers.ts handleReplaceUpload).
       const res = await fetch(`/cms/api/media/${encodeURIComponent(id)}/replace`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': file.type || 'application/octet-stream',
+          'x-cms-filename': encodeURIComponent(file.name),
+        },
+        body: file,
       });
 
       if (res.ok) {

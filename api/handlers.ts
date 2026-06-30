@@ -1400,14 +1400,28 @@ export async function handleDeleteConfig(id: string, context: HandlerContext = {
 }
 
 export async function handleUpload(request: Request): Promise<Response> {
-  const formData = await request.formData();
-  const file = formData.get('file');
-  if (!file || typeof (file as File).arrayBuffer !== 'function') return localizedJsonError(request, 'errors.noFile');
+  // Read raw binary body. The request Content-Type carries the file's real MIME.
+  // CSRF is not a concern here: these endpoints authenticate via a JWT in the
+  // Authorization/x-cms-token HEADER (see getAuth), never an ambient cookie, so a
+  // cross-origin page cannot forge an authenticated request — the OWASP token-in-
+  // header pattern. The non-form Content-Type (and the custom x-cms-filename header)
+  // also force a CORS preflight our server never answers cross-origin. Using a
+  // non-form body additionally avoids Astro's origin-check middleware, which would
+  // otherwise 403 legitimate same-app uploads behind a reverse proxy (Origin vs
+  // computed url.origin mismatch).
+  const buffer = await request.arrayBuffer();
+  if (buffer.byteLength === 0) return localizedJsonError(request, 'errors.noFile');
 
-  const blob = file as File;
+  // Decode filename from x-cms-filename header (percent-encoded); fall back to 'upload'.
+  let rawName = 'upload';
+  try {
+    rawName = decodeURIComponent(request.headers.get('x-cms-filename') ?? 'upload');
+  } catch {
+    rawName = 'upload';
+  }
 
   // Validate MIME type BEFORE disk write (denylist + allowlist gate — ADR-4)
-  const mimeType = blob.type || '';
+  const mimeType = request.headers.get('content-type')?.split(';')[0]?.trim() || '';
   if (!mimeType) {
     return localizedJsonError(request, 'errors.unsupportedFileType', 415);
   }
@@ -1421,12 +1435,11 @@ export async function handleUpload(request: Request): Promise<Response> {
   }
 
   // Validate size BEFORE disk write
-  if (blob.size > MAX_UPLOAD_BYTES) {
+  if (buffer.byteLength > MAX_UPLOAD_BYTES) {
     const limitMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
     return localizedJsonError(request, 'errors.fileTooLarge', 413, { limitMb: String(limitMb) });
   }
 
-  const buffer = await blob.arrayBuffer();
   // Extension is derived from the already-validated MIME type — never from the user-supplied filename.
   // This prevents a stored-XSS bypass where an SVG uploaded as "foo.jpg" would be served inline.
   const extension = MIME_TO_EXT[mimeType];
@@ -1440,7 +1453,7 @@ export async function handleUpload(request: Request): Promise<Response> {
   await fs.mkdir(dir, { recursive: true });
 
   const token = crypto.randomBytes(4).toString('hex');
-  const rawBase = path.basename(blob.name || 'upload', path.extname(blob.name || ''));
+  const rawBase = path.basename(rawName || 'upload', path.extname(rawName || ''));
   const base = rawBase.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'file';
   const filename = `${token}-${base}${extension}`;
   await fs.writeFile(path.join(dir, filename), Buffer.from(buffer));
@@ -1477,8 +1490,8 @@ export async function handleUpload(request: Request): Promise<Response> {
   const entry: MediaEntry = {
     id: data.generateId(),
     url,
-    filename: blob.name || filename,
-    size: blob.size,
+    filename: rawName || filename,
+    size: buffer.byteLength,
     mimeType,
     fileCategory,
     createdAt: new Date().toISOString(),
@@ -1627,22 +1640,28 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   const entry = m.uploads.find((e) => e.id === id);
   if (!entry) return localizedJsonError(request, 'errors.notFound', 404);
 
-  let formData: FormData;
+  // Read raw binary body. The request Content-Type carries the file's real MIME.
+  // CSRF is not a concern here: these endpoints authenticate via a JWT in the
+  // Authorization/x-cms-token HEADER (see getAuth), never an ambient cookie, so a
+  // cross-origin page cannot forge an authenticated request — the OWASP token-in-
+  // header pattern. The non-form Content-Type (and the custom x-cms-filename header)
+  // also force a CORS preflight our server never answers cross-origin. Using a
+  // non-form body additionally avoids Astro's origin-check middleware, which would
+  // otherwise 403 legitimate same-app uploads behind a reverse proxy (Origin vs
+  // computed url.origin mismatch).
+  const buffer = await request.arrayBuffer();
+  if (buffer.byteLength === 0) return localizedJsonError(request, 'errors.noFile');
+
+  // Decode filename from x-cms-filename header; fall back to 'upload'.
+  let rawReplaceName = 'upload';
   try {
-    formData = await request.formData();
+    rawReplaceName = decodeURIComponent(request.headers.get('x-cms-filename') ?? 'upload');
   } catch {
-    return localizedJsonError(request, 'errors.invalidMultipartBody');
+    rawReplaceName = 'upload';
   }
-
-  const file = formData.get('file');
-  if (!file || typeof (file as File).arrayBuffer !== 'function') {
-    return localizedJsonError(request, 'errors.noFile');
-  }
-
-  const blob = file as File;
 
   // MIME validation — denylist + allowlist gate (ADR-4), then same-MIME constraint
-  const mimeType = blob.type || '';
+  const mimeType = request.headers.get('content-type')?.split(';')[0]?.trim() || '';
   if (!mimeType) {
     return localizedJsonError(request, 'errors.unsupportedFileType', 415);
   }
@@ -1659,7 +1678,7 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   }
 
   // Size guard
-  if (blob.size > MAX_UPLOAD_BYTES) {
+  if (buffer.byteLength > MAX_UPLOAD_BYTES) {
     const limitMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
     return localizedJsonError(request, 'errors.fileTooLarge', 413, { limitMb: String(limitMb) });
   }
@@ -1671,7 +1690,6 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   // Overwrite bytes ATOMICALLY: write to a temp file then rename into place.
   // rename(2) is atomic on POSIX, so a read never observes a half-written file.
   // On failure the temp file is cleaned up and the original is left intact.
-  const buffer = await blob.arrayBuffer();
   const tmpPath = `${filePath}.${crypto.randomBytes(6).toString('hex')}.tmp`;
   try {
     await fs.writeFile(tmpPath, Buffer.from(buffer));
@@ -1707,7 +1725,7 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   // not the pre-lock snapshot from the early loadMedia(), which avoids the race
   // where a concurrent regen re-populates variants between the snapshot and lock.
   const result = await data.replaceMediaEntryBytes(id, {
-    size: blob.size,
+    size: buffer.byteLength,
     width: capturedWidth,
     height: capturedHeight,
   });

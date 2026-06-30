@@ -96,12 +96,13 @@ const SVG_WITH_VIEWBOX = Buffer.from(
 );
 
 function makeUploadRequest(fileContent, fileName, mimeType) {
-  const fd = new FormData();
-  const file = new File([fileContent], fileName, { type: mimeType });
-  fd.append('file', file);
   return new Request('http://localhost/cms/api/upload', {
     method: 'POST',
-    body: fd,
+    headers: {
+      'Content-Type': mimeType,
+      'x-cms-filename': encodeURIComponent(fileName),
+    },
+    body: new Uint8Array(fileContent instanceof Uint8Array ? fileContent : Array.from(fileContent)),
   });
 }
 

@@ -554,7 +554,6 @@ export const es = {
   'errors.altMustBeString': 'alt debe ser texto.',
   'errors.replaceSameType': 'El reemplazo debe ser del mismo tipo: se esperaba {mimeType}.',
   'errors.replaceWriteFailed': 'Error al escribir el archivo de reemplazo.',
-  'errors.invalidMultipartBody': 'Cuerpo multipart no válido.',
   'errors.cacheInvalidationFailed': 'Error al invalidar la caché.',
   'errors.cannotDeleteSelf': 'No puedes eliminar tu propia cuenta.',
   'errors.globalBlockNotFound': 'Bloque global "{slug}" no encontrado.',
