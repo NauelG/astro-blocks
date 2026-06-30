@@ -9,12 +9,17 @@ export type {
   BlockDefinition,
   BlockInstance,
   BlockSchema,
+  FileFieldValue,
   ImageFieldValue,
   PropDef,
   PropType,
   SchemaMap,
   SerializedSchema,
 } from '../types/index.js';
+
+// Type-level regression guard: if FileFieldValue is ever removed from the
+// export surface, tsc will fail here before any consumer notices.
+type _AssertFileFieldValueExported = import('./index.js').FileFieldValue;
 
 /** Internal key where the component path (from componentUrl) is stored. Plugin reads this; API must not expose it. */
 export const COMPONENT_PATH_KEY = '__componentPath' as const;
@@ -50,5 +55,6 @@ export const PROP_TYPES: readonly PropType[] = [
   'image',
   'link',
   'select',
+  'file',
   'array',
 ] as const;

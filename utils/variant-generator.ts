@@ -10,8 +10,9 @@ Licensed under the Business Source License 1.1
  * Called from handleUpload as fire-and-forget; exported for direct testing.
  *
  * Contract:
- *   - SVG/GIF → early return, markMediaVariantsReady(id, [])
- *   - Raster (jpeg/png/webp) → import('sharp') dynamically → resize per breakpoint (no-upscale) → toFormat(webp|avif) → write file
+ *   - Only raster types (image/jpeg, image/png, image/webp) go through sharp.
+ *   - All other types (SVG, GIF, PDF, any non-raster) → markMediaVariantsReady(id, []) and return.
+ *   - Raster: import('sharp') dynamically → resize per breakpoint (no-upscale) → toFormat(webp|avif) → write file
  *   - On success → markMediaVariantsReady(id, variants)
  *   - On ANY error (import, fs, encode) → markMediaVariantsFailed(id), never rethrow
  */
@@ -19,23 +20,26 @@ Licensed under the Business Source License 1.1
 import fs from 'node:fs/promises';
 import { resolveUploadPath, buildVariantFilename, variantUrlFor } from './paths.js';
 import * as data from '../api/data.js';
+import { RASTER_MIME } from './file-types.js';
 import type { MediaEntry, MediaVariant } from '../types/index.js';
 
 /** Breakpoints in pixels for variant generation. */
 const BREAKPOINTS = [480, 800, 1200, 1920] as const;
 
-/** MIME types that skip sharp and receive status:'ready' with no variants. */
-const SKIP_MIME = new Set(['image/svg+xml', 'image/gif']);
-
 /**
  * Generate WebP and AVIF variants at each configured breakpoint (no-upscale)
  * for the given MediaEntry, then persist results via data mutations.
  *
+ * Only raster MIME types (jpeg/png/webp) trigger sharp processing.
+ * All other types — SVG, GIF, PDF, and any future document types — receive
+ * status:'ready' with an empty variants array without invoking sharp.
+ *
  * Fire-and-forget safe: never throws; always resolves.
  */
 export async function generateAndPersistVariants(entry: MediaEntry): Promise<void> {
-  // SVG and GIF skip processing — mark ready with empty variants
-  if (SKIP_MIME.has(entry.mimeType)) {
+  // Non-raster types skip processing — mark ready with empty variants.
+  // This covers SVG, GIF, PDF, and any other non-raster file.
+  if (!RASTER_MIME.has(entry.mimeType)) {
     await data.markMediaVariantsReady(entry.id, []);
     return;
   }

@@ -235,3 +235,86 @@ test('T1.1: issue.message is English (backward compat)', () => {
   // Must NOT be Spanish
   assert.ok(!issue.message.includes('obligatorio'), 'issue.message must not be Spanish');
 });
+
+// ─── Slice C: 'file' prop type validation (deferred from Slice A) ─────────────
+// C1 piece 1: 'file' must be in PRIMITIVE_TYPES (isPrimitivePropType)
+// C1 piece 2: 'file' must be accepted in PROP_TYPES contract (covered in contract.test.js)
+// C1 piece 3: validatePrimitiveValue must have a 'file' branch
+
+const FILE_SCHEMA = {
+  brochure: { type: 'file', label: 'Brochure PDF', required: false },
+};
+
+const FILE_SCHEMA_REQUIRED = {
+  brochure: { type: 'file', label: 'Brochure PDF', required: true },
+};
+
+test('C1-piece1: isPrimitivePropType accepts "file" (schema validates without error)', () => {
+  // validateSchemaItemsDefinition calls isPrimitivePropType — if 'file' is absent it returns an error
+  const msg = validateSchemaItemsDefinition(
+    { brochure: { type: 'file', label: 'PDF' } },
+    'Download'
+  );
+  assert.equal(msg, null, `expected null but got: ${msg}`);
+});
+
+test('C1-piece3: valid file value with url passes validation', () => {
+  const issue = validateBlockPropsAgainstSchema('Download', 0, FILE_SCHEMA, {
+    brochure: { url: '/uploads/2026/06/doc.pdf' },
+  });
+  assert.equal(issue, null, 'valid file value with url must pass');
+});
+
+test('C1-piece3: file value with all optional fields passes validation', () => {
+  const issue = validateBlockPropsAgainstSchema('Download', 0, FILE_SCHEMA, {
+    brochure: { url: '/uploads/doc.pdf', filename: 'report.pdf', mimeType: 'application/pdf', download: true },
+  });
+  assert.equal(issue, null, 'full file value must pass');
+});
+
+test('C1-piece3: null file value on optional prop passes', () => {
+  const issue = validateBlockPropsAgainstSchema('Download', 0, FILE_SCHEMA, {
+    brochure: null,
+  });
+  assert.equal(issue, null, 'null on optional file prop must pass');
+});
+
+test('C1-piece3: missing file value on optional prop passes', () => {
+  const issue = validateBlockPropsAgainstSchema('Download', 0, FILE_SCHEMA, {});
+  assert.equal(issue, null, 'absent optional file prop must pass');
+});
+
+test('C1-piece3: file value without url (non-object) fails validation', () => {
+  const issue = validateBlockPropsAgainstSchema('Download', 0, FILE_SCHEMA, {
+    brochure: 'not-an-object',
+  });
+  assert.ok(issue !== null, 'non-object file value must fail');
+});
+
+test('C1-piece3: file value with numeric url fails validation', () => {
+  const issue = validateBlockPropsAgainstSchema('Download', 0, FILE_SCHEMA, {
+    brochure: { url: 123 },
+  });
+  assert.ok(issue !== null, 'numeric url must fail');
+});
+
+test('C1-piece3: required file value with empty url fails validation', () => {
+  const issue = validateBlockPropsAgainstSchema('Download', 0, FILE_SCHEMA_REQUIRED, {
+    brochure: { url: '' },
+  });
+  assert.ok(issue !== null, 'required file with empty url must fail');
+});
+
+test('C1-piece3: required file value with non-empty url passes', () => {
+  const issue = validateBlockPropsAgainstSchema('Download', 0, FILE_SCHEMA_REQUIRED, {
+    brochure: { url: '/uploads/doc.pdf' },
+  });
+  assert.equal(issue, null, 'required file with valid url must pass');
+});
+
+test('C1-piece3: required null file value fails validation', () => {
+  const issue = validateBlockPropsAgainstSchema('Download', 0, FILE_SCHEMA_REQUIRED, {
+    brochure: null,
+  });
+  assert.ok(issue !== null, 'null on required file prop must fail');
+});

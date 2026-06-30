@@ -173,6 +173,82 @@ test('corrupt buffer → status:failed, no variant files written, no throw', asy
   });
 });
 
+// R4.1-A: PDF entry skips sharp → status:ready, variants:[], no extra files (B5)
+test('R4.1-A: PDF entry → generateAndPersistVariants skips sharp, returns status:ready variants:[]', async () => {
+  await withTempProject(async (tempRoot) => {
+    const subdir = '2026/06';
+    const dir = path.join(tempRoot, 'public', 'uploads', subdir);
+    await fs.mkdir(dir, { recursive: true });
+    const filename = 'ef78-doc.pdf';
+    const pdfBytes = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]); // %PDF-1.4
+    await fs.writeFile(path.join(dir, filename), pdfBytes);
+    const url = `/uploads/${subdir}/${filename}`;
+
+    const { appendMediaEntry, generateId, loadMedia } = await import('../dist/api/data.js');
+    const entry = {
+      id: generateId(),
+      url,
+      filename,
+      size: pdfBytes.length,
+      mimeType: 'application/pdf',
+      createdAt: new Date().toISOString(),
+      status: 'processing',
+    };
+    await appendMediaEntry(entry);
+
+    await generateAndPersistVariants(entry);
+
+    const media = await loadMedia();
+    const updated = media.uploads.find((u) => u.id === entry.id);
+
+    assert.ok(updated, 'entry should still exist in registry');
+    assert.equal(updated.status, 'ready', 'PDF should have status ready');
+    assert.deepEqual(updated.variants, [], 'PDF should have empty variants array');
+
+    // No variant files should be created
+    const files = await fs.readdir(dir);
+    const variantFiles = files.filter((f) => f !== filename);
+    assert.equal(variantFiles.length, 0, 'no variant files should be created for PDF');
+  });
+});
+
+// R4.1-B: GIF entry skips sharp → status:ready, variants:[], no extra files (B5)
+test('R4.1-B: GIF entry → generateAndPersistVariants skips sharp, returns status:ready variants:[]', async () => {
+  await withTempProject(async (tempRoot) => {
+    const subdir = '2026/06';
+    const dir = path.join(tempRoot, 'public', 'uploads', subdir);
+    await fs.mkdir(dir, { recursive: true });
+    const filename = 'gh90-anim.gif';
+    const gifBytes = Buffer.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]); // GIF89a
+    await fs.writeFile(path.join(dir, filename), gifBytes);
+    const url = `/uploads/${subdir}/${filename}`;
+
+    const { appendMediaEntry, generateId, loadMedia } = await import('../dist/api/data.js');
+    const entry = {
+      id: generateId(),
+      url,
+      filename,
+      size: gifBytes.length,
+      mimeType: 'image/gif',
+      createdAt: new Date().toISOString(),
+      status: 'processing',
+    };
+    await appendMediaEntry(entry);
+
+    await generateAndPersistVariants(entry);
+
+    const media = await loadMedia();
+    const updated = media.uploads.find((u) => u.id === entry.id);
+
+    assert.equal(updated.status, 'ready', 'GIF should have status ready');
+    assert.deepEqual(updated.variants, [], 'GIF should have empty variants array');
+
+    const files = await fs.readdir(dir);
+    const variantFiles = files.filter((f) => f !== filename);
+    assert.equal(variantFiles.length, 0, 'no variant files should be created for GIF');
+  });
+});
+
 test('SVG entry → generateAndPersistVariants skips sharp, returns status:ready variants:[]', async () => {
   await withTempProject(async (tempRoot) => {
     const subdir = '2026/06';

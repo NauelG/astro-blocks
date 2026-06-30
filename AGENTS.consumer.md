@@ -201,6 +201,7 @@ Field types available in `items`:
 | `image` | Image with upload | Returns an `ImageFieldValue` object (`{ url, alt?, caption?, width?, height? }`); legacy bare strings are coerced. Render with `<BlockImage>` |
 | `link` | URL or path | Text input for href values |
 | `select` | Dropdown selection | Requires `options: string[]` |
+| `file` | Non-image file upload (PDF, etc.) | Returns a `FileFieldValue` object (`{ url, filename?, mimeType?, download? }`). Optional `accept?: string[]` (MIME subset) and `download?: boolean` meta. Use `fileDownloadUrl(value)` for server-enforced download. Import helpers from `./getFileValue` |
 | `array` | List of items | Requires `item` definition; supports sortable, minItems, maxItems |
 
 **Array field example:**
@@ -357,6 +358,34 @@ const mv = await getMediaVariants('/uploads/2026/06/my-image.jpg');
 Reads `data/media.json` with an mtime-keyed in-memory cache. Returns `{ status: 'none', variants: [] }` gracefully when the registry is missing. Never throws.
 
 > Full media guide (editor workflow, `ImageFieldValue`/`MediaEntry` shapes, API endpoints, limitations): `docs/media.md` in the package repository.
+
+### `./getFileValue` — file field helpers
+
+```ts
+import {
+  fileDownloadUrl,
+  toFileValue,
+  parseFileValue,
+  isEmptyFileValue,
+  mediaEntryToFileValue,
+  serializeFileValueAttr,
+} from '@astroblocks/astro-blocks/getFileValue';
+import type { FileFieldValue } from '@astroblocks/astro-blocks/contract';
+```
+
+Helpers for `file`-type block prop values (`FileFieldValue`). Use `fileDownloadUrl(value)` in your component frontmatter to resolve the URL — when `value.download === true`, it appends `?download` so the server sets `Content-Disposition: attachment`. Example:
+
+```astro
+---
+import { fileDownloadUrl } from '@astroblocks/astro-blocks/getFileValue';
+
+const { brochure } = Astro.props; // brochure: FileFieldValue
+---
+
+<a href={fileDownloadUrl(brochure)} download={brochure.download ? brochure.filename : undefined}>
+  Download PDF
+</a>
+```
 
 ---
 

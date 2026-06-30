@@ -50,6 +50,10 @@
     "./getMediaVariants": {
       "types": "./dist/utils/getMediaVariants.d.ts",
       "import": "./dist/utils/getMediaVariants.js"
+    },
+    "./getFileValue": {
+      "types": "./dist/utils/file-value.d.ts",
+      "import": "./dist/utils/file-value.js"
     }
   },
   "types": "./dist/plugin/index.d.ts",

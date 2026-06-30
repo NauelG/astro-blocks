@@ -23,6 +23,8 @@ import {
 import { joinSlugSegments, slugToPath, splitSlugSegments } from '../utils/slug.js';
 import { getProjectRoot, getUploadsDir, resolveUploadPath } from '../utils/paths.js';
 import { generateAndPersistVariants } from '../utils/variant-generator.js';
+import { DEFAULT_ALLOWED_FILE_TYPES, MIME_TO_EXT as FILE_TYPES_MIME_TO_EXT, RASTER_MIME } from '../utils/file-types.js';
+import { evaluateUpload } from '../utils/upload-gate.js';
 import {
   hasDuplicateRedirectFrom,
   normalizeRedirectPath,
@@ -86,16 +88,53 @@ type HandlerContext = { cache?: AstroCache | null };
 const CONFIG_KEY_REGEX = /^[A-Za-z][A-Za-z0-9_.-]*$/;
 
 // Media upload constants
-const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif']);
+
+/**
+ * Memoized parsed allowlist. Populated on first call to getAllowedFileTypes().
+ * Exported resetAllowedFileTypesCache() clears it for test isolation.
+ */
+let _allowedFileTypesCache: Set<string> | null = null;
+
+/**
+ * Returns the resolved allowlist as a Set<string>.
+ *
+ * Source priority (ADR-1):
+ *   1. import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES (injected by vite.define as JSON string)
+ *   2. DEFAULT_ALLOWED_FILE_TYPES fallback
+ *
+ * Result is memoized; call resetAllowedFileTypesCache() between test runs.
+ */
+function getAllowedFileTypes(): Set<string> {
+  if (_allowedFileTypesCache !== null) return _allowedFileTypesCache;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw: string = ((import.meta as any).env as Record<string, unknown> | undefined)?.ASTRO_BLOCKS_ALLOWED_FILE_TYPES as string ?? '';
+  let parsed: string[] | null = null;
+  if (typeof raw === 'string' && raw.trim().length > 0) {
+    try {
+      const decoded = JSON.parse(raw);
+      if (Array.isArray(decoded) && decoded.every((v) => typeof v === 'string' && v.trim().length > 0)) {
+        parsed = [...new Set(decoded.map((v: string) => v.toLowerCase().trim()))];
+      }
+    } catch {
+      // Malformed env — fall through to default
+    }
+  }
+
+  _allowedFileTypesCache = new Set(parsed ?? DEFAULT_ALLOWED_FILE_TYPES);
+  return _allowedFileTypesCache;
+}
+
+/**
+ * Test hook: clears the memoized allowlist so the next call to getAllowedFileTypes()
+ * re-reads from the environment. Required when tests change env vars between calls.
+ */
+export function resetAllowedFileTypesCache(): void {
+  _allowedFileTypesCache = null;
+}
 
 /** Single source of truth: extension is always derived from the validated MIME type, never from the user filename. */
-const MIME_TO_EXT: Record<string, string> = {
-  'image/jpeg': '.jpg',
-  'image/png': '.png',
-  'image/webp': '.webp',
-  'image/svg+xml': '.svg',
-  'image/gif': '.gif',
-};
+const MIME_TO_EXT: Record<string, string> = FILE_TYPES_MIME_TO_EXT;
 const MAX_UPLOAD_BYTES = (() => {
   const envVal = process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
   if (envVal) {
@@ -1367,9 +1406,17 @@ export async function handleUpload(request: Request): Promise<Response> {
 
   const blob = file as File;
 
-  // Validate MIME type BEFORE disk write
+  // Validate MIME type BEFORE disk write (denylist + allowlist gate — ADR-4)
   const mimeType = blob.type || '';
-  if (!mimeType || !ALLOWED_IMAGE_MIME.has(mimeType)) {
+  if (!mimeType) {
+    return localizedJsonError(request, 'errors.unsupportedFileType', 415);
+  }
+  const gateResult = evaluateUpload({
+    mimeType,
+    derivedExtension: MIME_TO_EXT[mimeType] ?? null,
+    allowed: getAllowedFileTypes(),
+  });
+  if (!gateResult.ok) {
     return localizedJsonError(request, 'errors.unsupportedFileType', 415);
   }
 
@@ -1383,6 +1430,10 @@ export async function handleUpload(request: Request): Promise<Response> {
   // Extension is derived from the already-validated MIME type — never from the user-supplied filename.
   // This prevents a stored-XSS bypass where an SVG uploaded as "foo.jpg" would be served inline.
   const extension = MIME_TO_EXT[mimeType];
+  if (!extension) {
+    // MIME passed the gate but has no extension mapping — refuse rather than store a broken filename.
+    return localizedJsonError(request, 'errors.unsupportedFileType', 415);
+  }
   const subdir = new Date().toISOString().slice(0, 7).replace(/-/g, '/');
   const dir = path.join(getUploadsDir(), subdir);
 
@@ -1397,23 +1448,30 @@ export async function handleUpload(request: Request): Promise<Response> {
   const url = `/uploads/${subdir}/${filename}`.replace(/\/+/, '/');
 
   // Capture image dimensions from the in-memory buffer (REQ-4).
-  // Wrapped in try/catch so corrupt headers / SVG-without-viewBox never fail the upload.
+  // Skip for non-image MIME types (e.g. application/pdf) — imageSize cannot parse them
+  // and they have no meaningful width/height. image/* types (jpeg/png/webp/svg/gif) are tried.
+  // Wrapped in try/catch so corrupt headers or unsupported formats never fail the upload.
   let capturedWidth: number | undefined;
   let capturedHeight: number | undefined;
-  try {
-    const dim = imageSize(Buffer.from(buffer));
-    if (
-      typeof dim.width === 'number' &&
-      typeof dim.height === 'number' &&
-      Number.isFinite(dim.width) &&
-      Number.isFinite(dim.height)
-    ) {
-      capturedWidth = Math.floor(dim.width);
-      capturedHeight = Math.floor(dim.height);
+  if (mimeType.startsWith('image/')) {
+    try {
+      const dim = imageSize(Buffer.from(buffer));
+      if (
+        typeof dim.width === 'number' &&
+        typeof dim.height === 'number' &&
+        Number.isFinite(dim.width) &&
+        Number.isFinite(dim.height)
+      ) {
+        capturedWidth = Math.floor(dim.width);
+        capturedHeight = Math.floor(dim.height);
+      }
+    } catch {
+      // Swallow dimension errors — never fail the upload
     }
-  } catch {
-    // Swallow dimension errors — never fail the upload
   }
+
+  // Classify file category: image/* → 'image', everything else → 'document'
+  const fileCategory: 'image' | 'document' = mimeType.startsWith('image/') ? 'image' : 'document';
 
   // Append MediaEntry to registry with status:'processing' (variants generated async)
   const entry: MediaEntry = {
@@ -1422,6 +1480,7 @@ export async function handleUpload(request: Request): Promise<Response> {
     filename: blob.name || filename,
     size: blob.size,
     mimeType,
+    fileCategory,
     createdAt: new Date().toISOString(),
     ...(capturedWidth !== undefined && { width: capturedWidth }),
     ...(capturedHeight !== undefined && { height: capturedHeight }),
@@ -1582,9 +1641,17 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
 
   const blob = file as File;
 
-  // MIME validation — same two-phase as handleUpload
+  // MIME validation — denylist + allowlist gate (ADR-4), then same-MIME constraint
   const mimeType = blob.type || '';
-  if (!mimeType || !ALLOWED_IMAGE_MIME.has(mimeType)) {
+  if (!mimeType) {
+    return localizedJsonError(request, 'errors.unsupportedFileType', 415);
+  }
+  const replaceGateResult = evaluateUpload({
+    mimeType,
+    derivedExtension: MIME_TO_EXT[mimeType] ?? null,
+    allowed: getAllowedFileTypes(),
+  });
+  if (!replaceGateResult.ok) {
     return localizedJsonError(request, 'errors.unsupportedFileType', 415);
   }
   if (mimeType !== entry.mimeType) {
