@@ -141,9 +141,37 @@ test('C3 R1.4-A: vite.define ASTRO_BLOCKS_ALLOWED_FILE_TYPES matches resolved al
   });
 });
 
-// ─── C4: validateFileProps warn-and-drop (ADR-6) ─────────────────────────────
+// ─── I2: allowedFileTypes: [] emits empty-allowlist warn ─────────────────────
 
-test('C4 R7.2-A: out-of-allowlist MIME is dropped and warn emitted', async () => {
+test('I2: allowedFileTypes:[] resolves to [] and emits empty-allowlist warn', async () => {
+  const warns = [];
+  const origWarn = console.warn;
+  console.warn = (...args) => warns.push(args.join(' '));
+
+  try {
+    await withTempProject(async (tempRoot) => {
+      const vite = await runSetupHook({ allowedFileTypes: [] }, tempRoot);
+      const raw = vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'];
+      assert.ok(raw !== undefined, 'vite.define must have ASTRO_BLOCKS_ALLOWED_FILE_TYPES');
+      const parsed = JSON.parse(raw);
+      assert.deepEqual(parsed, [], 'empty allowedFileTypes must resolve to []');
+      assert.ok(
+        warns.some((w) => w.includes('allowedFileTypes is empty')),
+        `expected empty-allowlist warn, got: ${JSON.stringify(warns)}`
+      );
+      assert.ok(
+        warns.some((w) => w.includes('all file uploads will be rejected')),
+        `expected rejection warning in message, got: ${JSON.stringify(warns)}`
+      );
+    });
+  } finally {
+    console.warn = origWarn;
+  }
+});
+
+// ─── C4: validateFileProps advisory warn (ADR-6) ─────────────────────────────
+
+test('C4 R7.2-A: out-of-allowlist MIME emits advisory warn (will be ignored by the media picker)', async () => {
   const warns = [];
   const origWarn = console.warn;
   console.warn = (...args) => warns.push(args.join(' '));
@@ -181,6 +209,14 @@ test('C4 R7.2-A: out-of-allowlist MIME is dropped and warn emitted', async () =>
     assert.ok(
       warns.some((w) => w.includes('brochure')),
       `expected prop name "brochure" in warn, got: ${JSON.stringify(warns)}`
+    );
+    assert.ok(
+      warns.some((w) => w.includes('will be ignored by the media picker')),
+      `expected new wording "will be ignored by the media picker", got: ${JSON.stringify(warns)}`
+    );
+    assert.ok(
+      !warns.some((w) => w.includes('was dropped')),
+      `must NOT use old wording "was dropped", got: ${JSON.stringify(warns)}`
     );
   } finally {
     console.warn = origWarn;

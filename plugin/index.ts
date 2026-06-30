@@ -174,7 +174,13 @@ function resolveOptions(options: AstroBlocksOptions): ResolvedPluginOptions {
     i18n: {
       routingStrategy,
     },
-    allowedFileTypes: dedupeLowercase(options.allowedFileTypes ?? DEFAULT_ALLOWED_FILE_TYPES),
+    allowedFileTypes: (() => {
+      const rawAllowedFileTypes = options.allowedFileTypes ?? DEFAULT_ALLOWED_FILE_TYPES;
+      if (Array.isArray(rawAllowedFileTypes) && rawAllowedFileTypes.length === 0) {
+        console.warn('[astro-blocks] allowedFileTypes is empty — all file uploads will be rejected. Omit the option (or pass null) to use the default list.');
+      }
+      return dedupeLowercase(rawAllowedFileTypes);
+    })(),
   };
 }
 
@@ -182,12 +188,16 @@ export type { AstroBlocksOptions } from '../types/index.js';
 export { DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-types.js';
 
 /**
- * Warn-and-drop validator for 'file' prop accept arrays (ADR-6).
+ * Advisory validator for 'file' prop accept arrays (ADR-6).
  *
- * For each block schema's file prop with an `accept` array, computes the
- * effective accept by filtering out MIMEs not in the global allowlist.
- * Emits exactly one console.warn per dropped MIME.
- * If `accept` is omitted, effectiveAccept = full global allowlist (deferred to picker; no warn).
+ * ADVISORY ONLY — this function warns; it does NOT mutate def.accept or drop
+ * any MIMEs. The admin picker (Slice D) enforces the intersection of accept ∩
+ * allowedFileTypes at render time. This call exists solely to surface
+ * misconfiguration early at plugin setup, not to alter runtime behaviour.
+ *
+ * For each block schema's file prop with an `accept` array, emits exactly one
+ * console.warn per MIME that is outside the global allowlist.
+ * If `accept` is omitted, no warn is emitted (picker uses full allowlist).
  * Never throws — matches the tolerant warn style of the i18n fallback.
  *
  * @param blocks - Array of block schema definitions (the plugin options.blocks array).
@@ -212,7 +222,7 @@ export function validateFileProps(
         const lower = typeof mime === 'string' ? mime.toLowerCase() : '';
         if (!globalAllowed.has(lower)) {
           console.warn(
-            `[astro-blocks] Block "${block.name}" file prop "${propName}": accept type "${mime}" is not in allowedFileTypes and was dropped.`
+            `[astro-blocks] Block "${block.name}" file prop "${propName}": accept type "${mime}" is not in allowedFileTypes and will be ignored by the media picker.`
           );
         }
       }
