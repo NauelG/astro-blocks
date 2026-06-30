@@ -1444,23 +1444,29 @@ export async function handleUpload(request: Request): Promise<Response> {
   const url = `/uploads/${subdir}/${filename}`.replace(/\/+/, '/');
 
   // Capture image dimensions from the in-memory buffer (REQ-4).
-  // Wrapped in try/catch so corrupt headers / SVG-without-viewBox never fail the upload.
+  // Only for raster types — non-raster (PDF, SVG, GIF) skip imageSize entirely.
+  // Wrapped in try/catch so corrupt headers never fail the upload.
   let capturedWidth: number | undefined;
   let capturedHeight: number | undefined;
-  try {
-    const dim = imageSize(Buffer.from(buffer));
-    if (
-      typeof dim.width === 'number' &&
-      typeof dim.height === 'number' &&
-      Number.isFinite(dim.width) &&
-      Number.isFinite(dim.height)
-    ) {
-      capturedWidth = Math.floor(dim.width);
-      capturedHeight = Math.floor(dim.height);
+  if (RASTER_MIME.has(mimeType)) {
+    try {
+      const dim = imageSize(Buffer.from(buffer));
+      if (
+        typeof dim.width === 'number' &&
+        typeof dim.height === 'number' &&
+        Number.isFinite(dim.width) &&
+        Number.isFinite(dim.height)
+      ) {
+        capturedWidth = Math.floor(dim.width);
+        capturedHeight = Math.floor(dim.height);
+      }
+    } catch {
+      // Swallow dimension errors — never fail the upload
     }
-  } catch {
-    // Swallow dimension errors — never fail the upload
   }
+
+  // Classify file category: image/* → 'image', everything else → 'document'
+  const fileCategory: 'image' | 'document' = mimeType.startsWith('image/') ? 'image' : 'document';
 
   // Append MediaEntry to registry with status:'processing' (variants generated async)
   const entry: MediaEntry = {
@@ -1469,6 +1475,7 @@ export async function handleUpload(request: Request): Promise<Response> {
     filename: blob.name || filename,
     size: blob.size,
     mimeType,
+    fileCategory,
     createdAt: new Date().toISOString(),
     ...(capturedWidth !== undefined && { width: capturedWidth }),
     ...(capturedHeight !== undefined && { height: capturedHeight }),

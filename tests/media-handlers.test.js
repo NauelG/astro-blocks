@@ -134,6 +134,71 @@ test('T14-01b: upload with empty MIME type returns 415', async () => {
   });
 });
 
+// R6.1-A: JPEG upload → fileCategory 'image' (B3)
+test('R6.1-A: JPEG upload sets fileCategory to image', async () => {
+  await withTempProject(async () => {
+    const req = makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), 'photo.jpg', 'image/jpeg');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    await drainVariantJobs();
+    const mediaData = await loadMedia();
+    const entry = mediaData.uploads[0];
+    assert.equal(entry.fileCategory, 'image');
+  });
+});
+
+// R6.1-B: PDF upload → fileCategory 'document' (B3)
+test('R6.1-B: PDF upload sets fileCategory to document', async () => {
+  await withTempProject(async () => {
+    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'doc.pdf', 'application/pdf');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    await drainVariantJobs();
+    const mediaData = await loadMedia();
+    const entry = mediaData.uploads[0];
+    assert.equal(entry.fileCategory, 'document');
+  });
+});
+
+// R4.3-A: PDF upload → no width/height on entry (B3 — imageSize skipped for non-raster)
+test('R4.3-A: PDF upload has no width or height on registry entry', async () => {
+  await withTempProject(async () => {
+    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'doc.pdf', 'application/pdf');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    await drainVariantJobs();
+    const mediaData = await loadMedia();
+    const entry = mediaData.uploads[0];
+    assert.ok(entry.width === undefined || entry.width === null, 'PDF entry should have no width');
+    assert.ok(entry.height === undefined || entry.height === null, 'PDF entry should have no height');
+  });
+});
+
+// R2.5-A: PDF blob with wrong filename gets .pdf extension (B3)
+test('R2.5-A: PDF blob with wrong filename gets .pdf extension from MIME', async () => {
+  await withTempProject(async () => {
+    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'document.docx', 'application/pdf');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(body.url.endsWith('.pdf'), `url ${body.url} should end with .pdf`);
+  });
+});
+
+// R2.2-B: PDF entry has fileCategory 'document' (second check via T14-01 extended)
+test('R2.2-B: PDF upload — loadMedia entry has fileCategory document', async () => {
+  await withTempProject(async () => {
+    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'doc.pdf', 'application/pdf');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    const mediaData = await loadMedia();
+    const entry = mediaData.uploads.find((e) => e.url === body.url);
+    assert.ok(entry, 'entry should exist in registry');
+    assert.equal(entry.fileCategory, 'document');
+  });
+});
+
 // T14-02: Upload with allowed MIME → HTTP 200, file on disk
 test('T14-02: upload with allowed MIME type (image/jpeg) returns 200 and file is on disk', async () => {
   await withTempProject(async (tempRoot) => {
