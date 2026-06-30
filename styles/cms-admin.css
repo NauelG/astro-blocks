@@ -4406,6 +4406,69 @@ Licensed under the Business Source License 1.1
   display: none;
 }
 
+/* ─── File field (mirrors image-field; no image preview) ────────────────────── */
+/* A compact horizontal control for 'file' type block props. The hidden input
+   carries a JSON-serialized FileFieldValue (same pattern as image). */
+
+.cms-file-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+}
+
+.cms-file-field-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.cms-file-field-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--cms-text-strong, #111827);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cms-file-field-name--empty {
+  color: var(--cms-text-muted, #6b7280);
+  font-weight: 400;
+}
+
+.cms-file-field-actions {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.cms-file-field-choose,
+.cms-file-field-clear {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Clear is hidden until a value is selected */
+.cms-file-field:not(.cms-file-field--has-value) .cms-file-field-clear {
+  display: none;
+}
+
+/* Picker doc thumb (for non-image entries in the picker grid) */
+.cms-media-picker-doc-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cms-surface-alt, #f7f8fc);
+  color: var(--cms-text-muted, #6b7280);
+  opacity: 0.75;
+}
+
 /* ─── Media page ────────────────────────────────────────────────────────────── */
 /* Source of truth for the /cms/media asset grid. Cards mirror .cms-card so the
    library reads as discrete, tokenized tiles (never a fused 1px-separator grid). */
@@ -4477,6 +4540,19 @@ Licensed under the Business Source License 1.1
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+/* Document tile: accessible placeholder shown instead of a broken <img>
+   for non-image entries (PDFs, etc.). Role and aria-label are set in JS. */
+.cms-media-card-thumb--doc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cms-text-muted, #6b7280);
+}
+
+.cms-media-doc-icon {
+  opacity: 0.55;
 }
 
 .cms-media-card-info {
