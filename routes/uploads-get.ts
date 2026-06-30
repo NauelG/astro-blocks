@@ -44,12 +44,13 @@ export async function GET({ request }: { request: Request }): Promise<Response> 
 
     if (ext === '.svg') {
       // SVG always served as attachment — XSS guard (R5.4, existing behavior unchanged)
-      headers['Content-Disposition'] = 'attachment';
+      const safeName = path.basename(filePath).replace(/[^A-Za-z0-9._-]/g, '_');
+      headers['Content-Disposition'] = `attachment; filename="${safeName}"`;
     } else if (!IMAGE_CONTENT_TYPES.has(contentType)) {
       // Non-image documents (e.g. PDF): inline by default; attachment when ?download is present
       if (url.searchParams.has('download')) {
-        const basename = path.basename(filePath);
-        headers['Content-Disposition'] = `attachment; filename="${basename}"`;
+        const safeName = path.basename(filePath).replace(/[^A-Za-z0-9._-]/g, '_');
+        headers['Content-Disposition'] = `attachment; filename="${safeName}"`;
       }
       // else: no Content-Disposition → browser renders inline
     }

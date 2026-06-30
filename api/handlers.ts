@@ -1430,6 +1430,10 @@ export async function handleUpload(request: Request): Promise<Response> {
   // Extension is derived from the already-validated MIME type — never from the user-supplied filename.
   // This prevents a stored-XSS bypass where an SVG uploaded as "foo.jpg" would be served inline.
   const extension = MIME_TO_EXT[mimeType];
+  if (!extension) {
+    // MIME passed the gate but has no extension mapping — refuse rather than store a broken filename.
+    return localizedJsonError(request, 'errors.unsupportedFileType', 415);
+  }
   const subdir = new Date().toISOString().slice(0, 7).replace(/-/g, '/');
   const dir = path.join(getUploadsDir(), subdir);
 

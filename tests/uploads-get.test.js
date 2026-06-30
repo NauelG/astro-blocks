@@ -46,8 +46,11 @@ test('SEC-CDN-01: GET /uploads/*.svg returns Content-Disposition: attachment', a
     const res = await GET({ request: req });
 
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get('Content-Disposition'), 'attachment',
-      'SVG must be served with Content-Disposition: attachment to prevent inline rendering');
+    const disposition = res.headers.get('Content-Disposition');
+    assert.ok(
+      disposition !== null && disposition.includes('attachment'),
+      `SVG must be served with Content-Disposition: attachment to prevent inline rendering; got: ${disposition}`
+    );
     assert.equal(res.headers.get('Content-Type'), 'image/svg+xml');
   });
 });
@@ -228,6 +231,35 @@ test('CC-01: GET /uploads/*.jpg response includes Cache-Control: no-cache', asyn
   });
 });
 
+// L-1: ?download Content-Disposition filename must contain only safe characters (defense in depth)
+test('L-1: GET /uploads/*.pdf?download Content-Disposition filename contains only safe chars', async () => {
+  const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+
+  // Use a filename whose safe-by-construction characters are all in [A-Za-z0-9._-]
+  // The sanitization regex replaces anything outside that set with '_'.
+  // This test locks the boundary: the filename in the header must match the expected safe pattern.
+  await withUploadedFile('2026/06/report.pdf', pdfBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/report.pdf?download');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    const disposition = res.headers.get('Content-Disposition');
+    assert.ok(disposition !== null && disposition.includes('attachment'), `Expected attachment disposition; got: ${disposition}`);
+
+    // Extract the filename= value from the header
+    const match = disposition.match(/filename="([^"]*)"/);
+    assert.ok(match, `Content-Disposition header must include filename="..."; got: ${disposition}`);
+    const filename = match[1];
+
+    // The filename must consist only of safe characters: A-Z a-z 0-9 . _ -
+    assert.match(
+      filename,
+      /^[A-Za-z0-9._-]+$/,
+      `Content-Disposition filename must contain only [A-Za-z0-9._-]; got: "${filename}"`
+    );
+  });
+});
+
 // CC-02: SVG still gets Content-Disposition even with Cache-Control
 test('CC-02: GET /uploads/*.svg has both Cache-Control: no-cache and Content-Disposition: attachment', async () => {
   const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>';
@@ -238,7 +270,10 @@ test('CC-02: GET /uploads/*.svg has both Cache-Control: no-cache and Content-Dis
     assert.equal(res.status, 200);
     assert.equal(res.headers.get('Cache-Control'), 'no-cache',
       'SVG must also have Cache-Control: no-cache');
-    assert.equal(res.headers.get('Content-Disposition'), 'attachment',
-      'SVG must still have Content-Disposition: attachment');
+    const disposition = res.headers.get('Content-Disposition');
+    assert.ok(
+      disposition !== null && disposition.includes('attachment'),
+      `SVG must still have Content-Disposition: attachment; got: ${disposition}`
+    );
   });
 });

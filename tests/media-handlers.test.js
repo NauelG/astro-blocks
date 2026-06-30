@@ -1192,3 +1192,29 @@ test('R3.2-B: image/jpeg cannot replace an existing PDF entry (same-MIME constra
     );
   });
 });
+
+// ─── M-1: MIME absent from MIME_TO_EXT yields 415 ────────────────────────────
+//
+// FIX M-1 adds a guard in handleUpload: after the allowlist gate passes, if
+// MIME_TO_EXT has no mapping for the MIME type the handler returns 415 rather
+// than writing a filename ending in "undefined".
+//
+// Direct test of the allowlisted+unmapped combo is not reachable via the prebuilt
+// dist because import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES is a Vite compile-
+// time constant and cannot be overridden at node --test runtime. The test below
+// asserts the closest reachable invariant: a MIME absent from MIME_TO_EXT is
+// rejected with 415. In the current build this is caught by the allowlist gate
+// (step 3 of evaluateUpload), but with the new guard the 415 is also guaranteed
+// deterministically even if a future allowlist override included an unmapped MIME.
+test('M-1: upload with MIME absent from MIME_TO_EXT yields 415 (unmapped extension guard)', async () => {
+  await withTempProject(async () => {
+    // 'image/x-custom' is not in DEFAULT_ALLOWED_FILE_TYPES and not in MIME_TO_EXT.
+    // It passes neither the allowlist nor the extension map, so it must be rejected with 415.
+    // The new guard (FIX M-1) ensures the same outcome even for allowlisted+unmapped MIMEs.
+    const req = makeUploadRequest(new Uint8Array([0x00, 0x01, 0x02]), 'file.bin', 'image/x-custom');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 415, 'MIME absent from MIME_TO_EXT must be rejected with 415');
+    const body = await res.json();
+    assert.ok(body.error, 'response must have error message');
+  });
+});

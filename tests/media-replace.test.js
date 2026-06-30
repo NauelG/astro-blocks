@@ -252,6 +252,29 @@ test('RE-07: non-allowed MIME type → 415', async () => {
   });
 });
 
+// ─── L-2: denylist MIME on replace → 415 (gate runs before same-MIME check) ─────
+
+test('L-2: replace with denylisted MIME (text/html) → 415 (denylist gate runs before same-MIME check)', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Seed a JPEG entry — the same-MIME check would normally reject text/html as mismatched,
+    // but we want to prove the denylist gate fires FIRST (and still returns 415).
+    const entry = await seedMediaEntry(tempRoot, { mimeType: 'image/jpeg' });
+    const token = await makeAuthToken();
+
+    const req = await makeReplaceRequest(
+      entry.id,
+      Buffer.from('<script>alert(1)</script>'),
+      'evil.html',
+      'text/html',
+      token
+    );
+    const res = await handleReplaceUpload(req, entry.id);
+    assert.equal(res.status, 415, 'denylisted MIME (text/html) must be rejected with 415 on replace');
+    const body = await res.json();
+    assert.ok(body.error, 'response must have error message');
+  });
+});
+
 // ─── P5: replace → render status chain (data layer ↔ getMediaVariants accessor) ─
 //
 // After a successful replace the entry is status:'processing' + variants:[], and
