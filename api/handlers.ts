@@ -1400,8 +1400,15 @@ export async function handleDeleteConfig(id: string, context: HandlerContext = {
 }
 
 export async function handleUpload(request: Request): Promise<Response> {
-  // Read raw binary body — Content-Type header carries the MIME (non-form-like,
-  // bypasses Astro's CSRF origin-check middleware in production deployments).
+  // Read raw binary body. The request Content-Type carries the file's real MIME.
+  // CSRF is not a concern here: these endpoints authenticate via a JWT in the
+  // Authorization/x-cms-token HEADER (see getAuth), never an ambient cookie, so a
+  // cross-origin page cannot forge an authenticated request — the OWASP token-in-
+  // header pattern. The non-form Content-Type (and the custom x-cms-filename header)
+  // also force a CORS preflight our server never answers cross-origin. Using a
+  // non-form body additionally avoids Astro's origin-check middleware, which would
+  // otherwise 403 legitimate same-app uploads behind a reverse proxy (Origin vs
+  // computed url.origin mismatch).
   const buffer = await request.arrayBuffer();
   if (buffer.byteLength === 0) return localizedJsonError(request, 'errors.noFile');
 
@@ -1633,8 +1640,15 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   const entry = m.uploads.find((e) => e.id === id);
   if (!entry) return localizedJsonError(request, 'errors.notFound', 404);
 
-  // Read raw binary body — Content-Type header carries the MIME (non-form-like,
-  // bypasses Astro's CSRF origin-check middleware in production deployments).
+  // Read raw binary body. The request Content-Type carries the file's real MIME.
+  // CSRF is not a concern here: these endpoints authenticate via a JWT in the
+  // Authorization/x-cms-token HEADER (see getAuth), never an ambient cookie, so a
+  // cross-origin page cannot forge an authenticated request — the OWASP token-in-
+  // header pattern. The non-form Content-Type (and the custom x-cms-filename header)
+  // also force a CORS preflight our server never answers cross-origin. Using a
+  // non-form body additionally avoids Astro's origin-check middleware, which would
+  // otherwise 403 legitimate same-app uploads behind a reverse proxy (Origin vs
+  // computed url.origin mismatch).
   const buffer = await request.arrayBuffer();
   if (buffer.byteLength === 0) return localizedJsonError(request, 'errors.noFile');
 
