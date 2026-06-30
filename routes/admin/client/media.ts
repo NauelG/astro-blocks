@@ -201,8 +201,11 @@ async function loadMedia(): Promise<void> {
 async function uploadFile(file: File): Promise<void> {
   const cmsWindow = getCmsWindow();
   const token = getCmsToken();
-  // Send raw binary body with real MIME as Content-Type — non-form-like Content-Type
-  // bypasses Astro's CSRF origin-check middleware behind reverse proxies (see api/handlers.ts).
+  // Send the raw binary body with the file's real MIME as Content-Type. CSRF is not a
+  // concern: the API authenticates via the JWT in the Authorization header (not a cookie),
+  // and the non-form Content-Type + custom x-cms-filename header force a CORS preflight.
+  // The non-form Content-Type also avoids Astro's origin-check 403 behind reverse proxies
+  // (see the rationale in api/handlers.ts handleUpload).
   const res = await fetch('/cms/api/upload', {
     method: 'POST',
     headers: {
@@ -328,8 +331,10 @@ async function replaceMedia(id: string, filename: string, mimeType: string, trig
     cmsWindow.cmsToast?.({ title: ct('media.replacing'), message: ct('media.replacingMessage', { filename }), tone: 'success' });
 
     try {
-      // Send raw binary body with real MIME as Content-Type — non-form-like Content-Type
-      // bypasses Astro's CSRF origin-check middleware behind reverse proxies.
+      // Send the raw binary body with the file's real MIME as Content-Type. CSRF is not a
+      // concern: the API authenticates via the JWT in the Authorization header (not a cookie).
+      // The non-form Content-Type also avoids Astro's origin-check 403 behind reverse proxies
+      // (see the rationale in api/handlers.ts handleReplaceUpload).
       const res = await fetch(`/cms/api/media/${encodeURIComponent(id)}/replace`, {
         method: 'POST',
         headers: {
