@@ -1444,11 +1444,12 @@ export async function handleUpload(request: Request): Promise<Response> {
   const url = `/uploads/${subdir}/${filename}`.replace(/\/+/, '/');
 
   // Capture image dimensions from the in-memory buffer (REQ-4).
-  // Only for raster types — non-raster (PDF, SVG, GIF) skip imageSize entirely.
-  // Wrapped in try/catch so corrupt headers never fail the upload.
+  // Skip for non-image MIME types (e.g. application/pdf) — imageSize cannot parse them
+  // and they have no meaningful width/height. image/* types (jpeg/png/webp/svg/gif) are tried.
+  // Wrapped in try/catch so corrupt headers or unsupported formats never fail the upload.
   let capturedWidth: number | undefined;
   let capturedHeight: number | undefined;
-  if (RASTER_MIME.has(mimeType)) {
+  if (mimeType.startsWith('image/')) {
     try {
       const dim = imageSize(Buffer.from(buffer));
       if (
