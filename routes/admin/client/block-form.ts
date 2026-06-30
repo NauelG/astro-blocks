@@ -32,7 +32,7 @@ Licensed under the Business Source License 1.1
  */
 
 import Sortable, { type SortableEvent } from 'sortablejs';
-import type { ArrayPropDef, ImageFieldValue, ObjectArrayItemDef, PrimitivePropDef, PropDef } from '../../../types/index.js';
+import type { ArrayPropDef, FileFieldValue, ImageFieldValue, ObjectArrayItemDef, PrimitivePropDef, PropDef } from '../../../types/index.js';
 import {
   isObjectArrayItemDef,
   isPrimitivePropDef,
@@ -41,8 +41,10 @@ import { isSchemaPropLocalizable } from '../../../utils/localization.js';
 import { escapeHtml, getActiveContentLocale, getCmsToken } from './common.js';
 import { ct } from '../i18n/client.js';
 import { toImageValue, parseImageValue, mediaEntryToImageValue, serializeImageValueAttr } from '../../../utils/image-value.js';
+import { toFileValue, parseFileValue, mediaEntryToFileValue, serializeFileValueAttr, isEmptyFileValue } from '../../../utils/file-value.js';
 import { fetchMedia, formatBytes, formatDimensions, formatMediaDate } from './media-fetch.js';
 import type { MediaEntry as MediaFetchEntry } from './media-fetch.js';
+import { DEFAULT_ALLOWED_FILE_TYPES } from '../../../utils/file-types.js';
 
 // SVG icons (same as page-editor.ts and global-blocks-editor.ts)
 const trashIconSvg =
@@ -58,6 +60,12 @@ const xIconSvg =
 
 let pickerDialog: HTMLDialogElement | null = null;
 let activePickerInputId: string | null = null;
+// 'image' | 'file' — set when the picker dialog is opened so renderPickerGrid
+// and the grid's selection handler know which selectPicker* to call.
+let activePickerMode: 'image' | 'file' = 'image';
+// When picker mode is 'file', the effective MIME types the picker grid should
+// show. An empty array means "no restriction" (show all). Set on open.
+let activePickerAccept: string[] = [];
 
 // Re-alias the imported type so existing picker code can use 'MediaEntry' name unchanged
 type MediaEntry = MediaFetchEntry;
@@ -313,6 +321,29 @@ function updateImageFieldDom(hiddenInput: HTMLInputElement, url: string): void {
 }
 
 /**
+ * Update a file field's visible DOM IN PLACE to reflect the new value.
+ * Mirror of updateImageFieldDom for the 'file' prop type.
+ */
+function updateFileFieldDom(hiddenInput: HTMLInputElement, value: FileFieldValue): void {
+  const field = hiddenInput.closest<HTMLElement>('.cms-file-field');
+  if (!field) return;
+  const hasValue = !isEmptyFileValue(value);
+  const displayName = hasValue ? (value.filename ?? imageFilenameFromUrl(value.url)) : '';
+  field.classList.toggle('cms-file-field--has-value', hasValue);
+
+  const nameEl = field.querySelector<HTMLElement>('.cms-file-field-name');
+  if (nameEl) {
+    nameEl.classList.toggle('cms-file-field-name--empty', !hasValue);
+    nameEl.textContent = hasValue ? displayName : 'No file selected';
+    if (hasValue) nameEl.setAttribute('title', displayName);
+    else nameEl.removeAttribute('title');
+  }
+
+  const chooseLabel = field.querySelector<HTMLElement>('[data-file-choose-label]');
+  if (chooseLabel) chooseLabel.textContent = hasValue ? 'Replace' : 'Choose file';
+}
+
+/**
  * Seed the visible alt-override input for an image field from the current hidden-input JSON.
  * Reads parseImageValue(hidden.value).alt and sets the alt input value.
  */
@@ -366,6 +397,23 @@ function selectPickerImage(value: ImageFieldValue): void {
   closePickerDialog();
 }
 
+/**
+ * Select a file-field entry from the picker dialog.
+ * Mirror of selectPickerImage for the 'file' prop type (ADR-3).
+ * Writes the serialized FileFieldValue into the hidden input and closes the dialog.
+ */
+function selectPickerFile(value: FileFieldValue): void {
+  if (!activePickerInputId) return;
+  const hiddenInput = document.getElementById(activePickerInputId) as HTMLInputElement | null;
+  if (hiddenInput) {
+    hiddenInput.value = JSON.stringify(value);
+    updateFileFieldDom(hiddenInput, value);
+    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  closePickerDialog();
+}
+
 // ─── Picker state (per dialog open) ─────────────────────────────────────────
 
 interface PickerState {
@@ -387,13 +435,21 @@ function renderPickerItem(entry: MediaEntry): string {
   const metaDims = dims !== '—' ? `<span class="cms-media-picker-meta-dim">${escapePickerHtml(dims)}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span>` : '';
   const metaRow = `<span class="cms-media-picker-meta cms-muted">${metaDims}<span class="cms-media-picker-meta-size">${escapePickerHtml(formatBytes(entry.size))}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span><span class="cms-media-picker-meta-type">${escapePickerHtml(entry.mimeType)}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span><span class="cms-media-picker-meta-date">${escapePickerHtml(formatMediaDate(entry.createdAt))}</span></span>`;
 
+  // For image entries: show <img> thumbnail. For document entries: show accessible doc tile.
+  const isDocEntry = !(entry as MediaEntry & { fileCategory?: string }).mimeType.startsWith('image/');
+  const thumbHtml = isDocEntry
+    ? `<div class="cms-media-picker-img cms-media-picker-doc-thumb" role="img" aria-label="${escapePickerHtml(entry.filename)}" aria-hidden="false"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>`
+    : `<img src="${escapePickerHtml(entry.url)}" alt="${escapePickerHtml(entry.filename)}" class="cms-media-picker-img" loading="lazy" />`;
+
   return `<button type="button" class="cms-media-picker-item"
     data-picker-url="${escapePickerHtml(entry.url)}"
     data-picker-alt="${escapePickerHtml(entry.alt ?? '')}"
+    data-picker-mime="${escapePickerHtml(entry.mimeType)}"
+    data-picker-filename="${escapePickerHtml(entry.filename)}"
     ${entry.width !== undefined ? `data-picker-width="${entry.width}"` : ''}
     ${entry.height !== undefined ? `data-picker-height="${entry.height}"` : ''}
     aria-label="${escapePickerHtml(ct('blockForm.pickerSelectAriaLabel', { filename: entry.filename }))}">
-    <img src="${escapePickerHtml(entry.url)}" alt="${escapePickerHtml(entry.filename)}" class="cms-media-picker-img" loading="lazy" />
+    ${thumbHtml}
     <span class="cms-media-picker-name">${escapePickerHtml(entry.filename)}</span>
     ${metaRow}
   </button>`;
@@ -404,33 +460,59 @@ function renderPickerItem(entry: MediaEntry): string {
  * The search input and upload section live in separate stable containers
  * that this function does NOT touch — preventing the "search goes dead"
  * bug where innerHTML-replacement destroyed the bound event listener.
+ *
+ * In 'file' picker mode, entries are filtered to those whose mimeType is in
+ * activePickerAccept (the effectiveAccept for the field). In 'image' mode all
+ * entries are shown (existing behavior — no change).
  */
 function renderPickerGrid(gridContainer: HTMLElement, uploadSection: string): void {
   const { items, total } = pickerState;
+
+  // Filter entries for file-mode picks: only show entries whose mimeType is in effectiveAccept.
+  // Image-mode shows all entries (existing behavior unchanged).
+  const visibleItems = activePickerMode === 'file' && activePickerAccept.length > 0
+    ? items.filter((e) => activePickerAccept.includes(e.mimeType.toLowerCase()))
+    : items;
+
   const allLoaded = items.length >= total;
   const countText = total > 0
-    ? ct('blockForm.pickerCountOf', { shown: String(items.length), total: String(total) })
+    ? ct('blockForm.pickerCountOf', { shown: String(visibleItems.length), total: String(total) })
     : ct('blockForm.pickerCount0');
 
   const countRegion = `<p role="status" aria-live="polite" class="cms-media-picker-count cms-muted">${escapePickerHtml(countText)}</p>`;
 
-  if (items.length === 0) {
+  if (visibleItems.length === 0) {
     gridContainer.innerHTML = `${countRegion}<p class="cms-muted cms-media-picker-empty">${escapePickerHtml(ct('blockForm.pickerEmpty'))}</p>`;
     return;
   }
 
-  const gridItems = items.map(renderPickerItem).join('');
+  const gridItems = visibleItems.map(renderPickerItem).join('');
   const loadMoreBtn = allLoaded
     ? ''
     : `<button type="button" id="cms-picker-load-more" class="cms-btn cms-btn-secondary cms-media-picker-load-more">${escapePickerHtml(ct('blockForm.pickerLoadMore'))}</button>`;
 
   gridContainer.innerHTML = `${countRegion}<div class="cms-media-picker-grid">${gridItems}</div>${loadMoreBtn}`;
 
-  // Bind selection clicks
+  // Bind selection clicks — branch on picker mode to call the right selectPicker* handler.
   gridContainer.querySelectorAll<HTMLButtonElement>('[data-picker-url]').forEach((item) => {
     item.addEventListener('click', () => {
       const url = item.dataset.pickerUrl ?? '';
       if (!url) return;
+
+      if (activePickerMode === 'file') {
+        // File pick: build a FileFieldValue from the entry's data attributes.
+        const mimeType = item.dataset.pickerMime ?? '';
+        const filename = item.dataset.pickerFilename ?? '';
+        // The schema-level download default is not available here — it was seeded
+        // into the def at render time. We preserve whatever download flag was in
+        // the hidden input (set from def.download when the field was rendered);
+        // just pick the file metadata without overriding the download flag.
+        const fileValue: FileFieldValue = { url, mimeType: mimeType || undefined, filename: filename || undefined };
+        selectPickerFile(fileValue);
+        return;
+      }
+
+      // Image pick (unchanged behavior):
       const alt = item.dataset.pickerAlt ?? '';
       const w = item.dataset.pickerWidth !== undefined ? Math.floor(Number(item.dataset.pickerWidth)) : undefined;
       const h = item.dataset.pickerHeight !== undefined ? Math.floor(Number(item.dataset.pickerHeight)) : undefined;
@@ -473,11 +555,18 @@ async function pickerLoadPage(gridContainer: HTMLElement, uploadSection: string,
   renderPickerGrid(gridContainer, uploadSection);
 }
 
-async function openPickerDialog(triggerBtn: HTMLButtonElement, inputId: string): Promise<void> {
+async function openPickerDialog(
+  triggerBtn: HTMLButtonElement,
+  inputId: string,
+  mode: 'image' | 'file' = 'image',
+  effectiveAccept: string[] = [],
+): Promise<void> {
   if (!pickerDialog) mountPickerDialog();
   if (!pickerDialog) return;
 
   activePickerInputId = inputId;
+  activePickerMode = mode;
+  activePickerAccept = effectiveAccept;
 
   // Reset picker state for fresh open.
   // pickerReqSeq is NOT reset here — it is monotonically increasing (module-level).
@@ -514,12 +603,19 @@ async function openPickerDialog(triggerBtn: HTMLButtonElement, inputId: string):
     </div>
   `;
 
+  // Determine the accept attribute for the upload input inside the picker.
+  // Image mode: restrict to image/* (existing behavior).
+  // File mode: use the effectiveAccept for this field (joined MIME list) or fall back to '*/*'.
+  const pickerUploadAccept = mode === 'file'
+    ? (effectiveAccept.length > 0 ? effectiveAccept.join(',') : '*/*')
+    : 'image/*';
+
   // Render upload section into its stable zone
   uploadContainer.innerHTML = `
     <div class="cms-media-picker-upload">
       <span class="cms-media-picker-upload-label" id="cms-picker-upload-label">${escapePickerHtml(ct('blockForm.pickerUploadLabel'))}</span>
       <div class="cms-media-picker-upload-row">
-        <input type="file" id="cms-picker-file-input" accept="image/*" class="cms-media-picker-file-input" aria-labelledby="cms-picker-upload-label" />
+        <input type="file" id="cms-picker-file-input" accept="${escapePickerHtml(pickerUploadAccept)}" class="cms-media-picker-file-input" aria-labelledby="cms-picker-upload-label" />
         <button type="button" id="cms-picker-choose-btn" class="cms-btn cms-btn-secondary" aria-controls="cms-picker-file-input">${escapePickerHtml(ct('blockForm.pickerChooseFile'))}</button>
         <span class="cms-media-picker-filename" id="cms-picker-filename" aria-live="polite">${escapePickerHtml(ct('blockForm.pickerNoFileSelected'))}</span>
         <button type="button" id="cms-picker-upload-btn" class="cms-btn cms-btn-primary" disabled>${escapePickerHtml(ct('blockForm.pickerUpload'))}</button>
@@ -584,10 +680,19 @@ async function openPickerDialog(triggerBtn: HTMLButtonElement, inputId: string):
           const uploadBody = await uploadRes.json() as { url?: string; entry?: MediaEntry };
           if (uploadBody.url) {
             const entry = uploadBody.entry;
-            const value: ImageFieldValue = entry
-              ? mediaEntryToImageValue(entry)
-              : { url: uploadBody.url, alt: '' };
-            selectPickerImage(value);
+            if (activePickerMode === 'file') {
+              // File-mode upload: produce a FileFieldValue from the entry.
+              const fileValue: FileFieldValue = entry
+                ? mediaEntryToFileValue(entry)
+                : { url: uploadBody.url };
+              selectPickerFile(fileValue);
+            } else {
+              // Image-mode upload (unchanged behavior):
+              const value: ImageFieldValue = entry
+                ? mediaEntryToImageValue(entry)
+                : { url: uploadBody.url, alt: '' };
+              selectPickerImage(value);
+            }
           }
         }
       } finally {
@@ -690,6 +795,10 @@ function parseFieldValue(input: HTMLInputElement | HTMLTextAreaElement | HTMLSel
   if (input instanceof HTMLInputElement && input.dataset.imageValue !== undefined) {
     return parseImageValue(input.value);
   }
+  // File field: hidden input carries JSON FileFieldValue (marked with data-file-value)
+  if (input instanceof HTMLInputElement && input.dataset.fileValue !== undefined) {
+    return parseFileValue(input.value);
+  }
   return input.value;
 }
 
@@ -697,6 +806,8 @@ function defaultPrimitiveValue(def: PrimitivePropDef): unknown {
   if (def.type === 'boolean') return false;
   if (def.type === 'number') return '';
   if (def.type === 'select') return Array.isArray(def.options) && def.options.length > 0 ? def.options[0] : '';
+  if (def.type === 'file') return { url: '' };
+  if (def.type === 'image') return { url: '', alt: '' };
   return '';
 }
 
@@ -790,6 +901,86 @@ function imageFieldHtml(
   );
 }
 
+// ─── Global allowlist (for file-prop effectiveAccept) ────────────────────────
+// Read once at module load; falls back to DEFAULT_ALLOWED_FILE_TYPES when the
+// vite.define env var is absent (e.g. no build or test context).
+let _globalAllowlist: string[] | null = null;
+
+function getGlobalAllowlist(): string[] {
+  if (_globalAllowlist) return _globalAllowlist;
+  // import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES is injected by vite.define at build time.
+  // Casting through unknown avoids TS complaints about the ImportMeta type not having
+  // an index signature — this is safe because vite.define replaces the literal at build time.
+  const metaEnv = (import.meta as unknown as { env?: Record<string, unknown> }).env ?? {};
+  const raw: string = (metaEnv.ASTRO_BLOCKS_ALLOWED_FILE_TYPES as string) ?? '';
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        _globalAllowlist = parsed as string[];
+        return _globalAllowlist;
+      }
+    } catch { /* ignore */ }
+  }
+  _globalAllowlist = DEFAULT_ALLOWED_FILE_TYPES;
+  return _globalAllowlist;
+}
+
+/**
+ * Compute the effectiveAccept for a file field:
+ *   - If def.accept is provided: intersection with global allowlist (warn-and-drop per ADR-6)
+ *   - If def.accept is omitted: full global allowlist
+ *
+ * This is the client-side enforcement of the accept ∩ allowlist rule.
+ */
+function computeEffectiveAccept(def: PrimitivePropDef): string[] {
+  const globalAllowlist = getGlobalAllowlist();
+  if (!def.accept || def.accept.length === 0) return globalAllowlist;
+  return def.accept.filter((m) => globalAllowlist.includes(m.toLowerCase()));
+}
+
+// Icon for file fields (document)
+const filePickerIconSvg =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>';
+
+/**
+ * Render a file field as a compact horizontal control (mirrors imageFieldHtml).
+ *
+ * The hidden input carries the full JSON-serialized FileFieldValue.
+ * Data attributes on the choose button carry the effectiveAccept so the
+ * openPickerDialog call can enforce the accept ∩ allowlist at render time.
+ */
+function fileFieldHtml(
+  id: string,
+  attrs: string,
+  value: FileFieldValue,
+  effectiveAccept: string[],
+): string {
+  const hasValue = !isEmptyFileValue(value);
+  const displayName = hasValue ? (value.filename ?? imageFilenameFromUrl(value.url)) : '';
+  const stateClass = hasValue ? ' cms-file-field--has-value' : '';
+  const nameHtml = hasValue
+    ? `<span class="cms-file-field-name" title="${escapePickerHtml(displayName)}">${escapeHtml(displayName)}</span>`
+    : `<span class="cms-file-field-name cms-file-field-name--empty">No file selected</span>`;
+  const chooseLabel = hasValue ? 'Replace' : 'Choose file';
+  // Serialize effectiveAccept as a JSON string in a data attribute so the picker
+  // click handler can recover it without keeping additional module-level state per field.
+  const acceptAttr = escapePickerHtml(JSON.stringify(effectiveAccept));
+
+  return (
+    `<div class="cms-file-field${stateClass}" data-file-field="${escapePickerHtml(id)}">` +
+    `<input type="text" id="${id}" ${attrs} class="cms-media-value cms-hidden" value="${serializeFileValueAttr(value)}" tabindex="-1" aria-hidden="true" data-file-value="1">` +
+    `<div class="cms-file-field-detail">` +
+    nameHtml +
+    `<div class="cms-file-field-actions">` +
+    `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-choose" data-file-picker-for="${escapePickerHtml(id)}" data-file-accept="${acceptAttr}" aria-label="Choose file">${filePickerIconSvg}<span data-file-choose-label>${escapeHtml(chooseLabel)}</span></button>` +
+    `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-clear" data-file-picker-clear="${escapePickerHtml(id)}" aria-label="Clear file">Clear</button>` +
+    `</div>` +
+    `</div>` +
+    `</div>`
+  );
+}
+
 function primitiveInputHtml(def: PrimitivePropDef, value: unknown, id: string, attrs: string, rows = 2): string {
   if (def.type === 'text') {
     return `<textarea id="${id}" ${attrs} class="cms-input" rows="${rows}">${escapeHtml(String(value ?? ''))}</textarea>`;
@@ -812,6 +1003,13 @@ function primitiveInputHtml(def: PrimitivePropDef, value: unknown, id: string, a
     // the root) so selectPickerImage / Clear can update it IN PLACE without a full re-render.
     const imageValue = toImageValue(value);
     return imageFieldHtml(id, attrs, imageValue, isSchemaPropLocalizable(def));
+  }
+  if (def.type === 'file') {
+    // ADDITIVE branch — does NOT touch the image path above.
+    // Compute effectiveAccept: def.accept ∩ globalAllowlist (or full global if omitted).
+    const effectiveAccept = computeEffectiveAccept(def);
+    const fileValue = toFileValue(value);
+    return fileFieldHtml(id, attrs, fileValue, effectiveAccept);
   }
   const textValue = typeof value === 'string' ? value : String(value ?? '');
   return `<input type="text" id="${id}" ${attrs} class="cms-input" value="${escapePickerHtml(textValue)}">`;
@@ -1179,7 +1377,7 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
       btn.addEventListener('click', () => {
         const inputId = btn.dataset.pickerFor;
         if (!inputId) return;
-        openPickerDialog(btn, inputId).catch(() => { /* no-op */ });
+        openPickerDialog(btn, inputId, 'image', []).catch(() => { /* no-op */ });
       });
     });
 
@@ -1195,6 +1393,38 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
           updateImageFieldDom(hiddenInput, '');
           seedAltInput(hiddenInput, '');
           seedCaptionInput(hiddenInput, '');
+          hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+          hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+    });
+
+    // File field — "Choose file" button opens the picker dialog in file mode
+    container.querySelectorAll<HTMLButtonElement>('[data-file-picker-for]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const inputId = btn.dataset.filePickerFor;
+        if (!inputId) return;
+        // Recover effectiveAccept from the data-file-accept attribute (set at render time)
+        let effectiveAccept: string[] = [];
+        try {
+          const raw = btn.dataset.fileAccept ?? '[]';
+          const parsed = JSON.parse(raw) as unknown;
+          if (Array.isArray(parsed)) effectiveAccept = parsed as string[];
+        } catch { /* ignore */ }
+        openPickerDialog(btn, inputId, 'file', effectiveAccept).catch(() => { /* no-op */ });
+      });
+    });
+
+    // File field — "Clear" button resets value to empty
+    container.querySelectorAll<HTMLButtonElement>('[data-file-picker-clear]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const inputId = btn.dataset.filePickerClear;
+        if (!inputId) return;
+        const hiddenInput = container.querySelector<HTMLInputElement>(`#${CSS.escape(inputId)}`);
+        if (hiddenInput) {
+          const emptyValue: FileFieldValue = { url: '' };
+          hiddenInput.value = JSON.stringify(emptyValue);
+          updateFileFieldDom(hiddenInput, emptyValue);
           hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
           hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
         }
