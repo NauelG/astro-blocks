@@ -1,0 +1,77 @@
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+/**
+ * utils/file-types.ts
+ *
+ * Single source of truth for file-type constants used by the media subsystem.
+ *
+ * Exports:
+ *   - DEFAULT_ALLOWED_FILE_TYPES : default MIME allowlist for uploads
+ *   - RASTER_MIME                : Set of raster image MIMEs that go through sharp
+ *   - DOCUMENT_MIME_TO_EXT       : extension map for document file types
+ *   - MIME_TO_EXT                : merged extension map (images + documents)
+ *
+ * All values are read-only constants. Pure module — no side effects.
+ */
+
+/**
+ * Default MIME-type allowlist for the upload endpoint.
+ *
+ * Binding decision D1: 6 entries exactly.
+ * Named export per D2 so consumers can inspect or reference defaults without
+ * constructing the plugin config.
+ */
+export const DEFAULT_ALLOWED_FILE_TYPES: string[] = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/svg+xml',
+  'image/gif',
+  'application/pdf',
+];
+
+/**
+ * Set of raster image MIME types that are processed by sharp
+ * (variant generation, imageSize, width/height extraction).
+ *
+ * Binding decision D4: raster-only positive check.
+ * Any MIME not in this set skips sharp entirely (SVG, GIF, PDF, all documents).
+ */
+export const RASTER_MIME: Set<string> = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
+
+/**
+ * Extension map for document (non-image) file types.
+ * Separate from image extension map for clarity; merged into MIME_TO_EXT below.
+ */
+export const DOCUMENT_MIME_TO_EXT: Record<string, string> = {
+  'application/pdf': '.pdf',
+};
+
+/**
+ * Extension map for image MIME types.
+ * Extension is always derived from the validated MIME type, never from the user filename.
+ */
+const IMAGE_MIME_TO_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+  'image/svg+xml': '.svg',
+  'image/avif': '.avif',
+};
+
+/**
+ * Merged MIME-to-extension map covering both images and documents.
+ * Use this map when deriving the stored file extension from the validated MIME type.
+ */
+export const MIME_TO_EXT: Record<string, string> = {
+  ...IMAGE_MIME_TO_EXT,
+  ...DOCUMENT_MIME_TO_EXT,
+};
