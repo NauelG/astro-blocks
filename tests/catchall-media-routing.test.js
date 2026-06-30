@@ -117,12 +117,15 @@ test('ROUTE-POST-replace: POST /cms/api/media/:id/replace dispatches with id fro
   await withTempProject(async (tempRoot) => {
     const entry = await seedEntry(tempRoot);
     const token = await makeAuthToken();
-    const fd = new FormData();
-    fd.append('file', new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe1])], 'new.jpg', { type: 'image/jpeg' }));
+    // Binary body transport — non-form Content-Type does not trigger CSRF middleware
     const req = new Request(`http://localhost/cms/api/media/${entry.id}/replace`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: fd,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'image/jpeg',
+        'x-cms-filename': encodeURIComponent('new.jpg'),
+      },
+      body: new Uint8Array([0xff, 0xd8, 0xff, 0xe1]),
     });
     const res = await POST(ctx(req));
     assert.equal(res.status, 200, 'replace dispatched and succeeded');
@@ -135,12 +138,15 @@ test('ROUTE-POST-replace: POST /cms/api/media/:id/replace dispatches with id fro
 test('ROUTE-POST-replace-unknown: POST replace with unknown id → 404 (id passed through)', async () => {
   await withTempProject(async () => {
     const token = await makeAuthToken();
-    const fd = new FormData();
-    fd.append('file', new File([new Uint8Array([0xff, 0xd8])], 'x.jpg', { type: 'image/jpeg' }));
+    // Binary body transport
     const req = new Request('http://localhost/cms/api/media/does-not-exist/replace', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: fd,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'image/jpeg',
+        'x-cms-filename': encodeURIComponent('x.jpg'),
+      },
+      body: new Uint8Array([0xff, 0xd8]),
     });
     const res = await POST(ctx(req));
     assert.equal(res.status, 404, 'unknown id flows to handler and returns 404');
@@ -186,9 +192,15 @@ test('ROUTE-AUTH-usage: GET /cms/api/media/:id/usage without token → 401', asy
 
 test('ROUTE-AUTH-replace: POST /cms/api/media/:id/replace without token → 401', async () => {
   await withTempProject(async () => {
-    const fd = new FormData();
-    fd.append('file', new File([new Uint8Array([0xff, 0xd8])], 'x.jpg', { type: 'image/jpeg' }));
-    const req = new Request('http://localhost/cms/api/media/any-id/replace', { method: 'POST', body: fd });
+    // Binary body transport — no Authorization header
+    const req = new Request('http://localhost/cms/api/media/any-id/replace', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'x-cms-filename': encodeURIComponent('x.jpg'),
+      },
+      body: new Uint8Array([0xff, 0xd8]),
+    });
     const res = await POST(ctx(req));
     assert.equal(res.status, 401);
   });

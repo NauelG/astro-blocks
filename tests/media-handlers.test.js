@@ -67,12 +67,13 @@ async function withTempProject(fn) {
 }
 
 function makeUploadRequest(fileContent, fileName, mimeType) {
-  const fd = new FormData();
-  const file = new File([fileContent], fileName, { type: mimeType });
-  fd.append('file', file);
   return new Request('http://localhost/cms/api/upload', {
     method: 'POST',
-    body: fd,
+    headers: {
+      'Content-Type': mimeType,
+      'x-cms-filename': encodeURIComponent(fileName),
+    },
+    body: new Uint8Array(fileContent instanceof Uint8Array ? fileContent : Array.from(fileContent)),
   });
 }
 
@@ -626,15 +627,18 @@ test('T4.2: delete with missing variant files is idempotent', async () => {
 // ─── T5.1: handleReplaceUpload atomic write + replaceMediaEntryBytes return shape ─
 
 /**
- * Build a multipart FormData request for handleReplaceUpload.
- * Requires a JWT — same approach as makeUploadRequest but targets the replace path.
+ * Build a binary-body request for handleReplaceUpload.
+ * Targets the replace path directly without auth (T5.1 tests handler internals,
+ * auth is tested separately).
  */
-async function makeReplaceRequest(content, filename, mimeType) {
-  const formData = new FormData();
-  formData.append('file', new Blob([content], { type: mimeType }), filename);
+function makeReplaceRequest(content, filename, mimeType) {
   return new Request(`http://localhost/cms/api/media/PLACEHOLDER/replace`, {
     method: 'POST',
-    body: formData,
+    headers: {
+      'Content-Type': mimeType,
+      'x-cms-filename': encodeURIComponent(filename),
+    },
+    body: content,
   });
 }
 
@@ -711,13 +715,15 @@ test('T5.1: handleReplaceUpload — no .tmp file left behind on success (atomic 
     const entryId = entry.id;
     const relativeUrl = entry.url;
 
-    // Perform a replace with valid JPEG bytes
+    // Perform a replace with valid JPEG bytes (binary body transport)
     const newContent = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x47]);
-    const formData = new FormData();
-    formData.append('file', new Blob([newContent], { type: 'image/jpeg' }), 'replace-clean.jpg');
     const replaceReq = new Request(`http://localhost/cms/api/media/${entryId}/replace`, {
       method: 'POST',
-      body: formData,
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'x-cms-filename': encodeURIComponent('replace-clean.jpg'),
+      },
+      body: newContent,
     });
 
     // Attach auth cookie same as other tests (handler uses getAuth which reads cookie)
@@ -1095,20 +1101,28 @@ test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleReplaceUpload honors 
       .setSubject('uid').setProtectedHeader({ alg: 'HS256' }).setExpirationTime('1h')
       .sign(new TextEncoder().encode('cms-jwt-secret-change-me'));
 
-    // Under limit replace → 200 processing
-    const okFd = new FormData();
-    okFd.append('file', new File([new Uint8Array(500).fill(0xff)], 'small.jpg', { type: 'image/jpeg' }));
+    // Under limit replace → 200 processing (binary body transport)
     const okReq = new Request(`http://localhost/cms/api/media/${id}/replace`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: okFd,
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'image/jpeg',
+        'x-cms-filename': encodeURIComponent('small.jpg'),
+      },
+      body: new Uint8Array(500).fill(0xff),
     });
     const okRes = await handlersFresh.handleReplaceUpload(okReq, id);
     assert.equal(okRes.status, 200, 'under-limit replace should pass');
 
-    // Over limit replace → 413
-    const bigFd = new FormData();
-    bigFd.append('file', new File([new Uint8Array(2048).fill(0xff)], 'big.jpg', { type: 'image/jpeg' }));
+    // Over limit replace → 413 (binary body transport)
     const bigReq = new Request(`http://localhost/cms/api/media/${id}/replace`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: bigFd,
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'image/jpeg',
+        'x-cms-filename': encodeURIComponent('big.jpg'),
+      },
+      body: new Uint8Array(2048).fill(0xff),
     });
     const bigRes = await handlersFresh.handleReplaceUpload(bigReq, id);
     assert.equal(bigRes.status, 413, 'over-override-limit replace should be rejected with 413');
@@ -1147,10 +1161,14 @@ test('R3.2-A: PDF can replace an existing PDF entry (same-MIME constraint satisf
     });
 
     const token = await mintJwt();
-    const fd = new FormData();
-    fd.append('file', new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31])], filename, { type: 'application/pdf' }));
     const req = new Request(`http://localhost/cms/api/media/${id}/replace`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/pdf',
+        'x-cms-filename': encodeURIComponent(filename),
+      },
+      body: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]),
     });
 
     const res = await handleReplaceUpload(req, id);
@@ -1179,10 +1197,14 @@ test('R3.2-B: image/jpeg cannot replace an existing PDF entry (same-MIME constra
     });
 
     const token = await mintJwt();
-    const fd = new FormData();
-    fd.append('file', new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'photo.jpg', { type: 'image/jpeg' }));
     const req = new Request(`http://localhost/cms/api/media/${id}/replace`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'image/jpeg',
+        'x-cms-filename': encodeURIComponent('photo.jpg'),
+      },
+      body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
     });
 
     const res = await handleReplaceUpload(req, id);
@@ -1216,5 +1238,172 @@ test('M-1: upload with MIME absent from MIME_TO_EXT yields 415 (unmapped extensi
     assert.equal(res.status, 415, 'MIME absent from MIME_TO_EXT must be rejected with 415');
     const body = await res.json();
     assert.ok(body.error, 'response must have error message');
+  });
+});
+
+/*
+ * CSRF Regression Coverage (REQ-15 / T-CSRF-08)
+ *
+ * Original failure mode: multipart/form-data as Content-Type caused Astro 6's
+ * createOriginCheckMiddleware to fire when Origin !== url.origin (e.g. behind a
+ * reverse proxy), returning HTTP 403 before the upload handler was reached.
+ *
+ * Why unit tests cannot reproduce the 403: these tests call handleUpload /
+ * handleReplaceUpload directly as plain functions and bypass Astro's routing
+ * and middleware stack entirely. The 403 only occurs in the live request path.
+ *
+ * What the transport change achieves: sending a non-form-like Content-Type
+ * (e.g. image/jpeg, application/pdf) makes condition (2) of origin-check false,
+ * so the middleware never fires for upload or replace requests, regardless of
+ * Origin vs url.origin mismatch. The transport-contract tests below (T-CSRF-*)
+ * assert the new parse contract; manual playground verification at
+ * playgrounds/basic /cms/media confirms the end-to-end fix.
+ */
+
+// ─── T-CSRF-* ─────────────────────────────────────────────────────────────────
+
+// T-CSRF-01: per-MIME upload success — each of the 6 allowed MIMEs must return 200
+const ALLOWED_MIMES = [
+  { mime: 'image/jpeg', bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), filename: 'file.jpg' },
+  { mime: 'image/png', bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), filename: 'file.png' },
+  { mime: 'image/webp', bytes: new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]), filename: 'file.webp' },
+  { mime: 'image/svg+xml', bytes: new Uint8Array(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><circle r="1"/></svg>')), filename: 'file.svg' },
+  { mime: 'image/gif', bytes: new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]), filename: 'file.gif' },
+  { mime: 'application/pdf', bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]), filename: 'file.pdf' },
+];
+
+for (const { mime, bytes, filename } of ALLOWED_MIMES) {
+  test(`T-CSRF-01: upload with ${mime} via binary transport → 200 with correct entry shape`, async () => {
+    await withTempProject(async (tempRoot) => {
+      const req = makeUploadRequest(bytes, filename, mime);
+      const res = await handleUpload(req);
+      assert.equal(res.status, 200, `Expected 200 for ${mime}, got ${res.status}`);
+      const body = await res.json();
+      assert.ok(body.url, 'should return url');
+      assert.ok(body.entry, 'should return entry');
+      assert.equal(body.entry.mimeType, mime, `entry.mimeType should equal ${mime}`);
+      assert.equal(body.entry.filename, filename, 'entry.filename should equal decoded x-cms-filename');
+      assert.equal(body.entry.size, bytes.byteLength, 'entry.size should equal buffer.byteLength');
+      // File must exist on disk
+      const filePath = path.join(tempRoot, 'public', body.url);
+      const stat = await fs.stat(filePath);
+      assert.ok(stat.isFile(), 'uploaded file must exist on disk');
+      // Registry must contain the entry
+      const mediaData = await loadMedia();
+      const registered = mediaData.uploads.find((e) => e.url === body.url);
+      assert.ok(registered, 'entry must appear in registry');
+      assert.equal(registered.mimeType, mime);
+    });
+  });
+}
+
+// T-CSRF-03: non-ASCII filename round-trip
+test('T-CSRF-03: non-ASCII filename round-trip — decodes correctly, no 500', async () => {
+  await withTempProject(async () => {
+    const nonAsciiFilename = 'imágen ñoño (1).png';
+    const req = new Request('http://localhost/cms/api/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'image/png',
+        'x-cms-filename': encodeURIComponent(nonAsciiFilename),
+      },
+      body: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+    });
+    const res = await handleUpload(req);
+    assert.notEqual(res.status, 500, 'non-ASCII filename must not cause 500');
+    assert.equal(res.status, 200, 'upload should succeed with non-ASCII filename');
+    const body = await res.json();
+    // entry.filename is the decoded display name (pre-sanitization)
+    assert.equal(body.entry.filename, nonAsciiFilename, 'entry.filename must be the decoded original filename');
+    // url must not contain raw non-ASCII bytes
+    assert.doesNotMatch(body.url, /[^\x00-\x7F]/, 'url must not contain raw non-ASCII characters');
+  });
+});
+
+// T-CSRF-04: malformed x-cms-filename falls back to 'upload' without crashing
+test('T-CSRF-04: malformed x-cms-filename (invalid percent sequence) → falls back to "upload", status 200', async () => {
+  await withTempProject(async () => {
+    const req = new Request('http://localhost/cms/api/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'x-cms-filename': 'foto%GGbad.jpg',
+      },
+      body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+    });
+    const res = await handleUpload(req);
+    assert.notEqual(res.status, 500, 'malformed x-cms-filename must not cause 500');
+    assert.equal(res.status, 200, 'upload should proceed with fallback filename');
+    const body = await res.json();
+    // filename should be 'upload' or the sanitized form of 'upload'
+    assert.ok(
+      body.entry.filename === 'upload' || body.entry.filename.startsWith('upload'),
+      `entry.filename should be "upload" fallback, got: ${body.entry.filename}`
+    );
+  });
+});
+
+// T-CSRF-05: missing x-cms-filename header falls back to 'upload'
+test('T-CSRF-05: missing x-cms-filename header → falls back to "upload", status 200', async () => {
+  await withTempProject(async () => {
+    const req = new Request('http://localhost/cms/api/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'image/jpeg',
+        // no x-cms-filename header
+      },
+      body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+    });
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200, 'upload should succeed with missing x-cms-filename');
+    const body = await res.json();
+    assert.ok(
+      body.entry.filename === 'upload' || body.entry.filename.startsWith('upload'),
+      `entry.filename should be "upload" fallback, got: ${body.entry.filename}`
+    );
+  });
+});
+
+// T-CSRF-06a: disallowed MIME still rejected with 415
+test('T-CSRF-06a: disallowed MIME (text/html) → 415 via binary transport', async () => {
+  await withTempProject(async () => {
+    const req = new Request('http://localhost/cms/api/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/html',
+        'x-cms-filename': encodeURIComponent('evil.html'),
+      },
+      body: new Uint8Array(Buffer.from('<html></html>')),
+    });
+    const res = await handleUpload(req);
+    assert.equal(res.status, 415, 'disallowed MIME must be rejected with 415 even via binary transport');
+  });
+});
+
+// T-CSRF-06b: oversize body still rejected with 413
+test('T-CSRF-06b: oversize binary body (6 MB > 5 MB limit) → 413', async () => {
+  await withTempProject(async () => {
+    const req = new Request('http://localhost/cms/api/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'x-cms-filename': encodeURIComponent('big.jpg'),
+      },
+      body: new Uint8Array(6 * 1024 * 1024),
+    });
+    const res = await handleUpload(req);
+    assert.equal(res.status, 413, 'oversize binary body must be rejected with 413');
+  });
+});
+
+// T-CSRF-07: entry.size equals buffer.byteLength (exactly 4 bytes)
+test('T-CSRF-07: entry.size equals buffer.byteLength (4 bytes)', async () => {
+  await withTempProject(async () => {
+    const exactBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]); // exactly 4 bytes
+    const req = makeUploadRequest(exactBytes, 'exact.jpg', 'image/jpeg');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200, 'upload should succeed');
+    const body = await res.json();
+    assert.equal(body.entry.size, 4, 'entry.size must equal buffer.byteLength (4)');
   });
 });

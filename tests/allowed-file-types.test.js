@@ -154,9 +154,15 @@ test('R1.5-A: getAllowedFileTypes falls back to DEFAULT_ALLOWED_FILE_TYPES when 
   await ensureDefaultFiles();
 
   try {
-    const fd = new FormData();
-    fd.append('file', new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'photo.jpg', { type: 'image/jpeg' }));
-    const req = new Request('http://localhost/cms/api/upload', { method: 'POST', body: fd });
+    // Binary transport — Content-Type header carries the MIME (non-form, bypasses CSRF check)
+    const req = new Request('http://localhost/cms/api/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'image/jpeg',
+        'x-cms-filename': encodeURIComponent('photo.jpg'),
+      },
+      body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+    });
     const res = await handleUpload(req);
     assert.equal(res.status, 200, 'image/jpeg should be accepted from default fallback allowlist');
   } finally {
