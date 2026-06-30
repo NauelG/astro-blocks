@@ -17,7 +17,19 @@ const MIME: Record<string, string> = {
   '.webp': 'image/webp',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.pdf': 'application/pdf',
 };
+
+/** MIME types that are images — used to determine inline-vs-download policy. */
+const IMAGE_CONTENT_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'image/x-icon',
+  'image/avif',
+]);
 
 export async function GET({ request }: { request: Request }): Promise<Response> {
   const url = new URL(request.url);
@@ -27,11 +39,22 @@ export async function GET({ request }: { request: Request }): Promise<Response> 
   try {
     const buffer = await fs.readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
-    const contentType = MIME[ext] || 'application/octet-stream';
+    const contentType = MIME[ext] ?? 'application/octet-stream';
     const headers: Record<string, string> = { 'Content-Type': contentType, 'Cache-Control': 'no-cache' };
+
     if (ext === '.svg') {
+      // SVG always served as attachment — XSS guard (R5.4, existing behavior unchanged)
       headers['Content-Disposition'] = 'attachment';
+    } else if (!IMAGE_CONTENT_TYPES.has(contentType)) {
+      // Non-image documents (e.g. PDF): inline by default; attachment when ?download is present
+      if (url.searchParams.has('download')) {
+        const basename = path.basename(filePath);
+        headers['Content-Disposition'] = `attachment; filename="${basename}"`;
+      }
+      // else: no Content-Disposition → browser renders inline
     }
+    // Images (other than SVG): no Content-Disposition (unchanged)
+
     return new Response(buffer, { headers });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return new Response(null, { status: 404 });

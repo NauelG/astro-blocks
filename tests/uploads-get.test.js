@@ -142,6 +142,77 @@ test('SEC-CDN-07: GET /uploads/../etc/passwd returns 404 (traversal rejected)', 
   assert.equal(res.status, 404);
 });
 
+// R5.1-A: PDF served with Content-Type: application/pdf (B6)
+test('R5.1-A: GET /uploads/*.pdf returns Content-Type: application/pdf', async () => {
+  const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+
+  await withUploadedFile('2026/06/doc.pdf', pdfBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/doc.pdf');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('Content-Type'), 'application/pdf');
+  });
+});
+
+// R5.2-A: PDF served inline by default (no ?download → no attachment) (B6)
+test('R5.2-A: GET /uploads/*.pdf without ?download has no attachment disposition', async () => {
+  const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+
+  await withUploadedFile('2026/06/report.pdf', pdfBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/report.pdf');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    const disposition = res.headers.get('Content-Disposition');
+    assert.ok(
+      disposition === null || !disposition.includes('attachment'),
+      `Content-Disposition should not contain attachment; got: ${disposition}`
+    );
+  });
+});
+
+// R5.3-A: ?download forces Content-Disposition: attachment (B6)
+test('R5.3-A: GET /uploads/*.pdf?download returns Content-Disposition: attachment', async () => {
+  const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+
+  await withUploadedFile('2026/06/report.pdf', pdfBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/report.pdf?download');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    const disposition = res.headers.get('Content-Disposition');
+    assert.ok(
+      disposition !== null && disposition.includes('attachment'),
+      `Content-Disposition should contain attachment; got: ${disposition}`
+    );
+  });
+});
+
+// R5.5-A: Unknown extension served as application/octet-stream (B6)
+test('R5.5-A: GET /uploads/*.xyz returns Content-Type: application/octet-stream', async () => {
+  await withUploadedFile('2026/06/data.xyz', Buffer.from('some data'), async () => {
+    const req = new Request('http://localhost/uploads/2026/06/data.xyz');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('Content-Type'), 'application/octet-stream');
+  });
+});
+
+// R5.6-A: PDF response includes Cache-Control: no-cache (B6)
+test('R5.6-A: GET /uploads/*.pdf response includes Cache-Control: no-cache', async () => {
+  const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
+
+  await withUploadedFile('2026/06/cached.pdf', pdfBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/cached.pdf');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('Cache-Control'), 'no-cache');
+  });
+});
+
 // CC-01: Any uploads-get response must include Cache-Control: no-cache header
 test('CC-01: GET /uploads/*.jpg response includes Cache-Control: no-cache', async () => {
   const jpegBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
