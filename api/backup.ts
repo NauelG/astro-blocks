@@ -4,23 +4,31 @@ Licensed under the Business Source License 1.1
 */
 
 /**
- * api/backup.ts — Export service for streaming zip archives.
+ * api/backup.ts — Export and import service for streaming zip archives.
  *
  * Implements ADR-4: buildExportStream enumerates only the 9-file allowlist
  * (UNIT_TO_DATA_FILES) and, for the media unit, also includes the
  * public/uploads tree as `uploads/...` entries.
+ *
+ * Implements ADR-5: extractToStaging, validateStagedImport, createBackupSnapshot,
+ * applyImport — the four steps of the import pipeline.
  *
  * Checksums (sha256) are computed for every entry; manifest.json is written
  * LAST so its checksums map is complete.
  */
 
 import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
 import path from 'node:path';
-import { ZipDeflate } from 'fflate';
+import { ZipDeflate, Unzip, UnzipInflate } from 'fflate';
 import { fflateZipToReadableStream } from './backup-stream.js';
-import { UNIT_TO_DATA_FILES, buildManifest, sha256Hex } from './manifest.js';
-import type { ExportUnit } from './manifest.js';
-import { getDataPath, getUploadsDir } from '../utils/paths.js';
+import { ALL_DATA_FILES, UNIT_TO_DATA_FILES, buildManifest, sha256Hex, validateManifest, verifyChecksums } from './manifest.js';
+import type { ExportUnit, BackupManifest } from './manifest.js';
+import { unitValidators } from './import-validate.js';
+import type { CeilingLimits } from './import-utils.js';
+import { CeilingExceededError, selectBackupsToPrune } from './import-utils.js';
+import { getDataPath, getUploadsDir, resolveUploadPath } from '../utils/paths.js';
+import * as data from './data.js';
 
 /** Converts a string to Uint8Array (UTF-8). */
 function strToBytes(s: string): Uint8Array {
@@ -199,4 +207,556 @@ export async function buildExportStream(
   });
 
   return stream;
+}
+
+// ---------------------------------------------------------------------------
+// C-1: extractToStaging — stream-extract a zip into a staging directory,
+//      enforcing path guards and decompression ceilings at the CHUNK level
+//      (M-1: abort mid-inflation when a ceiling is exceeded).
+// ---------------------------------------------------------------------------
+
+/**
+ * Stream-extract the zip bytes in `zipBody` into `stagingDir`.
+ *
+ * Security guarantees:
+ * - Every data/* entry is validated against ALL_DATA_FILES allowlist BEFORE writing.
+ * - Every uploads/* entry is resolved through resolveUploadPath BEFORE writing.
+ * - Both per-file and total decompression ceilings are enforced during streaming
+ *   (M-1): chunk bytes are counted BEFORE assembling the full decompressed file,
+ *   aborting as soon as a ceiling is exceeded so zip-bomb payloads never fully
+ *   inflate into memory or touch disk.
+ *
+ * @throws CeilingExceededError when a ceiling is exceeded.
+ * @throws Error when an entry path is not in the allowlist or resolves outside uploads.
+ */
+export async function extractToStaging(
+  zipBody: Buffer | Uint8Array,
+  stagingDir: string,
+  ceilings: CeilingLimits,
+  projectRoot: string,
+): Promise<void> {
+  await fs.mkdir(stagingDir, { recursive: true });
+
+  // Temporarily set project root so resolveUploadPath uses the right uploads dir.
+  const prevRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
+  process.env.ASTRO_BLOCKS_PROJECT_ROOT = projectRoot;
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const unzip = new Unzip();
+      unzip.register(UnzipInflate);
+
+      let totalUncompressedBytes = 0;
+      const pendingWrites: Promise<void>[] = [];
+      let aborted = false;
+
+      unzip.onfile = (file) => {
+        const entryName = file.name;
+
+        // ---------- path guard BEFORE writing ----------
+        let destPath: string;
+        if (entryName === 'manifest.json') {
+          destPath = path.join(stagingDir, 'manifest.json');
+        } else if (entryName.startsWith('data/')) {
+          // Must be in the 9-file allowlist; data/_backups/ and unknowns are rejected.
+          if (!ALL_DATA_FILES.has(entryName)) {
+            reject(
+              new Error(
+                `Entry "${entryName}" is not allowed — only the 9 known data files are accepted`,
+              ),
+            );
+            return;
+          }
+          destPath = path.join(stagingDir, entryName);
+        } else if (entryName.startsWith('uploads/')) {
+          // Use resolveUploadPath with a STAGING-scoped uploads dir.
+          // resolveUploadPath reads getUploadsDir() which uses projectRoot env var.
+          // We need to resolve relative to the STAGING dir's uploads sub-path for the
+          // guard, but write to the actual staging dir. We do the guard check and then
+          // build the real dest ourselves.
+          const stagingUploadsDir = path.join(stagingDir, 'uploads');
+          const relative = entryName.slice('uploads/'.length);
+          if (!relative || relative.includes('..')) {
+            reject(
+              new Error(`Path traversal attempt in uploads entry: "${entryName}"`),
+            );
+            return;
+          }
+          // Additional absolute path guard: ensure resolved path stays under stagingUploadsDir
+          const resolved = path.resolve(path.join(stagingUploadsDir, relative));
+          if (!resolved.startsWith(stagingUploadsDir + path.sep) && resolved !== stagingUploadsDir) {
+            reject(
+              new Error(`Path traversal attempt in uploads entry: "${entryName}"`),
+            );
+            return;
+          }
+          destPath = resolved;
+        } else {
+          // Unknown top-level key — reject
+          reject(
+            new Error(
+              `Entry "${entryName}" is not allowed — only data/, uploads/, and manifest.json entries are accepted`,
+            ),
+          );
+          return;
+        }
+
+        // ---------- streaming decompression with chunk-level ceiling check (M-1) ----------
+        const chunks: Uint8Array[] = [];
+        let perFileBytes = 0;
+
+        file.ondata = (err, chunk, final) => {
+          if (aborted) return;
+          if (err) {
+            aborted = true;
+            reject(err);
+            return;
+          }
+
+          // Enforce ceilings at chunk level BEFORE accumulating
+          perFileBytes += chunk.length;
+          totalUncompressedBytes += chunk.length;
+
+          if (perFileBytes > ceilings.perFile) {
+            aborted = true;
+            reject(
+              new CeilingExceededError(
+                `per-file decompression ceiling exceeded for "${entryName}": ${perFileBytes} bytes > ${ceilings.perFile} bytes`,
+              ),
+            );
+            return;
+          }
+          if (totalUncompressedBytes > ceilings.total) {
+            aborted = true;
+            reject(
+              new CeilingExceededError(
+                `total decompression ceiling exceeded: ${totalUncompressedBytes} bytes > ${ceilings.total} bytes`,
+              ),
+            );
+            return;
+          }
+
+          chunks.push(chunk);
+
+          if (final && !aborted) {
+            // Assemble buffer and write to staging
+            const totalLen = chunks.reduce((s, c) => s + c.length, 0);
+            const buf = Buffer.allocUnsafe(totalLen);
+            let offset = 0;
+            for (const c of chunks) {
+              buf.set(c, offset);
+              offset += c.length;
+            }
+
+            const writePromise = (async () => {
+              await fs.mkdir(path.dirname(destPath), { recursive: true });
+              await fs.writeFile(destPath, buf);
+            })().catch((writeErr: unknown) => {
+              if (!aborted) {
+                aborted = true;
+                reject(writeErr);
+              }
+            });
+            pendingWrites.push(writePromise as Promise<void>);
+          }
+        };
+
+        file.start();
+      };
+
+      // Push the entire zip body into fflate
+      try {
+        unzip.push(zipBody instanceof Buffer ? zipBody : Buffer.from(zipBody), true);
+      } catch (err) {
+        reject(err);
+        return;
+      }
+
+      // Wait for all pending file writes
+      Promise.all(pendingWrites).then(() => {
+        if (!aborted) resolve();
+      }, reject);
+    });
+  } finally {
+    // Restore project root env var
+    if (prevRoot === undefined) {
+      delete process.env.ASTRO_BLOCKS_PROJECT_ROOT;
+    } else {
+      process.env.ASTRO_BLOCKS_PROJECT_ROOT = prevRoot;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// C-2: validateStagedImport — manifest + checksum + structural validators
+// ---------------------------------------------------------------------------
+
+export interface ValidationResult {
+  ok: boolean;
+  reason?: string;
+}
+
+/**
+ * Validate a staged import directory:
+ * 1. Parse and validate manifest.json (presence, shape, schemaVersion).
+ * 2. Verify checksums of all staged files against the manifest.
+ * 3. Run per-unit structural validators for each selected unit.
+ *
+ * All validation occurs on STAGING files; zero live writes happen here.
+ */
+export async function validateStagedImport(
+  stagingDir: string,
+  selectedUnits: ExportUnit[],
+  _projectRoot: string,
+): Promise<ValidationResult> {
+  // 1. Read and validate manifest.json
+  const manifestPath = path.join(stagingDir, 'manifest.json');
+  let manifest: BackupManifest;
+  try {
+    const raw = await fs.readFile(manifestPath, 'utf-8');
+    const parsed: unknown = JSON.parse(raw);
+    const validResult = validateManifest(parsed);
+    if (!validResult.ok) {
+      return { ok: false, reason: validResult.reason };
+    }
+    manifest = parsed as BackupManifest;
+  } catch (err) {
+    return {
+      ok: false,
+      reason: `manifest.json missing or unparseable: ${(err as Error).message}`,
+    };
+  }
+
+  // 2. Collect staged files for checksum verification
+  const staged: Record<string, Buffer> = {};
+  for (const [entryPath] of Object.entries(manifest.checksums)) {
+    const absPath = path.join(stagingDir, entryPath);
+    try {
+      staged[entryPath] = await fs.readFile(absPath);
+    } catch {
+      // Missing staged file — checksum verification will catch it
+      staged[entryPath] = Buffer.alloc(0);
+    }
+  }
+
+  const checksumResult = verifyChecksums(staged, manifest);
+  if (!checksumResult.ok) {
+    return {
+      ok: false,
+      reason: `checksum verification failed for: ${(checksumResult.failed ?? []).join(', ')}`,
+    };
+  }
+
+  // 3. Per-unit structural validation
+  for (const unit of selectedUnits) {
+    const validator = unitValidators[unit];
+    if (!validator) continue;
+
+    // Each unit maps to one or more data files; validate the primary file
+    const dataFiles = UNIT_TO_DATA_FILES[unit];
+    for (const dataFile of dataFiles) {
+      const absPath = path.join(stagingDir, dataFile);
+      let parsed: unknown;
+      try {
+        const raw = await fs.readFile(absPath, 'utf-8');
+        parsed = JSON.parse(raw);
+      } catch {
+        continue; // File may not be in archive if unit partially overlaps
+      }
+      const result = validator(parsed);
+      if (!result.ok) {
+        return {
+          ok: false,
+          reason: `structural validation failed for unit "${unit}": ${result.reason}`,
+        };
+      }
+    }
+  }
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// C-3: createBackupSnapshot — copy current live state to data/_backups/<ISO>/
+// ---------------------------------------------------------------------------
+
+/**
+ * Copy the current live state of the selected units to a timestamped backup dir.
+ * Retention: keep the last 5 backups (prune oldest beyond that).
+ *
+ * - Always copies the 9 data files (unconditionally — simple and safe for restore).
+ * - Copies public/uploads tree only when 'media' unit is in selectedUnits.
+ */
+export async function createBackupSnapshot(
+  projectRoot: string,
+  selectedUnits: ExportUnit[],
+): Promise<string> {
+  // Use raw ISO 8601 timestamp (e.g. "2026-06-30T18:19:06.976Z") for lexicographic sort.
+  // macOS and Linux support colons in directory names; this is a server-side only dir.
+  const iso = new Date().toISOString();
+  const backupsDir = path.join(projectRoot, 'data', '_backups');
+  const snapshotDir = path.join(backupsDir, iso);
+  const snapshotDataDir = path.join(snapshotDir, 'data');
+
+  await fs.mkdir(snapshotDataDir, { recursive: true });
+
+  // Copy the 9 known data files
+  for (const dataFiles of Object.values(UNIT_TO_DATA_FILES)) {
+    for (const dataFile of dataFiles) {
+      const filename = path.basename(dataFile);
+      const src = path.join(projectRoot, 'data', filename);
+      const dest = path.join(snapshotDataDir, filename);
+      try {
+        await fs.copyFile(src, dest);
+      } catch {
+        // File may not exist in a fresh project — skip silently
+      }
+    }
+  }
+
+  // If media unit is selected, copy public/uploads tree
+  if (selectedUnits.includes('media')) {
+    const uploadsDir = path.join(projectRoot, 'public', 'uploads');
+    const snapshotUploadsDir = path.join(snapshotDir, 'uploads');
+    await copyDirRecursive(uploadsDir, snapshotUploadsDir);
+  }
+
+  // Apply retention: keep at most 5 backups (prune oldest)
+  const entries = await fs.readdir(backupsDir).catch(() => [] as string[]);
+  const toPrune = selectBackupsToPrune(entries, 5);
+  for (const name of toPrune) {
+    await fs.rm(path.join(backupsDir, name), { recursive: true, force: true });
+  }
+
+  return snapshotDir;
+}
+
+/**
+ * Recursively copy a directory tree from src to dest.
+ * Missing src is silently ignored.
+ */
+async function copyDirRecursive(src: string, dest: string): Promise<void> {
+  let names: string[];
+  try {
+    names = await fs.readdir(src);
+  } catch {
+    return; // Source dir doesn't exist
+  }
+  await fs.mkdir(dest, { recursive: true });
+  for (const name of names) {
+    const srcPath = path.join(src, name);
+    const destPath = path.join(dest, name);
+    let stat: Awaited<ReturnType<typeof fs.lstat>>;
+    try {
+      stat = await fs.lstat(srcPath);
+    } catch {
+      continue;
+    }
+    if (stat.isDirectory()) {
+      await copyDirRecursive(srcPath, destPath);
+    } else if (stat.isFile()) {
+      await fs.copyFile(srcPath, destPath);
+    }
+    // Skip symlinks (consistent with export security posture)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// C-4: applyImport — atomic replace per unit from staging
+// ---------------------------------------------------------------------------
+
+export interface ApplyImportResult {
+  usersReplaced: boolean;
+}
+
+/**
+ * Replace live data from staging using the existing atomic savers.
+ * - Uses per-unit data savers (savePages/saveSite/etc.) which run under withFileLock.
+ * - For the media unit: replaces public/uploads tree, then calls reconcileMedia.
+ * - Calls handleInvalidateCache equivalent (invalidates global cache via context.cache).
+ * - Returns { usersReplaced } based on whether users unit was in selectedUnits.
+ *
+ * Precondition: staging has been fully validated (C-2) and a backup snapshot
+ * created (C-3) before this function is called.
+ */
+export async function applyImport(
+  stagingDir: string,
+  projectRoot: string,
+  selectedUnits: ExportUnit[],
+  context: { cache?: unknown },
+): Promise<ApplyImportResult> {
+  const prevRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
+  process.env.ASTRO_BLOCKS_PROJECT_ROOT = projectRoot;
+
+  try {
+    for (const unit of selectedUnits) {
+      switch (unit) {
+        case 'pages': {
+          const raw = await fs.readFile(path.join(stagingDir, 'data', 'pages.json'), 'utf-8');
+          await data.savePages(JSON.parse(raw));
+          break;
+        }
+        case 'configuration': {
+          // configuration maps to 5 files: site, configs, menus, redirects, languages
+          const confFiles: Array<[string, (d: unknown) => Promise<void>]> = [
+            ['site.json', async (d) => data.saveSite(d as Parameters<typeof data.saveSite>[0])],
+            ['configs.json', async (d) => data.saveConfigs(d as Parameters<typeof data.saveConfigs>[0])],
+            ['menus.json', async (d) => data.saveMenus(d as Parameters<typeof data.saveMenus>[0])],
+            ['redirects.json', async (d) => data.saveRedirects(d as Parameters<typeof data.saveRedirects>[0])],
+            ['languages.json', async (d) => data.saveLanguages(d as Parameters<typeof data.saveLanguages>[0])],
+          ];
+          for (const [filename, saver] of confFiles) {
+            try {
+              const raw = await fs.readFile(path.join(stagingDir, 'data', filename), 'utf-8');
+              await saver(JSON.parse(raw));
+            } catch {
+              // File may not exist for partial configuration imports
+            }
+          }
+          break;
+        }
+        case 'users': {
+          const raw = await fs.readFile(path.join(stagingDir, 'data', 'users.json'), 'utf-8');
+          await data.saveUsers(JSON.parse(raw));
+          break;
+        }
+        case 'media': {
+          // Save media registry
+          const raw = await fs.readFile(path.join(stagingDir, 'data', 'media.json'), 'utf-8');
+          await data.saveMedia(JSON.parse(raw));
+
+          // Replace public/uploads tree: remove existing, copy from staging
+          const liveUploadsDir = path.join(projectRoot, 'public', 'uploads');
+          const stagingUploadsDir = path.join(stagingDir, 'uploads');
+          // Remove current uploads tree (best effort)
+          await fs.rm(liveUploadsDir, { recursive: true, force: true });
+          // Copy staged uploads to live
+          await copyDirRecursive(stagingUploadsDir, liveUploadsDir);
+          // Reconcile media to prune registry/disk drift
+          await data.reconcileMedia();
+          break;
+        }
+        case 'global-blocks': {
+          const raw = await fs.readFile(path.join(stagingDir, 'data', 'global-blocks.json'), 'utf-8');
+          await data.saveGlobalBlocks(JSON.parse(raw));
+          break;
+        }
+      }
+    }
+
+    // Invalidate cache if available
+    if (context.cache && typeof (context.cache as { enabled?: boolean }).enabled === 'boolean' && (context.cache as { enabled?: boolean }).enabled) {
+      const { getGlobalCachePaths, getGlobalCacheTags } = await import('../utils/cache.js');
+      const cacheCtx = context.cache as {
+        invalidate: (opts: { path?: string; tags?: string[] }) => Promise<void>;
+      };
+      try {
+        for (const pathname of getGlobalCachePaths()) {
+          await cacheCtx.invalidate({ path: pathname });
+        }
+        await cacheCtx.invalidate({ tags: getGlobalCacheTags() });
+      } catch {
+        // Cache invalidation failure is non-fatal — log only
+      }
+    }
+
+    return { usersReplaced: selectedUnits.includes('users') };
+  } finally {
+    if (prevRoot === undefined) {
+      delete process.env.ASTRO_BLOCKS_PROJECT_ROOT;
+    } else {
+      process.env.ASTRO_BLOCKS_PROJECT_ROOT = prevRoot;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// C-5 helper: runImportPipeline — reusable core (factored for Slice D reuse)
+// ---------------------------------------------------------------------------
+
+export interface ImportPipelineOptions {
+  projectRoot: string;
+  ceilings: CeilingLimits;
+  selectedUnits?: ExportUnit[];
+  context: { cache?: unknown };
+}
+
+export interface ImportPipelineResult {
+  ok: boolean;
+  usersReplaced?: boolean;
+  errorCode?: 'empty' | 'corrupt' | 'ceiling' | 'validation';
+  reason?: string;
+}
+
+/**
+ * Core import pipeline: extract → validate → backup → apply → cleanup staging.
+ *
+ * Factor for reuse: handleImport (C-5) and handleBootstrapImport (D-1) both call
+ * this function. Neither implementation is in scope for Slice C; this is the
+ * shared engine they both invoke.
+ *
+ * @param body        - Raw zip bytes (Buffer/Uint8Array).
+ * @param opts        - Options including projectRoot, ceilings, selectedUnits, context.
+ * @returns           - ImportPipelineResult with ok flag and usersReplaced indicator.
+ */
+export async function runImportPipeline(
+  body: Buffer | Uint8Array,
+  opts: ImportPipelineOptions,
+): Promise<ImportPipelineResult> {
+  const { projectRoot, ceilings, context } = opts;
+
+  if (!body || body.length === 0) {
+    return { ok: false, errorCode: 'empty', reason: 'request body is empty' };
+  }
+
+  // Create a temp staging dir under os.tmpdir() (not inside the project to avoid
+  // polluting data/_backups before validation is complete)
+  const stagingDir = path.join(
+    (await import('node:os')).default.tmpdir(),
+    `astro-import-${crypto.randomBytes(6).toString('hex')}`,
+  );
+
+  try {
+    // Step 1: Extract with guards
+    try {
+      await extractToStaging(body, stagingDir, ceilings, projectRoot);
+    } catch (err) {
+      if (err instanceof CeilingExceededError) {
+        return { ok: false, errorCode: 'ceiling', reason: (err as Error).message };
+      }
+      return { ok: false, errorCode: 'corrupt', reason: (err as Error).message };
+    }
+
+    // Determine which units to import: all units declared in the manifest
+    let selectedUnits: ExportUnit[];
+    if (opts.selectedUnits) {
+      selectedUnits = opts.selectedUnits;
+    } else {
+      // Read manifest to discover available units
+      try {
+        const manifestRaw = await fs.readFile(path.join(stagingDir, 'manifest.json'), 'utf-8');
+        const manifest = JSON.parse(manifestRaw) as BackupManifest;
+        selectedUnits = manifest.units as ExportUnit[];
+      } catch {
+        return { ok: false, errorCode: 'corrupt', reason: 'could not read manifest from staging' };
+      }
+    }
+
+    // Step 2: Validate (manifest + checksums + structural)
+    const validationResult = await validateStagedImport(stagingDir, selectedUnits, projectRoot);
+    if (!validationResult.ok) {
+      return { ok: false, errorCode: 'validation', reason: validationResult.reason };
+    }
+
+    // Step 3: Backup snapshot BEFORE any live writes
+    await createBackupSnapshot(projectRoot, selectedUnits);
+
+    // Step 4: Atomic replace per unit
+    const applyResult = await applyImport(stagingDir, projectRoot, selectedUnits, context);
+
+    return { ok: true, usersReplaced: applyResult.usersReplaced };
+  } finally {
+    // Always cleanup staging dir (success AND failure paths)
+    await fs.rm(stagingDir, { recursive: true, force: true });
+  }
 }

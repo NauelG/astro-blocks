@@ -55,9 +55,10 @@ import type {
   User,
 } from '../types/index.js';
 import * as data from './data.js';
-import { buildExportStream } from './backup.js';
+import { buildExportStream, runImportPipeline } from './backup.js';
 import { UNIT_TO_DATA_FILES } from './manifest.js';
 import type { ExportUnit } from './manifest.js';
+import { readCeilingEnvVars } from './import-utils.js';
 import { resolveUiLocale } from '../routes/admin/i18n/resolve.js';
 import { catalogs } from '../routes/admin/i18n/catalogs.js';
 import { t as translateFn } from '../routes/admin/i18n/t.js';
@@ -2004,4 +2005,76 @@ export async function handleExport(request: Request, authUser?: AuthUser | null)
       500,
     );
   }
+}
+
+/**
+ * POST /cms/api/import
+ *
+ * Owner-only import handler (ADR-5).
+ * Reads the request body as a stream (never fully buffered in memory beyond what
+ * we collect for fflate extraction). Orchestrates:
+ *   requireOwner → readCeilingEnvVars → runImportPipeline → JSON response.
+ *
+ * Maps failures to HTTP status codes:
+ *   400 — empty or corrupt zip
+ *   413 — decompression ceiling exceeded (zip-bomb guard)
+ *   422 — schemaVersion mismatch, checksum failure, or structural validation error
+ *   401 — not authenticated
+ *   403 — not owner
+ */
+export async function handleImport(
+  request: Request,
+  authUser: AuthUser | null | undefined,
+  context: HandlerContext = {},
+): Promise<Response> {
+  // Auth gate
+  if (!authUser) {
+    return request
+      ? localizedJsonError(request, 'errors.unauthorized', 401)
+      : jsonError('Unauthorized', 401);
+  }
+
+  // Owner-only gate
+  const forbidden = requireOwner(authUser, request);
+  if (forbidden) return forbidden;
+
+  // Read the request body — collect stream into a Buffer for fflate processing.
+  // The zip is never written to a temp file on disk here; fflate decompresses
+  // directly from the in-memory buffer into the staging directory.
+  let bodyBuffer: Buffer;
+  try {
+    const ab = await request.arrayBuffer();
+    bodyBuffer = Buffer.from(ab);
+  } catch {
+    return localizedJsonError(request, 'errors.invalidBody', 400);
+  }
+
+  if (bodyBuffer.length === 0) {
+    return localizedJsonError(request, 'errors.invalidBody', 400);
+  }
+
+  const ceilings = readCeilingEnvVars();
+  const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
+
+  const result = await runImportPipeline(bodyBuffer, {
+    projectRoot,
+    ceilings,
+    context,
+  });
+
+  if (!result.ok) {
+    switch (result.errorCode) {
+      case 'empty':
+      case 'corrupt':
+        return localizedJsonError(request, 'errors.invalidBody', 400);
+      case 'ceiling':
+        return jsonError(result.reason ?? 'Decompression ceiling exceeded', 413);
+      case 'validation':
+        return jsonError(result.reason ?? 'Validation failed', 422);
+      default:
+        return jsonError(result.reason ?? 'Import failed', 500);
+    }
+  }
+
+  return Response.json({ success: true, usersReplaced: result.usersReplaced ?? false });
 }

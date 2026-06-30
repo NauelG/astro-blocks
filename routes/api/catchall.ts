@@ -87,6 +87,7 @@ export async function POST({ request, cache }: APIContext): Promise<Response> {
   if (seg[0] === 'upload' && seg.length === 1) return handlers.handleUpload(request);
   if (seg[0] === 'media' && seg[2] === 'replace' && seg.length === 3) return handlers.handleReplaceUpload(request, seg[1]);
   if (seg[0] === 'cache' && seg[1] === 'invalidate' && seg.length === 2) return handlers.handleInvalidateCache(request, { cache });
+  if (seg[0] === 'import' && seg.length === 1) return handlers.handleImport(request, authResult.user, { cache });
   if (seg[0] === 'users' && seg.length === 1) return handlers.handlePostUsers(request, authResult.user);
   if (seg[0] === 'languages' && seg.length === 1) {
     const forbidden = handlers.requireOwner(authResult.user);
