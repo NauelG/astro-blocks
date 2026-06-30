@@ -1114,3 +1114,81 @@ test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleReplaceUpload honors 
     assert.equal(bigRes.status, 413, 'over-override-limit replace should be rejected with 413');
   });
 });
+
+// ─── B7: handleReplaceUpload PDF-specific tests ────────────────────────────────
+//
+// These tests verify that the same-MIME constraint applies to non-image files (PDF)
+// and that the evaluateUpload gate works correctly on the replace path.
+
+/** Mint a JWT for handleReplaceUpload auth. */
+async function mintJwt() {
+  const { SignJWT } = await import('jose');
+  return new SignJWT({ email: 'test@e.com', role: 'owner' })
+    .setSubject('uid')
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('1h')
+    .sign(new TextEncoder().encode('cms-jwt-secret-change-me'));
+}
+
+// R3.2-A: PDF replaces PDF → 200 (same-MIME constraint satisfied, gate passes)
+test('R3.2-A: PDF can replace an existing PDF entry (same-MIME constraint satisfied)', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Seed a PDF entry on disk
+    const subdir = '2026/06';
+    const dir = path.join(tempRoot, 'public', 'uploads', subdir);
+    await fs.mkdir(dir, { recursive: true });
+    const filename = 'b7-replace.pdf';
+    await fs.writeFile(path.join(dir, filename), new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+    const url = `/uploads/${subdir}/${filename}`;
+    const id = generateId();
+    await appendMediaEntry({
+      id, url, filename, size: 4, mimeType: 'application/pdf',
+      fileCategory: 'document', createdAt: new Date().toISOString(), status: 'ready',
+    });
+
+    const token = await mintJwt();
+    const fd = new FormData();
+    fd.append('file', new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31])], filename, { type: 'application/pdf' }));
+    const req = new Request(`http://localhost/cms/api/media/${id}/replace`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+    });
+
+    const res = await handleReplaceUpload(req, id);
+    assert.equal(res.status, 200, 'PDF→PDF replace should succeed with 200');
+
+    const mediaData = await loadMedia();
+    const entry = mediaData.uploads.find((e) => e.id === id);
+    assert.ok(entry, 'entry should still exist');
+    assert.equal(entry.mimeType, 'application/pdf');
+  });
+});
+
+// R3.2-B: image/jpeg cannot replace application/pdf → 415 (same-MIME constraint)
+test('R3.2-B: image/jpeg cannot replace an existing PDF entry (same-MIME constraint, 415)', async () => {
+  await withTempProject(async (tempRoot) => {
+    const subdir = '2026/06';
+    const dir = path.join(tempRoot, 'public', 'uploads', subdir);
+    await fs.mkdir(dir, { recursive: true });
+    const filename = 'b7-replace-cross.pdf';
+    await fs.writeFile(path.join(dir, filename), new Uint8Array([0x25, 0x50, 0x44, 0x46]));
+    const url = `/uploads/${subdir}/${filename}`;
+    const id = generateId();
+    await appendMediaEntry({
+      id, url, filename, size: 4, mimeType: 'application/pdf',
+      fileCategory: 'document', createdAt: new Date().toISOString(), status: 'ready',
+    });
+
+    const token = await mintJwt();
+    const fd = new FormData();
+    fd.append('file', new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'photo.jpg', { type: 'image/jpeg' }));
+    const req = new Request(`http://localhost/cms/api/media/${id}/replace`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd,
+    });
+
+    const res = await handleReplaceUpload(req, id);
+    assert.ok(
+      res.status === 415 || res.status === 409,
+      `jpeg→pdf cross-type replace should return 415 or 409; got ${res.status}`
+    );
+  });
+});
