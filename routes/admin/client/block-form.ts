@@ -44,7 +44,7 @@ import { toImageValue, parseImageValue, mediaEntryToImageValue, serializeImageVa
 import { toFileValue, parseFileValue, mediaEntryToFileValue, serializeFileValueAttr, isEmptyFileValue } from '../../../utils/file-value.js';
 import { fetchMedia, formatBytes, formatDimensions, formatMediaDate } from './media-fetch.js';
 import type { MediaEntry as MediaFetchEntry } from './media-fetch.js';
-import { DEFAULT_ALLOWED_FILE_TYPES } from '../../../utils/file-types.js';
+import { DEFAULT_ALLOWED_FILE_TYPES, intersectAccept } from '../../../utils/file-types.js';
 
 // SVG icons (same as page-editor.ts and global-blocks-editor.ts)
 const trashIconSvg =
@@ -931,12 +931,14 @@ function getGlobalAllowlist(): string[] {
  *   - If def.accept is provided: intersection with global allowlist (warn-and-drop per ADR-6)
  *   - If def.accept is omitted: full global allowlist
  *
- * This is the client-side enforcement of the accept ∩ allowlist rule.
+ * Delegates to intersectAccept() which normalises both sides to lowercase, so
+ * mixed-case schema entries like `'Application/PDF'` are correctly matched
+ * against the lowercase global allowlist. The returned values are always
+ * lowercase, ensuring consistent comparison in renderPickerGrid and in the
+ * data-file-accept attribute.
  */
 function computeEffectiveAccept(def: PrimitivePropDef): string[] {
-  const globalAllowlist = getGlobalAllowlist();
-  if (!def.accept || def.accept.length === 0) return globalAllowlist;
-  return def.accept.filter((m) => globalAllowlist.includes(m.toLowerCase()));
+  return intersectAccept(def.accept, getGlobalAllowlist());
 }
 
 // Icon for file fields (document)
