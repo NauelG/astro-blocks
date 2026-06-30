@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.2.1] - 2026-06-30
+
+### Title
+
+Fix settings page never saving its changes
+
+### Fixed
+
+- **Settings now save again.** The settings page silently issued a native `GET /cms/settings?...` instead of `PUT /cms/api/site`, so site settings (name, base URL, favicon, logo, theme colors) were never persisted. Root cause: the page's inline `<script define:vars={{ settingsI18n }}>` contained TypeScript. `define:vars` forces an `is:inline` script, which Astro does not transpile, so the raw TypeScript threw a `SyntaxError` in the browser. That killed the whole script before its `submit` handler could register, leaving the form to fall back to a native GET. The fault was introduced during the admin i18n migration, when the script gained `define:vars`; the TypeScript had been harmless before because Astro transpiled the plain `<script>`.
+
+### Changed
+
+- **Settings page logic moved to an external client module.** The color pickers, live theme preview, and save-on-submit behavior now live in `routes/admin/client/settings-editor.ts`, matching the other admin editors (`page-editor`, `configs-editor`, etc.). Astro transpiles external client modules, so TypeScript can no longer reach the browser unprocessed. No user-facing behavior change beyond the fix above.
+
 ## [3.2.0] - 2026-06-30
 
 ### Title
