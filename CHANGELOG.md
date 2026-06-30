@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.2.2] - 2026-06-30
+
+### Title
+
+Fix media uploads failing with a 403 behind a reverse proxy
+
+### Fixed
+
+- **Media uploads and replacements work again behind a reverse proxy.** Uploading or replacing an image in the admin media library returned `403 Cross-site POST form submissions are forbidden` in production deployments behind a reverse proxy or CDN. Root cause: the admin client sent uploads as `multipart/form-data`, a "form-like" content type that triggers Astro's built-in CSRF origin-check; behind a proxy the browser `Origin` does not match the server-computed `url.origin`, so the request was rejected before reaching the handler. Local development was unaffected because origin and host match there. Upload and replace now send the file as a raw binary body with its real MIME type as `Content-Type` and the original filename in a percent-encoded `x-cms-filename` header; the server reads the body via `request.arrayBuffer()`. CSRF protection is preserved — these endpoints authenticate via a JWT in the `Authorization` header (never an ambient cookie), and the custom header forces a CORS preflight a cross-origin attacker cannot satisfy.
+
 ## [3.2.1] - 2026-06-30
 
 ### Title
