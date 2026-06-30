@@ -101,10 +101,24 @@ test('T14-10b: ensureDefaultFiles does not overwrite existing media.json', async
   });
 });
 
-// T14-01: Upload with disallowed MIME → HTTP 415
-test('T14-01: upload with disallowed MIME type returns 415', async () => {
+// T14-01: PDF upload accepted with default allowlist (R2.2, R10.1)
+test('T14-01: PDF upload accepted with default allowlist', async () => {
   await withTempProject(async () => {
     const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'document.pdf', 'application/pdf');
+    const res = await handleUpload(req);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(body.url, 'should return url');
+    assert.ok(body.entry, 'should return entry');
+    assert.equal(body.entry.mimeType, 'application/pdf');
+    assert.ok(body.url.endsWith('.pdf'), 'url should end with .pdf');
+  });
+});
+
+// SEC-DENY-01: denylisted MIME type (text/html) is rejected with 415 (R2.4, R10.1)
+test('SEC-DENY-01: upload with denylisted MIME (text/html) returns 415', async () => {
+  await withTempProject(async () => {
+    const req = makeUploadRequest(Buffer.from('Hello!'), 'page.html', 'text/html');
     const res = await handleUpload(req);
     assert.equal(res.status, 415);
     const body = await res.json();
