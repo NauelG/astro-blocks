@@ -75,3 +75,28 @@ export const MIME_TO_EXT: Record<string, string> = {
   ...IMAGE_MIME_TO_EXT,
   ...DOCUMENT_MIME_TO_EXT,
 };
+
+/**
+ * Compute the intersection of a schema-defined accept list and a global allowlist.
+ *
+ * Both sides are normalised to lowercase before comparison so that a schema
+ * entry like `'Application/PDF'` matches a lowercase allowlist entry like
+ * `'application/pdf'`. The returned values are always lowercase.
+ *
+ * Behaviour:
+ *   - `accept` omitted or empty  → returns the full `allowlist` unchanged
+ *   - `accept` provided          → returns `accept` lowercased, keeping only
+ *                                  entries that appear in `allowlist`
+ *
+ * @param accept    - MIME types from the schema prop definition (may be mixed-case)
+ * @param allowlist - Global allowed MIME types (expected to be lowercase)
+ */
+export function intersectAccept(
+  accept: string[] | undefined,
+  allowlist: string[],
+): string[] {
+  if (!accept || accept.length === 0) return allowlist;
+  return accept
+    .map((m) => m.toLowerCase())
+    .filter((m) => allowlist.includes(m));
+}

@@ -16,7 +16,7 @@ Licensed under the Business Source License 1.1
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DEFAULT_ALLOWED_FILE_TYPES, RASTER_MIME, DOCUMENT_MIME_TO_EXT, MIME_TO_EXT } from '../dist/utils/file-types.js';
+import { DEFAULT_ALLOWED_FILE_TYPES, RASTER_MIME, DOCUMENT_MIME_TO_EXT, MIME_TO_EXT, intersectAccept } from '../dist/utils/file-types.js';
 
 // ─── R1.1-A: DEFAULT_ALLOWED_FILE_TYPES export is correct ────────────────────
 
@@ -164,4 +164,38 @@ test('R1.5-A: getAllowedFileTypes falls back to DEFAULT_ALLOWED_FILE_TYPES when 
     else process.env.ASTRO_BLOCKS_PROJECT_ROOT = previousRoot;
     await rm(tempRoot, { recursive: true, force: true });
   }
+});
+
+// ─── intersectAccept — case-insensitive accept intersection ───────────────────
+
+const ALLOWLIST = ['application/pdf', 'image/jpeg', 'image/png'];
+
+test('intersectAccept: mixed-case accept entry is lowercased and matched', () => {
+  const result = intersectAccept(['Application/PDF'], ALLOWLIST);
+  assert.deepEqual(result, ['application/pdf']);
+});
+
+test('intersectAccept: all-lowercase accept entry is passed through unchanged', () => {
+  const result = intersectAccept(['image/jpeg', 'application/pdf'], ALLOWLIST);
+  assert.deepEqual(result, ['image/jpeg', 'application/pdf']);
+});
+
+test('intersectAccept: accept entry not in allowlist is excluded', () => {
+  const result = intersectAccept(['application/pdf', 'video/mp4'], ALLOWLIST);
+  assert.deepEqual(result, ['application/pdf']);
+});
+
+test('intersectAccept: all accept entries out of allowlist returns empty array', () => {
+  const result = intersectAccept(['video/mp4', 'text/plain'], ALLOWLIST);
+  assert.deepEqual(result, []);
+});
+
+test('intersectAccept: omitted accept (undefined) returns full allowlist', () => {
+  const result = intersectAccept(undefined, ALLOWLIST);
+  assert.deepEqual(result, ALLOWLIST);
+});
+
+test('intersectAccept: empty accept array returns full allowlist', () => {
+  const result = intersectAccept([], ALLOWLIST);
+  assert.deepEqual(result, ALLOWLIST);
 });

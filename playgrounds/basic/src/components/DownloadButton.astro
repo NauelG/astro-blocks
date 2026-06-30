@@ -1,0 +1,74 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+/**
+ * DownloadButton — demonstrates the 'file' prop type with download: true.
+ *
+ * When a PDF is picked via the admin block editor:
+ *   - file.download === true  → fileDownloadUrl appends ?download so the server
+ *     sets Content-Disposition: attachment (server-side enforcement).
+ *   - The HTML download attribute is the client-side hint (defense in depth).
+ *
+ * Manual verification steps:
+ *   1. Add a DownloadButton block in /cms/pages
+ *   2. Pick a PDF from the media library (or upload one)
+ *   3. The rendered anchor should trigger a download, not inline viewing
+ *   4. Inspect the network tab — the server response should carry
+ *      Content-Disposition: attachment when ?download is present
+ */
+
+import { fileDownloadUrl } from '@astroblocks/astro-blocks/getFileValue';
+import type { FileFieldValue } from '@astroblocks/astro-blocks/contract';
+
+export interface Props {
+  file?: FileFieldValue;
+  label?: string;
+}
+
+const { file, label = 'Download' } = Astro.props;
+
+// fileDownloadUrl returns value.url as-is when download is false/undefined,
+// and appends ?download when value.download === true.
+const href = file && file.url ? fileDownloadUrl(file) : undefined;
+// HTML download attribute: client-side hint (filename or empty string).
+// Only set when file.download is true (matches the prop schema meta).
+const downloadAttr = file?.download ? (file.filename ?? '') : undefined;
+---
+
+{href && (
+  <a
+    class="download-button"
+    href={href}
+    download={downloadAttr}
+  >
+    {label}
+  </a>
+)}
+
+<style>
+  .download-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.55rem 1.1rem;
+    background: var(--color-primary, #2C53B8);
+    color: #fff;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 120ms ease;
+  }
+
+  .download-button:hover {
+    background: color-mix(in srgb, var(--color-primary, #2C53B8) 85%, black);
+  }
+
+  .download-button:focus-visible {
+    outline: 2px solid var(--color-primary, #2C53B8);
+    outline-offset: 2px;
+  }
+</style>

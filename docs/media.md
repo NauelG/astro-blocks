@@ -231,6 +231,137 @@ The plugin injects a file-serving route at `/uploads/[...path]`. Do **not** crea
 | `variants` | `MediaVariant[]?` | Generated responsive variants: `{ format: 'webp' \| 'avif', width, url }` |
 | `status` | `'processing' \| 'ready' \| 'failed'?` | Variant generation status |
 
+---
+
+## Non-image file uploads (PDF and document support)
+
+### Allowed file types
+
+By default, AstroBlocks accepts uploads of these MIME types:
+
+```
+image/jpeg  image/png  image/webp  image/svg+xml  image/gif  application/pdf
+```
+
+You can override the list via the `allowedFileTypes` plugin option:
+
+```ts
+// astro.config.ts
+astroBlocks({
+  allowedFileTypes: ['image/jpeg', 'image/png', 'application/pdf'],
+})
+```
+
+**Rules:**
+
+- The list is deduplicated and lowercased automatically.
+- An explicitly empty array (`[]`) is accepted: every upload will be rejected (a warning is emitted).
+- The hard security denylist (HTML, JavaScript, executables, shell scripts) is **always enforced** regardless of this setting — those types can never be re-enabled.
+
+### The `file` block prop type
+
+Use `type: 'file'` for block props that hold non-image file references:
+
+```ts
+// YourComponent.schema.ts
+import { defineBlockSchema } from '@astroblocks/astro-blocks/contract';
+
+export const schema = defineBlockSchema(
+  {
+    name: 'Download Button',
+    icon: 'FileDown',
+    items: {
+      file: {
+        type: 'file',
+        label: 'PDF Document',
+        accept: ['application/pdf'],   // optional per-component MIME filter
+        download: true,                // optional: default download behaviour
+      },
+      label: { type: 'string', label: 'Button Label' },
+    },
+  },
+  new URL('./DownloadButton.astro', import.meta.url).href
+);
+```
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `accept` | `string[]` | Optional MIME allowlist for this prop. Must be a subset of `allowedFileTypes`; out-of-allowlist entries are silently dropped (warn-and-drop at startup). Omit to allow the full global allowlist. |
+| `download` | `boolean` | When `true`, the admin picker seeds `FileFieldValue.download = true`, which causes `fileDownloadUrl` to append `?download` to the URL, triggering `Content-Disposition: attachment` on the server. |
+
+### Rendering a file prop
+
+```astro
+---
+// DownloadButton.astro
+import { fileDownloadUrl } from '@astroblocks/astro-blocks/getFileValue';
+import type { FileFieldValue } from '@astroblocks/astro-blocks/contract';
+
+const { file, label = 'Download' } = Astro.props as { file?: FileFieldValue; label?: string };
+const href = file?.url ? fileDownloadUrl(file) : undefined;
+---
+
+{href && (
+  <a href={href} download={file?.download ? (file.filename ?? '') : undefined}>
+    {label}
+  </a>
+)}
+```
+
+**`fileDownloadUrl(value: FileFieldValue): string`** — resolves the URL for a file anchor:
+- When `value.download === true`: appends `?download` (server sets `Content-Disposition: attachment`).
+- When `value.download` is false or absent: returns `value.url` unchanged (browser-inline by default for PDF).
+
+```ts
+import { fileDownloadUrl } from '@astroblocks/astro-blocks/getFileValue';
+import type { FileFieldValue } from '@astroblocks/astro-blocks/contract';
+```
+
+### The `FileFieldValue` shape
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `url` | `string` | Public path to the uploaded file (e.g. `/uploads/2026/06/abcd-brochure.pdf`) |
+| `filename` | `string?` | Original filename as uploaded |
+| `mimeType` | `string?` | Validated MIME type |
+| `download` | `boolean?` | When `true`, `fileDownloadUrl` appends `?download` to force attachment |
+
+### PDF serving behaviour
+
+| Request | Content-Disposition |
+| --- | --- |
+| `GET /uploads/.../doc.pdf` | none (browser-inline by default) |
+| `GET /uploads/.../doc.pdf?download` | `attachment` |
+| `GET /uploads/.../image.svg` | `attachment` (XSS guard, unchanged) |
+| `GET /uploads/.../unknown.xyz` | none; `Content-Type: application/octet-stream` |
+
+### Security denylist
+
+The following types are **always rejected** regardless of `allowedFileTypes`:
+
+| MIME | Extension |
+| --- | --- |
+| `text/html` | `.html`, `.htm` |
+| `text/javascript`, `application/javascript`, `application/x-javascript` | `.js`, `.mjs` |
+| `application/x-sh`, `application/x-bat`, `application/x-executable` | `.sh`, `.bat`, `.cmd`, `.exe` |
+| `application/x-msdownload`, `application/x-msdos-program` | `.com` |
+
+The denylist check runs **before** the allowlist check. It cannot be disabled via configuration.
+
+### Document tiles in the media library
+
+Non-image uploads display an accessible document tile instead of a broken `<img>`. The tile:
+
+- Uses `role="img"` + `aria-label="<filename> (<mimeType> document)"` for screen readers.
+- Shows an inline document SVG icon marked `aria-hidden="true"`.
+- Shows the filename in the card name for sighted users (same as image cards).
+
+### Playground example
+
+See `playgrounds/basic/src/components/DownloadButton.astro` and `DownloadButton.schema.ts` for a working end-to-end example of the `file` prop type.
+
+---
+
 ### API endpoints
 
 All endpoints live under `/cms/api/` and require authentication (a valid CMS session token).
@@ -251,6 +382,7 @@ Uploads are validated **before** any disk write: the MIME type must be in the al
 | Setting | Default | Purpose |
 | --- | --- | --- |
 | `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` | `5242880` (5 MB) | Maximum accepted upload size, in bytes. Set as an environment variable. |
+| `allowedFileTypes` (plugin option) | `['image/jpeg','image/png','image/webp','image/svg+xml','image/gif','application/pdf']` | MIME types accepted at upload. Override in the plugin config; see [Non-image file uploads](#non-image-file-uploads-pdf-and-document-support). |
 
 ---
 
