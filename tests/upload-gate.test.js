@@ -218,3 +218,42 @@ test('evaluateUpload — null derivedExtension with safe MIME not in allowlist �
   });
   assert.deepEqual(result, { ok: false, reason: 'unsupported' });
 });
+
+// ─── MIME case-insensitivity and content-type params ─────────────────────────
+
+test('evaluateUpload — TEXT/HTML (uppercase) → denied (case-insensitive denylist)', () => {
+  const result = evaluateUpload({
+    mimeType: 'TEXT/HTML',
+    derivedExtension: '.html',
+    allowed: new Set(DEFAULT_ALLOWED),
+  });
+  assert.deepEqual(result, { ok: false, reason: 'denied' });
+});
+
+test('evaluateUpload — text/html; charset=utf-8 (with params) → denied (boundary guard)', () => {
+  const result = evaluateUpload({
+    mimeType: 'text/html; charset=utf-8',
+    derivedExtension: '.html',
+    allowed: new Set(DEFAULT_ALLOWED),
+  });
+  assert.deepEqual(result, { ok: false, reason: 'denied' });
+});
+
+test('evaluateUpload — uppercase extension .HTML → denied (ext denylist case-insensitive)', () => {
+  const result = evaluateUpload({
+    mimeType: 'application/octet-stream',
+    derivedExtension: '.HTML',
+    allowed: new Set(DEFAULT_ALLOWED),
+  });
+  assert.deepEqual(result, { ok: false, reason: 'denied' });
+});
+
+test('evaluateUpload — image/svg+xml in allowlist is NOT over-denied by boundary pattern', () => {
+  // Confirm the DANGEROUS_MIME_PATTERN boundary fix does not accidentally block SVG
+  const result = evaluateUpload({
+    mimeType: 'image/svg+xml',
+    derivedExtension: '.svg',
+    allowed: new Set(DEFAULT_ALLOWED),
+  });
+  assert.deepEqual(result, { ok: true });
+});

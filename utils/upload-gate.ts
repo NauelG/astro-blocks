@@ -67,7 +67,7 @@ export const DANGEROUS_MIME: Set<string> = new Set([
  * Matches any MIME matching these patterns.
  */
 const DANGEROUS_MIME_PATTERN =
-  /^(text\/(html|javascript)|application\/(javascript|x-javascript|x-sh|x-bat|x-msdownload|x-msdos-program|x-executable))/i;
+  /^(text\/(html|javascript)|application\/(javascript|x-javascript|x-sh|x-bat|x-msdownload|x-msdos-program|x-executable))(?:[;\s]|$)/i;
 
 /** Input to evaluateUpload. */
 export interface EvaluateUploadInput {

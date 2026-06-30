@@ -151,6 +151,20 @@ export function mediaEntryToFileValue(entry: MediaEntry): FileFieldValue {
 }
 
 /**
+ * Returns true when the URL already carries a `download` search parameter
+ * (with or without a value), using the URL constructor for precise key
+ * matching — immune to false positives from params like `?downloadtoken=...`.
+ */
+function hasDownloadParam(url: string): boolean {
+  try {
+    const base = url.startsWith('http://') || url.startsWith('https://') ? undefined : 'http://x';
+    return new URL(url, base).searchParams.has('download');
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Resolve the URL to use for a file anchor href.
  *
  * When value.download === true, appends the ?download query parameter so the
@@ -159,7 +173,7 @@ export function mediaEntryToFileValue(entry: MediaEntry): FileFieldValue {
  * Handles existing query strings defensively:
  *   - No existing query string → append ?download
  *   - Existing query string    → append &download
- *   - Already has ?download    → return url as-is (no duplication)
+ *   - Already carries a `download` key → return url as-is (no duplication)
  *
  * When download is false or undefined, returns value.url unchanged.
  *
@@ -168,26 +182,8 @@ export function mediaEntryToFileValue(entry: MediaEntry): FileFieldValue {
  */
 export function fileDownloadUrl(value: FileFieldValue): string {
   const { url, download } = value;
-
-  if (!download) {
-    return url;
-  }
-
-  // Already has the ?download param — do not duplicate
-  if (url.includes('?download') || url.endsWith('&download') || url.includes('&download&') || url.includes('&download=')) {
-    // Check specifically for standalone 'download' param
-    try {
-      const hasDownload = url.includes('?download') ||
-        url.includes('&download') && !url.includes('&download=');
-      if (hasDownload) {
-        return url;
-      }
-    } catch {
-      // Defensive — fall through to appending
-    }
-  }
-
-  // Append ?download or &download depending on existing query string
+  if (!download) return url;
+  if (hasDownloadParam(url)) return url;
   const separator = url.includes('?') ? '&' : '?';
   return `${url}${separator}download`;
 }

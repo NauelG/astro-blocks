@@ -256,3 +256,37 @@ test('fileDownloadUrl — empty url + download=true → appends ?download', () =
   const result = fileDownloadUrl(value);
   assert.ok(result.includes('download'), 'download param must be in result even for empty url');
 });
+
+// ─── fileDownloadUrl — false-positive / double-append regression cases ────────
+
+test('fileDownloadUrl — ?downloadtoken=abc with download=true → appends &download (no false positive)', () => {
+  // ?downloadtoken is NOT the same as ?download — must still append
+  const value = { url: '/uploads/doc.pdf?downloadtoken=abc', download: true };
+  const result = fileDownloadUrl(value);
+  // Must still contain the original downloadtoken param
+  assert.ok(result.includes('downloadtoken=abc'), 'original downloadtoken param must be preserved');
+  // Must have the bare download param appended
+  const params = new URL(result, 'http://x').searchParams;
+  assert.ok(params.has('download'), 'must add the bare download param');
+});
+
+test('fileDownloadUrl — ?x=1&download=something with download=true → no double download param', () => {
+  // A download param with a value already exists — must not append a second one
+  const value = { url: '/uploads/doc.pdf?x=1&download=something', download: true };
+  const result = fileDownloadUrl(value);
+  // Count occurrences of the key "download" in the search string
+  const params = new URL(result, 'http://x').searchParams;
+  const keys = [...params.keys()].filter(k => k === 'download');
+  assert.equal(keys.length, 1, 'download key must appear exactly once');
+});
+
+test('fileDownloadUrl — ?download already present with download=true → idempotent, no &download appended', () => {
+  // Bare ?download already exists — must be idempotent
+  const value = { url: '/uploads/doc.pdf?download', download: true };
+  const result = fileDownloadUrl(value);
+  const params = new URL(result, 'http://x').searchParams;
+  const keys = [...params.keys()].filter(k => k === 'download');
+  assert.equal(keys.length, 1, 'download must appear exactly once (idempotent)');
+  // No extra &download should have been appended
+  assert.ok(!result.includes('&download'), 'must not append a second &download');
+});
