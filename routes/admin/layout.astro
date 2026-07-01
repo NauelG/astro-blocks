@@ -8,7 +8,7 @@ import { Image } from 'astro:assets';
 import '@picocss/pico/css/pico.min.css';
 import 'animate.css';
 import '../../styles/cms-admin.css';
-import { LayoutDashboard, FileText, ArrowRightLeft, Menu, Settings, KeyRound, RefreshCw, User, LogOut, Users, ExternalLink, Languages, Globe, ImageIcon } from '@lucide/astro';
+import { LayoutDashboard, FileText, ArrowRightLeft, Menu, Settings, KeyRound, RefreshCw, User, LogOut, Users, ExternalLink, Languages, Globe, ImageIcon, ArchiveRestore } from '@lucide/astro';
 import ConfirmDialog from './components/ConfirmDialog.astro';
 import AlertDialog from './components/AlertDialog.astro';
 import pkg from '../../package.json' with { type: 'json' };
@@ -209,6 +209,10 @@ const t = createT(uiLocale);
                 <a href="/cms/cache" class={`cms-nav-link ${isActive('/cms/cache') ? 'cms-nav-link--active' : ''}`}>
                   <RefreshCw class="cms-nav-icon" size={16} />
                   <span>{t('nav.cache')}</span>
+                </a>
+                <a href="/cms/import-export" class={`cms-nav-link ${isActive('/cms/import-export') ? 'cms-nav-link--active' : ''}`} data-cms-owner-only>
+                  <ArchiveRestore class="cms-nav-icon" size={16} />
+                  <span>{t('nav.importExport')}</span>
                 </a>
               </div>
             </nav>
