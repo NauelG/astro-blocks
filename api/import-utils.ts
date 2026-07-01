@@ -9,9 +9,14 @@ export const DEFAULT_MAX_IMPORT_FILE_BYTES = 50 * 1024 * 1024;
 /** Default total uncompressed ceiling: 500 MB */
 export const DEFAULT_MAX_IMPORT_TOTAL_BYTES = 500 * 1024 * 1024;
 
+/** Default compressed body ceiling: 1 GB */
+export const DEFAULT_MAX_IMPORT_COMPRESSED_BYTES = 1024 * 1024 * 1024;
+
 export interface CeilingLimits {
   perFile: number;
   total: number;
+  /** Maximum allowed compressed request body size in bytes (before decompression). */
+  compressed: number;
 }
 
 /**
@@ -69,10 +74,11 @@ function parseCeilingEnvVar(raw: string | undefined, defaultValue: number): numb
 }
 
 /**
- * Reads the decompression ceiling env vars and returns their values.
+ * Reads the decompression and compressed-body ceiling env vars and returns their values.
  * Env var names are locked (do not rename):
- *   ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES  (default: 50 MB)
- *   ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES (default: 500 MB)
+ *   ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES        (default: 50 MB)
+ *   ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES       (default: 500 MB)
+ *   ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES  (default: 1 GB)
  */
 export function readCeilingEnvVars(): CeilingLimits {
   const perFile = parseCeilingEnvVar(
@@ -83,5 +89,9 @@ export function readCeilingEnvVars(): CeilingLimits {
     process.env['ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES'],
     DEFAULT_MAX_IMPORT_TOTAL_BYTES,
   );
-  return { perFile, total };
+  const compressed = parseCeilingEnvVar(
+    process.env['ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES'],
+    DEFAULT_MAX_IMPORT_COMPRESSED_BYTES,
+  );
+  return { perFile, total, compressed };
 }
