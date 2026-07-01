@@ -23,6 +23,11 @@ export const en = {
   'auth.loginError': 'Sign-in error.',
   'auth.sessionLabel': 'Panel session',
 
+  // ─── Bootstrap import (login screen — hasUsers===false only) ──────────────
+  'bootstrap.importTitle': 'Import a backup to seed this instance',
+  'bootstrap.importHint': 'Select a .zip backup file exported from another AstroBlocks instance.',
+  'bootstrap.importButton': 'Import backup',
+
   // ─── Navigation ───────────────────────────────────────────────────────────
   'nav.dashboard': 'Dashboard',
   'nav.content': 'Content',

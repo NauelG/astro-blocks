@@ -73,6 +73,37 @@ const t = createT(uiLocale);
                 <span id="cms-submit-label">{t('auth.enterLabel')}</span>
               </button>
             </form>
+            <!-- Bootstrap import section — only shown when hasUsers === false -->
+            <div id="cms-bootstrap-import" class="cms-hidden" aria-label={t('bootstrap.importTitle')}>
+              <hr class="cms-divider" aria-hidden="true" />
+              <p class="cms-muted cms-bootstrap-import-title">{t('bootstrap.importTitle')}</p>
+              <p class="cms-muted cms-bootstrap-import-hint">{t('bootstrap.importHint')}</p>
+              <label for="cms-bootstrap-file" class="cms-sr-only">{t('bootstrap.importButton')}</label>
+              <input
+                type="file"
+                id="cms-bootstrap-file"
+                accept=".zip"
+                class="cms-bootstrap-file-input"
+                aria-label={t('bootstrap.importButton')}
+              />
+              <button type="button" id="cms-bootstrap-btn" class="cms-btn cms-btn-secondary">
+                {t('bootstrap.importButton')}
+              </button>
+              <div
+                id="cms-bootstrap-status"
+                class="cms-muted cms-hidden"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              ></div>
+              <div
+                id="cms-bootstrap-error"
+                class="cms-muted cms-hidden"
+                role="alert"
+                aria-live="assertive"
+                aria-atomic="true"
+              ></div>
+            </div>
           </div>
           <p id="cms-login-error" class="cms-muted cms-hidden" role="alert"></p>
         </div>
@@ -244,6 +275,9 @@ const t = createT(uiLocale);
       _authLoginError: t('auth.loginError'),
       _authSessionLabel: t('auth.sessionLabel'),
       _authRoleOwner: t('users.roleOwner'),
+      _bootstrapImportTitle: t('bootstrap.importTitle'),
+      _bootstrapImportHint: t('bootstrap.importHint'),
+      _bootstrapImportButton: t('bootstrap.importButton'),
     }}>
       window.__cmsAuthI18n = {
         loading: _authLoading,
@@ -255,6 +289,9 @@ const t = createT(uiLocale);
         loginError: _authLoginError,
         sessionLabel: _authSessionLabel,
         roleOwner: _authRoleOwner,
+        bootstrapImportTitle: _bootstrapImportTitle,
+        bootstrapImportHint: _bootstrapImportHint,
+        bootstrapImportButton: _bootstrapImportButton,
       };
     </script>
     <script>
@@ -272,6 +309,11 @@ const t = createT(uiLocale);
         const passwordInput = document.getElementById('cms-password-input');
         const loginError = document.getElementById('cms-login-error');
         const profileEmail = document.getElementById('cms-profile-email');
+        const bootstrapSection = document.getElementById('cms-bootstrap-import');
+        const bootstrapFileInput = document.getElementById('cms-bootstrap-file') as HTMLInputElement | null;
+        const bootstrapBtn = document.getElementById('cms-bootstrap-btn');
+        const bootstrapStatus = document.getElementById('cms-bootstrap-status');
+        const bootstrapError = document.getElementById('cms-bootstrap-error');
         const _i18n = (window as unknown as { __cmsAuthI18n?: Record<string, string> }).__cmsAuthI18n || {};
         function setProfileEmail(user: { email?: string; role?: string } | null) {
           if (!profileEmail) return;
@@ -312,6 +354,8 @@ const t = createT(uiLocale);
           if (submitLabel) submitLabel.textContent = hasUsers ? (_i18n.enterLabel || 'Sign in') : (_i18n.createAccountLabel || 'Create account');
           if (authLoading) authLoading.classList.add('cms-hidden');
           if (authForms) authForms.classList.remove('cms-hidden');
+          // Show bootstrap import section only on a fresh instance (no users yet).
+          if (bootstrapSection) bootstrapSection.classList.toggle('cms-hidden', hasUsers);
         }
         try {
           const token = sessionStorage.getItem('cms-token');
@@ -369,6 +413,48 @@ const t = createT(uiLocale);
               if (data.user) sessionStorage.setItem('cms-user', JSON.stringify(data.user));
             } catch (_) {}
             location.reload();
+          });
+        }
+        // Bootstrap import handler — POSTs the selected .zip as a raw body to
+        // /cms/api/import/bootstrap. On success redirects to /cms. On error
+        // shows a message in the aria-live error region (text, not color-only).
+        if (bootstrapBtn && bootstrapFileInput) {
+          bootstrapBtn.addEventListener('click', async function() {
+            const file = bootstrapFileInput.files?.[0];
+            if (!file) return;
+            if (bootstrapStatus) {
+              bootstrapStatus.textContent = '';
+              bootstrapStatus.classList.add('cms-hidden');
+            }
+            if (bootstrapError) {
+              bootstrapError.textContent = '';
+              bootstrapError.classList.add('cms-hidden');
+            }
+            bootstrapBtn.setAttribute('disabled', 'true');
+            try {
+              const res = await fetch('/cms/api/import/bootstrap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/zip' },
+                body: file,
+              });
+              if (res.ok) {
+                location.href = '/cms';
+              } else {
+                const errData = await res.json().catch(() => ({}));
+                const msg = errData?.error || ('Import failed: HTTP ' + res.status);
+                if (bootstrapError) {
+                  bootstrapError.textContent = msg;
+                  bootstrapError.classList.remove('cms-hidden');
+                }
+              }
+            } catch (err) {
+              if (bootstrapError) {
+                bootstrapError.textContent = 'Network error. Please try again.';
+                bootstrapError.classList.remove('cms-hidden');
+              }
+            } finally {
+              bootstrapBtn.removeAttribute('disabled');
+            }
           });
         }
       })();

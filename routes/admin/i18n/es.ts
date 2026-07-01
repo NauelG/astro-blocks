@@ -23,6 +23,11 @@ export const es = {
   'auth.loginError': 'Error al iniciar sesión.',
   'auth.sessionLabel': 'Sesión del panel',
 
+  // ─── Bootstrap import (pantalla de inicio de sesión — solo cuando hasUsers===false) ─
+  'bootstrap.importTitle': 'Importar un respaldo para inicializar esta instancia',
+  'bootstrap.importHint': 'Selecciona un archivo .zip exportado desde otra instancia de AstroBlocks.',
+  'bootstrap.importButton': 'Importar respaldo',
+
   // ─── Navigation ───────────────────────────────────────────────────────────
   'nav.dashboard': 'Dashboard',
   'nav.content': 'Contenido',
