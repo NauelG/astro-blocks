@@ -15,7 +15,7 @@ Licensed under the Business Source License 1.1
 
 <p align="center">
   <a href="./CHANGELOG.md"><img src="https://img.shields.io/badge/version-3.3.0-blue" alt="version" /></a>
-  <img src="https://img.shields.io/badge/coverage-92.52%25-brightgreen" alt="coverage" />
+  <img src="https://img.shields.io/badge/coverage-92.35%25-brightgreen" alt="coverage" />
   <a href="https://www.npmjs.com/package/@astroblocks/astro-blocks"><img src="https://img.shields.io/npm/v/%40astroblocks%2Fastro-blocks?logo=npm" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/@astroblocks/astro-blocks"><img src="https://img.shields.io/npm/dm/%40astroblocks%2Fastro-blocks?logo=npm" alt="npm downloads" /></a>
   <img src="https://img.shields.io/badge/status-stable-brightgreen" alt="stable" />
