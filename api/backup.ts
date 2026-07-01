@@ -27,7 +27,6 @@ import type { ExportUnit, BackupManifest } from './manifest.js';
 import { unitValidators } from './import-validate.js';
 import type { CeilingLimits } from './import-utils.js';
 import { CeilingExceededError, selectBackupsToPrune } from './import-utils.js';
-import { getDataPath, getUploadsDir, resolveUploadPath } from '../utils/paths.js';
 import * as data from './data.js';
 
 /** Converts a string to Uint8Array (UTF-8). */
@@ -220,7 +219,7 @@ export async function buildExportStream(
  *
  * Security guarantees:
  * - Every data/* entry is validated against ALL_DATA_FILES allowlist BEFORE writing.
- * - Every uploads/* entry is resolved through resolveUploadPath BEFORE writing.
+ * - Every uploads/* entry path is validated (no `..`, absolute-path guard) BEFORE writing.
  * - Both per-file and total decompression ceilings are enforced during streaming
  *   (M-1): chunk bytes are counted BEFORE assembling the full decompressed file,
  *   aborting as soon as a ceiling is exceeded so zip-bomb payloads never fully
@@ -237,154 +236,141 @@ export async function extractToStaging(
 ): Promise<void> {
   await fs.mkdir(stagingDir, { recursive: true });
 
-  // Temporarily set project root so resolveUploadPath uses the right uploads dir.
-  const prevRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
-  process.env.ASTRO_BLOCKS_PROJECT_ROOT = projectRoot;
+  await new Promise<void>((resolve, reject) => {
+    const unzip = new Unzip();
+    unzip.register(UnzipInflate);
 
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const unzip = new Unzip();
-      unzip.register(UnzipInflate);
+    let totalUncompressedBytes = 0;
+    const pendingWrites: Promise<void>[] = [];
+    let aborted = false;
 
-      let totalUncompressedBytes = 0;
-      const pendingWrites: Promise<void>[] = [];
-      let aborted = false;
+    unzip.onfile = (file) => {
+      const entryName = file.name;
 
-      unzip.onfile = (file) => {
-        const entryName = file.name;
-
-        // ---------- path guard BEFORE writing ----------
-        let destPath: string;
-        if (entryName === 'manifest.json') {
-          destPath = path.join(stagingDir, 'manifest.json');
-        } else if (entryName.startsWith('data/')) {
-          // Must be in the 9-file allowlist; data/_backups/ and unknowns are rejected.
-          if (!ALL_DATA_FILES.has(entryName)) {
-            reject(
-              new Error(
-                `Entry "${entryName}" is not allowed — only the 9 known data files are accepted`,
-              ),
-            );
-            return;
-          }
-          destPath = path.join(stagingDir, entryName);
-        } else if (entryName.startsWith('uploads/')) {
-          // Use resolveUploadPath with a STAGING-scoped uploads dir.
-          // resolveUploadPath reads getUploadsDir() which uses projectRoot env var.
-          // We need to resolve relative to the STAGING dir's uploads sub-path for the
-          // guard, but write to the actual staging dir. We do the guard check and then
-          // build the real dest ourselves.
-          const stagingUploadsDir = path.join(stagingDir, 'uploads');
-          const relative = entryName.slice('uploads/'.length);
-          if (!relative || relative.includes('..')) {
-            reject(
-              new Error(`Path traversal attempt in uploads entry: "${entryName}"`),
-            );
-            return;
-          }
-          // Additional absolute path guard: ensure resolved path stays under stagingUploadsDir
-          const resolved = path.resolve(path.join(stagingUploadsDir, relative));
-          if (!resolved.startsWith(stagingUploadsDir + path.sep) && resolved !== stagingUploadsDir) {
-            reject(
-              new Error(`Path traversal attempt in uploads entry: "${entryName}"`),
-            );
-            return;
-          }
-          destPath = resolved;
-        } else {
-          // Unknown top-level key — reject
+      // ---------- path guard BEFORE writing ----------
+      let destPath: string;
+      if (entryName === 'manifest.json') {
+        destPath = path.join(stagingDir, 'manifest.json');
+      } else if (entryName.startsWith('data/')) {
+        // Must be in the 9-file allowlist; data/_backups/ and unknowns are rejected.
+        if (!ALL_DATA_FILES.has(entryName)) {
+          aborted = true;
           reject(
             new Error(
-              `Entry "${entryName}" is not allowed — only data/, uploads/, and manifest.json entries are accepted`,
+              `Entry "${entryName}" is not allowed — only the 9 known data files are accepted`,
+            ),
+          );
+          return;
+        }
+        destPath = path.join(stagingDir, entryName);
+      } else if (entryName.startsWith('uploads/')) {
+        // Path guard: resolve the relative portion and ensure it stays under stagingUploadsDir.
+        const stagingUploadsDir = path.join(stagingDir, 'uploads');
+        const relative = entryName.slice('uploads/'.length);
+        if (!relative || relative.includes('..')) {
+          aborted = true;
+          reject(
+            new Error(`Path traversal attempt in uploads entry: "${entryName}"`),
+          );
+          return;
+        }
+        // Additional absolute path guard: ensure resolved path stays under stagingUploadsDir
+        const resolved = path.resolve(path.join(stagingUploadsDir, relative));
+        if (!resolved.startsWith(stagingUploadsDir + path.sep) && resolved !== stagingUploadsDir) {
+          aborted = true;
+          reject(
+            new Error(`Path traversal attempt in uploads entry: "${entryName}"`),
+          );
+          return;
+        }
+        destPath = resolved;
+      } else {
+        // Unknown top-level key — reject
+        aborted = true;
+        reject(
+          new Error(
+            `Entry "${entryName}" is not allowed — only data/, uploads/, and manifest.json entries are accepted`,
+          ),
+        );
+        return;
+      }
+
+      // ---------- streaming decompression with chunk-level ceiling check (M-1) ----------
+      const chunks: Uint8Array[] = [];
+      let perFileBytes = 0;
+
+      file.ondata = (err, chunk, final) => {
+        if (aborted) return;
+        if (err) {
+          aborted = true;
+          reject(err);
+          return;
+        }
+
+        // Enforce ceilings at chunk level BEFORE accumulating
+        perFileBytes += chunk.length;
+        totalUncompressedBytes += chunk.length;
+
+        if (perFileBytes > ceilings.perFile) {
+          aborted = true;
+          reject(
+            new CeilingExceededError(
+              `per-file decompression ceiling exceeded for "${entryName}": ${perFileBytes} bytes > ${ceilings.perFile} bytes`,
+            ),
+          );
+          return;
+        }
+        if (totalUncompressedBytes > ceilings.total) {
+          aborted = true;
+          reject(
+            new CeilingExceededError(
+              `total decompression ceiling exceeded: ${totalUncompressedBytes} bytes > ${ceilings.total} bytes`,
             ),
           );
           return;
         }
 
-        // ---------- streaming decompression with chunk-level ceiling check (M-1) ----------
-        const chunks: Uint8Array[] = [];
-        let perFileBytes = 0;
+        chunks.push(chunk);
 
-        file.ondata = (err, chunk, final) => {
-          if (aborted) return;
-          if (err) {
-            aborted = true;
-            reject(err);
-            return;
+        if (final && !aborted) {
+          // Assemble buffer and write to staging
+          const totalLen = chunks.reduce((s, c) => s + c.length, 0);
+          const buf = Buffer.allocUnsafe(totalLen);
+          let offset = 0;
+          for (const c of chunks) {
+            buf.set(c, offset);
+            offset += c.length;
           }
 
-          // Enforce ceilings at chunk level BEFORE accumulating
-          perFileBytes += chunk.length;
-          totalUncompressedBytes += chunk.length;
-
-          if (perFileBytes > ceilings.perFile) {
-            aborted = true;
-            reject(
-              new CeilingExceededError(
-                `per-file decompression ceiling exceeded for "${entryName}": ${perFileBytes} bytes > ${ceilings.perFile} bytes`,
-              ),
-            );
-            return;
-          }
-          if (totalUncompressedBytes > ceilings.total) {
-            aborted = true;
-            reject(
-              new CeilingExceededError(
-                `total decompression ceiling exceeded: ${totalUncompressedBytes} bytes > ${ceilings.total} bytes`,
-              ),
-            );
-            return;
-          }
-
-          chunks.push(chunk);
-
-          if (final && !aborted) {
-            // Assemble buffer and write to staging
-            const totalLen = chunks.reduce((s, c) => s + c.length, 0);
-            const buf = Buffer.allocUnsafe(totalLen);
-            let offset = 0;
-            for (const c of chunks) {
-              buf.set(c, offset);
-              offset += c.length;
+          const writePromise = (async () => {
+            await fs.mkdir(path.dirname(destPath), { recursive: true });
+            await fs.writeFile(destPath, buf);
+          })().catch((writeErr: unknown) => {
+            if (!aborted) {
+              aborted = true;
+              reject(writeErr);
             }
-
-            const writePromise = (async () => {
-              await fs.mkdir(path.dirname(destPath), { recursive: true });
-              await fs.writeFile(destPath, buf);
-            })().catch((writeErr: unknown) => {
-              if (!aborted) {
-                aborted = true;
-                reject(writeErr);
-              }
-            });
-            pendingWrites.push(writePromise as Promise<void>);
-          }
-        };
-
-        file.start();
+          });
+          pendingWrites.push(writePromise as Promise<void>);
+        }
       };
 
-      // Push the entire zip body into fflate
-      try {
-        unzip.push(zipBody instanceof Buffer ? zipBody : Buffer.from(zipBody), true);
-      } catch (err) {
-        reject(err);
-        return;
-      }
+      file.start();
+    };
 
-      // Wait for all pending file writes
-      Promise.all(pendingWrites).then(() => {
-        if (!aborted) resolve();
-      }, reject);
-    });
-  } finally {
-    // Restore project root env var
-    if (prevRoot === undefined) {
-      delete process.env.ASTRO_BLOCKS_PROJECT_ROOT;
-    } else {
-      process.env.ASTRO_BLOCKS_PROJECT_ROOT = prevRoot;
+    // Push the entire zip body into fflate
+    try {
+      unzip.push(zipBody instanceof Buffer ? zipBody : Buffer.from(zipBody), true);
+    } catch (err) {
+      reject(err);
+      return;
     }
-  }
+
+    // Wait for all pending file writes
+    Promise.all(pendingWrites).then(() => {
+      if (!aborted) resolve();
+    }, reject);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -427,16 +413,19 @@ export async function validateStagedImport(
     };
   }
 
-  // 2. Collect staged files for checksum verification
+  // 2. Collect staged files by WALKING the staging directory (not by iterating
+  //    manifest.checksums keys). Walking the disk is the authoritative source of
+  //    what was actually extracted; it prevents a crafted manifest key like
+  //    "../../etc/passwd" from causing an arbitrary file read via path.join.
+  //    Only files physically inside stagingDir are included.
+  //    Key format mirrors the zip entry naming: "data/<file>.json", "uploads/..."
   const staged: Record<string, Buffer> = {};
-  for (const [entryPath] of Object.entries(manifest.checksums)) {
-    const absPath = path.join(stagingDir, entryPath);
-    try {
-      staged[entryPath] = await fs.readFile(absPath);
-    } catch {
-      // Missing staged file — checksum verification will catch it
-      staged[entryPath] = Buffer.alloc(0);
-    }
+  for await (const { relPath, absPath } of walkDir(stagingDir)) {
+    // Skip manifest.json itself — it is not in checksums
+    if (relPath === 'manifest.json') continue;
+    // Normalize to forward-slashes (Windows safety)
+    const normalizedRel = relPath.replace(/\\/g, '/');
+    staged[normalizedRel] = await fs.readFile(absPath);
   }
 
   const checksumResult = verifyChecksums(staged, manifest);
@@ -491,9 +480,10 @@ export async function createBackupSnapshot(
   projectRoot: string,
   selectedUnits: ExportUnit[],
 ): Promise<string> {
-  // Use raw ISO 8601 timestamp (e.g. "2026-06-30T18:19:06.976Z") for lexicographic sort.
-  // macOS and Linux support colons in directory names; this is a server-side only dir.
-  const iso = new Date().toISOString();
+  // Use ISO 8601 timestamp with colons replaced by hyphens for cross-platform
+  // directory name safety (Windows does not allow colons in file names).
+  // e.g. "2026-06-30T18-19-06.976Z" — still sorts lexicographically correctly.
+  const iso = new Date().toISOString().replace(/:/g, '-');
   const backupsDir = path.join(projectRoot, 'data', '_backups');
   const snapshotDir = path.join(backupsDir, iso);
   const snapshotDataDir = path.join(snapshotDir, 'data');
@@ -609,8 +599,13 @@ export async function applyImport(
             try {
               const raw = await fs.readFile(path.join(stagingDir, 'data', filename), 'utf-8');
               await saver(JSON.parse(raw));
-            } catch {
-              // File may not exist for partial configuration imports
+            } catch (err) {
+              // Swallow only ENOENT (file absent in a partial import).
+              // All other errors (ENOSPC, parse error, saver failure) propagate so
+              // the pipeline can attempt rollback rather than silently returning success.
+              if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+                throw err;
+              }
             }
           }
           break;
@@ -625,13 +620,26 @@ export async function applyImport(
           const raw = await fs.readFile(path.join(stagingDir, 'data', 'media.json'), 'utf-8');
           await data.saveMedia(JSON.parse(raw));
 
-          // Replace public/uploads tree: remove existing, copy from staging
+          // Replace public/uploads tree atomically:
+          // 1. Copy staging uploads into a temp sibling dir (minimises destructive window).
+          // 2. Rename temp dir into place (atomic on same filesystem).
+          // 3. Remove the old uploads dir.
           const liveUploadsDir = path.join(projectRoot, 'public', 'uploads');
           const stagingUploadsDir = path.join(stagingDir, 'uploads');
-          // Remove current uploads tree (best effort)
-          await fs.rm(liveUploadsDir, { recursive: true, force: true });
-          // Copy staged uploads to live
-          await copyDirRecursive(stagingUploadsDir, liveUploadsDir);
+          const tempUploadsDir = liveUploadsDir + '.import-tmp';
+          // Clean up any leftover temp dir from a previous failed attempt
+          await fs.rm(tempUploadsDir, { recursive: true, force: true });
+          // Step 1: copy staging → temp (no destructive action on live yet)
+          await copyDirRecursive(stagingUploadsDir, tempUploadsDir);
+          // Step 2: swap — rename live → old, then temp → live
+          const oldUploadsDir = liveUploadsDir + '.import-old';
+          await fs.rm(oldUploadsDir, { recursive: true, force: true });
+          // Move live aside (non-destructive move; fails gracefully if absent)
+          await fs.rename(liveUploadsDir, oldUploadsDir).catch(() => {/* live dir absent — ok */});
+          // Promote the prepared temp dir to live
+          await fs.rename(tempUploadsDir, liveUploadsDir);
+          // Step 3: remove the old dir
+          await fs.rm(oldUploadsDir, { recursive: true, force: true });
           // Reconcile media to prune registry/disk drift
           await data.reconcileMedia();
           break;
@@ -674,6 +682,15 @@ export async function applyImport(
 // C-5 helper: runImportPipeline — reusable core (factored for Slice D reuse)
 // ---------------------------------------------------------------------------
 
+/**
+ * Module-level import serialization lock.
+ * Only one runImportPipeline may execute at a time: concurrent imports race on
+ * applyImport's env mutation (process.env.ASTRO_BLOCKS_PROJECT_ROOT) and on
+ * live file replacement. Chain all pipeline calls through this promise so they
+ * run sequentially.
+ */
+let _importLock: Promise<void> = Promise.resolve();
+
 export interface ImportPipelineOptions {
   projectRoot: string;
   ceilings: CeilingLimits;
@@ -684,22 +701,39 @@ export interface ImportPipelineOptions {
 export interface ImportPipelineResult {
   ok: boolean;
   usersReplaced?: boolean;
-  errorCode?: 'empty' | 'corrupt' | 'ceiling' | 'validation';
+  errorCode?: 'empty' | 'corrupt' | 'ceiling' | 'validation' | 'apply-failed';
   reason?: string;
 }
 
 /**
  * Core import pipeline: extract → validate → backup → apply → cleanup staging.
  *
+ * Serialized: concurrent calls are queued and executed one at a time.
+ *
  * Factor for reuse: handleImport (C-5) and handleBootstrapImport (D-1) both call
- * this function. Neither implementation is in scope for Slice C; this is the
- * shared engine they both invoke.
+ * this function.
  *
  * @param body        - Raw zip bytes (Buffer/Uint8Array).
  * @param opts        - Options including projectRoot, ceilings, selectedUnits, context.
  * @returns           - ImportPipelineResult with ok flag and usersReplaced indicator.
  */
-export async function runImportPipeline(
+export function runImportPipeline(
+  body: Buffer | Uint8Array,
+  opts: ImportPipelineOptions,
+): Promise<ImportPipelineResult> {
+  // Acquire the lock: chain our work after whatever is currently running.
+  let resolveLock!: () => void;
+  const nextLock = new Promise<void>((res) => { resolveLock = res; });
+
+  const prevLock = _importLock;
+  _importLock = nextLock;
+
+  return prevLock.then(() => _runImportPipelineCore(body, opts)).finally(() => {
+    resolveLock();
+  });
+}
+
+async function _runImportPipelineCore(
   body: Buffer | Uint8Array,
   opts: ImportPipelineOptions,
 ): Promise<ImportPipelineResult> {
@@ -748,15 +782,70 @@ export async function runImportPipeline(
       return { ok: false, errorCode: 'validation', reason: validationResult.reason };
     }
 
-    // Step 3: Backup snapshot BEFORE any live writes
-    await createBackupSnapshot(projectRoot, selectedUnits);
+    // Step 3: Backup snapshot BEFORE any live writes (FIX 5b: used for rollback on apply failure)
+    const snapshotDir = await createBackupSnapshot(projectRoot, selectedUnits);
 
-    // Step 4: Atomic replace per unit
-    const applyResult = await applyImport(stagingDir, projectRoot, selectedUnits, context);
-
-    return { ok: true, usersReplaced: applyResult.usersReplaced };
+    // Step 4: Atomic replace per unit — with rollback on failure
+    try {
+      const applyResult = await applyImport(stagingDir, projectRoot, selectedUnits, context);
+      return { ok: true, usersReplaced: applyResult.usersReplaced };
+    } catch (applyErr) {
+      // Attempt rollback from the snapshot just created
+      try {
+        await _rollbackFromSnapshot(snapshotDir, projectRoot, selectedUnits);
+      } catch {
+        // Rollback failure is non-fatal here — return the original apply error
+      }
+      return {
+        ok: false,
+        errorCode: 'apply-failed',
+        reason: `apply failed: ${(applyErr as Error).message}`,
+      };
+    }
   } finally {
     // Always cleanup staging dir (success AND failure paths)
     await fs.rm(stagingDir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * Attempt to roll back live data by restoring from a snapshot directory.
+ * Best-effort: errors are surfaced to the caller (which logs and swallows them).
+ */
+async function _rollbackFromSnapshot(
+  snapshotDir: string,
+  projectRoot: string,
+  selectedUnits: ExportUnit[],
+): Promise<void> {
+  const snapshotDataDir = path.join(snapshotDir, 'data');
+  const liveDataDir = path.join(projectRoot, 'data');
+
+  // Restore data files
+  let snapshotFiles: string[];
+  try {
+    snapshotFiles = await fs.readdir(snapshotDataDir);
+  } catch {
+    return;
+  }
+  for (const filename of snapshotFiles) {
+    const src = path.join(snapshotDataDir, filename);
+    const dest = path.join(liveDataDir, filename);
+    try {
+      await fs.copyFile(src, dest);
+    } catch {
+      // Best effort
+    }
+  }
+
+  // Restore uploads if media unit was selected
+  if (selectedUnits.includes('media')) {
+    const snapshotUploadsDir = path.join(snapshotDir, 'uploads');
+    const liveUploadsDir = path.join(projectRoot, 'public', 'uploads');
+    try {
+      await fs.rm(liveUploadsDir, { recursive: true, force: true });
+      await copyDirRecursive(snapshotUploadsDir, liveUploadsDir);
+    } catch {
+      // Best effort
+    }
   }
 }
