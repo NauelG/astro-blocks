@@ -116,9 +116,9 @@ test('C-1: extractToStaging extracts valid zip to staging dir', async () => {
   });
 });
 
-test('C-1: extractToStaging rejects path traversal entry — staging remains empty of traversal', async () => {
+// FIX 8: Strengthen traversal test to use assert.rejects
+test('C-1: extractToStaging rejects path traversal entry (uploads/../../etc/passwd)', async () => {
   await withTempProject(async (tempRoot) => {
-    // Build a zip with a path-traversal uploads entry
     const traversalEntry = {
       name: 'uploads/../../etc/passwd',
       bytes: Buffer.from('pwned'),
@@ -126,20 +126,10 @@ test('C-1: extractToStaging rejects path traversal entry — staging remains emp
     const zipBody = await buildMinimalZip([traversalEntry]);
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-traversal-'));
     try {
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024 };
-      // Should throw or skip the bad entry
-      try {
-        await extractToStaging(zipBody, stagingDir, ceilings, tempRoot);
-      } catch {
-        // rejection is also acceptable
-      }
-      // The traversal file must NOT be written anywhere under stagingDir or /etc
-      const items = await fs.readdir(stagingDir).catch(() => []);
-      // If uploads/ directory was created, it must not contain anything pointing outside
-      // Primary assertion: no file named 'passwd' under staging (the traversal target)
-      assert.ok(
-        !items.includes('etc'),
-        'staging dir must not have an "etc" directory from traversal',
+      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
+      await assert.rejects(
+        async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
+        /traversal|not allowed/i,
       );
     } finally {
       await fs.rm(stagingDir, { recursive: true, force: true });
@@ -198,6 +188,48 @@ test('C-1: extractToStaging enforces per-file ceiling mid-stream (M-1)', async (
         async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
         /ceiling|exceeded|too large/i,
       );
+    } finally {
+      await fs.rm(stagingDir, { recursive: true, force: true });
+    }
+  });
+});
+
+// FIX 3a: extractToStaging must NOT mutate process.env.ASTRO_BLOCKS_PROJECT_ROOT
+test('FIX-3a: extractToStaging does NOT modify process.env.ASTRO_BLOCKS_PROJECT_ROOT', async () => {
+  await withTempProject(async (tempRoot) => {
+    const zipBody = await buildValidZipBody(tempRoot);
+    const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-envcheck-'));
+    try {
+      const before = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
+      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024 };
+      await extractToStaging(zipBody, stagingDir, ceilings, tempRoot);
+      const after = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
+      assert.equal(after, before, 'extractToStaging must not change ASTRO_BLOCKS_PROJECT_ROOT');
+    } finally {
+      await fs.rm(stagingDir, { recursive: true, force: true });
+    }
+  });
+});
+
+// FIX 6: invalid FIRST entry sets aborted=true so valid SECOND entry is not written
+test('FIX-6: extractToStaging with invalid first entry aborts — valid second entry is not written', async () => {
+  await withTempProject(async (tempRoot) => {
+    // First entry: invalid (unknown top-level key). Second entry: valid data file.
+    const zipBody = await buildMinimalZip([
+      { name: 'unknown-top-level.txt', bytes: Buffer.from('bad') },
+      { name: 'data/pages.json', bytes: Buffer.from('{"pages":[]}') },
+    ]);
+    const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-abort-'));
+    try {
+      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024 };
+      await assert.rejects(
+        async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
+        /not allowed/i,
+      );
+      // The valid second entry (data/pages.json) must NOT have been written
+      const pagesPath = path.join(stagingDir, 'data', 'pages.json');
+      const exists = await fs.stat(pagesPath).then(() => true).catch(() => false);
+      assert.equal(exists, false, 'data/pages.json must NOT be written after first-entry rejection (aborted=true)');
     } finally {
       await fs.rm(stagingDir, { recursive: true, force: true });
     }
