@@ -240,6 +240,16 @@
       "sinceVersion": "3.2.0",
       "updatedIn": "3.2.0",
       "docsPath": "docs/media.md"
+    },
+    {
+      "id": "import-export",
+      "title": "Site import/export (backup and restore)",
+      "summary": "Owner-only export (GET /cms/api/export) streams a zip of selected content units with a manifest.json of SHA-256 checksums. Owner-only import (POST /cms/api/import) validates and REPLACE-ALLs selected units with an automatic pre-replace backup snapshot (retention 5). Bootstrap import (POST /cms/api/import/bootstrap) seeds a fresh instance when no users exist. Admin page at /cms/import-export with unit selection, manifest preview, destructive confirm, and session close on Users import. Five selectable units: Users, Pages, Media, Global Blocks, Configuration. Uses fflate for zip handling.",
+      "category": "admin",
+      "status": "alpha",
+      "sinceVersion": "3.3.0",
+      "updatedIn": "3.3.0",
+      "docsPath": "#cms-routes"
     }
   ]
 }

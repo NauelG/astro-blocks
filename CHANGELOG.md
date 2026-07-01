@@ -9,6 +9,37 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.3.0] - 2026-07-01
+
+### Title
+
+Import/Export — full site backup and restore
+
+### Added
+
+- **Owner-only export** (`GET /cms/api/export?units=…`): streams a `.zip` archive of the selected content units with a `manifest.json` containing the schema version and per-file SHA-256 checksums.
+- **Owner-only import** (`POST /cms/api/import`): validates the zip structure against the manifest, then performs a REPLACE-ALL of the selected units. A pre-replace backup snapshot is created automatically; the previous 5 snapshots are retained under `data/_backups/<ISO>/`.
+- **Bootstrap import** (`POST /cms/api/import/bootstrap`): unauthenticated endpoint — available ONLY when no user accounts exist — to seed a fresh instance from a zip file directly from the login screen.
+- **Admin page `/cms/import-export`** (owner-only): unit selection checkboxes (export direction), manifest preview before import, destructive-action confirmation dialog, and automatic session close when the Users unit is imported.
+- **Five selectable content units**: Users (including hashed passwords) · Pages · Media (registry + `public/uploads/` binaries) · Global Blocks · Configuration (site settings / configs / menus / redirects / languages).
+- **`fflate` dependency**: used for zip compression and decompression during export and import.
+
+### Security
+
+- **Zip-bomb protection**: incoming compressed bodies are rejected when they exceed `ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES` (default 1 GB). Decompressed files are rejected individually above `ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES` (default 50 MB) and collectively above `ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES` (default 500 MB).
+- **Path traversal guard**: all entries in an imported zip are validated to resolve within the expected target directory; entries with `..` components or absolute paths are rejected.
+- **Manifest validation**: the import pipeline verifies SHA-256 checksums from `manifest.json` before writing any data.
+- **Export and import are owner-only**: both endpoints require a valid JWT with the `owner` role. Bootstrap import is gated behind a hard server-side check that the user store is empty.
+
+### Notes
+
+- **New environment variables** (all optional, with defaults):
+  - `ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES` (default `52428800` — 50 MB): maximum decompressed size per individual file during import.
+  - `ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES` (default `524288000` — 500 MB): maximum total decompressed size of all files during import.
+  - `ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES` (default `1073741824` — 1 GB): maximum compressed body size accepted by the import endpoints.
+- **Backup retention**: pre-import snapshots are stored under `data/_backups/<ISO-timestamp>/` and auto-pruned to keep the 5 most recent.
+- **Known v1 limitations** (tracked issues): session close on Users-unit import is current-browser-only because sessions are stateless JWTs (issue filed); the bootstrap endpoint has a residual TOCTOU window between the empty-user-store check and the write (issue #25); export buffers source files in memory before streaming the zip output (issue #28).
+
 ## [3.2.2] - 2026-06-30
 
 ### Title

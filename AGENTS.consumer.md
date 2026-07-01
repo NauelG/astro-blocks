@@ -441,9 +441,77 @@ These routes are **INJECTED by the plugin via `injectRoute`**. Do NOT create the
 | `/cms/languages` | Content language management |
 | `/cms/global-blocks` | Global block management — declared slugs with single-block form per slug |
 | `/cms/users` | Admin user management |
+| `/cms/import-export` | Import/export — backup and restore selected content units (owner only) |
 | `/cms/api/[...path]` | Internal API used by the admin UI — do not call directly |
 
 **These routes cannot be customized or overridden by consumers.** They are entirely managed by the plugin. If you need to customize the admin UI, file an issue — do not try to shadow these routes.
+
+---
+
+## Import / Export (Backup and Restore)
+
+Available since v3.3.0. All import and export endpoints require the `owner` role (JWT with owner claim). The bootstrap endpoint is the only exception and is gated behind a hard server-side check that no users exist yet.
+
+### Admin page
+
+Navigate to `/cms/import-export` in the admin panel. The page allows you to:
+
+- Select one or more content units to export (downloads a `.zip`).
+- Upload a previously exported `.zip` to import and replace selected units.
+- Preview the `manifest.json` inside an uploaded archive before committing.
+- Confirm the destructive replace-all action explicitly.
+
+When the **Users** unit is imported the current session is invalidated and the browser is redirected to the login screen (current-browser-only; other active sessions remain valid because sessions are stateless JWTs).
+
+### Content units
+
+| Unit | Data replaced | Notes |
+|------|--------------|-------|
+| Users | `data/users.json` | Includes hashed passwords. Importing replaces all accounts. |
+| Pages | `data/pages.json` | All CMS-managed pages, all locales. |
+| Media | `data/media.json` + `public/uploads/` | Registry file and all uploaded binaries. |
+| Global Blocks | `data/global-blocks.json` | All declared global block props. |
+| Configuration | `data/configs.json`, `data/menus.json`, `data/redirects.json`, `data/languages.json`, site settings | All configuration data. |
+
+### Export endpoint
+
+```
+GET /cms/api/export?units=users,pages,media,global-blocks,configuration
+```
+
+- **Auth**: `Authorization: Bearer <owner-token>` required.
+- **Response**: `application/zip` stream containing the selected unit files and a `manifest.json` with the schema version and per-file SHA-256 checksums.
+- **Query param `units`**: comma-separated list of unit keys (`users`, `pages`, `media`, `global-blocks`, `configuration`). Omitting `units` exports all five units.
+
+### Import endpoint
+
+```
+POST /cms/api/import
+Content-Type: multipart/form-data
+```
+
+- **Auth**: `Authorization: Bearer <owner-token>` required.
+- **Body**: multipart field `file` containing the `.zip` archive.
+- **Behaviour**: validates the zip structure and SHA-256 checksums from `manifest.json`, creates a pre-replace backup snapshot in `data/_backups/<ISO-timestamp>/` (the 5 most recent snapshots are retained), then REPLACE-ALLs the selected units.
+- **Response codes**:
+
+| Code | Condition |
+|------|-----------|
+| `200` | Success — returns `{ ok: true, units: string[] }` |
+| `400` | Invalid zip, manifest mismatch, checksum failure, or oversized payload |
+| `403` | Authenticated user is not the owner |
+
+### Bootstrap import endpoint
+
+```
+POST /cms/api/import/bootstrap
+Content-Type: multipart/form-data
+```
+
+- **Auth**: none — unauthenticated. Available **only when `data/users.json` contains no user accounts**.
+- **Body**: multipart field `file` containing the `.zip` archive.
+- **Behaviour**: identical to the authenticated import but skips JWT verification. Intended for seeding a fresh instance from the login screen before any admin account exists.
+- **Security**: the server performs a hard check that the user store is empty on every request. If any users exist, the endpoint returns `403` regardless of auth state.
 
 ---
 
@@ -750,6 +818,9 @@ Uploaded files are stored in `public/uploads/` in your project root. This direct
 |----------|---------|-------------|
 | `ASTRO_BLOCKS_PROJECT_ROOT` | `process.cwd()` | Override the project root used by the plugin to read/write `data/` files. Rarely needed; used internally by tests. |
 | `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` | `5242880` (5 MB) | Maximum accepted media upload size, in bytes. Uploads larger than this are rejected. |
+| `ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES` | `52428800` (50 MB) | Maximum decompressed size per individual file during import. Files exceeding this limit cause the import to be rejected. |
+| `ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES` | `524288000` (500 MB) | Maximum total decompressed size of all files in an imported zip. Exceeded total causes the import to be rejected. |
+| `ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES` | `1073741824` (1 GB) | Maximum compressed body size accepted by the import endpoints. Requests exceeding this are rejected before decompression. |
 
 ---
 
