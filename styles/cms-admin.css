@@ -955,6 +955,28 @@ Licensed under the Business Source License 1.1
   align-items: center;
 }
 
+/* Styled file picker row — button + filename display (replaces bare native input).
+   Matches the media component picker (.cms-media-picker-upload-row / -filename).
+   position:relative contains the visually-hidden absolute file input so it can
+   never extend the page (horizontal scrollbar). */
+.cms-file-picker-row {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.cms-file-picker-name {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--cms-text-muted, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 14rem;
+}
+
 .cms-form-actions {
   margin-top: var(--cms-space-2);
   padding-top: var(--cms-space-2);

@@ -8,7 +8,7 @@ import { Image } from 'astro:assets';
 import '@picocss/pico/css/pico.min.css';
 import 'animate.css';
 import '../../styles/cms-admin.css';
-import { LayoutDashboard, FileText, ArrowRightLeft, Menu, Settings, KeyRound, RefreshCw, User, LogOut, Users, ExternalLink, Languages, Globe, ImageIcon } from '@lucide/astro';
+import { LayoutDashboard, FileText, ArrowRightLeft, Menu, Settings, KeyRound, RefreshCw, User, LogOut, Users, ExternalLink, Languages, Globe, ImageIcon, ArchiveRestore } from '@lucide/astro';
 import ConfirmDialog from './components/ConfirmDialog.astro';
 import AlertDialog from './components/AlertDialog.astro';
 import pkg from '../../package.json' with { type: 'json' };
@@ -73,6 +73,51 @@ const t = createT(uiLocale);
                 <span id="cms-submit-label">{t('auth.enterLabel')}</span>
               </button>
             </form>
+            <!-- Bootstrap import section — only shown when hasUsers === false -->
+            <div id="cms-bootstrap-import" class="cms-hidden">
+              <hr class="cms-divider" aria-hidden="true" />
+              <p class="cms-muted cms-bootstrap-import-title">{t('bootstrap.importTitle')}</p>
+              <p class="cms-muted cms-bootstrap-import-hint">{t('bootstrap.importHint')}</p>
+              <div class="cms-file-picker-row">
+                <label for="cms-bootstrap-file" class="cms-visually-hidden">{t('bootstrap.importButton')}</label>
+                <input
+                  type="file"
+                  id="cms-bootstrap-file"
+                  accept=".zip"
+                  class="cms-visually-hidden"
+                />
+                <button
+                  type="button"
+                  id="cms-bootstrap-file-btn"
+                  class="cms-btn cms-btn-secondary"
+                  aria-controls="cms-bootstrap-file"
+                >
+                  {t('bootstrap.selectFile')}
+                </button>
+                <span
+                  id="cms-bootstrap-file-name"
+                  class="cms-file-picker-name"
+                  aria-live="polite"
+                >
+                  {t('bootstrap.noFileSelected')}
+                </span>
+              </div>
+              <button type="button" id="cms-bootstrap-btn" class="cms-btn cms-btn-secondary">
+                {t('bootstrap.importButton')}
+              </button>
+              <div
+                id="cms-bootstrap-status"
+                class="cms-muted cms-hidden"
+                role="status"
+                aria-atomic="true"
+              ></div>
+              <div
+                id="cms-bootstrap-error"
+                class="cms-muted cms-hidden"
+                role="alert"
+                aria-atomic="true"
+              ></div>
+            </div>
           </div>
           <p id="cms-login-error" class="cms-muted cms-hidden" role="alert"></p>
         </div>
@@ -182,6 +227,10 @@ const t = createT(uiLocale);
                   <RefreshCw class="cms-nav-icon" size={16} />
                   <span>{t('nav.cache')}</span>
                 </a>
+                <a href="/cms/import-export" class={`cms-nav-link ${isActive('/cms/import-export') ? 'cms-nav-link--active' : ''}`} data-cms-owner-only>
+                  <ArchiveRestore class="cms-nav-icon" size={16} />
+                  <span>{t('nav.importExport')}</span>
+                </a>
               </div>
             </nav>
           </aside>
@@ -244,6 +293,14 @@ const t = createT(uiLocale);
       _authLoginError: t('auth.loginError'),
       _authSessionLabel: t('auth.sessionLabel'),
       _authRoleOwner: t('users.roleOwner'),
+      _bootstrapImportTitle: t('bootstrap.importTitle'),
+      _bootstrapImportHint: t('bootstrap.importHint'),
+      _bootstrapImportButton: t('bootstrap.importButton'),
+      _bootstrapImportingStatus: t('bootstrap.importingStatus'),
+      _bootstrapImportError: t('bootstrap.importError'),
+      _bootstrapNetworkError: t('bootstrap.networkError'),
+      _bootstrapSelectFile: t('bootstrap.selectFile'),
+      _bootstrapNoFileSelected: t('bootstrap.noFileSelected'),
     }}>
       window.__cmsAuthI18n = {
         loading: _authLoading,
@@ -255,6 +312,14 @@ const t = createT(uiLocale);
         loginError: _authLoginError,
         sessionLabel: _authSessionLabel,
         roleOwner: _authRoleOwner,
+        bootstrapImportTitle: _bootstrapImportTitle,
+        bootstrapImportHint: _bootstrapImportHint,
+        bootstrapImportButton: _bootstrapImportButton,
+        bootstrapImportingStatus: _bootstrapImportingStatus,
+        bootstrapImportError: _bootstrapImportError,
+        bootstrapNetworkError: _bootstrapNetworkError,
+        bootstrapSelectFile: _bootstrapSelectFile,
+        bootstrapNoFileSelected: _bootstrapNoFileSelected,
       };
     </script>
     <script>
@@ -272,6 +337,13 @@ const t = createT(uiLocale);
         const passwordInput = document.getElementById('cms-password-input');
         const loginError = document.getElementById('cms-login-error');
         const profileEmail = document.getElementById('cms-profile-email');
+        const bootstrapSection = document.getElementById('cms-bootstrap-import');
+        const bootstrapFileInput = document.getElementById('cms-bootstrap-file') as HTMLInputElement | null;
+        const bootstrapFileSelectBtn = document.getElementById('cms-bootstrap-file-btn');
+        const bootstrapFileNameDisplay = document.getElementById('cms-bootstrap-file-name');
+        const bootstrapBtn = document.getElementById('cms-bootstrap-btn');
+        const bootstrapStatus = document.getElementById('cms-bootstrap-status');
+        const bootstrapError = document.getElementById('cms-bootstrap-error');
         const _i18n = (window as unknown as { __cmsAuthI18n?: Record<string, string> }).__cmsAuthI18n || {};
         function setProfileEmail(user: { email?: string; role?: string } | null) {
           if (!profileEmail) return;
@@ -312,6 +384,8 @@ const t = createT(uiLocale);
           if (submitLabel) submitLabel.textContent = hasUsers ? (_i18n.enterLabel || 'Sign in') : (_i18n.createAccountLabel || 'Create account');
           if (authLoading) authLoading.classList.add('cms-hidden');
           if (authForms) authForms.classList.remove('cms-hidden');
+          // Show bootstrap import section only on a fresh instance (no users yet).
+          if (bootstrapSection) bootstrapSection.classList.toggle('cms-hidden', hasUsers);
         }
         try {
           const token = sessionStorage.getItem('cms-token');
@@ -369,6 +443,73 @@ const t = createT(uiLocale);
               if (data.user) sessionStorage.setItem('cms-user', JSON.stringify(data.user));
             } catch (_) {}
             location.reload();
+          });
+        }
+        // Styled file select button — opens the hidden native file input.
+        if (bootstrapFileSelectBtn && bootstrapFileInput) {
+          bootstrapFileSelectBtn.addEventListener('click', function() {
+            bootstrapFileInput.click();
+          });
+        }
+        // Update filename display when a file is selected.
+        if (bootstrapFileInput && bootstrapFileNameDisplay) {
+          bootstrapFileInput.addEventListener('change', function() {
+            const file = bootstrapFileInput.files?.[0];
+            bootstrapFileNameDisplay.textContent = file ? file.name : (_i18n.bootstrapNoFileSelected || '');
+          });
+        }
+        // Bootstrap import handler — POSTs the selected .zip as a raw body to
+        // /cms/api/import/bootstrap. On success redirects to /cms. On error
+        // shows a message in the aria-live error region (text, not color-only).
+        // No explicit confirm dialog is needed: the instance is in zero-user
+        // state (nothing to overwrite) and mismatched zips fail with 422.
+        if (bootstrapBtn && bootstrapFileInput) {
+          bootstrapBtn.addEventListener('click', async function() {
+            const file = bootstrapFileInput.files?.[0];
+            if (!file) return;
+            if (bootstrapError) {
+              bootstrapError.textContent = '';
+              bootstrapError.classList.add('cms-hidden');
+            }
+            // F1: populate aria-live status region before fetch so screen readers
+            // announce the in-progress state.
+            if (bootstrapStatus) {
+              bootstrapStatus.textContent = _i18n.bootstrapImportingStatus || 'Importing backup…';
+              bootstrapStatus.classList.remove('cms-hidden');
+            }
+            bootstrapBtn.setAttribute('disabled', 'true');
+            try {
+              const res = await fetch('/cms/api/import/bootstrap', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/zip' },
+                body: file,
+              });
+              if (res.ok) {
+                location.href = '/cms';
+              } else {
+                const errData = await res.json().catch(() => ({}));
+                // F2: use i18n key for HTTP error; fall back to raw error text or generic.
+                const importErrorTpl = _i18n.bootstrapImportError || 'Import failed: HTTP {status}';
+                const msg = errData?.error || importErrorTpl.replace('{status}', String(res.status));
+                if (bootstrapError) {
+                  bootstrapError.textContent = msg;
+                  bootstrapError.classList.remove('cms-hidden');
+                }
+              }
+            } catch (err) {
+              if (bootstrapError) {
+                // F2: use i18n key for network error.
+                bootstrapError.textContent = _i18n.bootstrapNetworkError || 'Network error. Please try again.';
+                bootstrapError.classList.remove('cms-hidden');
+              }
+            } finally {
+              bootstrapBtn.removeAttribute('disabled');
+              // F1: clear and hide the status region after request completes.
+              if (bootstrapStatus) {
+                bootstrapStatus.textContent = '';
+                bootstrapStatus.classList.add('cms-hidden');
+              }
+            }
           });
         }
       })();

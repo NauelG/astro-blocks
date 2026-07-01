@@ -48,6 +48,8 @@ export async function GET({ request }: APIContext): Promise<Response> {
   const authResult = await ensureAuth(request);
   if ('status' in authResult) return new Response(JSON.stringify(authResult.body), { status: 401 });
 
+  if (seg[0] === 'export' && seg.length === 1) return handlers.handleExport(request, authResult.user);
+
   if (seg[0] === 'pages' && seg.length === 1) return handlers.handleGetPages(request);
   if (seg[0] === 'site' && seg.length === 1) return handlers.handleGetSite();
   if (seg[0] === 'menus' && seg.length === 1) return handlers.handleGetMenus(request);
@@ -75,6 +77,12 @@ export async function POST({ request, cache }: APIContext): Promise<Response> {
 
   if (seg[0] === 'auth' && seg[1] === 'login' && seg.length === 2) return handlers.handleLogin(request);
 
+  // Bootstrap import — public, unauthenticated. MUST be before ensureAuth (ADR-6).
+  // Zero-user gate inside the handler is the sole protection.
+  if (seg[0] === 'import' && seg[1] === 'bootstrap' && seg.length === 2) {
+    return handlers.handleBootstrapImport(request, { cache });
+  }
+
   const authResult = await ensureAuth(request);
   if ('status' in authResult) return new Response(JSON.stringify(authResult.body), { status: 401 });
 
@@ -85,6 +93,7 @@ export async function POST({ request, cache }: APIContext): Promise<Response> {
   if (seg[0] === 'upload' && seg.length === 1) return handlers.handleUpload(request);
   if (seg[0] === 'media' && seg[2] === 'replace' && seg.length === 3) return handlers.handleReplaceUpload(request, seg[1]);
   if (seg[0] === 'cache' && seg[1] === 'invalidate' && seg.length === 2) return handlers.handleInvalidateCache(request, { cache });
+  if (seg[0] === 'import' && seg.length === 1) return handlers.handleImport(request, authResult.user, { cache });
   if (seg[0] === 'users' && seg.length === 1) return handlers.handlePostUsers(request, authResult.user);
   if (seg[0] === 'languages' && seg.length === 1) {
     const forbidden = handlers.requireOwner(authResult.user);

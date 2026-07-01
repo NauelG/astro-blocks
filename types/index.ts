@@ -305,6 +305,27 @@ export interface MediaData {
   uploads: MediaEntry[];
 }
 
+// --- Import/Export types ---
+
+export type ExportUnit = 'pages' | 'media' | 'users' | 'configuration' | 'global-blocks';
+
+export interface BackupManifest {
+  /** DATA_SCHEMA_VERSION at export time. Strict equality checked on import. */
+  schemaVersion: number;
+  /** Package version from package.json — informational only, does not gate import. */
+  astroBlocksVersion: string;
+  /** ISO 8601 timestamp of when the archive was created. */
+  exportedAt: string;
+  /** The export units included in this archive. */
+  units: ExportUnit[];
+  /** Entry count per unit. */
+  counts: Partial<Record<ExportUnit, number>>;
+  /** Zip-entry path → sha256 hex digest for every data/* and uploads/* entry. */
+  checksums: Record<string, string>;
+}
+
+// --- End Import/Export types ---
+
 export interface AstroBlocksOptions {
   layoutPath?: string;
   blocks: BlockSchema[];
