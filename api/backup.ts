@@ -702,12 +702,26 @@ export interface ImportPipelineOptions {
   ceilings: CeilingLimits;
   selectedUnits?: ExportUnit[];
   context: { cache?: unknown };
+  /**
+   * When true the pipeline re-checks users.length === 0 INSIDE the lock
+   * (after lock acquisition, before extraction) to close the TOCTOU window
+   * between the outer gate in handleBootstrapImport and the pipeline start.
+   *
+   * Residual narrow window: if handleLogin's saveUsers completes DURING
+   * extractToStaging (i.e. after this re-check but before applyImport),
+   * the pipeline will still apply the import on a no-longer-empty instance.
+   * Fully eliminating this residual would require wrapping handleLogin's
+   * saveUsers in the same _importLock, which is a larger cross-cutting
+   * refactor deferred to a future hardening pass. The in-lock re-check
+   * covers the concurrent-bootstrap-POST race fully.
+   */
+  bootstrapMode?: boolean;
 }
 
 export interface ImportPipelineResult {
   ok: boolean;
   usersReplaced?: boolean;
-  errorCode?: 'empty' | 'corrupt' | 'ceiling' | 'validation' | 'apply-failed';
+  errorCode?: 'empty' | 'corrupt' | 'ceiling' | 'validation' | 'apply-failed' | 'bootstrap-users-exist';
   reason?: string;
 }
 
@@ -744,6 +758,18 @@ async function _runImportPipelineCore(
   opts: ImportPipelineOptions,
 ): Promise<ImportPipelineResult> {
   const { projectRoot, ceilings, context } = opts;
+
+  // B1 — in-lock bootstrap re-check (TOCTOU hardening).
+  // This runs AFTER the lock is acquired, closing the race window between
+  // the outer gate in handleBootstrapImport and this pipeline execution.
+  // Two concurrent bootstrap POSTs cannot both pass: the second one will
+  // observe users written by the first inside this serialized check.
+  if (opts.bootstrapMode) {
+    const currentUsers = await data.loadUsers();
+    if (currentUsers.users.length !== 0) {
+      return { ok: false, errorCode: 'bootstrap-users-exist', reason: 'instance already has users (in-lock check)' };
+    }
+  }
 
   if (!body || body.length === 0) {
     return { ok: false, errorCode: 'empty', reason: 'request body is empty' };

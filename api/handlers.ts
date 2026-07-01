@@ -2089,7 +2089,9 @@ export async function handleImport(
       context,
     });
   } catch (err) {
-    return jsonError(`Import failed unexpectedly: ${(err as Error).message}`, 500);
+    // Log the real error server-side; never expose raw message or paths to callers.
+    console.error('[handleImport] unexpected error:', err);
+    return jsonError('Import failed.', 500);
   }
 
   if (!result.ok) {
@@ -2104,7 +2106,7 @@ export async function handleImport(
       case 'apply-failed':
         return jsonError(result.reason ?? 'Import apply failed (rollback attempted)', 500);
       default:
-        return jsonError(result.reason ?? 'Import failed', 500);
+        return jsonError('Import failed.', 500);
     }
   }
 
@@ -2182,15 +2184,20 @@ export async function handleBootstrapImport(
 
   // Run the shared import pipeline — same validation, ceilings, path guards,
   // backup snapshot, and atomic apply as the authenticated import (C-5/ADR-5).
+  // bootstrapMode:true enables the in-lock re-check inside _runImportPipelineCore
+  // to close the TOCTOU race between the outer gate above and pipeline start.
   let result: Awaited<ReturnType<typeof runImportPipeline>>;
   try {
     result = await runImportPipeline(bodyBuffer, {
       projectRoot,
       ceilings,
       context,
+      bootstrapMode: true,
     });
   } catch (err) {
-    return jsonError(`Bootstrap import failed unexpectedly: ${(err as Error).message}`, 500);
+    // Log the real error server-side; never expose raw message to anonymous callers.
+    console.error('[handleBootstrapImport] unexpected error:', err);
+    return jsonError('Bootstrap import failed.', 500);
   }
 
   if (!result.ok) {
@@ -2204,8 +2211,10 @@ export async function handleBootstrapImport(
         return jsonError(result.reason ?? 'Validation failed', 422);
       case 'apply-failed':
         return jsonError(result.reason ?? 'Bootstrap import apply failed (rollback attempted)', 500);
+      case 'bootstrap-users-exist':
+        return jsonError('Forbidden: instance already has users', 403);
       default:
-        return jsonError(result.reason ?? 'Bootstrap import failed', 500);
+        return jsonError('Bootstrap import failed.', 500);
     }
   }
 
