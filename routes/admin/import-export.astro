@@ -1,0 +1,169 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+export const prerender = false;
+import AdminLayout from './layout.astro';
+import { loadSite } from '../../api/data.js';
+import { resolveUiLocale } from './i18n/resolve.js';
+import { createT } from './i18n/t.js';
+
+const site = await loadSite();
+const uiLocale = resolveUiLocale({
+  cookie: Astro.request.headers.get('cookie'),
+  acceptLanguage: Astro.request.headers.get('accept-language'),
+});
+const t = createT(uiLocale);
+
+// i18n bridge: pure scalar JS object — NO TypeScript, NO undefined values.
+// Every key read by import-export-editor.ts MUST appear here.
+const ieI18n = {
+  statusIdle: t('importExport.status.idle'),
+  statusExporting: t('importExport.status.exporting'),
+  statusUploading: t('importExport.status.uploading'),
+  statusValidating: t('importExport.status.validating'),
+  statusImporting: t('importExport.status.importing'),
+  statusDone: t('importExport.status.done'),
+  statusError: t('importExport.status.error'),
+  noUnitsSelected: t('importExport.noUnitsSelected'),
+  noFileSelected: t('importExport.noFileSelected'),
+  importNetworkError: t('importExport.importNetworkError'),
+  exportNetworkError: t('importExport.exportNetworkError'),
+  confirmReplace: t('importExport.confirmReplace'),
+  confirmReplaceWarning: t('importExport.confirmReplaceWarning'),
+  usersSessionWarning: t('importExport.usersSessionWarning'),
+  confirmTitle: t('importExport.confirmTitle'),
+  confirmBtn: t('importExport.confirmBtn'),
+  download: t('importExport.download'),
+  upload: t('importExport.upload'),
+  manifestTitle: t('importExport.manifestTitle'),
+  manifestVersion: t('importExport.manifestVersion'),
+  manifestExportedAt: t('importExport.manifestExportedAt'),
+  manifestCount: t('importExport.manifestCount'),
+};
+
+const exportUnits = [
+  { value: 'pages',         label: t('importExport.unitPages') },
+  { value: 'media',         label: t('importExport.unitMedia') },
+  { value: 'users',         label: t('importExport.unitUsers') },
+  { value: 'configuration', label: t('importExport.unitConfiguration') },
+  { value: 'global-blocks', label: t('importExport.unitGlobalBlocks') },
+] as const;
+---
+
+<AdminLayout site={site} title={t('importExport.eyebrow')}>
+  <div class="cms-stack">
+    <div class="cms-page-intro">
+      <div class="cms-page-intro-copy">
+        <span class="cms-page-eyebrow">{t('importExport.eyebrow')}</span>
+        <div class="cms-page-header">
+          <h1 class="cms-title">{t('importExport.eyebrow')}</h1>
+        </div>
+      </div>
+    </div>
+
+    <!-- aria-live status region: polite announcements for export/import progress -->
+    <div
+      id="ie-status"
+      class="cms-muted"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
+
+    <!-- ─── Export section ─────────────────────────────────────────────── -->
+    <section aria-labelledby="ie-export-heading" class="cms-card">
+      <h2 id="ie-export-heading" class="cms-settings-section-title">
+        {t('importExport.sectionExportTitle')}
+      </h2>
+      <p class="cms-muted">{t('importExport.sectionExportLead')}</p>
+
+      <fieldset id="ie-export-units" class="cms-fieldset">
+        <legend class="cms-fieldset-legend">{t('importExport.selectUnits')}</legend>
+        {exportUnits.map(({ value, label }) => (
+          <div class="cms-field cms-field--inline">
+            <label class="cms-checkbox-label">
+              <input
+                type="checkbox"
+                name="export-unit"
+                value={value}
+                checked
+              />
+              {label}
+            </label>
+          </div>
+        ))}
+      </fieldset>
+
+      <div class="cms-form-actions cms-form-actions--flush">
+        <div class="cms-form-actions-right">
+          <button type="button" id="ie-export-btn" class="cms-btn cms-btn-primary">
+            {t('importExport.download')}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── Import section ─────────────────────────────────────────────── -->
+    <section aria-labelledby="ie-import-heading" class="cms-card">
+      <h2 id="ie-import-heading" class="cms-settings-section-title">
+        {t('importExport.sectionImportTitle')}
+      </h2>
+      <p class="cms-muted">{t('importExport.sectionImportLead')}</p>
+
+      <div class="cms-field">
+        <label for="ie-import-file" class="cms-label">
+          {t('importExport.filePickerLabel')}
+        </label>
+        <input
+          type="file"
+          id="ie-import-file"
+          accept=".zip"
+          class="cms-input"
+        />
+      </div>
+
+      <!-- Manifest preview — populated by the client module after file selection -->
+      <div id="ie-manifest-preview" class="cms-card cms-card--inset" hidden aria-live="polite" aria-atomic="true"></div>
+
+      <fieldset id="ie-import-units" class="cms-fieldset">
+        <legend class="cms-fieldset-legend">{t('importExport.selectUnits')}</legend>
+        {exportUnits.map(({ value, label }) => (
+          <div class="cms-field cms-field--inline">
+            <label class="cms-checkbox-label">
+              <input
+                type="checkbox"
+                name="import-unit"
+                value={value}
+                disabled
+              />
+              {label}
+            </label>
+          </div>
+        ))}
+      </fieldset>
+
+      <div class="cms-form-actions cms-form-actions--flush">
+        <div class="cms-form-actions-right">
+          <button type="button" id="ie-import-btn" class="cms-btn cms-btn-danger">
+            {t('importExport.upload')}
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!--
+    i18n bridge: define:vars MUST be on the SAME script that consumes the values.
+    All values are scalar strings (no TypeScript, no undefined).
+    The client module reads window.__cmsImportExportI18n after this script sets it.
+  -->
+  <script define:vars={{ ieI18n }}>
+    window.__cmsImportExportI18n = ieI18n;
+  </script>
+  <script>
+    import { initImportExportEditor } from './client/import-export-editor.js';
+    initImportExportEditor();
+  </script>
+</AdminLayout>
