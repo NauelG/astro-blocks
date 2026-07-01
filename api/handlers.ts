@@ -2038,6 +2038,22 @@ export async function handleImport(
   const forbidden = requireOwner(authUser, request);
   if (forbidden) return forbidden;
 
+  // Read ceiling limits first so we can reject oversized payloads early.
+  const ceilings = readCeilingEnvVars();
+
+  // FIX 2: Reject oversized compressed body BEFORE buffering it.
+  // Content-Length may be absent or spoofed, so we also check after buffering.
+  const contentLength = request.headers.get('content-length');
+  if (contentLength !== null) {
+    const clBytes = parseInt(contentLength, 10);
+    if (Number.isFinite(clBytes) && clBytes > ceilings.compressed) {
+      return jsonError(
+        `Compressed body too large: Content-Length ${clBytes} exceeds limit ${ceilings.compressed}`,
+        413,
+      );
+    }
+  }
+
   // Read the request body — collect stream into a Buffer for fflate processing.
   // The zip is never written to a temp file on disk here; fflate decompresses
   // directly from the in-memory buffer into the staging directory.
@@ -2049,18 +2065,32 @@ export async function handleImport(
     return localizedJsonError(request, 'errors.invalidBody', 400);
   }
 
+  // Post-buffer compressed size check (catches absent/spoofed Content-Length)
+  if (bodyBuffer.length > ceilings.compressed) {
+    return jsonError(
+      `Compressed body too large: ${bodyBuffer.length} bytes exceeds limit ${ceilings.compressed}`,
+      413,
+    );
+  }
+
   if (bodyBuffer.length === 0) {
     return localizedJsonError(request, 'errors.invalidBody', 400);
   }
 
-  const ceilings = readCeilingEnvVars();
   const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
 
-  const result = await runImportPipeline(bodyBuffer, {
-    projectRoot,
-    ceilings,
-    context,
-  });
+  // FIX 5c: Wrap runImportPipeline in a top-level try/catch to guarantee a JSON error
+  // response even if the pipeline throws unexpectedly.
+  let result: Awaited<ReturnType<typeof runImportPipeline>>;
+  try {
+    result = await runImportPipeline(bodyBuffer, {
+      projectRoot,
+      ceilings,
+      context,
+    });
+  } catch (err) {
+    return jsonError(`Import failed unexpectedly: ${(err as Error).message}`, 500);
+  }
 
   if (!result.ok) {
     switch (result.errorCode) {
@@ -2071,6 +2101,8 @@ export async function handleImport(
         return jsonError(result.reason ?? 'Decompression ceiling exceeded', 413);
       case 'validation':
         return jsonError(result.reason ?? 'Validation failed', 422);
+      case 'apply-failed':
+        return jsonError(result.reason ?? 'Import apply failed (rollback attempted)', 500);
       default:
         return jsonError(result.reason ?? 'Import failed', 500);
     }
