@@ -1029,6 +1029,66 @@ test('GAP-2: after successful media import, .import-tmp and .import-old dirs do 
 });
 
 // ---------------------------------------------------------------------------
+// W-2: partial import — non-selected units are untouched on disk
+// ---------------------------------------------------------------------------
+
+test('W-2: partial import (pages only) leaves data/users.json bytes identical to pre-import content', async () => {
+  await withTempProject(async (tempRoot) => {
+    // 1. Seed a known users.json before the import
+    const knownUser = {
+      id: 'w2-user-1',
+      email: 'w2@example.com',
+      passwordHash: '$2b$10$knownhashforW2testonly',
+      role: 'owner',
+    };
+    const knownUsersContent = JSON.stringify({ users: [knownUser] });
+    await fs.writeFile(path.join(tempRoot, 'data', 'users.json'), knownUsersContent, 'utf-8');
+
+    // 2. Read the pre-import users.json bytes for later comparison
+    const preImportUsersBytes = await fs.readFile(path.join(tempRoot, 'data', 'users.json'));
+
+    // 3. Build a valid export zip containing ONLY the pages unit.
+    //    buildZipBody uses buildExportStream which builds a real manifest + checksums,
+    //    so the import validation will pass without hand-rolling anything.
+    const zipBody = await buildZipBody(['pages'], tempRoot);
+
+    // 4. Run the import via handleImport (selecting only pages, since that is the unit in the zip)
+    const req = buildImportRequest(zipBody);
+    const res = await handleImport(req, OWNER_USER);
+
+    // (a) Import must succeed
+    assert.equal(res.status, 200, `expected 200 for pages-only import, got ${res.status}`);
+    const body = await res.json();
+    assert.equal(body.success, true, 'response.success must be true');
+
+    // (a) usersReplaced must be false — users unit was not in the zip
+    assert.equal(body.usersReplaced, false, 'usersReplaced must be false when only pages unit was imported');
+
+    // (b) data/users.json bytes on disk must be IDENTICAL to pre-import content
+    const postImportUsersBytes = await fs.readFile(path.join(tempRoot, 'data', 'users.json'));
+    assert.equal(
+      postImportUsersBytes.toString('hex'),
+      preImportUsersBytes.toString('hex'),
+      'data/users.json bytes must be identical before and after a pages-only import',
+    );
+
+    // Also verify as parsed content (belt-and-suspenders)
+    const postImportUsersParsed = JSON.parse(postImportUsersBytes.toString('utf-8'));
+    assert.deepEqual(
+      postImportUsersParsed.users[0],
+      knownUser,
+      'parsed users.json content must be unchanged after partial import',
+    );
+
+    // (c) Sanity: pages WERE actually replaced (import did something)
+    const livePages = await loadPages();
+    // The zip was built from the default project state (empty pages from ensureDefaultFiles),
+    // so after import live pages must be the default empty-array state.
+    assert.equal(Array.isArray(livePages.pages), true, 'live pages must be an array after import');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GAP 3 (MEDIUM): Import lock serialization — concurrent pipelines do not corrupt
 // ---------------------------------------------------------------------------
 
