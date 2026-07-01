@@ -25,8 +25,11 @@ export const es = {
 
   // ─── Bootstrap import (pantalla de inicio de sesión — solo cuando hasUsers===false) ─
   'bootstrap.importTitle': 'Importar un respaldo para inicializar esta instancia',
-  'bootstrap.importHint': 'Selecciona un archivo .zip exportado desde otra instancia de AstroBlocks.',
+  'bootstrap.importHint': 'Seleccionar un archivo .zip exportado desde otra instancia de AstroBlocks.',
   'bootstrap.importButton': 'Importar respaldo',
+  'bootstrap.importingStatus': 'Importando el respaldo…',
+  'bootstrap.importError': 'Error al importar: HTTP {status}',
+  'bootstrap.networkError': 'Error de red. Intentar de nuevo.',
 
   // ─── Navigation ───────────────────────────────────────────────────────────
   'nav.dashboard': 'Dashboard',

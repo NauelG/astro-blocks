@@ -27,6 +27,9 @@ export const en = {
   'bootstrap.importTitle': 'Import a backup to seed this instance',
   'bootstrap.importHint': 'Select a .zip backup file exported from another AstroBlocks instance.',
   'bootstrap.importButton': 'Import backup',
+  'bootstrap.importingStatus': 'Importing backup…',
+  'bootstrap.importError': 'Import failed: HTTP {status}',
+  'bootstrap.networkError': 'Network error. Please try again.',
 
   // ─── Navigation ───────────────────────────────────────────────────────────
   'nav.dashboard': 'Dashboard',
