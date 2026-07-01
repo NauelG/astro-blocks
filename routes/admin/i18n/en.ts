@@ -320,6 +320,7 @@ export const en = {
   'importExport.filePickerLabel': 'Backup file (.zip)',
   'importExport.confirmTitle': 'Confirm data replacement',
   'importExport.confirmBtn': 'Replace data',
+  'importExport.confirmUnavailable': 'Confirm dialog is not available. Please reload the page.',
 
   // ─── Menus ────────────────────────────────────────────────────────────────
   'menus.eyebrow': 'Navigation',

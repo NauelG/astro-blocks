@@ -320,6 +320,7 @@ export const es = {
   'importExport.filePickerLabel': 'Archivo de respaldo (.zip)',
   'importExport.confirmTitle': 'Confirmar reemplazo de datos',
   'importExport.confirmBtn': 'Reemplazar datos',
+  'importExport.confirmUnavailable': 'El diálogo de confirmación no está disponible. Recargar la página.',
 
   // ─── Menus ────────────────────────────────────────────────────────────────
   'menus.eyebrow': 'Navegación',

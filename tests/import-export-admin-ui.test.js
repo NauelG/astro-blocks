@@ -77,6 +77,7 @@ test('E-1: en catalog has all importExport.* keys', async () => {
     'importExport.filePickerLabel',
     'importExport.confirmTitle',
     'importExport.confirmBtn',
+    'importExport.confirmUnavailable',
   ];
   const missing = required.filter((k) => !(k in catalogs.en));
   assert.deepEqual(missing, [], `Missing importExport.* keys in en catalog: ${missing.join(', ')}`);
@@ -98,6 +99,45 @@ test('E-1: importExport.* values are non-empty strings in both catalogs', async 
       .map(([k]) => k);
     assert.deepEqual(empties, [], `Empty importExport values in ${locale}: ${empties.join(', ')}`);
   }
+});
+
+// ─── E-1b: ConfirmDialog a11y and new i18n keys ──────────────────────────────
+
+test('E-1b: ConfirmDialog.astro has role="alertdialog" on the <dialog> element', () => {
+  const src = fs.readFileSync(
+    path.join(ADMIN_DIR, 'components', 'ConfirmDialog.astro'),
+    'utf8',
+  );
+  assert.match(src, /role="alertdialog"/, '<dialog> must have role="alertdialog" for AT behavior on destructive confirmations');
+});
+
+test('E-1b: en catalog has importExport.confirmUnavailable key', async () => {
+  const { catalogs } = await import(`${DIST_DIR}/routes/admin/i18n/catalogs.js`);
+  assert.ok('importExport.confirmUnavailable' in catalogs.en, 'importExport.confirmUnavailable must exist in en catalog');
+  assert.ok(
+    typeof catalogs.en['importExport.confirmUnavailable'] === 'string' &&
+      catalogs.en['importExport.confirmUnavailable'].length > 0,
+    'importExport.confirmUnavailable must be a non-empty string in en',
+  );
+});
+
+test('E-1b: es catalog has importExport.confirmUnavailable key (parity)', async () => {
+  const { catalogs } = await import(`${DIST_DIR}/routes/admin/i18n/catalogs.js`);
+  assert.ok('importExport.confirmUnavailable' in catalogs.es, 'importExport.confirmUnavailable must exist in es catalog');
+  assert.ok(
+    typeof catalogs.es['importExport.confirmUnavailable'] === 'string' &&
+      catalogs.es['importExport.confirmUnavailable'].length > 0,
+    'importExport.confirmUnavailable must be a non-empty string in es',
+  );
+});
+
+test('E-1b: client module has explicit cmsConfirm guard (no silent no-op on missing dialog)', () => {
+  const src = fs.readFileSync(path.join(ADMIN_DIR, 'client', 'import-export-editor.ts'), 'utf8');
+  // The guard reads cmsConfirm into a local variable and checks it before calling.
+  assert.match(src, /const cmsConfirm\s*=\s*\(window as CmsWindow\)\.cmsConfirm/, 'must read cmsConfirm into a local variable');
+  assert.match(src, /if\s*\(!cmsConfirm\)/, 'must guard against missing cmsConfirm with an explicit if check');
+  // Must NOT silently use optional chaining for the call
+  assert.ok(!src.includes('cmsConfirm?.({'), 'must NOT use cmsConfirm?.() optional-chain call');
 });
 
 // ─── E-2: admin page structure ────────────────────────────────────────────────

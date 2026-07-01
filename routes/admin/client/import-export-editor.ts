@@ -44,6 +44,7 @@ type ImportExportI18n = {
   usersSessionWarning: string;
   confirmTitle: string;
   confirmBtn: string;
+  confirmUnavailable: string;
   download: string;
   upload: string;
   manifestTitle: string;
@@ -294,7 +295,15 @@ async function handleImport(
     confirmMsg += '\n\n' + (i18n.usersSessionWarning || 'Importing the Users unit will replace all user accounts. Your current session will end immediately after the import completes.');
   }
 
-  const confirmed = await (window as CmsWindow).cmsConfirm?.({
+  const cmsConfirm = (window as CmsWindow).cmsConfirm;
+  if (!cmsConfirm) {
+    const msg = i18n.confirmUnavailable || 'Confirm dialog is not available. Please reload the page.';
+    setStatus(statusEl, msg);
+    showToast(msg, 'error');
+    return;
+  }
+
+  const confirmed = await cmsConfirm({
     message: confirmMsg,
     title: i18n.confirmTitle || 'Confirm data replacement',
     confirmLabel: i18n.confirmBtn || 'Replace data',

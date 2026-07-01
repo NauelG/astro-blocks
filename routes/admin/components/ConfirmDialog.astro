@@ -24,7 +24,7 @@ const {
 } = Astro.props;
 ---
 
-<dialog id="cms-confirm-dialog" class="cms-confirm-dialog" aria-labelledby="cms-confirm-title" aria-describedby="cms-confirm-message">
+<dialog id="cms-confirm-dialog" class="cms-confirm-dialog" role="alertdialog" aria-labelledby="cms-confirm-title" aria-describedby="cms-confirm-message">
   <div class="cms-confirm-panel">
     <h2 id="cms-confirm-title" class="cms-confirm-title">{defaultTitle}</h2>
     <p id="cms-confirm-message" class="cms-confirm-message"></p>
