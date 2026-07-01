@@ -334,6 +334,7 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
         injectRoute({ pattern: '/cms/menus', entrypoint: resolveCms('admin/menus.astro') });
         injectRoute({ pattern: '/cms/languages', entrypoint: resolveCms('admin/languages.astro') });
         injectRoute({ pattern: '/cms/users', entrypoint: resolveCms('admin/users.astro') });
+        injectRoute({ pattern: '/cms/import-export', entrypoint: resolveCms('admin/import-export.astro') });
 
         injectRoute({ pattern: '/sitemap-index.xml', entrypoint: resolveCms('sitemap-get.js') });
         injectRoute({ pattern: '/robots.txt', entrypoint: resolveCms('robots-get.js') });
