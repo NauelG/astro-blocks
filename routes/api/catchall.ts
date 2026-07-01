@@ -77,6 +77,12 @@ export async function POST({ request, cache }: APIContext): Promise<Response> {
 
   if (seg[0] === 'auth' && seg[1] === 'login' && seg.length === 2) return handlers.handleLogin(request);
 
+  // Bootstrap import — public, unauthenticated. MUST be before ensureAuth (ADR-6).
+  // Zero-user gate inside the handler is the sole protection.
+  if (seg[0] === 'import' && seg[1] === 'bootstrap' && seg.length === 2) {
+    return handlers.handleBootstrapImport(request, { cache });
+  }
+
   const authResult = await ensureAuth(request);
   if ('status' in authResult) return new Response(JSON.stringify(authResult.body), { status: 401 });
 

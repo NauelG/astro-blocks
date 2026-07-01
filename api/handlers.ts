@@ -2110,3 +2110,104 @@ export async function handleImport(
 
   return Response.json({ success: true, usersReplaced: result.usersReplaced ?? false });
 }
+
+/**
+ * POST /cms/api/import/bootstrap
+ *
+ * Unauthenticated import endpoint for seeding a fresh instance (ADR-6).
+ * SECURITY-CRITICAL: this surface is public — the zero-user gate is the ONLY
+ * protection. The gate MUST be checked before any request-body access.
+ *
+ * Flow:
+ *   1. Load users — check length BEFORE reading the request body.
+ *   2. If users.length !== 0 → 403 IMMEDIATELY (body never read).
+ *   3. If users.length === 0 → run the shared runImportPipeline (same validation,
+ *      ceilings, checksum, path guards, backup, atomic apply as the authed import).
+ *
+ * Status codes:
+ *   200 {success:true, usersReplaced}   — pipeline succeeded
+ *   400                                  — empty or corrupt zip
+ *   403                                  — instance already has users
+ *   413                                  — decompression ceiling exceeded
+ *   422                                  — schemaVersion mismatch / checksum / structural
+ */
+export async function handleBootstrapImport(
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
+  // GATE: load users FIRST — before reading/consuming any request body.
+  // If any user exists, refuse immediately without touching the body.
+  const usersData = await data.loadUsers();
+  if (usersData.users.length !== 0) {
+    return jsonError('Forbidden: instance already has users', 403);
+  }
+
+  // Read ceiling limits so we can reject oversized payloads early.
+  const ceilings = readCeilingEnvVars();
+
+  // Compressed body size check via Content-Length (may be absent or spoofed).
+  const contentLength = request.headers.get('content-length');
+  if (contentLength !== null) {
+    const clBytes = parseInt(contentLength, 10);
+    if (Number.isFinite(clBytes) && clBytes > ceilings.compressed) {
+      return jsonError(
+        `Compressed body too large: Content-Length ${clBytes} exceeds limit ${ceilings.compressed}`,
+        413,
+      );
+    }
+  }
+
+  // Read the request body for fflate processing.
+  let bodyBuffer: Buffer;
+  try {
+    const ab = await request.arrayBuffer();
+    bodyBuffer = Buffer.from(ab);
+  } catch {
+    return localizedJsonError(request, 'errors.invalidBody', 400);
+  }
+
+  // Post-buffer compressed size check (catches absent/spoofed Content-Length).
+  if (bodyBuffer.length > ceilings.compressed) {
+    return jsonError(
+      `Compressed body too large: ${bodyBuffer.length} bytes exceeds limit ${ceilings.compressed}`,
+      413,
+    );
+  }
+
+  if (bodyBuffer.length === 0) {
+    return localizedJsonError(request, 'errors.invalidBody', 400);
+  }
+
+  const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
+
+  // Run the shared import pipeline — same validation, ceilings, path guards,
+  // backup snapshot, and atomic apply as the authenticated import (C-5/ADR-5).
+  let result: Awaited<ReturnType<typeof runImportPipeline>>;
+  try {
+    result = await runImportPipeline(bodyBuffer, {
+      projectRoot,
+      ceilings,
+      context,
+    });
+  } catch (err) {
+    return jsonError(`Bootstrap import failed unexpectedly: ${(err as Error).message}`, 500);
+  }
+
+  if (!result.ok) {
+    switch (result.errorCode) {
+      case 'empty':
+      case 'corrupt':
+        return localizedJsonError(request, 'errors.invalidBody', 400);
+      case 'ceiling':
+        return jsonError(result.reason ?? 'Decompression ceiling exceeded', 413);
+      case 'validation':
+        return jsonError(result.reason ?? 'Validation failed', 422);
+      case 'apply-failed':
+        return jsonError(result.reason ?? 'Bootstrap import apply failed (rollback attempted)', 500);
+      default:
+        return jsonError(result.reason ?? 'Bootstrap import failed', 500);
+    }
+  }
+
+  return Response.json({ success: true, usersReplaced: result.usersReplaced ?? false });
+}
