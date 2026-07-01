@@ -4,6 +4,7 @@ Licensed under the Business Source License 1.1
 */
 
 import crypto from 'node:crypto';
+import path from 'node:path';
 import { createRequire } from 'node:module';
 import { DATA_SCHEMA_VERSION } from './schema-version.js';
 import type { BackupManifest, ExportUnit } from '../types/index.js';
@@ -105,10 +106,28 @@ export function validateManifest(obj: unknown): { ok: boolean; reason?: string }
   if (typeof m['checksums'] !== 'object' || m['checksums'] === null || Array.isArray(m['checksums'])) {
     return { ok: false, reason: 'checksums must be a non-null object' };
   }
-  // Validate every checksums value is a non-empty string.
-  for (const [path, hash] of Object.entries(m['checksums'] as Record<string, unknown>)) {
+  // Validate every checksums KEY and VALUE.
+  // Keys must be either a known data file (data/<name>.json from the 9-file allowlist)
+  // or an uploads/ path. Keys containing ".." or absolute paths are rejected immediately
+  // as a defense-in-depth measure against crafted manifests that could cause arbitrary
+  // file reads in validateStagedImport.
+  for (const [entryPath, hash] of Object.entries(m['checksums'] as Record<string, unknown>)) {
     if (typeof hash !== 'string' || hash === '') {
-      return { ok: false, reason: `checksums entry "${path}" must be a non-empty string` };
+      return { ok: false, reason: `checksums entry "${entryPath}" must be a non-empty string` };
+    }
+    // Reject absolute paths and path traversal sequences
+    if (path.isAbsolute(entryPath) || entryPath.includes('..')) {
+      return {
+        ok: false,
+        reason: `checksums key "${entryPath}" contains a path traversal or absolute path — not allowed`,
+      };
+    }
+    // Key must be in the data/ allowlist OR start with uploads/
+    if (!ALL_DATA_FILES.has(entryPath) && !entryPath.startsWith('uploads/')) {
+      return {
+        ok: false,
+        reason: `checksums key "${entryPath}" is not an allowed path — must be a known data file or start with uploads/`,
+      };
     }
   }
   return { ok: true };
