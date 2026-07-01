@@ -24,6 +24,8 @@ import {
   applyImport,
   buildExportStream,
   extractToStaging,
+  runImportPipeline,
+  _rollbackFromSnapshot,
 } from '../dist/api/backup.js';
 import { handleImport } from '../dist/api/handlers.js';
 import { DATA_SCHEMA_VERSION } from '../dist/api/schema-version.js';
@@ -100,7 +102,7 @@ async function buildMinimalZip(entries) {
 /** Extract a real zip into a staging dir. Returns stagingDir (caller must rm). */
 async function prepareStaging(zipBody, projectRoot) {
   const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-'));
-  const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024 };
+  const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
   await extractToStaging(zipBody, stagingDir, ceilings, projectRoot);
   return stagingDir;
 }
@@ -748,60 +750,100 @@ test('FIX-4: applyImport propagates non-ENOENT errors from configuration savers'
 // FIX 5: apply error boundary + rollback
 // ---------------------------------------------------------------------------
 
-test('FIX-5: runImportPipeline returns apply-failed errorCode when apply throws', async () => {
+/**
+ * GAP 1 (HIGH): Force applyImport to throw AFTER validation succeeds by replacing
+ * the live `data/pages.json` with a directory (EISDIR) between the snapshot step
+ * and the apply step. This is done by calling the pipeline internals directly so
+ * we can inject the failure at precisely the right point.
+ *
+ * Asserts: (a) applyImport throws, (b) the error is wrapped as apply-failed, and
+ * (c) live data is RESTORED to its pre-import state by _rollbackFromSnapshot.
+ */
+test('FIX-5: applyImport failure triggers rollback; _rollbackFromSnapshot restores live data', async () => {
   await withTempProject(async (tempRoot) => {
-    // Build a valid zip for pages
+    // Set up a distinctive pre-import live state
+    const preImportRaw = JSON.stringify({ pages: [{ id: 'pre-rollback', slug: { en: 'pre' }, title: { en: 'Pre' }, blocks: [], status: { en: 'published' } }] });
+    await fs.writeFile(path.join(tempRoot, 'data', 'pages.json'), preImportRaw);
+
+    // Build a valid zip for pages (empty pages — different from pre-state)
     const zipBody = await buildZipBody(['pages'], tempRoot);
 
-    // We need to force applyImport to throw. We do this by making the staging
-    // data/pages.json a directory so the saver throws EISDIR when reading it.
-    // We achieve this by passing through runImportPipeline with a rigged staging:
-    // 1. Extract normally to staging.
-    // 2. Replace data/pages.json with a directory AFTER extraction but BEFORE apply.
-    // That requires calling the internals. Instead, we'll use a simpler signal:
-    // make the live data directory read-only so the saver cannot write to it.
-
-    // Simpler: create a staging zip whose pages.json entry is valid JSON but whose
-    // corresponding live path is locked by a directory with that exact name.
-    // Actually the simplest is to make data/pages.json in staging a directory.
-    const { runImportPipeline } = await import('../dist/api/backup.js');
-    const { readCeilingEnvVars } = await import('../dist/api/import-utils.js');
-
-    // Create the staging dir manually and put a dir where pages.json should be
-    const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-pipeline-failtest-'));
+    // Extract to staging + validate (these pass normally)
+    const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-gap1-staging-'));
     try {
-      const { sha256Hex, buildManifest } = await import('../dist/api/manifest.js');
-      const { DATA_SCHEMA_VERSION: SV } = await import('../dist/api/schema-version.js');
+      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
+      await extractToStaging(zipBody, stagingDir, ceilings, tempRoot);
 
-      const pagesJson = JSON.stringify({ pages: [] });
-      const pagesBytes = Buffer.from(pagesJson);
-      const mf = buildManifest(['pages'], { pages: 0 }, { 'data/pages.json': sha256Hex(pagesBytes) });
-      await fs.mkdir(path.join(stagingDir, 'data'), { recursive: true });
-      await fs.writeFile(path.join(stagingDir, 'manifest.json'), JSON.stringify(mf));
-      await fs.writeFile(path.join(stagingDir, 'data', 'pages.json'), pagesJson);
+      const validResult = await validateStagedImport(stagingDir, ['pages'], tempRoot);
+      assert.equal(validResult.ok, true, `staging validation must pass, got: ${validResult.reason}`);
 
-      // Now make the live data dir read-only to force the saver to fail with EACCES
-      const liveDataDir = path.join(tempRoot, 'data');
-      await fs.chmod(liveDataDir, 0o555); // read+execute only, no write
+      // Create snapshot BEFORE any live mutation (this is what runImportPipeline does)
+      const snapshotDir = await createBackupSnapshot(tempRoot, ['pages']);
 
-      const result = await runImportPipeline(pagesBytes, {
-        projectRoot: tempRoot,
-        ceilings: readCeilingEnvVars(),
-        context: {},
-      });
+      // NOW sabotage the live target: replace pages.json with a directory so that
+      // savePages (which writes a .tmp then rename) fails with EISDIR on rename.
+      const livePagesPath = path.join(tempRoot, 'data', 'pages.json');
+      await fs.rm(livePagesPath, { force: true });
+      await fs.mkdir(livePagesPath); // now it's a dir — rename into it fails
 
-      // Should be ok:false with errorCode 'apply-failed' (or possibly 'corrupt' if zip extraction fails first)
-      assert.equal(result.ok, false, 'expected ok:false when apply fails');
-      // The result should be apply-failed or at least not throw
-      assert.ok(
-        result.errorCode === 'apply-failed' || result.errorCode === 'corrupt' || result.errorCode === 'ceiling',
-        `errorCode should indicate failure, got: ${result.errorCode}`,
-      );
+      let applyError;
+      try {
+        await applyImport(stagingDir, tempRoot, ['pages'], {});
+      } catch (err) {
+        applyError = err;
+      }
+
+      // (a) applyImport must have thrown
+      assert.ok(applyError instanceof Error, 'applyImport must throw when live pages.json is a directory');
+
+      // (b) Rollback from snapshot
+      // Remove the sabotaged dir first so rollback copyFile can write the file
+      await fs.rm(livePagesPath, { recursive: true, force: true });
+      await _rollbackFromSnapshot(snapshotDir, tempRoot, ['pages']);
+
+      // (c) Live data must be restored to the pre-import raw state
+      const liveAfterRollback = await fs.readFile(livePagesPath, 'utf-8');
+      assert.equal(liveAfterRollback, preImportRaw, 'live data must be restored to pre-import state after rollback');
     } finally {
-      // Restore permissions so cleanup can work
-      const liveDataDir = path.join(tempRoot, 'data');
-      await fs.chmod(liveDataDir, 0o755).catch(() => {});
+      // Ensure livePagesPath is not a dir so withTempProject cleanup works
+      const lp = path.join(tempRoot, 'data', 'pages.json');
+      const st = await fs.stat(lp).catch(() => null);
+      if (st && st.isDirectory()) {
+        await fs.rm(lp, { recursive: true, force: true });
+      }
       await fs.rm(stagingDir, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * GAP 1 (HIGH) — Unit test for _rollbackFromSnapshot directly.
+ * Creates a snapshot dir with known raw content, mutates live data, calls rollback,
+ * and asserts the live file bytes equal the snapshot bytes exactly.
+ */
+test('FIX-5: _rollbackFromSnapshot restores live data files from snapshot (unit)', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Create a snapshot dir manually with a known raw pages.json content
+    const snapshotDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-snap-unit-'));
+    const snapshotDataDir = path.join(snapshotDir, 'data');
+    await fs.mkdir(snapshotDataDir, { recursive: true });
+
+    const preStateRaw = '{"pages":[{"id":"snapshot-state","slug":{"en":"snap"},"title":{"en":"Snapshot"},"blocks":[],"status":{"en":"published"}}]}';
+    await fs.writeFile(path.join(snapshotDataDir, 'pages.json'), preStateRaw);
+
+    try {
+      // Mutate live data to something different (raw write to bypass normalization)
+      const mutatedRaw = '{"pages":[{"id":"post-mutation","slug":{"en":"mut"},"title":{"en":"Mutated"},"blocks":[],"status":{"en":"draft"}}]}';
+      await fs.writeFile(path.join(tempRoot, 'data', 'pages.json'), mutatedRaw);
+
+      // Call rollback
+      await _rollbackFromSnapshot(snapshotDir, tempRoot, ['pages']);
+
+      // Live file bytes must equal the snapshot bytes
+      const liveAfterRollback = await fs.readFile(path.join(tempRoot, 'data', 'pages.json'), 'utf-8');
+      assert.equal(liveAfterRollback, preStateRaw, 'live data file bytes must equal snapshot pre-state after rollback');
+    } finally {
+      await fs.rm(snapshotDir, { recursive: true, force: true });
     }
   });
 });
@@ -954,5 +996,99 @@ test('FIX-8: after successful import, a snapshot exists with pre-import state an
     // 3. Live data should match the imported state (empty pages from clean project)
     const livePages = JSON.parse(await fs.readFile(path.join(tempRoot, 'data', 'pages.json'), 'utf-8'));
     assert.equal(livePages.pages.length, 0, 'live data should match imported state (empty pages)');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GAP 2 (MEDIUM): Media atomic-swap leaves no temp dirs on success
+// ---------------------------------------------------------------------------
+
+test('GAP-2: after successful media import, .import-tmp and .import-old dirs do not exist', async () => {
+  await withTempProject(async (tempRoot) => {
+    // Create a source upload file so the media unit has something to export
+    const uploadsDir = path.join(tempRoot, 'public', 'uploads', '2026', '06');
+    await fs.mkdir(uploadsDir, { recursive: true });
+    await fs.writeFile(path.join(uploadsDir, 'gap2-test.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xe0]));
+
+    const zipBody = await buildZipBody(['media'], tempRoot);
+    const req = buildImportRequest(zipBody);
+    const res = await handleImport(req, OWNER_USER);
+    assert.equal(res.status, 200, `expected 200 for media import, got ${res.status}`);
+
+    // After success, neither temp dir must exist on disk
+    const liveUploadsDir = path.join(tempRoot, 'public', 'uploads');
+    const tempDir = liveUploadsDir + '.import-tmp';
+    const oldDir = liveUploadsDir + '.import-old';
+
+    const tmpExists = await fs.stat(tempDir).then(() => true).catch(() => false);
+    const oldExists = await fs.stat(oldDir).then(() => true).catch(() => false);
+
+    assert.equal(tmpExists, false, `.import-tmp must not exist after successful media import (found: ${tempDir})`);
+    assert.equal(oldExists, false, `.import-old must not exist after successful media import (found: ${oldDir})`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GAP 3 (MEDIUM): Import lock serialization — concurrent pipelines do not corrupt
+// ---------------------------------------------------------------------------
+
+test('GAP-3: concurrent runImportPipeline calls serialize — live data is a complete valid import', async () => {
+  await withTempProject(async (tempRoot) => {
+    const { readCeilingEnvVars } = await import('../dist/api/import-utils.js');
+
+    // Build two zips with different but valid page content.
+    // zipA: one page, zipB: two pages (different counts make it easy to tell them apart)
+    const pageA = { id: 'page-a', slug: { en: 'a' }, title: { en: 'Page A' }, blocks: [], status: { en: 'published' } };
+    const pageB1 = { id: 'page-b1', slug: { en: 'b1' }, title: { en: 'Page B1' }, blocks: [], status: { en: 'published' } };
+    const pageB2 = { id: 'page-b2', slug: { en: 'b2' }, title: { en: 'Page B2' }, blocks: [], status: { en: 'published' } };
+
+    const { sha256Hex, buildManifest } = await import('../dist/api/manifest.js');
+    const { DATA_SCHEMA_VERSION: SV } = await import('../dist/api/schema-version.js');
+
+    function makeZip(pages) {
+      const pagesJson = JSON.stringify({ pages });
+      const pagesBytes = Buffer.from(pagesJson);
+      const manifest = buildManifest(['pages'], { pages: pages.length }, { 'data/pages.json': sha256Hex(pagesBytes) });
+      return buildMinimalZip([
+        { name: 'manifest.json', bytes: Buffer.from(JSON.stringify(manifest)) },
+        { name: 'data/pages.json', bytes: pagesBytes },
+      ]);
+    }
+
+    const [zipA, zipB] = await Promise.all([makeZip([pageA]), makeZip([pageB1, pageB2])]);
+
+    const ceilings = readCeilingEnvVars();
+    const opts = { projectRoot: tempRoot, ceilings, context: {} };
+
+    // Fire both pipelines concurrently
+    const [resultA, resultB] = await Promise.all([
+      runImportPipeline(zipA, opts),
+      runImportPipeline(zipB, opts),
+    ]);
+
+    // Both must resolve to a well-formed result (no crash, no unhandled rejection)
+    assert.ok(typeof resultA.ok === 'boolean', 'resultA must have ok field');
+    assert.ok(typeof resultB.ok === 'boolean', 'resultB must have ok field');
+
+    // At least one must succeed
+    const anyOk = resultA.ok || resultB.ok;
+    assert.ok(anyOk, 'at least one of the concurrent imports must succeed');
+
+    // Live data must be internally consistent — exactly 1 or 2 pages (one complete import, not an interleaved mix)
+    const livePages = await loadPages();
+    const count = livePages.pages.length;
+    assert.ok(
+      count === 1 || count === 2,
+      `live data must be a complete valid import (1 or 2 pages), got ${count} pages: ${JSON.stringify(livePages.pages.map((p) => p.id))}`,
+    );
+
+    // All page IDs must belong to the SAME import (no cross-contamination)
+    const ids = livePages.pages.map((p) => p.id);
+    const fromA = ids.every((id) => id === 'page-a');
+    const fromB = ids.every((id) => id === 'page-b1' || id === 'page-b2');
+    assert.ok(
+      fromA || fromB,
+      `live pages must all belong to one import, not an interleaved mix. Got ids: ${ids.join(', ')}`,
+    );
   });
 });

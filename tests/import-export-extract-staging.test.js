@@ -100,7 +100,7 @@ test('C-1: extractToStaging extracts valid zip to staging dir', async () => {
     const zipBody = await buildValidZipBody(tempRoot);
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-'));
     try {
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024 };
+      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
       await extractToStaging(zipBody, stagingDir, ceilings, tempRoot);
 
       // manifest.json + data/pages.json should exist
@@ -144,7 +144,7 @@ test('C-1: extractToStaging rejects unknown data entry (data/unknown.json)', asy
     ]);
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-unknown-'));
     try {
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024 };
+      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
       await assert.rejects(
         async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
         /unknown|not allowed|disallowed/i,
@@ -162,7 +162,7 @@ test('C-1: extractToStaging rejects data/_backups/ entries', async () => {
     ]);
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-backups-'));
     try {
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024 };
+      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
       await assert.rejects(
         async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
         /unknown|not allowed|disallowed|backup/i,
@@ -183,7 +183,7 @@ test('C-1: extractToStaging enforces per-file ceiling mid-stream (M-1)', async (
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-perfile-'));
     try {
       // Set per-file ceiling to 512 bytes — below the 1 KB entry
-      const ceilings = { perFile: 512, total: 500 * 1024 * 1024 };
+      const ceilings = { perFile: 512, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
       await assert.rejects(
         async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
         /ceiling|exceeded|too large/i,
@@ -201,7 +201,7 @@ test('FIX-3a: extractToStaging does NOT modify process.env.ASTRO_BLOCKS_PROJECT_
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-envcheck-'));
     try {
       const before = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024 };
+      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
       await extractToStaging(zipBody, stagingDir, ceilings, tempRoot);
       const after = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
       assert.equal(after, before, 'extractToStaging must not change ASTRO_BLOCKS_PROJECT_ROOT');
@@ -221,7 +221,7 @@ test('FIX-6: extractToStaging with invalid first entry aborts — valid second e
     ]);
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-abort-'));
     try {
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024 };
+      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
       await assert.rejects(
         async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
         /not allowed/i,
@@ -247,10 +247,47 @@ test('C-1: extractToStaging enforces total ceiling across entries (M-1)', async 
     ]);
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-total-'));
     try {
-      const ceilings = { perFile: 2048, total: 1000 };
+      const ceilings = { perFile: 2048, total: 1000, compressed: 1024 * 1024 * 1024 };
       await assert.rejects(
         async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
         /ceiling|exceeded|too large/i,
+      );
+    } finally {
+      await fs.rm(stagingDir, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GAP 5: onfile early-exit after abort — ceiling-exceeding first entry prevents
+//         later entries from being decompressed / written to disk.
+// ---------------------------------------------------------------------------
+
+test('GAP-5: ceiling-exceeding first entry causes rejection; subsequent entries are not written', async () => {
+  await withTempProject(async (tempRoot) => {
+    // First entry exceeds per-file ceiling (512 bytes limit, entry is 1 KB)
+    const bigEntry = Buffer.alloc(1024, 0x61); // 1 KB
+    // Second entry is small and valid — must NOT be written after abort
+    const smallEntry = Buffer.from(JSON.stringify({ users: [] }));
+    const zipBody = await buildMinimalZip([
+      { name: 'data/pages.json', bytes: bigEntry },
+      { name: 'data/users.json', bytes: smallEntry },
+    ]);
+    const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-gap5-'));
+    try {
+      const ceilings = { perFile: 512, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
+      // Must reject due to per-file ceiling hit on the first entry
+      await assert.rejects(
+        async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
+        /ceiling|exceeded|too large/i,
+      );
+      // Second entry (data/users.json) must NOT have been written — onfile exits early after abort
+      const usersPath = path.join(stagingDir, 'data', 'users.json');
+      const usersExists = await fs.stat(usersPath).then(() => true).catch(() => false);
+      assert.equal(
+        usersExists,
+        false,
+        'data/users.json must NOT be written after first-entry ceiling abort (onfile early-exit guard)',
       );
     } finally {
       await fs.rm(stagingDir, { recursive: true, force: true });

@@ -245,6 +245,10 @@ export async function extractToStaging(
     let aborted = false;
 
     unzip.onfile = (file) => {
+      // Early-exit when a previous entry already aborted the extraction.
+      // Avoids calling file.start() and wasting CPU decompressing zip-bomb tails.
+      if (aborted) { return; }
+
       const entryName = file.name;
 
       // ---------- path guard BEFORE writing ----------
@@ -300,7 +304,9 @@ export async function extractToStaging(
       let perFileBytes = 0;
 
       file.ondata = (err, chunk, final) => {
-        if (aborted) return;
+        // Early-exit after abort: a prior entry already hit a ceiling or path-guard
+        // reject. Do NOT decompress further chunks — saves CPU on zip-bomb tails.
+        if (aborted) { return; }
         if (err) {
           aborted = true;
           reject(err);
@@ -811,8 +817,10 @@ async function _runImportPipelineCore(
 /**
  * Attempt to roll back live data by restoring from a snapshot directory.
  * Best-effort: errors are surfaced to the caller (which logs and swallows them).
+ *
+ * Exported for direct unit testing; do NOT call from outside the import pipeline.
  */
-async function _rollbackFromSnapshot(
+export async function _rollbackFromSnapshot(
   snapshotDir: string,
   projectRoot: string,
   selectedUnits: ExportUnit[],
