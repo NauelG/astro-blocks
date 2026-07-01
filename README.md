@@ -293,6 +293,7 @@ You can version these files in your project repository if that fits your workflo
 | `/cms/users` | Users |
 | `/cms/languages` | Content languages |
 | `/cms/cache` | Invalidate AstroBlocks cache |
+| `/cms/import-export` | Export a backup .zip or import one to restore content |
 
 API routes are available under `/cms/api/*`.
 
@@ -390,6 +391,53 @@ const mv = await getMediaVariants('/uploads/2026/06/my-image.jpg');
 ```
 
 The helper reads `data/media.json` with an mtime-keyed in-memory cache, so repeated calls within a render cycle do not re-read disk. It returns `{ status: 'none', variants: [] }` gracefully when the registry is missing (SSG build safety) — never throws.
+
+---
+
+## Import / Export
+
+The Import / Export admin page (`/cms/import-export`) lets you back up and restore your site content without touching the file system directly.
+
+<p align="center">
+  <img src="img/import-export.jpg" alt="AstroBlocks import/export admin page" width="860" style="border-radius:8px" />
+  <br /><em>Import / Export admin page — select units, download a backup, or restore from a .zip file.</em>
+</p>
+
+### Selectable units
+
+Choose any combination of the five data units for each operation:
+
+| Unit | Contents |
+| --- | --- |
+| Users | `data/users.json` |
+| Pages | `data/pages.json` |
+| Media | `data/media.json` + `public/uploads/` files |
+| Global Blocks | global block data |
+| Configuration | `data/configs.json`, `data/site.json`, `data/languages.json`, `data/menus.json`, `data/redirects.json` |
+
+### Export
+
+Select the units you want and click **Download**. AstroBlocks streams a single `.zip` archive containing the selected data files and a `manifest.json` that records the schema version, export timestamp, and a checksum per included file.
+
+### Import
+
+Select a `.zip` produced by AstroBlocks, choose which units to restore, and click **Upload**. The server validates the archive structure and checksums before applying any change. Selected units are **replaced in full** — a pre-replace backup snapshot is written to `data/_backups/` automatically (retention: 5 snapshots).
+
+### Bootstrap seed
+
+When an AstroBlocks instance has no users yet, the login screen shows an import option. You can upload a backup archive there to seed the instance with an initial data set — no admin account is required first.
+
+### Size limits
+
+Three environment variables control upload limits (defaults shown):
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES` | 50 MB | Maximum size of the uploaded `.zip` file |
+| `ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES` | 500 MB | Maximum total uncompressed size of all extracted files |
+| `ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES` | 1 GB | Maximum compressed size of all archive entries |
+
+Automatic backup snapshots are stored under `data/_backups/` in your project root. The five most recent snapshots are kept; older ones are removed automatically.
 
 ---
 

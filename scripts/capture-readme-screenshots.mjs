@@ -19,6 +19,7 @@ const PLAYGROUND_DIR = path.join(ROOT, 'playgrounds', 'basic');
 const PLAYGROUND_REDIRECTS_PATH = path.join(PLAYGROUND_DIR, 'data', 'redirects.json');
 const DASHBOARD_PATH = path.join(ROOT, 'img', 'dashboard.jpg');
 const PAGE_EDITOR_PATH = path.join(ROOT, 'img', 'page_editor.jpg');
+const IMPORT_EXPORT_PATH = path.join(ROOT, 'img', 'import-export.jpg');
 
 const HOST = '127.0.0.1';
 const DEFAULT_PORT = 4327;
@@ -154,6 +155,15 @@ async function captureReadmeScreenshots(baseUrl, token) {
       type: 'jpeg',
       quality: 90,
     });
+
+    await openCmsPage(page, `${baseUrl}/cms/import-export`);
+    await page.waitForSelector('#ie-export-units', { timeout: 15000 });
+    await page.waitForSelector('#ie-import-units', { timeout: 15000 });
+    await page.screenshot({
+      path: IMPORT_EXPORT_PATH,
+      type: 'jpeg',
+      quality: 90,
+    });
   } finally {
     await context.close();
     await browser.close();
@@ -197,6 +207,7 @@ async function main() {
     await captureReadmeScreenshots(baseUrl, token);
     console.log(`[screenshots] Updated ${path.relative(ROOT, DASHBOARD_PATH)}`);
     console.log(`[screenshots] Updated ${path.relative(ROOT, PAGE_EDITOR_PATH)}`);
+    console.log(`[screenshots] Updated ${path.relative(ROOT, IMPORT_EXPORT_PATH)}`);
   } catch (error) {
     if (String(error).includes('Executable doesn\'t exist')) {
       console.error('[screenshots] Chromium browser is not installed for Playwright.');
