@@ -30,6 +30,8 @@ export const es = {
   'bootstrap.importingStatus': 'Importando el respaldo…',
   'bootstrap.importError': 'Error al importar: HTTP {status}',
   'bootstrap.networkError': 'Error de red. Intentar de nuevo.',
+  'bootstrap.selectFile': 'Seleccionar archivo',
+  'bootstrap.noFileSelected': 'Ningún archivo seleccionado',
 
   // ─── Navigation ───────────────────────────────────────────────────────────
   'nav.dashboard': 'Dashboard',
@@ -318,6 +320,8 @@ export const es = {
   'importExport.sectionImportTitle': 'Restaurar un respaldo',
   'importExport.sectionImportLead': 'Subir un .zip de respaldo para reemplazar las unidades de contenido seleccionadas. Los datos actuales se almacenarán en un snapshot antes de ejecutar la importación.',
   'importExport.filePickerLabel': 'Archivo de respaldo (.zip)',
+  'importExport.filePickerSelectFile': 'Seleccionar archivo',
+  'importExport.filePickerNoFile': 'Ningún archivo seleccionado',
   'importExport.confirmTitle': 'Confirmar reemplazo de datos',
   'importExport.confirmBtn': 'Reemplazar datos',
   'importExport.confirmUnavailable': 'El diálogo de confirmación no está disponible. Recargar la página.',

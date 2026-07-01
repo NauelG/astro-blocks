@@ -116,12 +116,29 @@ const exportUnits = [
         <label for="ie-import-file" class="cms-label">
           {t('importExport.filePickerLabel')}
         </label>
-        <input
-          type="file"
-          id="ie-import-file"
-          accept=".zip"
-          class="cms-input"
-        />
+        <div class="cms-file-picker-row">
+          <input
+            type="file"
+            id="ie-import-file"
+            accept=".zip"
+            class="cms-visually-hidden"
+          />
+          <button
+            type="button"
+            id="ie-import-file-btn"
+            class="cms-btn cms-btn-secondary"
+            aria-controls="ie-import-file"
+          >
+            {t('importExport.filePickerSelectFile')}
+          </button>
+          <span
+            id="ie-import-file-name"
+            class="cms-file-picker-name cms-muted"
+            aria-live="polite"
+          >
+            {t('importExport.filePickerNoFile')}
+          </span>
+        </div>
       </div>
 
       <!-- Manifest preview — populated by the client module after file selection -->

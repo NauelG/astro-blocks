@@ -78,13 +78,30 @@ const t = createT(uiLocale);
               <hr class="cms-divider" aria-hidden="true" />
               <p class="cms-muted cms-bootstrap-import-title">{t('bootstrap.importTitle')}</p>
               <p class="cms-muted cms-bootstrap-import-hint">{t('bootstrap.importHint')}</p>
-              <label for="cms-bootstrap-file" class="cms-sr-only">{t('bootstrap.importButton')}</label>
-              <input
-                type="file"
-                id="cms-bootstrap-file"
-                accept=".zip"
-                class="cms-bootstrap-file-input"
-              />
+              <div class="cms-file-picker-row">
+                <label for="cms-bootstrap-file" class="cms-visually-hidden">{t('bootstrap.importButton')}</label>
+                <input
+                  type="file"
+                  id="cms-bootstrap-file"
+                  accept=".zip"
+                  class="cms-visually-hidden"
+                />
+                <button
+                  type="button"
+                  id="cms-bootstrap-file-btn"
+                  class="cms-btn cms-btn-secondary"
+                  aria-controls="cms-bootstrap-file"
+                >
+                  {t('bootstrap.selectFile')}
+                </button>
+                <span
+                  id="cms-bootstrap-file-name"
+                  class="cms-file-picker-name cms-muted"
+                  aria-live="polite"
+                >
+                  {t('bootstrap.noFileSelected')}
+                </span>
+              </div>
               <button type="button" id="cms-bootstrap-btn" class="cms-btn cms-btn-secondary">
                 {t('bootstrap.importButton')}
               </button>
@@ -282,6 +299,8 @@ const t = createT(uiLocale);
       _bootstrapImportingStatus: t('bootstrap.importingStatus'),
       _bootstrapImportError: t('bootstrap.importError'),
       _bootstrapNetworkError: t('bootstrap.networkError'),
+      _bootstrapSelectFile: t('bootstrap.selectFile'),
+      _bootstrapNoFileSelected: t('bootstrap.noFileSelected'),
     }}>
       window.__cmsAuthI18n = {
         loading: _authLoading,
@@ -299,6 +318,8 @@ const t = createT(uiLocale);
         bootstrapImportingStatus: _bootstrapImportingStatus,
         bootstrapImportError: _bootstrapImportError,
         bootstrapNetworkError: _bootstrapNetworkError,
+        bootstrapSelectFile: _bootstrapSelectFile,
+        bootstrapNoFileSelected: _bootstrapNoFileSelected,
       };
     </script>
     <script>
@@ -318,6 +339,8 @@ const t = createT(uiLocale);
         const profileEmail = document.getElementById('cms-profile-email');
         const bootstrapSection = document.getElementById('cms-bootstrap-import');
         const bootstrapFileInput = document.getElementById('cms-bootstrap-file') as HTMLInputElement | null;
+        const bootstrapFileSelectBtn = document.getElementById('cms-bootstrap-file-btn');
+        const bootstrapFileNameDisplay = document.getElementById('cms-bootstrap-file-name');
         const bootstrapBtn = document.getElementById('cms-bootstrap-btn');
         const bootstrapStatus = document.getElementById('cms-bootstrap-status');
         const bootstrapError = document.getElementById('cms-bootstrap-error');
@@ -420,6 +443,19 @@ const t = createT(uiLocale);
               if (data.user) sessionStorage.setItem('cms-user', JSON.stringify(data.user));
             } catch (_) {}
             location.reload();
+          });
+        }
+        // Styled file select button — opens the hidden native file input.
+        if (bootstrapFileSelectBtn && bootstrapFileInput) {
+          bootstrapFileSelectBtn.addEventListener('click', function() {
+            bootstrapFileInput.click();
+          });
+        }
+        // Update filename display when a file is selected.
+        if (bootstrapFileInput && bootstrapFileNameDisplay) {
+          bootstrapFileInput.addEventListener('change', function() {
+            const file = bootstrapFileInput.files?.[0];
+            bootstrapFileNameDisplay.textContent = file ? file.name : (_i18n.bootstrapNoFileSelected || '');
           });
         }
         // Bootstrap import handler — POSTs the selected .zip as a raw body to

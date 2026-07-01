@@ -356,6 +356,8 @@ export function initImportExportEditor(): void {
   const exportFieldset = document.getElementById('ie-export-units') as HTMLFieldSetElement | null;
   const exportBtn = document.getElementById('ie-export-btn') as HTMLButtonElement | null;
   const fileInput = document.getElementById('ie-import-file') as HTMLInputElement | null;
+  const fileSelectBtn = document.getElementById('ie-import-file-btn') as HTMLButtonElement | null;
+  const fileNameDisplay = document.getElementById('ie-import-file-name') as HTMLElement | null;
   const importUnitFieldset = document.getElementById('ie-import-units') as HTMLFieldSetElement | null;
   const importBtn = document.getElementById('ie-import-btn') as HTMLButtonElement | null;
   const manifestPreview = document.getElementById('ie-manifest-preview') as HTMLElement | null;
@@ -364,15 +366,26 @@ export function initImportExportEditor(): void {
   const i18n = getI18n();
   setStatus(statusEl, i18n.statusIdle || 'Ready.');
 
+  // Wire styled file select button — opens the hidden native input.
+  fileSelectBtn?.addEventListener('click', () => {
+    fileInput?.click();
+  });
+
   // Wire export button.
   exportBtn?.addEventListener('click', () => {
     clearStatus(statusEl);
     void handleExport(exportFieldset, exportBtn, statusEl);
   });
 
-  // Wire file picker — parse manifest and show preview.
+  // Wire file picker — update filename display, parse manifest and show preview.
   fileInput?.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
+
+    // Update the filename display.
+    if (fileNameDisplay) {
+      fileNameDisplay.textContent = file ? file.name : '';
+    }
+
     if (!file) {
       if (manifestPreview) manifestPreview.hidden = true;
       return;

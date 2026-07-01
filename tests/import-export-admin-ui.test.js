@@ -75,6 +75,8 @@ test('E-1: en catalog has all importExport.* keys', async () => {
     'importExport.sectionImportTitle',
     'importExport.sectionImportLead',
     'importExport.filePickerLabel',
+    'importExport.filePickerSelectFile',
+    'importExport.filePickerNoFile',
     'importExport.confirmTitle',
     'importExport.confirmBtn',
     'importExport.confirmUnavailable',
@@ -209,6 +211,87 @@ test('E-2: import-export.astro define:vars bridge is NOT an empty script tag', (
 test('E-2: import-export.astro imports client module (not inline TypeScript)', () => {
   const src = fs.readFileSync(path.join(ADMIN_DIR, 'import-export.astro'), 'utf8');
   assert.match(src, /import.*import-export-editor/, 'page must import the client module via a plain <script>');
+});
+
+// ─── E-2b: Styled file picker (visual consistency) ────────────────────────────
+
+test('E-2b: import-export.astro file input is visually hidden (cms-visually-hidden class)', () => {
+  const src = fs.readFileSync(path.join(ADMIN_DIR, 'import-export.astro'), 'utf8');
+  assert.match(
+    src,
+    /id="ie-import-file"[^>]*class="cms-visually-hidden"|class="cms-visually-hidden"[^>]*id="ie-import-file"/,
+    'native file input must have class="cms-visually-hidden" for styled picker pattern',
+  );
+});
+
+test('E-2b: import-export.astro has styled "Select file" button (id ie-import-file-btn)', () => {
+  const src = fs.readFileSync(path.join(ADMIN_DIR, 'import-export.astro'), 'utf8');
+  assert.match(src, /id="ie-import-file-btn"/, 'styled file picker must have a trigger button id="ie-import-file-btn"');
+  assert.match(
+    src,
+    /id="ie-import-file-btn"[^>]*class="cms-btn cms-btn-secondary"|class="cms-btn cms-btn-secondary"[^>]*id="ie-import-file-btn"/,
+    'styled trigger button must use cms-btn cms-btn-secondary classes',
+  );
+});
+
+test('E-2b: import-export.astro has filename display element (id ie-import-file-name)', () => {
+  const src = fs.readFileSync(path.join(ADMIN_DIR, 'import-export.astro'), 'utf8');
+  assert.match(src, /id="ie-import-file-name"/, 'styled file picker must have a filename display element id="ie-import-file-name"');
+  assert.match(src, /aria-live="polite"/, 'filename display must use aria-live="polite" for screen reader announcements');
+});
+
+test('E-2b: import-export-editor.ts wires the styled file select button to open the hidden input', () => {
+  const src = fs.readFileSync(path.join(ADMIN_DIR, 'client', 'import-export-editor.ts'), 'utf8');
+  assert.match(src, /ie-import-file-btn/, 'client module must reference the styled trigger button id');
+  assert.match(src, /fileInput\??\.click\(\)/, 'client module must call fileInput.click() when the styled button is clicked');
+});
+
+test('E-2b: import-export-editor.ts updates filename display on file selection', () => {
+  const src = fs.readFileSync(path.join(ADMIN_DIR, 'client', 'import-export-editor.ts'), 'utf8');
+  assert.match(src, /ie-import-file-name/, 'client module must reference the filename display element id');
+  assert.match(src, /fileNameDisplay.*textContent|textContent.*fileNameDisplay/, 'client module must update the filename display text');
+});
+
+// ─── E-2c: Bootstrap styled file picker (layout.astro) ────────────────────────
+
+test('E-2c: layout.astro bootstrap file input is visually hidden (cms-visually-hidden class)', () => {
+  const src = fs.readFileSync(path.join(ADMIN_DIR, 'layout.astro'), 'utf8');
+  assert.match(
+    src,
+    /id="cms-bootstrap-file"[^>]*class="cms-visually-hidden"|class="cms-visually-hidden"[^>]*id="cms-bootstrap-file"/,
+    'bootstrap native file input must have class="cms-visually-hidden" for styled picker pattern',
+  );
+});
+
+test('E-2c: layout.astro has styled "Select file" button for bootstrap (id cms-bootstrap-file-btn)', () => {
+  const src = fs.readFileSync(path.join(ADMIN_DIR, 'layout.astro'), 'utf8');
+  assert.match(src, /id="cms-bootstrap-file-btn"/, 'bootstrap styled file picker must have a trigger button id="cms-bootstrap-file-btn"');
+  assert.match(
+    src,
+    /id="cms-bootstrap-file-btn"[^>]*class="cms-btn cms-btn-secondary"|class="cms-btn cms-btn-secondary"[^>]*id="cms-bootstrap-file-btn"/,
+    'bootstrap styled trigger button must use cms-btn cms-btn-secondary classes',
+  );
+});
+
+test('E-2c: layout.astro has filename display element for bootstrap (id cms-bootstrap-file-name)', () => {
+  const src = fs.readFileSync(path.join(ADMIN_DIR, 'layout.astro'), 'utf8');
+  assert.match(src, /id="cms-bootstrap-file-name"/, 'bootstrap styled file picker must have a filename display element id="cms-bootstrap-file-name"');
+});
+
+test('E-2c: layout.astro bootstrap define:vars bridge includes new file picker i18n keys (pure JS)', () => {
+  const src = fs.readFileSync(path.join(ADMIN_DIR, 'layout.astro'), 'utf8');
+  assert.match(src, /_bootstrapSelectFile\s*:/, 'define:vars bridge must include _bootstrapSelectFile scalar');
+  assert.match(src, /_bootstrapNoFileSelected\s*:/, 'define:vars bridge must include _bootstrapNoFileSelected scalar');
+  assert.match(src, /bootstrapSelectFile\s*:/, 'window.__cmsAuthI18n must include bootstrapSelectFile');
+  assert.match(src, /bootstrapNoFileSelected\s*:/, 'window.__cmsAuthI18n must include bootstrapNoFileSelected');
+});
+
+test('E-2c: bootstrap.selectFile and bootstrap.noFileSelected keys exist in both catalogs', async () => {
+  const { catalogs } = await import(`${DIST_DIR}/routes/admin/i18n/catalogs.js`);
+  for (const locale of ['en', 'es']) {
+    assert.ok('bootstrap.selectFile' in catalogs[locale], `bootstrap.selectFile must exist in ${locale} catalog`);
+    assert.ok('bootstrap.noFileSelected' in catalogs[locale], `bootstrap.noFileSelected must exist in ${locale} catalog`);
+  }
 });
 
 // ─── E-3: client module ───────────────────────────────────────────────────────

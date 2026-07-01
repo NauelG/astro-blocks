@@ -30,6 +30,8 @@ export const en = {
   'bootstrap.importingStatus': 'Importing backup…',
   'bootstrap.importError': 'Import failed: HTTP {status}',
   'bootstrap.networkError': 'Network error. Please try again.',
+  'bootstrap.selectFile': 'Select file',
+  'bootstrap.noFileSelected': 'No file selected',
 
   // ─── Navigation ───────────────────────────────────────────────────────────
   'nav.dashboard': 'Dashboard',
@@ -318,6 +320,8 @@ export const en = {
   'importExport.sectionImportTitle': 'Restore a backup',
   'importExport.sectionImportLead': 'Upload a backup .zip to replace the selected content units. The current data will be snapshotted before the import runs.',
   'importExport.filePickerLabel': 'Backup file (.zip)',
+  'importExport.filePickerSelectFile': 'Select file',
+  'importExport.filePickerNoFile': 'No file selected',
   'importExport.confirmTitle': 'Confirm data replacement',
   'importExport.confirmBtn': 'Replace data',
   'importExport.confirmUnavailable': 'Confirm dialog is not available. Please reload the page.',
