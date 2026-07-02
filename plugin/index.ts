@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import type { AstroIntegration } from 'astro';
 import { buildSchemaMap, resolveBlockEntries } from '../utils/blocks.js';
 import { COMPONENT_PATH_KEY } from '../contract/index.js';
-import type { AstroBlocksOptions, GlobalBlockDeclaration, PrimitivePropDef } from '../types/index.js';
+import type { AstroBlocksOptions, GlobalBlockDeclaration, GlobalBlockRuntimeEntry, PrimitivePropDef } from '../types/index.js';
 import { DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -83,7 +83,7 @@ export function validateGlobalBlocks(declarations: GlobalBlockDeclaration[]): vo
   }
 }
 
-export async function generateRuntime(projectRoot: string, options: AstroBlocksOptions): Promise<void> {
+export async function generateRuntime(projectRoot: string, options: AstroBlocksOptions): Promise<GlobalBlockRuntimeEntry[]> {
   const layoutPath = options.layoutPath || './src/layouts/Layout.astro';
   const astroBlocksDir = path.join(projectRoot, '.astro-blocks');
 
@@ -158,6 +158,13 @@ export async function generateRuntime(projectRoot: string, options: AstroBlocksO
   await fs.mkdir(astroBlocksDir, { recursive: true });
   await fs.writeFile(path.join(astroBlocksDir, 'runtime.mjs'), runtimeLines.join('\n'), 'utf-8');
   await fs.writeFile(path.join(astroBlocksDir, 'schema-map.mjs'), schemaMapLines.join('\n'), 'utf-8');
+
+  // Return the registry so the caller can bake it into the bundle (vite.define). The
+  // precompiled API route (catchall.js) cannot import the 'astro-blocks-runtime' alias
+  // like the .astro render paths do, and reading .astro-blocks/runtime.mjs from disk at
+  // request time is unreliable in deployment (gitignored build artifact). Baking is the
+  // robust source of truth for the admin global-block API.
+  return registryEntries;
 }
 
 function resolveOptions(options: AstroBlocksOptions): ResolvedPluginOptions {
@@ -269,7 +276,7 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
           resolvedOptions.i18n.routingStrategy = 'path-prefix';
         }
 
-        await generateRuntime(projectRoot, resolvedOptions);
+        const globalBlocksRegistry = await generateRuntime(projectRoot, resolvedOptions);
 
         const resolveCms = (file: string): string => path.join(cmsDir, 'routes', file);
         const vite = config.vite || {};
@@ -307,6 +314,12 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
         vite.define['import.meta.env.ASTRO_BLOCKS_CACHE_SWR'] = JSON.stringify(resolvedOptions.cache.swr);
         vite.define['import.meta.env.ASTRO_BLOCKS_ROUTING_STRATEGY'] = JSON.stringify(resolvedOptions.i18n.routingStrategy);
         vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'] = JSON.stringify(resolvedOptions.allowedFileTypes);
+        // Bake the global-block registry into the bundle so the precompiled admin API
+        // (catchall.js) resolves declarations without reading .astro-blocks/runtime.mjs
+        // from disk — that gitignored artifact is often absent in deployed servers,
+        // which 404'd every global-block open/edit. Double-encode: the outer JSON.stringify
+        // emits a string literal that the route parses back with JSON.parse.
+        vite.define['import.meta.env.ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY'] = JSON.stringify(JSON.stringify(globalBlocksRegistry));
 
         const existingNoExternal = vite.ssr?.noExternal ?? [];
         const cmsNoExternal = ['animate.css', '@picocss/pico'];
