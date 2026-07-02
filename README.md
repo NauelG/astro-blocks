@@ -142,23 +142,19 @@ yarn add @astroblocks/astro-blocks @astrojs/node
 
 ## Environment Setup
 
-The admin UI at `/cms` uses JWT-based sessions. You **must** set all three variables below in your server environment for admin login to work — **without them the admin login will not function**.
+The admin UI at `/cms` uses stateless JWT sessions. The admin account is created on **first login** — there are no admin username/password variables to configure.
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `ASTRO_BLOCKS_JWT_SECRET` | Yes | Secret used to sign and verify JWT session tokens. Use a long random string (32+ characters). Rotating it invalidates all sessions. |
-| `ASTRO_BLOCKS_ADMIN_USER` | Yes | Email address for the initial admin account. |
-| `ASTRO_BLOCKS_ADMIN_PASSWORD` | Yes | Password for the initial admin account. |
+| `ASTRO_BLOCKS_JWT_SECRET` | Yes (production) | Secret used to sign and verify JWT session tokens. Use a long random string (32+ characters). Rotating it invalidates all sessions. **Required in production** — without it the admin login returns `503` and no session is issued. Legacy alias `CMS_JWT_SECRET` is accepted but deprecated. |
 
 Example `.env` (local development only — **never commit real values**):
 
 ```sh
 ASTRO_BLOCKS_JWT_SECRET=your-long-random-secret-here
-ASTRO_BLOCKS_ADMIN_USER=admin@example.com
-ASTRO_BLOCKS_ADMIN_PASSWORD=changeme
 ```
 
-> Set these as environment/runtime variables on your deployment platform — not in committed files. For the complete list of optional variables (upload and import size limits, project-root override), see the [Environment Variables Reference](./AGENTS.consumer.md#environment-variables-reference-complete-list) in `AGENTS.consumer.md`.
+> Set this as an environment/runtime variable on your deployment platform — not in committed files. The **first person to log in at `/cms` creates the owner account**, so complete that initial login yourself over a trusted connection right after deploying. For the complete list of optional variables (upload and import size limits, project-root override), see the [Environment Variables Reference](./AGENTS.consumer.md#environment-variables-reference-complete-list) in `AGENTS.consumer.md`.
 
 ## Quick Start
 
@@ -668,7 +664,7 @@ The `.astro` component then stays a pure component (it does not export a schema)
 
 ### The admin login does not work
 
-The admin login requires the three environment variables from [Environment Setup](#environment-setup) — `ASTRO_BLOCKS_JWT_SECRET`, `ASTRO_BLOCKS_ADMIN_USER`, `ASTRO_BLOCKS_ADMIN_PASSWORD`. If any is missing from the server environment, login cannot succeed. Confirm they are set at runtime (in your deployment platform, not only in a local `.env`), and that they are not committed to git.
+The admin login requires `ASTRO_BLOCKS_JWT_SECRET` from [Environment Setup](#environment-setup) to be set in the server environment. In production, a missing secret makes the login endpoint return `503` (no session is issued) — confirm it is set at runtime (in your deployment platform, not only in a local `.env`) and not committed to git. The admin account is created on first login; there are no admin username/password variables.
 
 ### Content changes do not appear on the public site
 

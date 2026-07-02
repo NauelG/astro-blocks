@@ -9,6 +9,39 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.4.0] - 2026-07-02
+
+### Title
+
+Require ASTRO_BLOCKS_JWT_SECRET in production and fix the admin session-secret variable
+
+### Security
+
+- **Admin auth fails closed without a configured secret.** In a production build, if no JWT
+  signing secret is configured the login endpoint now returns `503` and no session is issued,
+  instead of silently falling back to a public built-in constant. Signing and verifying tokens
+  with that constant allowed an owner session token to be forged. Development keeps the fallback
+  with a loud warning so local iteration is unaffected. Production is detected via Astro's
+  build-time `import.meta.env.PROD` (with `NODE_ENV=production` as a secondary signal), so the
+  guard fires regardless of whether the host sets `NODE_ENV`.
+- **Session secret is now read from `ASTRO_BLOCKS_JWT_SECRET`.** Earlier releases read only
+  `CMS_JWT_SECRET` while the documentation specified `ASTRO_BLOCKS_JWT_SECRET`, so deployments
+  that followed the docs were running on the built-in fallback. `CMS_JWT_SECRET` is still accepted
+  as a deprecated legacy alias (with a warning) and will be removed in a future release.
+
+### Changed
+
+- **Action required for production:** set `ASTRO_BLOCKS_JWT_SECRET` to a strong random value.
+  Without it, the admin login is disabled (returns `503`) in production builds.
+
+### Documentation
+
+- Corrected the admin authentication docs in `README.md` and `AGENTS.consumer.md`: the admin
+  account is created on **first login** (there are no `ASTRO_BLOCKS_ADMIN_USER` /
+  `ASTRO_BLOCKS_ADMIN_PASSWORD` variables — they were never read by the code), and the session
+  token is returned in the login response and sent as an `Authorization: Bearer` header rather
+  than an `httpOnly` cookie.
+
 ## [3.3.2] - 2026-07-02
 
 ### Title
