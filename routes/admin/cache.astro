@@ -71,7 +71,10 @@ const cacheI18n = {
         btn.disabled = true;
         const token = (typeof window !== 'undefined' && window.getCmsToken) ? window.getCmsToken() : '';
         try {
-          const res = await fetch(url, { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+          // Non-form Content-Type avoids Astro's origin-check 403 for bodyless POSTs
+          // behind reverse proxies (see routes/admin/client/media.ts). Without any
+          // Content-Type header, Astro's middleware requires a same-origin match.
+          const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token } });
           const payload = await readPayload(res);
           if (res.ok) {
             window.cmsToast?.({ title: successTitle, message: payload.message || successMessage, tone: 'success' });

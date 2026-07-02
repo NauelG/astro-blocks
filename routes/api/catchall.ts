@@ -13,6 +13,21 @@ import type { GlobalBlockRuntimeEntry } from '../../types/index.js';
 export const prerender = false;
 
 async function loadGlobalBlocksRegistry(): Promise<GlobalBlockRuntimeEntry[]> {
+  // Primary: the registry baked into the bundle at build time (vite.define). This is the
+  // robust source in every deployment. Reading .astro-blocks/runtime.mjs from disk (below)
+  // fails whenever that gitignored build artifact is absent from the deployed server —
+  // which 404'd global-block open/edit even though rendering worked via the bundled alias.
+  const baked = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env?.ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY;
+  if (typeof baked === 'string' && baked.length > 0) {
+    try {
+      const parsed = JSON.parse(baked) as GlobalBlockRuntimeEntry[];
+      if (Array.isArray(parsed)) return parsed;
+    } catch {
+      // Malformed bake — fall through to the filesystem read.
+    }
+  }
+
+  // Fallback: dev/legacy filesystem read of the generated runtime module.
   try {
     const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
     const runtimePath = path.join(projectRoot, '.astro-blocks', 'runtime.mjs');
