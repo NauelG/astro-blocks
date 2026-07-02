@@ -654,39 +654,46 @@ The `<GlobalBlock>` component resolves the correct locale value at render time u
 
 ## Authentication (admin UI)
 
-The admin UI at `/cms` uses JWT-based sessions. Sessions are created by logging in at `/cms` with an admin username and password.
+The admin UI at `/cms` uses stateless JWT sessions. The admin account is created on **first login** — there are no admin credentials to configure in the environment.
 
-### Required environment variables
+### Required environment variable
 
-You must set all three of the following for the admin UI to work:
+You must set one variable for the admin UI to be usable in production:
 
 | Variable | Description |
 |----------|-------------|
 | `ASTRO_BLOCKS_JWT_SECRET` | Secret used to sign and verify JWT session tokens. Use a long random string (32+ characters). |
-| `ASTRO_BLOCKS_ADMIN_USER` | Email address for the initial admin account. |
-| `ASTRO_BLOCKS_ADMIN_PASSWORD` | Password for the initial admin account. |
 
-**These variables must be set in your server environment — not committed to git.** Add them to your `.env` file locally and set them as environment/runtime variables in your deployment platform.
+> **Security (required in production):** if `ASTRO_BLOCKS_JWT_SECRET` is not set, a production
+> server **refuses to authenticate** — the login endpoint returns `503` and no session is issued.
+> This is deliberate: without a configured secret the server would fall back to a public built-in
+> value and anyone could forge an owner session token. In development the fallback is tolerated
+> with a loud warning so you can iterate without setup. `CMS_JWT_SECRET` is accepted as a
+> deprecated legacy alias and will be removed in a future release — prefer `ASTRO_BLOCKS_JWT_SECRET`.
+
+**Set this in your server environment — not committed to git.** Add it to your `.env` file locally and set it as an environment/runtime variable in your deployment platform.
 
 Example `.env` (for local development only — never commit real values):
 
 ```sh
 ASTRO_BLOCKS_JWT_SECRET=your-long-random-secret-here
-ASTRO_BLOCKS_ADMIN_USER=admin@example.com
-ASTRO_BLOCKS_ADMIN_PASSWORD=changeme
 ```
 
-### JWT flow
+### Login / session flow
 
-1. User POSTs credentials to `/cms/api/[...path]` (login endpoint).
-2. Server validates against `ASTRO_BLOCKS_ADMIN_USER` and `ASTRO_BLOCKS_ADMIN_PASSWORD`.
-3. On success, a signed JWT is set as an `httpOnly` cookie.
-4. Subsequent requests to `/cms/**` are authenticated by the cookie.
-5. The JWT is signed using `ASTRO_BLOCKS_JWT_SECRET` — rotating this secret invalidates all sessions.
+1. The user POSTs `{ email, password }` to the login endpoint under `/cms/api/[...path]`.
+2. **First login bootstraps the owner:** if no users exist yet, the first successful POST creates
+   the owner account with the submitted credentials. Subsequent logins validate the email and
+   password against the stored (scrypt-hashed) account.
+3. On success the server returns a signed JWT (HS256, 7-day expiry) in the JSON response body.
+4. The admin client stores that token and sends it as an `Authorization: Bearer <token>` header
+   (an `x-cms-token` header is also accepted) on subsequent `/cms/api/**` requests.
+5. The JWT is signed with `ASTRO_BLOCKS_JWT_SECRET` — rotating this secret invalidates all sessions.
 
 ### Accessing the admin UI in production
 
-Navigate to `https://yourdomain.com/cms` in a browser. Log in with the credentials set in your environment variables.
+Navigate to `https://yourdomain.com/cms` in a browser. The first person to log in creates the owner
+account, so complete that initial login yourself over a trusted connection right after deploying.
 
 ---
 
@@ -804,13 +811,11 @@ Uploaded files are stored in `public/uploads/` in your project root. This direct
 
 ## Environment Variables Reference (complete list)
 
-### Required
+### Required (production)
 
 | Variable | Description |
 |----------|-------------|
-| `ASTRO_BLOCKS_JWT_SECRET` | JWT signing secret. Required for admin login to work. Minimum 32 characters recommended. |
-| `ASTRO_BLOCKS_ADMIN_USER` | Admin account email address. |
-| `ASTRO_BLOCKS_ADMIN_PASSWORD` | Admin account password. |
+| `ASTRO_BLOCKS_JWT_SECRET` | JWT signing secret. **Required in production** — without it the admin login endpoint returns `503` and no session is issued. Minimum 32 characters recommended. Legacy alias: `CMS_JWT_SECRET` (deprecated). The admin account itself is created on first login; there are no admin username/password env vars. |
 
 ### Optional (with defaults)
 

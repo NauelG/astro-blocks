@@ -49,6 +49,8 @@ export default defineConfig({
       HOST: '127.0.0.1',
       PORT: '4321',
       ASTRO_BLOCKS_PROJECT_ROOT: path.join(__dirname, '.e2e-data'),
+      // The playground runs a production Astro build, so auth fails closed without a secret.
+      ASTRO_BLOCKS_JWT_SECRET: 'e2e-test-secret-not-for-production',
       NODE_V8_COVERAGE: path.join(__dirname, '.coverage-v8'),
     },
   },

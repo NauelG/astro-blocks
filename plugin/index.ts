@@ -263,6 +263,16 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
           throw new Error('[astro-blocks] options.blocks is required and must be an array (e.g. blocks: [heroSchema, ...]).');
         }
 
+        const jwtSecretEnv =
+          process.env.ASTRO_BLOCKS_JWT_SECRET?.trim() || process.env.CMS_JWT_SECRET?.trim();
+        if (!jwtSecretEnv) {
+          console.warn(
+            '[astro-blocks] ASTRO_BLOCKS_JWT_SECRET is not set. Set it to a strong random value before deploying — ' +
+            'in production the admin panel refuses to authenticate with the built-in fallback secret, and ' +
+            'without it anyone could forge an owner session token.'
+          );
+        }
+
         if (Array.isArray(resolvedOptions.globalBlocks)) {
           validateGlobalBlocks(resolvedOptions.globalBlocks);
         }
