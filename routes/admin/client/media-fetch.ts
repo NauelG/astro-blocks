@@ -68,6 +68,34 @@ export async function fetchMedia(params?: { q?: string; page?: number; limit?: n
   }
 }
 
+/**
+ * Upload a single file to /cms/api/upload.
+ *
+ * This is the ONLY supported upload protocol: the raw file bytes are sent as the
+ * request body, with the file's real MIME as Content-Type and the (percent-encoded)
+ * filename in the x-cms-filename header. The server reads the body via
+ * request.arrayBuffer() and does NOT parse multipart/form-data (see handleUpload in
+ * api/handlers.ts). Sending FormData here yields a multipart/form-data Content-Type,
+ * which the server rejects — and, being a form-like Content-Type, it also trips
+ * Astro's origin-check middleware behind reverse proxies. Auth is a JWT in the
+ * Authorization header, never an ambient cookie, so CSRF is a non-issue.
+ *
+ * Centralized so every caller (media grid, block picker, SEO image) stays in sync.
+ * Returns the raw Response; callers own success/error handling.
+ */
+export function uploadMedia(file: File): Promise<Response> {
+  const token = getCmsToken();
+  return fetch('/cms/api/upload', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-cms-filename': encodeURIComponent(file.name),
+    },
+    body: file,
+  });
+}
+
 // ─── Shared metadata formatters ───────────────────────────────────────────────
 
 /**

@@ -10,7 +10,7 @@ Licensed under the Business Source License 1.1
  */
 
 import { getCmsToken, getCmsWindow } from './common.js';
-import { fetchMedia, formatBytes, formatDimensions, formatMediaDate } from './media-fetch.js';
+import { fetchMedia, formatBytes, formatDimensions, formatMediaDate, uploadMedia } from './media-fetch.js';
 import type { MediaListEnvelope, MediaEntry } from './media-fetch.js';
 import { ct } from '../i18n/client.js';
 
@@ -200,21 +200,7 @@ async function loadMedia(): Promise<void> {
 
 async function uploadFile(file: File): Promise<void> {
   const cmsWindow = getCmsWindow();
-  const token = getCmsToken();
-  // Send the raw binary body with the file's real MIME as Content-Type. CSRF is not a
-  // concern: the API authenticates via the JWT in the Authorization header (not a cookie),
-  // and the non-form Content-Type + custom x-cms-filename header force a CORS preflight.
-  // The non-form Content-Type also avoids Astro's origin-check 403 behind reverse proxies
-  // (see the rationale in api/handlers.ts handleUpload).
-  const res = await fetch('/cms/api/upload', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': file.type || 'application/octet-stream',
-      'x-cms-filename': encodeURIComponent(file.name),
-    },
-    body: file,
-  });
+  const res = await uploadMedia(file);
 
   if (res.ok) {
     cmsWindow.cmsToast?.({ title: ct('media.uploadSuccess'), message: ct('media.uploadSuccessMessage', { filename: file.name }), tone: 'success' });

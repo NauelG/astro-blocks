@@ -38,11 +38,11 @@ import {
   isPrimitivePropDef,
 } from '../../../utils/block-validation.js';
 import { isSchemaPropLocalizable } from '../../../utils/localization.js';
-import { escapeHtml, getActiveContentLocale, getCmsToken } from './common.js';
+import { escapeHtml, getActiveContentLocale } from './common.js';
 import { ct } from '../i18n/client.js';
 import { toImageValue, parseImageValue, mediaEntryToImageValue, serializeImageValueAttr } from '../../../utils/image-value.js';
 import { toFileValue, parseFileValue, mediaEntryToFileValue, serializeFileValueAttr, isEmptyFileValue } from '../../../utils/file-value.js';
-import { fetchMedia, formatBytes, formatDimensions, formatMediaDate } from './media-fetch.js';
+import { fetchMedia, formatBytes, formatDimensions, formatMediaDate, uploadMedia } from './media-fetch.js';
 import type { MediaEntry as MediaFetchEntry } from './media-fetch.js';
 import { DEFAULT_ALLOWED_FILE_TYPES, intersectAccept } from '../../../utils/file-types.js';
 
@@ -668,14 +668,7 @@ async function openPickerDialog(
       const file = fileInput.files[0];
       uploadBtn.disabled = true;
       try {
-        const fd = new FormData();
-        fd.append('file', file);
-        const token = getCmsToken();
-        const uploadRes = await fetch('/cms/api/upload', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: fd,
-        });
+        const uploadRes = await uploadMedia(file);
         if (uploadRes.ok) {
           const uploadBody = await uploadRes.json() as { url?: string; entry?: MediaEntry };
           if (uploadBody.url) {
