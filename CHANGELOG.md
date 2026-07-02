@@ -9,6 +9,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.3.1] - 2026-07-02
+
+### Title
+
+Fix admin upload, cache invalidation, and global-block editing
+
+### Fixed
+
+- **Block editor uploads**: uploading an image or file from a block (or the SEO image field) failed because those pickers sent `multipart/form-data`, which the upload endpoint does not parse. All uploads now use the same raw-binary protocol as the media library, unified in a single shared helper.
+- **Cache invalidation**: the "Invalidate cache" action returned a `403` behind reverse proxies. The bodyless POST now sends a non-form `Content-Type`, so Astro's origin-check middleware no longer rejects it.
+- **Global-block editing**: opening or editing a global block returned a `404` on deployed sites (rendering was unaffected). The admin API previously resolved block declarations from the gitignored `.astro-blocks/runtime.mjs` build artifact at request time; the registry is now baked into the bundle at build, so it is always available.
+
+### Added
+
+- End-to-end coverage (Playwright) for block image/file uploads, cache invalidation, and global-block resolution — each guarding the exact regression it fixes.
+
 ## [3.3.0] - 2026-07-01
 
 ### Title
