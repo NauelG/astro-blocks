@@ -38,7 +38,7 @@ import {
   isPrimitivePropDef,
 } from '../../../utils/block-validation.js';
 import { isSchemaPropLocalizable } from '../../../utils/localization.js';
-import { escapeHtml, getActiveContentLocale } from './common.js';
+import { escapeHtml, getActiveContentLocale, showToast } from './common.js';
 import { ct } from '../i18n/client.js';
 import { toImageValue, parseImageValue, mediaEntryToImageValue, serializeImageValueAttr } from '../../../utils/image-value.js';
 import { toFileValue, parseFileValue, mediaEntryToFileValue, serializeFileValueAttr, isEmptyFileValue } from '../../../utils/file-value.js';
@@ -687,7 +687,12 @@ async function openPickerDialog(
               selectPickerImage(value);
             }
           }
+        } else {
+          const errBody = await uploadRes.json().catch(() => ({})) as { error?: string };
+          showToast(errBody.error || ct('media.uploadFailed'), 'error', ct('media.uploadError'));
         }
+      } catch {
+        showToast(ct('media.uploadFailed'), 'error', ct('media.uploadError'));
       } finally {
         uploadBtn.disabled = false;
       }

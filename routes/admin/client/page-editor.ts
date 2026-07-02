@@ -738,10 +738,17 @@ export function initPageEditor(): void {
   }
 
   async function uploadSeoImage(file: File): Promise<void> {
-    const response = await uploadMedia(file);
-    const data = await response.json().catch(() => ({})) as { url?: string; error?: string };
-    if (!response.ok) throw new Error(data.error || 'Request failed');
-    if (data.url) updateSeoImagePreview(data.url);
+    try {
+      const response = await uploadMedia(file);
+      const data = await response.json().catch(() => ({})) as { url?: string; error?: string };
+      if (!response.ok) {
+        showToast(data.error || ct('media.uploadFailed'), 'error', ct('media.uploadError'));
+        return;
+      }
+      if (data.url) updateSeoImagePreview(data.url);
+    } catch {
+      showToast(ct('media.uploadFailed'), 'error', ct('media.uploadError'));
+    }
   }
 
   async function removeSeoImage(): Promise<void> {
