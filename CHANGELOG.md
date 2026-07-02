@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.3.2] - 2026-07-02
+
+### Title
+
+Surface admin upload failures to the user
+
+### Fixed
+
+- **Admin upload feedback**: two admin upload call sites silently swallowed failed uploads (non-2xx responses or network errors) — the SEO image field and the block media picker. A failed upload now shows an error toast with the server-provided message, matching the media library's behavior. Reuses the existing `media.uploadError` / `media.uploadFailed` messages, so no new translations are required.
+
 ## [3.3.1] - 2026-07-02
 
 ### Title
