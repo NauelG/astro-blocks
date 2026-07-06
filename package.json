@@ -1,6 +1,6 @@
 {
   "name": "@astroblocks/astro-blocks",
-  "version": "3.5.0",
+  "version": "3.5.1",
   "description": "Block-based content CMS integration for Astro with admin panel, page builder, menus, SEO and cache invalidation.",
   "homepage": "https://github.com/NauelG/astro-blocks#readme",
   "repository": {
