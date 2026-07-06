@@ -3,41 +3,29 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+/**
+ * routes/api/catchall.ts — Astro binding shim for the CMS API.
+ *
+ * Phase 3 of route-table-auth-gating (resolves #36 + #37): the five
+ * hand-rolled if-chains are replaced by a single central `dispatch()` that
+ * resolves auth exactly ONCE per request and enforces the matched route's
+ * declared `auth` level BEFORE invoking any handler. There is exactly one
+ * code path to any handler and it always passes through the auth gate —
+ * authorization is correct-by-construction (ADR-5).
+ *
+ * This module keeps only: `getPathSegments` (the `/cms/api` mount-prefix
+ * strip), `dispatch`, and the five per-verb exports Astro requires. The
+ * route inventory lives in `api/route-table.ts`; the pure matcher lives in
+ * `api/route-matcher.ts`.
+ */
+
 import type { APIContext } from 'astro';
 import * as handlers from '../../api/handlers.js';
 import { localizedJsonError } from '../../api/handlers.js';
-import type { GlobalBlockRuntimeEntry } from '../../types/index.js';
+import { matchRoute, type HttpMethod } from '../../api/route-matcher.js';
+import { routes } from '../../api/route-table.js';
 
 export const prerender = false;
-
-async function loadGlobalBlocksRegistry(): Promise<GlobalBlockRuntimeEntry[]> {
-  // Primary: the registry baked into the bundle at build time (vite.define). This is the
-  // robust source in every deployment. Reading .astro-blocks/runtime.mjs from disk (below)
-  // fails whenever that gitignored build artifact is absent from the deployed server —
-  // which 404'd global-block open/edit even though rendering worked via the bundled alias.
-  const baked = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env?.ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY;
-  if (typeof baked === 'string' && baked.length > 0) {
-    try {
-      const parsed = JSON.parse(baked) as GlobalBlockRuntimeEntry[];
-      if (Array.isArray(parsed)) return parsed;
-    } catch {
-      // Malformed bake — fall through to the filesystem read.
-    }
-  }
-
-  // Fallback: dev/legacy filesystem read of the generated runtime module.
-  try {
-    const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
-    const runtimePath = path.join(projectRoot, '.astro-blocks', 'runtime.mjs');
-    const runtimeUrl = pathToFileURL(runtimePath).href;
-    const mod = (await import(/* @vite-ignore */ runtimeUrl)) as { globalBlocksRegistry?: GlobalBlockRuntimeEntry[] };
-    return mod.globalBlocksRegistry ?? [];
-  } catch {
-    return [];
-  }
-}
 
 function getPathSegments(url: string): string[] {
   const pathname = new URL(url).pathname;
@@ -45,140 +33,49 @@ function getPathSegments(url: string): string[] {
   return segments.slice(2);
 }
 
-async function ensureAuth(request: Request): Promise<{ status: 401; body: { error: string } } | { user: NonNullable<Awaited<ReturnType<typeof handlers.getAuth>>>['user'] }> {
+/**
+ * The single dispatch point for all 43 CMS API routes.
+ *
+ * Resolves `getAuth()` ONCE (replacing the four `ensureAuth` copies of the
+ * old if-chain), matches the route table, then enforces the matched
+ * descriptor's declared auth level before running its handler:
+ *   - no match                    -> 401 if unauthenticated, else 404
+ *     (info-hiding: an unauthenticated caller can never observe whether a
+ *     route exists — mirrors the old `ensureAuth`-before-404 ordering)
+ *   - `public`                    -> handler runs unconditionally
+ *   - `user` / `owner`, no auth   -> 401, handler never runs
+ *   - `owner`, non-owner caller   -> 403 (`requireOwner`), handler never runs
+ *   - otherwise                   -> handler runs
+ */
+async function dispatch(method: HttpMethod, context: APIContext): Promise<Response> {
+  const { request, cache } = context;
+  const seg = getPathSegments(request.url);
+  const match = matchRoute(method, seg, routes);
   const auth = await handlers.getAuth(request);
-  if (!auth) return { status: 401, body: { error: 'Unauthorized' } };
-  return { user: auth.user };
-}
 
-export async function GET({ request }: APIContext): Promise<Response> {
-  const seg = getPathSegments(request.url);
-
-  if (seg[0] === 'auth' && seg[1] === 'status' && seg.length === 2) return handlers.handleAuthStatus();
-  if (seg[0] === 'auth' && seg[1] === 'me' && seg.length === 2) {
-    const auth = await handlers.getAuth(request);
-    return handlers.handleAuthMe(auth?.user, request);
+  if (!match) {
+    if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    return localizedJsonError(request, 'errors.notFound', 404);
   }
 
-  const authResult = await ensureAuth(request);
-  if ('status' in authResult) return new Response(JSON.stringify(authResult.body), { status: 401 });
+  const { descriptor, params } = match;
 
-  if (seg[0] === 'export' && seg.length === 1) return handlers.handleExport(request, authResult.user);
-
-  if (seg[0] === 'pages' && seg.length === 1) return handlers.handleGetPages(request);
-  if (seg[0] === 'site' && seg.length === 1) return handlers.handleGetSite();
-  if (seg[0] === 'menus' && seg.length === 1) return handlers.handleGetMenus(request);
-  if (seg[0] === 'redirects' && seg.length === 1) return handlers.handleGetRedirects();
-  if (seg[0] === 'configs' && seg.length === 1) return handlers.handleGetConfigs();
-  if (seg[0] === 'users' && seg.length === 1) return handlers.handleGetUsers(authResult.user);
-  if (seg[0] === 'block-schemas' && seg.length === 1) return handlers.handleGetBlockSchemas();
-  if (seg[0] === 'languages' && seg.length === 1) return handlers.handleGetLanguages();
-  if (seg[0] === 'media' && seg.length === 1) return handlers.handleGetMedia(request);
-  if (seg[0] === 'media' && seg[2] === 'usage' && seg.length === 3) return handlers.handleGetMediaUsage(seg[1], request);
-  if (seg[0] === 'global-blocks' && seg.length === 1) {
-    const registry = await loadGlobalBlocksRegistry();
-    return handlers.handleGetGlobalBlocks(registry, request);
-  }
-  if (seg[0] === 'global-blocks' && seg.length === 2) {
-    const registry = await loadGlobalBlocksRegistry();
-    return handlers.handleGetGlobalBlock(seg[1], registry, request);
+  if (descriptor.auth === 'public') {
+    return descriptor.handler({ request, cache, params, user: auth?.user ?? null });
   }
 
-  return localizedJsonError(request, 'errors.notFound', 404);
-}
+  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 
-export async function POST({ request, cache }: APIContext): Promise<Response> {
-  const seg = getPathSegments(request.url);
-
-  if (seg[0] === 'auth' && seg[1] === 'login' && seg.length === 2) return handlers.handleLogin(request);
-
-  // Bootstrap import — public, unauthenticated. MUST be before ensureAuth (ADR-6).
-  // Zero-user gate inside the handler is the sole protection.
-  if (seg[0] === 'import' && seg[1] === 'bootstrap' && seg.length === 2) {
-    return handlers.handleBootstrapImport(request, { cache });
-  }
-
-  const authResult = await ensureAuth(request);
-  if ('status' in authResult) return new Response(JSON.stringify(authResult.body), { status: 401 });
-
-  if (seg[0] === 'pages' && seg.length === 1) return handlers.handlePostPages(request, { cache });
-  if (seg[0] === 'menus' && seg.length === 1) return handlers.handlePostMenus(request, { cache });
-  if (seg[0] === 'redirects' && seg.length === 1) return handlers.handlePostRedirects(request, { cache });
-  if (seg[0] === 'configs' && seg.length === 1) return handlers.handlePostConfigs(request, { cache });
-  if (seg[0] === 'upload' && seg.length === 1) return handlers.handleUpload(request);
-  if (seg[0] === 'media' && seg[2] === 'replace' && seg.length === 3) return handlers.handleReplaceUpload(request, seg[1]);
-  if (seg[0] === 'cache' && seg[1] === 'invalidate' && seg.length === 2) return handlers.handleInvalidateCache(request, { cache });
-  if (seg[0] === 'import' && seg.length === 1) return handlers.handleImport(request, authResult.user, { cache });
-  if (seg[0] === 'users' && seg.length === 1) return handlers.handlePostUsers(request, authResult.user);
-  if (seg[0] === 'languages' && seg.length === 1) {
-    const forbidden = handlers.requireOwner(authResult.user);
+  if (descriptor.auth === 'owner') {
+    const forbidden = handlers.requireOwner(auth.user, request);
     if (forbidden) return forbidden;
-    return handlers.handlePostLanguages(request, { cache });
   }
 
-  return localizedJsonError(request, 'errors.notFound', 404);
+  return descriptor.handler({ request, cache, params, user: auth.user });
 }
 
-export async function PUT({ request, cache }: APIContext): Promise<Response> {
-  const authResult = await ensureAuth(request);
-  if ('status' in authResult) return new Response(JSON.stringify(authResult.body), { status: 401 });
-
-  const seg = getPathSegments(request.url);
-
-  if (seg[0] === 'pages' && seg.length === 2) return handlers.handlePutPage(seg[1], request, { cache });
-  if (seg[0] === 'site' && seg.length === 1) {
-    const forbidden = handlers.requireOwner(authResult.user);
-    if (forbidden) return forbidden;
-    return handlers.handlePutSite(request, { cache });
-  }
-  if (seg[0] === 'menus' && seg.length === 2) return handlers.handlePutMenu(seg[1], request, { cache });
-  if (seg[0] === 'redirects' && seg.length === 2) return handlers.handlePutRedirect(seg[1], request, { cache });
-  if (seg[0] === 'configs' && seg.length === 2) return handlers.handlePutConfig(seg[1], request, { cache });
-  if (seg[0] === 'users' && seg.length === 2) return handlers.handlePutUser(seg[1], request, authResult.user);
-  if (seg[0] === 'languages' && seg.length === 2) {
-    const forbidden = handlers.requireOwner(authResult.user);
-    if (forbidden) return forbidden;
-    return handlers.handlePutLanguage(seg[1], request, { cache });
-  }
-  if (seg[0] === 'global-blocks' && seg.length === 2) {
-    const registry = await loadGlobalBlocksRegistry();
-    return handlers.handlePutGlobalBlock(seg[1], request, { cache }, registry);
-  }
-
-  return localizedJsonError(request, 'errors.notFound', 404);
-}
-
-export async function PATCH({ request }: APIContext): Promise<Response> {
-  const authResult = await ensureAuth(request);
-  if ('status' in authResult) return new Response(JSON.stringify(authResult.body), { status: 401 });
-
-  const seg = getPathSegments(request.url);
-
-  // PATCH /cms/api/media/:id — update default alt text
-  if (seg[0] === 'media' && seg.length === 2) {
-    return handlers.handleUpdateMediaAlt(seg[1], request);
-  }
-
-  return localizedJsonError(request, 'errors.notFound', 404);
-}
-
-export async function DELETE({ request, cache }: APIContext): Promise<Response> {
-  const authResult = await ensureAuth(request);
-  if ('status' in authResult) return new Response(JSON.stringify(authResult.body), { status: 401 });
-
-  const seg = getPathSegments(request.url);
-
-  if (seg[0] === 'pages' && seg.length === 2) return handlers.handleDeletePage(seg[1], request, { cache });
-  if (seg[0] === 'menus' && seg.length === 2) return handlers.handleDeleteMenu(seg[1], { cache }, request);
-  if (seg[0] === 'redirects' && seg.length === 2) return handlers.handleDeleteRedirect(seg[1], { cache }, request);
-  if (seg[0] === 'configs' && seg.length === 2) return handlers.handleDeleteConfig(seg[1], { cache }, request);
-  if (seg[0] === 'users' && seg.length === 2) return handlers.handleDeleteUser(seg[1], authResult.user, request);
-  if (seg[0] === 'upload' && seg.length === 1) return handlers.handleDeleteUpload(request);
-  if (seg[0] === 'languages' && seg.length === 2) {
-    const forbidden = handlers.requireOwner(authResult.user);
-    if (forbidden) return forbidden;
-    return handlers.handleDeleteLanguage(seg[1], { cache }, request);
-  }
-
-  return localizedJsonError(request, 'errors.notFound', 404);
-}
+export const GET = (context: APIContext): Promise<Response> => dispatch('GET', context);
+export const POST = (context: APIContext): Promise<Response> => dispatch('POST', context);
+export const PUT = (context: APIContext): Promise<Response> => dispatch('PUT', context);
+export const PATCH = (context: APIContext): Promise<Response> => dispatch('PATCH', context);
+export const DELETE = (context: APIContext): Promise<Response> => dispatch('DELETE', context);
