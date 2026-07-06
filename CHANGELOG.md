@@ -9,6 +9,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.4.1] - 2026-07-06
+
+### Title
+
+Fix attribute-breakout XSS in the admin editors
+
+### Security
+
+- **Admin editor attributes are now attribute-safe.** Several interpolations in the configs,
+  menus, redirects and page editors escaped only `&`, `<` and `>` (text-context escaping) while
+  rendering inside double-quoted HTML attributes. A value containing a double quote — for
+  example a config description or a menu name/path entered in the admin UI — could break out of
+  the attribute and inject markup. All attribute-context interpolations now use a dedicated
+  attribute-safe escaper that also escapes `"` and `'`, backed by a single canonical escaper
+  module. A regression guard test fails the build if the text-only escaper is ever used inside
+  an attribute context again.
+
 ## [3.4.0] - 2026-07-02
 
 ### Title
