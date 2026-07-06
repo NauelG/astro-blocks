@@ -9,6 +9,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.5.0] - 2026-07-06
+
+### Title
+
+Fail fast when no SSR adapter is configured
+
+### Added
+
+- **SSR adapter guard.** The integration now verifies that an Astro SSR adapter is
+  configured, since the CMS admin panel and its API routes render on demand
+  (`prerender = false`). When none is present, `astro build` fails fast with an
+  actionable `[astro-blocks]` error instead of a cryptic Astro error; `astro dev`,
+  `preview` and `sync` warn instead of throwing so local workflows keep working. The
+  check is adapter-agnostic (any of `@astrojs/node`, `@astrojs/vercel`, `@astrojs/netlify`,
+  `@astrojs/cloudflare`, …) and is exposed as the `assertAdapterConfigured` named export.
+
 ## [3.4.2] - 2026-07-06
 
 ### Title
