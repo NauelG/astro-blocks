@@ -9,6 +9,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.4.2] - 2026-07-06
+
+### Title
+
+Dependency maintenance
+
+### Changed
+
+- Bumped runtime dependencies within their existing ranges: `@lucide/astro` to 1.23.0 and
+  `sharp` to 0.35.3.
+- Bumped development tooling: `@playwright/test` to 1.61.1 and the `@types/node` type
+  definitions to 26.0.1.
+
 ## [3.4.1] - 2026-07-06
 
 ### Title
