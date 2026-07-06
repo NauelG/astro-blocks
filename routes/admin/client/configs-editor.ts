@@ -6,6 +6,7 @@ Licensed under the Business Source License 1.1
 import type { ConfigEntry, ConfigsData } from '../../../types/index.js';
 import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, openDialog, showAlert, showConfirm, showToast } from './common.js';
 import { ct } from '../i18n/client.js';
+import { escapeAttr } from '../../../utils/html-escape.js';
 
 const pencilSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
@@ -143,12 +144,12 @@ export function initConfigsEditor(): void {
     const list = filteredConfigs();
     configsTableBody.innerHTML = list
       .map((entry) => (
-        `<tr data-id="${escapeHtml(entry.id)}">` +
-        `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-config-edit" data-id="${escapeHtml(entry.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
+        `<tr data-id="${escapeAttr(entry.id)}">` +
+        `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-config-edit" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
         `<td class="cms-table-cell-monospace">${escapeHtml(entry.key)}</td>` +
         `<td class="cms-table-cell-monospace cms-configs-value-cell">${escapeHtml(maskConfigValue(entry.value || ''))}</td>` +
-        `<td class="cms-configs-description-cell" title="${escapeHtml(entry.description || '')}">${escapeHtml(entry.description || '—')}</td>` +
-        `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-config-delete" data-id="${escapeHtml(entry.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
+        `<td class="cms-configs-description-cell" title="${escapeAttr(entry.description || '')}">${escapeHtml(entry.description || '—')}</td>` +
+        `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-config-delete" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
         '</tr>'
       ))
       .join('');

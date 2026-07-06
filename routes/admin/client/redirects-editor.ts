@@ -7,6 +7,7 @@ import type { RedirectRule, RedirectsData } from '../../../types/index.js';
 import { normalizeRedirectPath } from '../../../utils/redirects.js';
 import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, openDialog, showAlert, showConfirm, showToast } from './common.js';
 import { ct } from '../i18n/client.js';
+import { escapeAttr } from '../../../utils/html-escape.js';
 
 const pencilSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
@@ -159,13 +160,13 @@ export function initRedirectsEditor(): void {
     const list = filteredRedirects();
     redirectsTableBody.innerHTML = list
       .map((entry) => (
-        `<tr data-id="${escapeHtml(entry.id)}">` +
-        `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-redirect-edit" data-id="${escapeHtml(entry.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
+        `<tr data-id="${escapeAttr(entry.id)}">` +
+        `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-redirect-edit" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
         `<td class="cms-table-cell-monospace">${escapeHtml(entry.from)}</td>` +
         `<td class="cms-table-cell-monospace">${escapeHtml(entry.to)}</td>` +
         `<td><span class="cms-badge cms-badge-neutral">${entry.statusCode}</span></td>` +
         `<td><span class="cms-badge ${entry.enabled !== false ? 'cms-badge-success' : 'cms-badge-neutral'}">${entry.enabled !== false ? ct('redirects.statusActive') : ct('redirects.statusInactive')}</span></td>` +
-        `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-redirect-delete" data-id="${escapeHtml(entry.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
+        `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-redirect-delete" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
         '</tr>'
       ))
       .join('');
