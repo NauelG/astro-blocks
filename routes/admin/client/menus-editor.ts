@@ -7,6 +7,7 @@ import Sortable from 'sortablejs';
 import type { Menu, MenuItem, MenusData } from '../../../types/index.js';
 import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, getActiveContentLocale, openDialog, showAlert, showConfirm, showToast } from './common.js';
 import { ct } from '../i18n/client.js';
+import { escapeAttr } from '../../../utils/html-escape.js';
 
 const SELECTOR_REGEX = /^[a-zA-Z0-9_-]+$/;
 const dragHandleSvg =
@@ -130,7 +131,7 @@ export function initMenusEditor(): void {
   ): string {
     const localeSuffix = localizable ? ` (${getActiveContentLocale('es')})` : '';
     const inputHtml =
-      `<input type="text" class="cms-input ${className}" aria-label="${escapeHtml(ariaLabel + localeSuffix)}" placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(value)}" />`;
+      `<input type="text" class="cms-input ${className}" aria-label="${escapeAttr(ariaLabel + localeSuffix)}" placeholder="${escapeAttr(placeholder)}" value="${escapeAttr(value)}" />`;
 
     if (!localizable) return inputHtml;
     return `<div class="cms-inline-localizable-field">${inputHtml}${localeHintHtml()}</div>`;
@@ -335,11 +336,11 @@ export function initMenusEditor(): void {
     const list = filteredMenus();
     menusTableBody.innerHTML = list
       .map((menu) => (
-        `<tr class="cms-menu-row" data-id="${escapeHtml(menu.id)}">` +
-        `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-menu-edit" data-id="${escapeHtml(menu.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
-        `<td><button type="button" class="cms-table-link cms-menu-open" data-id="${escapeHtml(menu.id)}">${escapeHtml(menu.name || ct('menus.modalTitle'))}</button></td>` +
+        `<tr class="cms-menu-row" data-id="${escapeAttr(menu.id)}">` +
+        `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-menu-edit" data-id="${escapeAttr(menu.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
+        `<td><button type="button" class="cms-table-link cms-menu-open" data-id="${escapeAttr(menu.id)}">${escapeHtml(menu.name || ct('menus.modalTitle'))}</button></td>` +
         `<td class="cms-table-cell-monospace">${escapeHtml(menu.selector)}</td>` +
-        `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-menu-delete" data-id="${escapeHtml(menu.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
+        `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-menu-delete" data-id="${escapeAttr(menu.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
         '</tr>'
       ))
       .join('');
