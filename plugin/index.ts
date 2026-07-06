@@ -237,13 +237,53 @@ export function validateFileProps(
   }
 }
 
+/**
+ * Guard the hard requirement that the consumer project has an SSR adapter configured.
+ *
+ * The CMS admin panel and its API routes are injected with `prerender = false`, so they
+ * render on demand and cannot be served by a purely static build. Any adapter satisfies
+ * this (@astrojs/node, @astrojs/vercel, @astrojs/netlify, @astrojs/cloudflare, …) — the
+ * integration is deliberately adapter-agnostic, which is why this is a config-time guard
+ * and not a `peerDependency` on a specific adapter package.
+ *
+ * `astro dev` renders on-demand routes without an adapter, so a missing adapter is only a
+ * hard error at build time; in dev we warn instead of throwing so the local workflow keeps
+ * working while still surfacing the problem early.
+ *
+ * Must run from `astro:config:done` (not `config:setup`): while a directly-declared
+ * `adapter:` is already present during `config:setup`, an adapter injected dynamically by
+ * another integration's `config:setup` (via `updateConfig`) may not be — and integration
+ * ordering is not guaranteed. `config:done` sees the final resolved config, avoiding that
+ * false negative. Note `config:done` does not expose `command`, so it is captured from
+ * `config:setup` into a closure.
+ */
+export function assertAdapterConfigured(
+  command: 'dev' | 'build' | 'preview' | 'sync',
+  adapter: unknown
+): void {
+  if (adapter) return;
+
+  const message =
+    '[astro-blocks] No SSR adapter is configured. The CMS admin panel and API routes render ' +
+    'on demand and require an adapter (e.g. @astrojs/node, @astrojs/vercel, @astrojs/netlify, ' +
+    '@astrojs/cloudflare). Add one via the `adapter` option in astro.config.';
+
+  if (command === 'build') {
+    throw new Error(`${message} Aborting build.`);
+  }
+
+  console.warn(`${message} \`astro build\` will fail until an adapter is configured.`);
+}
+
 export default function astroBlocks(options: AstroBlocksOptions): AstroIntegration {
   const resolvedOptions = resolveOptions(options);
+  let astroCommand: 'dev' | 'build' | 'preview' | 'sync' = 'dev';
 
   return {
     name: 'astro-blocks',
     hooks: {
-      'astro:config:setup': async ({ config, injectRoute }) => {
+      'astro:config:setup': async ({ config, command, injectRoute }) => {
+        astroCommand = command;
         const projectRoot = getProjectRoot(config);
         process.env.ASTRO_BLOCKS_PROJECT_ROOT = projectRoot;
 
@@ -367,6 +407,9 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
           pattern: '/[...slug]',
           entrypoint: resolveCms(resolvedOptions.publicRendering === 'static' ? 'page-static.astro' : 'page.astro'),
         });
+      },
+      'astro:config:done': ({ config }) => {
+        assertAdapterConfigured(astroCommand, config.adapter);
       },
     },
   };
