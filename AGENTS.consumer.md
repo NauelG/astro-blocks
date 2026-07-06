@@ -32,7 +32,9 @@ Astro 6.0 or higher is required. The integration registers Astro hooks via `astr
 
 ### Required Astro adapter (SSR mode)
 
-AstroBlocks runs in SSR mode by default. You must configure an Astro SSR adapter (`@astrojs/node`, `@astrojs/vercel`, etc.) in your `astro.config.mjs`. The only exception is if you set `publicRendering: 'static'` for all public pages — but admin routes still require SSR.
+AstroBlocks runs in SSR mode by default. You must configure an Astro SSR adapter (`@astrojs/node`, `@astrojs/vercel`, etc.) in your `astro.config.mjs`. The only exception is if you set `publicRendering: 'static'` for all public pages — but admin routes still require SSR, so an adapter is always required.
+
+The integration enforces this: if no adapter is configured, `astro build` fails fast with an actionable `[astro-blocks]` error instead of a cryptic Astro error. Under `astro dev` it logs a warning (dev renders on demand without an adapter) so the local workflow keeps working while still surfacing the problem.
 
 ---
 
