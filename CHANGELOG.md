@@ -9,6 +9,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.5.1] - 2026-07-06
+
+### Title
+
+Harden CMS API authorization with a declarative route table
+
+### Changed
+
+- **Authorization is now correct by construction.** The CMS API's hand-rolled per-verb
+  request dispatcher was replaced with a single declarative route table (`api/route-table.ts`,
+  43 entries) and a central matcher that enforces each route's declared auth level
+  (`public` / `user` / `owner`) before the handler runs. Previously, owner-only routes relied
+  on each branch remembering to call the owner guard inline, and there was no router-level
+  regression coverage — a future route could silently ship ungated. Now a route cannot be
+  reached without an explicit, declared auth level, and router-level regression tests fail if
+  any owner gate is dropped. Behavior is unchanged: identical status codes across all 43
+  routes, and the six handler-internal owner guards are retained as defense-in-depth. Internal
+  refactor only — no public API or configuration change for consumers.
+
 ## [3.5.0] - 2026-07-06
 
 ### Title
