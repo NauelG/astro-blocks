@@ -38,8 +38,7 @@ export default defineConfig({
   },
 
   webServer: {
-    command:
-      'cd /Users/gnaue/GIT/PERSONAL/astro-blocks/playgrounds/basic && node ./dist/server/entry.mjs',
+    command: `cd ${path.join(__dirname, 'playgrounds', 'basic')} && node ./dist/server/entry.mjs`,
     url: 'http://127.0.0.1:4321/cms',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
