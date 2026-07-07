@@ -9,6 +9,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.5.3] - 2026-07-07
+
+### Title
+
+Consolidate three divergent HTML-escape helpers into one canonical module
+
+### Security
+
+- **Removed a latent cross-site-scripting risk from divergent HTML escapers.** The admin UI
+  carried three separate HTML-escape implementations with different character coverage: a
+  two-character attribute escaper in the media library, a DOM-based text escaper in the shared
+  client utilities, and a five-character escaper local to the block form. Divergent escapers are
+  how attribute-breakout XSS slips in as code evolves. Every call site now routes through a
+  single canonical `escapeHtml` / `escapeAttr` pair (`utils/html-escape.ts`) that encodes all
+  five HTML-significant characters (`&`, `<`, `>`, `"`, `'`) in one pass, and the redundant local
+  escapers have been deleted. Behavior-preserving hardening — no visible change to rendered
+  output for well-formed content. Closes #39.
+
 ## [3.5.2] - 2026-07-07
 
 ### Title
