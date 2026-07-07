@@ -62,6 +62,11 @@
     "build:watch": "node scripts/build.mjs --watch",
     "features:validate": "node scripts/validate-features.mjs",
     "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome ci .",
     "test": "npm run build && node --test tests/*.test.js",
     "coverage": "node scripts/coverage.mjs",
     "coverage:badge": "node scripts/coverage-badge.mjs",
@@ -92,6 +97,7 @@
     "sortablejs": "^1.15.7"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.2",
     "@playwright/test": "^1.60.0",
     "@types/node": "^26.0.1",
     "astro": "^6.4.6",

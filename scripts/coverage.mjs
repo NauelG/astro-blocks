@@ -114,7 +114,6 @@ function main() {
     `${JSON.stringify(summaryOut, null, 2)}\n`
   );
 
-  // eslint-disable-next-line no-console
   console.log(`\nCombined line coverage: ${pct}%`);
 }
 
