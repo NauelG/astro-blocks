@@ -25,7 +25,8 @@ export const es = {
 
   // ─── Bootstrap import (pantalla de inicio de sesión — solo cuando hasUsers===false) ─
   'bootstrap.importTitle': 'Importar un respaldo para inicializar esta instancia',
-  'bootstrap.importHint': 'Seleccionar un archivo .zip exportado desde otra instancia de AstroBlocks.',
+  'bootstrap.importHint':
+    'Seleccionar un archivo .zip exportado desde otra instancia de AstroBlocks.',
   'bootstrap.importButton': 'Importar respaldo',
   'bootstrap.importingStatus': 'Importando el respaldo…',
   'bootstrap.importError': 'Error al importar: HTTP {status}',
@@ -87,9 +88,11 @@ export const es = {
   // ─── Dashboard ────────────────────────────────────────────────────────────
   'dashboard.eyebrow': 'Control center',
   'dashboard.title': 'Dashboard',
-  'dashboard.lead': 'Vista general del contenido, la navegación y el estado del proyecto para trabajar con rapidez y sin ruido visual.',
+  'dashboard.lead':
+    'Vista general del contenido, la navegación y el estado del proyecto para trabajar con rapidez y sin ruido visual.',
   'dashboard.operativeSummary': 'Resumen operativo del CMS',
-  'dashboard.summaryText': 'Todo el contenido, la navegación y el branding del proyecto desde un panel compacto y fácil de escanear.',
+  'dashboard.summaryText':
+    'Todo el contenido, la navegación y el branding del proyecto desde un panel compacto y fácil de escanear.',
   'dashboard.lastEdit': 'Última edición: {title}',
   'dashboard.noRecentActivity': 'Sin actividad reciente',
   'dashboard.published': 'Publicadas',
@@ -100,7 +103,8 @@ export const es = {
   'dashboard.recentActivity': 'Actividad reciente',
   'dashboard.goToPages': 'Ir a páginas',
   'dashboard.noPages.title': 'Todavía no hay páginas creadas',
-  'dashboard.noPages.text': 'Crea la primera página para empezar a poblar el sitio y activar el flujo editorial del CMS.',
+  'dashboard.noPages.text':
+    'Crea la primera página para empezar a poblar el sitio y activar el flujo editorial del CMS.',
   'dashboard.createFirstPage': 'Crear primera página',
   'dashboard.noTitle': '(sin título)',
   'dashboard.quickActions': 'Acciones rápidas',
@@ -117,12 +121,14 @@ export const es = {
   'dashboard.siteAndBrandingLead': 'Referencia rápida del proyecto y acceso al sitio público.',
   'dashboard.noName': 'Proyecto sin nombre',
   'dashboard.noBaseUrl.title': 'Falta la URL base',
-  'dashboard.noBaseUrl.text': 'Define la URL base en ajustes para mejorar el contexto del panel y del SEO.',
+  'dashboard.noBaseUrl.text':
+    'Define la URL base en ajustes para mejorar el contexto del panel y del SEO.',
 
   // ─── Pages ────────────────────────────────────────────────────────────────
   'pages.eyebrow': 'Contenido',
   'pages.title': 'Biblioteca editorial',
-  'pages.lead': 'Gestiona borradores, páginas publicadas e indexabilidad desde una única vista. El editor mantiene el foco en contenido, SEO y bloques.',
+  'pages.lead':
+    'Gestiona borradores, páginas publicadas e indexabilidad desde una única vista. El editor mantiene el foco en contenido, SEO y bloques.',
   'pages.newPage': 'Nueva página',
   'pages.searchPlaceholder': 'Buscar por título o slug',
   'pages.filterByStatus': 'Filtrar por estado',
@@ -146,7 +152,8 @@ export const es = {
   'pageEditor.labelTitle': 'Título',
   'pageEditor.labelSlug': 'Slug',
   'pageEditor.labelIndexable': 'Indexable',
-  'pageEditor.seoHiddenHint': 'Las páginas no indexables no aparecen en el sitemap y llevan meta noindex. Los campos SEO no se utilizan.',
+  'pageEditor.seoHiddenHint':
+    'Las páginas no indexables no aparecen en el sitemap y llevan meta noindex. Los campos SEO no se utilizan.',
   'pageEditor.labelSeoTitle': 'Título SEO',
   'pageEditor.labelDescription': 'Descripción',
   'pageEditor.labelCanonical': 'URL canónica',
@@ -188,8 +195,10 @@ export const es = {
   // ─── Redirects ────────────────────────────────────────────────────────────
   'redirects.eyebrow': 'Contenido',
   'redirects.title': 'Redirecciones',
-  'redirects.lead': 'Gestiona rutas antiguas y cambios de URL sin romper enlaces existentes. En este MVP las redirecciones son exactas, internas y se aplican en SSR.',
-  'redirects.info': 'Usa rutas públicas reales. Para el idioma por defecto sin prefijo (ej. /antigua) y para locales no default con prefijo (ej. /en/old).',
+  'redirects.lead':
+    'Gestiona rutas antiguas y cambios de URL sin romper enlaces existentes. En este MVP las redirecciones son exactas, internas y se aplican en SSR.',
+  'redirects.info':
+    'Usa rutas públicas reales. Para el idioma por defecto sin prefijo (ej. /antigua) y para locales no default con prefijo (ej. /en/old).',
   'redirects.newRedirect': 'Nueva redirección',
   'redirects.searchPlaceholder': 'Buscar por origen o destino',
   'redirects.count': '{count} redirecciones',
@@ -198,7 +207,8 @@ export const es = {
   'redirects.colCode': 'Código',
   'redirects.colStatus': 'Estado',
   'redirects.empty.title': 'No hay redirecciones configuradas',
-  'redirects.empty.text': 'Añade la primera redirección para conservar tráfico cuando cambies una URL publicada.',
+  'redirects.empty.text':
+    'Añade la primera redirección para conservar tráfico cuando cambies una URL publicada.',
   'redirects.createRedirect': 'Crear redirección',
   'redirects.modalTitle': 'Redirección',
   'redirects.labelFrom': 'Ruta origen',
@@ -224,8 +234,10 @@ export const es = {
   // ─── Configs / Parameters ─────────────────────────────────────────────────
   'configs.eyebrow': 'Configuración',
   'configs.title': 'Parámetros',
-  'configs.lead': 'Define claves globales para consumirlas en componentes y layouts. Son valores string editables desde el CMS sin tocar código.',
-  'configs.info': 'Úsalo para casos como GOOGLE_MAPS_API_KEY o FORM_RECIPIENT. Cómo se utiliza: importa getConfig desde @astroblocks/astro-blocks/getConfig y llama, por ejemplo, await getConfig(\'GOOGLE_MAPS_API_KEY\'). En SSR los cambios aplican tras guardar e invalidar caché; en modo estático se reflejan tras rebuild.',
+  'configs.lead':
+    'Define claves globales para consumirlas en componentes y layouts. Son valores string editables desde el CMS sin tocar código.',
+  'configs.info':
+    "Úsalo para casos como GOOGLE_MAPS_API_KEY o FORM_RECIPIENT. Cómo se utiliza: importa getConfig desde @astroblocks/astro-blocks/getConfig y llama, por ejemplo, await getConfig('GOOGLE_MAPS_API_KEY'). En SSR los cambios aplican tras guardar e invalidar caché; en modo estático se reflejan tras rebuild.",
   'configs.newParam': 'Nuevo parámetro',
   'configs.searchPlaceholder': 'Buscar por clave, valor o descripción',
   'configs.count': '{count} parámetros',
@@ -233,14 +245,16 @@ export const es = {
   'configs.colValue': 'Valor',
   'configs.colDescription': 'Descripción',
   'configs.empty.title': 'No hay parámetros configurados',
-  'configs.empty.text': 'Crea el primero para centralizar claves y valores consumibles desde tus componentes.',
+  'configs.empty.text':
+    'Crea el primero para centralizar claves y valores consumibles desde tus componentes.',
   'configs.createParam': 'Crear parámetro',
   'configs.modalTitle': 'Parámetro',
   'configs.labelKey': 'Clave',
   'configs.labelValue': 'Valor (string)',
   'configs.labelDescription': 'Descripción (opcional)',
   'configs.descriptionPlaceholder': 'Uso interno del parámetro',
-  'configs.hint': 'Clave obligatoria. Solo se permiten letras, números, punto (.), guion (-) y guion bajo (_).',
+  'configs.hint':
+    'Clave obligatoria. Solo se permiten letras, números, punto (.), guion (-) y guion bajo (_).',
   'configs.deleted': 'Parámetro eliminado.',
   'configs.updated': 'Parámetro actualizado.',
   'configs.created': 'Parámetro creado.',
@@ -251,7 +265,8 @@ export const es = {
   // ─── Settings ─────────────────────────────────────────────────────────────
   'settings.eyebrow': 'White-label',
   'settings.title': 'Sistema visual y datos del sitio',
-  'settings.lead': 'Ajusta branding, URL base y colorimetría del panel sin salir del CMS. La previsualización te ayuda a validar el tema antes de guardar.',
+  'settings.lead':
+    'Ajusta branding, URL base y colorimetría del panel sin salir del CMS. La previsualización te ayuda a validar el tema antes de guardar.',
   'settings.siteInfoTitle': 'Información del sitio',
   'settings.labelSiteName': 'Nombre del sitio',
   'settings.labelBaseUrl': 'URL base',
@@ -265,7 +280,8 @@ export const es = {
   'settings.primary': 'Primario',
   'settings.secondary': 'Secundario',
   'settings.designNotes': 'Notas de diseño',
-  'settings.designNotesCopy': 'El color primario funciona como acento de interacción. El panel mantiene superficies neutras para seguir siendo usable con cualquier identidad visual.',
+  'settings.designNotesCopy':
+    'El color primario funciona como acento de interacción. El panel mantiene superficies neutras para seguir siendo usable con cualquier identidad visual.',
   'settings.save': 'Guardar ajustes',
   'settings.saved': 'Cambios guardados correctamente.',
   'settings.saveTitle': 'Ajustes',
@@ -274,11 +290,14 @@ export const es = {
   // ─── Cache ────────────────────────────────────────────────────────────────
   'cache.eyebrow': 'Operaciones',
   'cache.title': 'Gestión de caché pública',
-  'cache.lead': 'Invalida la caché SSR del sitio cuando necesites forzar contenido fresco sin esperar a la expiración natural del runtime.',
+  'cache.lead':
+    'Invalida la caché SSR del sitio cuando necesites forzar contenido fresco sin esperar a la expiración natural del runtime.',
   'cache.cardKicker': 'SSR cache',
   'cache.cardTitle': 'Invalidación manual de caché',
-  'cache.cardText': 'Purga la caché SSR del sitio público para forzar una nueva renderización con contenido fresco.',
-  'cache.cardNote': 'Úsalo solo cuando hayas publicado cambios importantes y necesites verlos reflejados al momento.',
+  'cache.cardText':
+    'Purga la caché SSR del sitio público para forzar una nueva renderización con contenido fresco.',
+  'cache.cardNote':
+    'Úsalo solo cuando hayas publicado cambios importantes y necesites verlos reflejados al momento.',
   'cache.invalidateBtn': 'Invalidar toda la caché',
   'cache.invalidateTitle': 'Invalidar caché',
   'cache.invalidatedSuccess': 'Caché invalidada correctamente.',
@@ -290,9 +309,12 @@ export const es = {
   'importExport.exportTitle': 'Exportar',
   'importExport.importTitle': 'Importar',
   'importExport.selectUnits': 'Seleccionar contenido a incluir',
-  'importExport.confirmReplace': '¿Reemplazar todos los datos seleccionados con el respaldo importado?',
-  'importExport.confirmReplaceWarning': 'Esta acción reemplaza el contenido existente de forma permanente. Se creará un snapshot de respaldo antes de continuar.',
-  'importExport.usersSessionWarning': 'Importar la unidad Usuarios reemplazará todas las cuentas de usuario. La sesión actual finalizará inmediatamente después de completar la importación.',
+  'importExport.confirmReplace':
+    '¿Reemplazar todos los datos seleccionados con el respaldo importado?',
+  'importExport.confirmReplaceWarning':
+    'Esta acción reemplaza el contenido existente de forma permanente. Se creará un snapshot de respaldo antes de continuar.',
+  'importExport.usersSessionWarning':
+    'Importar la unidad Usuarios reemplazará todas las cuentas de usuario. La sesión actual finalizará inmediatamente después de completar la importación.',
   'importExport.download': 'Descargar respaldo',
   'importExport.upload': 'Importar respaldo',
   'importExport.unitPages': 'Páginas',
@@ -316,28 +338,34 @@ export const es = {
   'importExport.importNetworkError': 'Error de red. Intentar de nuevo.',
   'importExport.exportNetworkError': 'Error al exportar. Intentar de nuevo.',
   'importExport.sectionExportTitle': 'Exportar un respaldo',
-  'importExport.sectionExportLead': 'Descargar un archivo .zip de las unidades de contenido seleccionadas. El archivo incluye un manifiesto con sumas de verificación para validar la integridad.',
+  'importExport.sectionExportLead':
+    'Descargar un archivo .zip de las unidades de contenido seleccionadas. El archivo incluye un manifiesto con sumas de verificación para validar la integridad.',
   'importExport.sectionImportTitle': 'Restaurar un respaldo',
-  'importExport.sectionImportLead': 'Subir un .zip de respaldo para reemplazar las unidades de contenido seleccionadas. Los datos actuales se almacenarán en un snapshot antes de ejecutar la importación.',
+  'importExport.sectionImportLead':
+    'Subir un .zip de respaldo para reemplazar las unidades de contenido seleccionadas. Los datos actuales se almacenarán en un snapshot antes de ejecutar la importación.',
   'importExport.filePickerLabel': 'Archivo de respaldo (.zip)',
   'importExport.filePickerSelectFile': 'Seleccionar archivo',
   'importExport.filePickerNoFile': 'Ningún archivo seleccionado',
   'importExport.confirmTitle': 'Confirmar reemplazo de datos',
   'importExport.confirmBtn': 'Reemplazar datos',
-  'importExport.confirmUnavailable': 'El diálogo de confirmación no está disponible. Recargar la página.',
+  'importExport.confirmUnavailable':
+    'El diálogo de confirmación no está disponible. Recargar la página.',
 
   // ─── Menus ────────────────────────────────────────────────────────────────
   'menus.eyebrow': 'Navegación',
   'menus.title': 'Arquitectura de menús',
-  'menus.lead': 'Organiza la navegación del sitio como una estructura clara y reutilizable. Cada menú tiene un selector único y puede contener subniveles sin perder legibilidad.',
-  'menus.info': 'Cada menú se identifica por su selector (ej. main, footer). En el código del sitio se obtienen sus ítems con getMenu(\'selector\') desde astro-blocks/getMenu; el resultado es un array de enlaces (name, path) que puedes usar en el layout o en componentes para renderizar la navegación. Los ítems pueden tener submenús anidados (children) para desplegables o listas anidadas.',
+  'menus.lead':
+    'Organiza la navegación del sitio como una estructura clara y reutilizable. Cada menú tiene un selector único y puede contener subniveles sin perder legibilidad.',
+  'menus.info':
+    "Cada menú se identifica por su selector (ej. main, footer). En el código del sitio se obtienen sus ítems con getMenu('selector') desde astro-blocks/getMenu; el resultado es un array de enlaces (name, path) que puedes usar en el layout o en componentes para renderizar la navegación. Los ítems pueden tener submenús anidados (children) para desplegables o listas anidadas.",
   'menus.newMenu': 'Nuevo menú',
   'menus.searchPlaceholder': 'Buscar por nombre o selector',
   'menus.count': '{count} menús',
   'menus.colName': 'Nombre',
   'menus.colSelector': 'Selector',
   'menus.empty.title': 'No hay menús disponibles',
-  'menus.empty.text': 'Crea un menú para empezar a controlar la navegación del sitio desde el panel.',
+  'menus.empty.text':
+    'Crea un menú para empezar a controlar la navegación del sitio desde el panel.',
   'menus.createMenu': 'Crear menú',
   'menus.modalTitle': 'Menú',
   'menus.labelName': 'Nombre',
@@ -346,7 +374,8 @@ export const es = {
   'menus.selectorPlaceholder': 'main, footer...',
   'menus.labelItems': 'Elementos del menú',
   'menus.addItem': 'Añadir elemento',
-  'menus.noItems': 'Aún no hay elementos. Añade enlaces principales y, si hace falta, submenús anidados.',
+  'menus.noItems':
+    'Aún no hay elementos. Añade enlaces principales y, si hace falta, submenús anidados.',
   'menus.itemNameLabel': 'Nombre del elemento',
   'menus.itemPathLabel': 'Ruta del elemento',
   'menus.submenuNameLabel': 'Nombre del submenú',
@@ -366,8 +395,10 @@ export const es = {
   // ─── Languages ────────────────────────────────────────────────────────────
   'languages.eyebrow': 'Localización',
   'languages.title': 'Idiomas de contenido',
-  'languages.lead': 'Define los idiomas disponibles para el contenido público del sitio. El idioma de interfaz del panel se configura por separado y no es editable aquí.',
-  'languages.info': 'Usa getLanguages() desde astro-blocks/getLanguages para leer los idiomas de contenido en tu proyecto Astro y construir un selector o menú de idioma en frontend. El helper devuelve languages y defaultLocale; por defecto incluye solo idiomas habilitados.',
+  'languages.lead':
+    'Define los idiomas disponibles para el contenido público del sitio. El idioma de interfaz del panel se configura por separado y no es editable aquí.',
+  'languages.info':
+    'Usa getLanguages() desde astro-blocks/getLanguages para leer los idiomas de contenido en tu proyecto Astro y construir un selector o menú de idioma en frontend. El helper devuelve languages y defaultLocale; por defecto incluye solo idiomas habilitados.',
   'languages.newLanguage': 'Nuevo idioma',
   'languages.colCode': 'Código',
   'languages.colLabel': 'Etiqueta',
@@ -382,14 +413,16 @@ export const es = {
   'languages.labelPlaceholder': 'Español',
   'languages.labelEnabled': 'Habilitado',
   'languages.labelDefault': 'Predeterminado',
-  'languages.hint': 'El idioma predeterminado se sirve sin prefijo en URL. Los demás usan prefijo (ej. /en/...).',
+  'languages.hint':
+    'El idioma predeterminado se sirve sin prefijo en URL. Los demás usan prefijo (ej. /en/...).',
   'languages.statusActive': 'Activo',
   'languages.statusDisabled': 'Desactivado',
   'languages.isDefaultYes': 'Sí',
   'languages.newForm': 'Nuevo idioma',
   'languages.editForm': 'Editar idioma',
   'languages.createBtn': 'Crear',
-  'languages.deleteConfirm': 'Eliminar el idioma "{code}" borrará en cascada su contenido asociado.\n\n- Páginas afectadas: {pages}\n- Menús afectados: {menus}\n\nEsta acción no se puede deshacer. ¿Continuar?',
+  'languages.deleteConfirm':
+    'Eliminar el idioma "{code}" borrará en cascada su contenido asociado.\n\n- Páginas afectadas: {pages}\n- Menús afectados: {menus}\n\nEsta acción no se puede deshacer. ¿Continuar?',
   'languages.deleteLabel': 'Eliminar idioma',
   'languages.deleted': 'Idioma eliminado correctamente.',
   'languages.created': 'Idioma creado.',
@@ -403,7 +436,8 @@ export const es = {
   // ─── Users ────────────────────────────────────────────────────────────────
   'users.eyebrow': 'Equipo',
   'users.title': 'Accesos y roles del panel',
-  'users.lead': 'Administra los usuarios del CMS, controla quién puede editar el contenido y mantén el acceso del proyecto bajo una jerarquía clara.',
+  'users.lead':
+    'Administra los usuarios del CMS, controla quién puede editar el contenido y mantén el acceso del proyecto bajo una jerarquía clara.',
   'users.addUser': 'Añadir usuario',
   'users.searchPlaceholder': 'Buscar por email',
   'users.filterByRole': 'Filtrar por rol',
@@ -418,7 +452,8 @@ export const es = {
   'users.roleOwner': 'Propietario',
   'users.roleUser': 'Usuario',
   'users.empty.title': 'No hay usuarios que coincidan',
-  'users.empty.text': 'Prueba otra búsqueda o crea un nuevo usuario para ampliar el acceso al panel.',
+  'users.empty.text':
+    'Prueba otra búsqueda o crea un nuevo usuario para ampliar el acceso al panel.',
   'users.modalTitle': 'Usuario',
   'users.labelEmail': 'Email',
   'users.emailPlaceholder': 'usuario@ejemplo.com',
@@ -443,14 +478,18 @@ export const es = {
   // ─── Global Blocks ────────────────────────────────────────────────────────
   'globalBlocks.eyebrow': 'Contenido',
   'globalBlocks.title': 'Bloques globales',
-  'globalBlocks.lead': 'Edita elementos reutilizables como cabeceras, pies de página y secciones compartidas. Los cambios se aplican en todos los sitios que los referencien.',
-  'globalBlocks.info': 'Los slugs se declaran en astro.config.mjs mediante la opción globalBlocks. Para añadir o eliminar slugs, modifica la configuración del proyecto y vuelve a hacer build.',
+  'globalBlocks.lead':
+    'Edita elementos reutilizables como cabeceras, pies de página y secciones compartidas. Los cambios se aplican en todos los sitios que los referencien.',
+  'globalBlocks.info':
+    'Los slugs se declaran en astro.config.mjs mediante la opción globalBlocks. Para añadir o eliminar slugs, modifica la configuración del proyecto y vuelve a hacer build.',
   'globalBlocks.colSlug': 'Slug',
   'globalBlocks.colLabel': 'Etiqueta',
   'globalBlocks.editTitle': 'Editar: {label}',
   'globalBlocks.empty.title': 'No hay bloques globales declarados',
-  'globalBlocks.empty.text': 'Declara slugs en globalBlocks dentro de tu astro.config.mjs y vuelve a hacer build para empezar.',
-  'globalBlocks.schemaNotFound': 'No se encontró el esquema para "{name}". Verifica la configuración.',
+  'globalBlocks.empty.text':
+    'Declara slugs en globalBlocks dentro de tu astro.config.mjs y vuelve a hacer build para empezar.',
+  'globalBlocks.schemaNotFound':
+    'No se encontró el esquema para "{name}". Verifica la configuración.',
   'globalBlocks.saved': 'Bloque global guardado correctamente.',
   'globalBlocks.savedTitle': 'Bloques globales',
   'globalBlocks.networkError': 'Error de red al guardar. Revisa la conexión.',
@@ -458,7 +497,8 @@ export const es = {
   // ─── Media ────────────────────────────────────────────────────────────────────
   'media.eyebrow': 'Contenido',
   'media.title': 'Media',
-  'media.lead': 'Sube y gestiona imágenes para tu sitio. Formatos aceptados: JPG, PNG, WebP, SVG, GIF.',
+  'media.lead':
+    'Sube y gestiona imágenes para tu sitio. Formatos aceptados: JPG, PNG, WebP, SVG, GIF.',
   'media.dropzoneLabel': 'Arrastra y suelta imágenes aquí',
   'media.dropzoneHint': 'o usa el botón de abajo',
   'media.chooseImage': 'Elegir imagen',
@@ -487,7 +527,8 @@ export const es = {
   'media.uploadError': 'Error al subir',
   'media.uploadFailed': 'Error al subir.',
   'media.deleteConfirmSingle': '¿Eliminar "{filename}"?',
-  'media.deleteConfirmUsed': 'Usado en {count} lugar(es):\n{list}\n¿Eliminar "{filename}" de todas formas?',
+  'media.deleteConfirmUsed':
+    'Usado en {count} lugar(es):\n{list}\n¿Eliminar "{filename}" de todas formas?',
   'media.deleteConfirmUsedMore': '  - …y {more} más',
   'media.deleteLabel': 'Eliminar',
   'media.replaceLabel': 'Reemplazar',
@@ -550,23 +591,40 @@ export const es = {
   'dialog.defaultErrorTitle': 'Error',
 
   // ─── Block validation (user-facing, localized via messageKey + params) ────────
-  'blockValidation.fieldRequired': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" es obligatorio.',
-  'blockValidation.fieldMustBeImage': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser un objeto de imagen.',
-  'blockValidation.fieldImageNeedsUrl': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" requiere una URL válida.',
-  'blockValidation.fieldCannotBeEmpty': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" no puede estar vacío.',
-  'blockValidation.fieldAltMustBeText': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" — alt debe ser texto.',
-  'blockValidation.fieldCaptionMustBeText': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" — caption debe ser texto.',
-  'blockValidation.fieldDimInvalid': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" — {dim} debe ser un número entero positivo (> 0).',
-  'blockValidation.fieldMustBeText': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser texto.',
-  'blockValidation.fieldInvalidOption': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" tiene una opción no válida.',
-  'blockValidation.fieldMustBeNumber': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser un número válido.',
-  'blockValidation.fieldMustBeBoolean': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser booleano.',
-  'blockValidation.arrayMustContainObjects': 'Bloque "{blockName}" (índice {blockIndex}): "{label}" debe contener objetos válidos.',
-  'blockValidation.arrayRequired': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" requiere al menos {min} elemento(s).',
-  'blockValidation.arrayMustBeArray': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser un array.',
-  'blockValidation.arrayMinItems': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" requiere al menos {min} elemento(s).',
-  'blockValidation.arrayMaxItems': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" permite como máximo {max} elemento(s).',
-  'blockValidation.arrayIsRequired': 'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" es obligatorio.',
+  'blockValidation.fieldRequired':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" es obligatorio.',
+  'blockValidation.fieldMustBeImage':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser un objeto de imagen.',
+  'blockValidation.fieldImageNeedsUrl':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" requiere una URL válida.',
+  'blockValidation.fieldCannotBeEmpty':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" no puede estar vacío.',
+  'blockValidation.fieldAltMustBeText':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" — alt debe ser texto.',
+  'blockValidation.fieldCaptionMustBeText':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" — caption debe ser texto.',
+  'blockValidation.fieldDimInvalid':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" — {dim} debe ser un número entero positivo (> 0).',
+  'blockValidation.fieldMustBeText':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser texto.',
+  'blockValidation.fieldInvalidOption':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" tiene una opción no válida.',
+  'blockValidation.fieldMustBeNumber':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser un número válido.',
+  'blockValidation.fieldMustBeBoolean':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser booleano.',
+  'blockValidation.arrayMustContainObjects':
+    'Bloque "{blockName}" (índice {blockIndex}): "{label}" debe contener objetos válidos.',
+  'blockValidation.arrayRequired':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" requiere al menos {min} elemento(s).',
+  'blockValidation.arrayMustBeArray':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser un array.',
+  'blockValidation.arrayMinItems':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" requiere al menos {min} elemento(s).',
+  'blockValidation.arrayMaxItems':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" permite como máximo {max} elemento(s).',
+  'blockValidation.arrayIsRequired':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" es obligatorio.',
 
   // ─── API Errors ───────────────────────────────────────────────────────────
   'errors.invalidBody': 'Cuerpo de solicitud inválido.',
@@ -584,22 +642,26 @@ export const es = {
   'errors.mustHaveEnabledLanguage': 'Debe existir al menos un idioma habilitado.',
   'errors.cannotDeleteLastLanguage': 'No se puede eliminar el último idioma.',
   'errors.duplicateSlug': 'Ya existe una página con ese slug para este idioma.',
-  'errors.slugLocaleConflict': 'El slug no puede comenzar con "{locale}" porque está reservado para prefijos de idioma.',
+  'errors.slugLocaleConflict':
+    'El slug no puede comenzar con "{locale}" porque está reservado para prefijos de idioma.',
   'errors.menuSelectorRequired': 'El selector es obligatorio.',
-  'errors.invalidMenuSelector': 'El selector solo puede contener letras, números, guiones y guiones bajos (sin espacios).',
+  'errors.invalidMenuSelector':
+    'El selector solo puede contener letras, números, guiones y guiones bajos (sin espacios).',
   'errors.menuSelectorExists': 'Ya existe un menú con ese selector.',
   'errors.menuItemsArray': 'Los elementos del menú deben ser un array.',
   'errors.invalidMenuItem': 'Elemento del menú no válido.',
   'errors.menuPathRequired': 'La ruta es obligatoria en todos los elementos del menú.',
   'errors.configKeyRequired': 'La clave es obligatoria.',
-  'errors.invalidConfigKey': 'La clave debe empezar por una letra y solo puede contener letras, números, punto, guion y guion bajo.',
+  'errors.invalidConfigKey':
+    'La clave debe empezar por una letra y solo puede contener letras, números, punto, guion y guion bajo.',
   'errors.configKeyExists': 'Ya existe un parámetro con esa clave.',
   'errors.redirectSameFromTo': 'La ruta de origen y la de destino no pueden ser iguales.',
   'errors.redirectFromExists': 'Ya existe una redirección con esa ruta de origen.',
   'errors.blockSchemaMissing': 'Esquema de bloque faltante.',
   'errors.loadBlockSchemasFailed': 'Error al cargar los esquemas de bloques.',
   'errors.fileTooLarge': 'Archivo demasiado grande. El tamaño máximo es {limitMb} MB.',
-  'errors.unsupportedFileType': 'Tipo de archivo no soportado. Se permiten: jpg, png, webp, svg, gif.',
+  'errors.unsupportedFileType':
+    'Tipo de archivo no soportado. Se permiten: jpg, png, webp, svg, gif.',
   'errors.deleteFailed': 'Error al eliminar.',
   'errors.noFile': 'No se proporcionó ningún archivo.',
   'errors.invalidUrl': 'URL no válida o no permitida.',

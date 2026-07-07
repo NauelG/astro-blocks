@@ -23,7 +23,9 @@ test('no admin route uses an empty define:vars bridge script (runtime ReferenceE
   const files = fs.readdirSync(ADMIN_DIR).filter((f) => f.endsWith('.astro'));
   const emptyBridgeRe = /define:vars=\{\{[^}]*\}\}\s*>\s*<\/script>/;
 
-  const offenders = files.filter((f) => emptyBridgeRe.test(fs.readFileSync(path.join(ADMIN_DIR, f), 'utf8')));
+  const offenders = files.filter((f) =>
+    emptyBridgeRe.test(fs.readFileSync(path.join(ADMIN_DIR, f), 'utf8')),
+  );
 
   assert.deepEqual(
     offenders,

@@ -24,7 +24,7 @@ test('defineBlockSchema preserves component path', () => {
         title: { type: 'string', label: 'Title', required: true },
       },
     },
-    'file:///tmp/Hero.astro'
+    'file:///tmp/Hero.astro',
   );
 
   assert.equal(schema.__componentPath, 'file:///tmp/Hero.astro');
@@ -54,11 +54,14 @@ test('validateBlocks checks required props', () => {
             title: { type: 'string', label: 'Title', required: true },
           },
         },
-        'file:///tmp/project/src/Hero.astro'
+        'file:///tmp/project/src/Hero.astro',
       ),
-    ])
+    ]),
   );
 
   assert.equal(validateBlocks(schemaMap, [{ type: 'Hero', props: { title: 'Hello' } }]), null);
-  assert.match(validateBlocks(schemaMap, [{ type: 'Hero', props: {} }])?.message || '', /field "Title" is required/);
+  assert.match(
+    validateBlocks(schemaMap, [{ type: 'Hero', props: {} }])?.message || '',
+    /field "Title" is required/,
+  );
 });

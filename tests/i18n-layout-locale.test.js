@@ -154,7 +154,9 @@ test('setUiLocale dist source does NOT include HttpOnly attribute', async () => 
   // does NOT include the httponly attribute (case-insensitive).
   // We strip comment lines first to avoid false positives from JSDoc mentions.
   const noComments = source.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
-  const fnMatch = noComments.match(/function setUiLocale[\s\S]*?(?=\nfunction|\nexport|\nconst|\nlet|\nvar|$)/);
+  const fnMatch = noComments.match(
+    /function setUiLocale[\s\S]*?(?=\nfunction|\nexport|\nconst|\nlet|\nvar|$)/,
+  );
   const region = fnMatch ? fnMatch[0] : noComments;
   // The cookie assignment string is what matters — extract the string literal
   // that is assigned to document.cookie (the actual attribute string, not comments).

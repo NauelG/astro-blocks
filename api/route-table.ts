@@ -43,7 +43,8 @@ import type { GlobalBlockRuntimeEntry } from '../types/index.js';
  * alias.
  */
 async function loadGlobalBlocksRegistry(): Promise<GlobalBlockRuntimeEntry[]> {
-  const baked = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env?.ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY;
+  const baked = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env
+    ?.ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY;
   if (typeof baked === 'string' && baked.length > 0) {
     try {
       const parsed = JSON.parse(baked) as GlobalBlockRuntimeEntry[];
@@ -58,7 +59,9 @@ async function loadGlobalBlocksRegistry(): Promise<GlobalBlockRuntimeEntry[]> {
     const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
     const runtimePath = path.join(projectRoot, '.astro-blocks', 'runtime.mjs');
     const runtimeUrl = pathToFileURL(runtimePath).href;
-    const mod = (await import(/* @vite-ignore */ runtimeUrl)) as { globalBlocksRegistry?: GlobalBlockRuntimeEntry[] };
+    const mod = (await import(/* @vite-ignore */ runtimeUrl)) as {
+      globalBlocksRegistry?: GlobalBlockRuntimeEntry[];
+    };
     return mod.globalBlocksRegistry ?? [];
   } catch {
     return [];
@@ -154,13 +157,15 @@ export const routes: RouteDescriptor[] = [
     method: 'GET',
     pattern: 'global-blocks',
     auth: 'user',
-    handler: async (ctx) => handlers.handleGetGlobalBlocks(await loadGlobalBlocksRegistry(), ctx.request),
+    handler: async (ctx) =>
+      handlers.handleGetGlobalBlocks(await loadGlobalBlocksRegistry(), ctx.request),
   }),
   defineRoute({
     method: 'GET',
     pattern: 'global-blocks/:id',
     auth: 'user',
-    handler: async (ctx) => handlers.handleGetGlobalBlock(ctx.params.id, await loadGlobalBlocksRegistry(), ctx.request),
+    handler: async (ctx) =>
+      handlers.handleGetGlobalBlock(ctx.params.id, await loadGlobalBlocksRegistry(), ctx.request),
   }),
 
   // ─── POST (12) ──────────────────────────────────────────────────────────
@@ -285,7 +290,12 @@ export const routes: RouteDescriptor[] = [
     pattern: 'global-blocks/:id',
     auth: 'user',
     handler: async (ctx) =>
-      handlers.handlePutGlobalBlock(ctx.params.id, ctx.request, { cache: ctx.cache }, await loadGlobalBlocksRegistry()),
+      handlers.handlePutGlobalBlock(
+        ctx.params.id,
+        ctx.request,
+        { cache: ctx.cache },
+        await loadGlobalBlocksRegistry(),
+      ),
   }),
 
   // ─── PATCH (1) ──────────────────────────────────────────────────────────
@@ -313,7 +323,8 @@ export const routes: RouteDescriptor[] = [
     method: 'DELETE',
     pattern: 'redirects/:id',
     auth: 'user',
-    handler: (ctx) => handlers.handleDeleteRedirect(ctx.params.id, { cache: ctx.cache }, ctx.request),
+    handler: (ctx) =>
+      handlers.handleDeleteRedirect(ctx.params.id, { cache: ctx.cache }, ctx.request),
   }),
   defineRoute({
     method: 'DELETE',
@@ -337,6 +348,7 @@ export const routes: RouteDescriptor[] = [
     method: 'DELETE',
     pattern: 'languages/:id',
     auth: 'owner',
-    handler: (ctx) => handlers.handleDeleteLanguage(ctx.params.id, { cache: ctx.cache }, ctx.request),
+    handler: (ctx) =>
+      handlers.handleDeleteLanguage(ctx.params.id, { cache: ctx.cache }, ctx.request),
   }),
 ];

@@ -40,7 +40,9 @@ function runCommand(command, args, options = {}) {
     child.on('error', reject);
     child.on('exit', (code) => {
       if (code === 0) return resolve();
-      return reject(new Error(`Command failed (${command} ${args.join(' ')}), exit code: ${code ?? 'null'}`));
+      return reject(
+        new Error(`Command failed (${command} ${args.join(' ')}), exit code: ${code ?? 'null'}`),
+      );
     });
   });
 }
@@ -126,7 +128,7 @@ async function captureReadmeScreenshots(baseUrl, token) {
       sessionStorage.setItem('cms-token', authToken);
       sessionStorage.setItem('cms-user', JSON.stringify(user));
     },
-    { authToken: token, user: SCREENSHOT_USER }
+    { authToken: token, user: SCREENSHOT_USER },
   );
 
   const page = await context.newPage();
@@ -209,7 +211,7 @@ async function main() {
     console.log(`[screenshots] Updated ${path.relative(ROOT, PAGE_EDITOR_PATH)}`);
     console.log(`[screenshots] Updated ${path.relative(ROOT, IMPORT_EXPORT_PATH)}`);
   } catch (error) {
-    if (String(error).includes('Executable doesn\'t exist')) {
+    if (String(error).includes("Executable doesn't exist")) {
       console.error('[screenshots] Chromium browser is not installed for Playwright.');
       console.error('[screenshots] Run: npx playwright install chromium');
     }

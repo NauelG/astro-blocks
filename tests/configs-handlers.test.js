@@ -58,7 +58,7 @@ test('config handlers support CRUD and key updates', async () => {
           value: 'AIza-123',
           description: 'Google Maps key',
         }),
-      })
+      }),
     );
 
     assert.equal(postResponse.status, 200);
@@ -83,7 +83,7 @@ test('config handlers support CRUD and key updates', async () => {
           value: 'forms@example.com',
           description: 'Forms destination',
         }),
-      })
+      }),
     );
 
     assert.equal(putResponse.status, 200);
@@ -107,7 +107,7 @@ test('config handlers validate key format and case-insensitive duplicates', asyn
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'Form_Recipient', value: 'a@example.com' }),
-      })
+      }),
     );
 
     assert.equal(first.status, 200);
@@ -118,7 +118,7 @@ test('config handlers validate key format and case-insensitive duplicates', asyn
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'form_recipient', value: 'b@example.com' }),
-      })
+      }),
     );
 
     assert.equal(duplicate.status, 400);
@@ -129,13 +129,13 @@ test('config handlers validate key format and case-insensitive duplicates', asyn
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: '1INVALID', value: 'x' }),
-      })
+      }),
     );
 
     assert.equal(invalidKey.status, 400);
     assert.equal(
       (await invalidKey.json()).error,
-      'The key must start with a letter and can only contain letters, numbers, dot, dash, and underscore.'
+      'The key must start with a letter and can only contain letters, numbers, dot, dash, and underscore.',
     );
 
     const second = await handlePostConfigs(
@@ -143,7 +143,7 @@ test('config handlers validate key format and case-insensitive duplicates', asyn
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'GOOGLE_MAPS_API_KEY', value: 'k2' }),
-      })
+      }),
     );
 
     assert.equal(second.status, 200);
@@ -155,7 +155,7 @@ test('config handlers validate key format and case-insensitive duplicates', asyn
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: firstJson.key.toLowerCase(), value: 'new-value' }),
-      })
+      }),
     );
 
     assert.equal(renameConflict.status, 400);

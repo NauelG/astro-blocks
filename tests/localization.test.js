@@ -29,7 +29,10 @@ test('normalizeLanguages ensures one enabled default language', () => {
     ],
   });
 
-  assert.equal(data.languages.some((entry) => entry.isDefault && entry.enabled !== false), true);
+  assert.equal(
+    data.languages.some((entry) => entry.isDefault && entry.enabled !== false),
+    true,
+  );
   assert.equal(getDefaultLanguageCode(data), 'en');
 });
 
@@ -62,8 +65,14 @@ test('isSchemaPropLocalizable follows default localizable rules for string/text'
 
 test('resolvePreferredLocaleFromAcceptLanguage matches exact and base locales', () => {
   const available = ['es', 'en', 'pt-br'];
-  assert.equal(resolvePreferredLocaleFromAcceptLanguage('en-GB,en;q=0.9,es;q=0.8', available, 'es'), 'en');
-  assert.equal(resolvePreferredLocaleFromAcceptLanguage('pt-PT,fr;q=0.8', available, 'es'), 'pt-br');
+  assert.equal(
+    resolvePreferredLocaleFromAcceptLanguage('en-GB,en;q=0.9,es;q=0.8', available, 'es'),
+    'en',
+  );
+  assert.equal(
+    resolvePreferredLocaleFromAcceptLanguage('pt-PT,fr;q=0.8', available, 'es'),
+    'pt-br',
+  );
 });
 
 test('resolvePreferredLocaleFromAcceptLanguage falls back to default locale', () => {

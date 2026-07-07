@@ -75,7 +75,12 @@ test('toImageValue — coerces array to sentinel', () => {
 // ─── parseImageValue ──────────────────────────────────────────────────────────
 
 test('T-9: JSON hidden-input round-trip — special chars in alt survive (SC-1.5)', () => {
-  const original = { url: '/u/img.png', alt: 'Quote with "quotes" & <tags>', width: 400, height: 300 };
+  const original = {
+    url: '/u/img.png',
+    alt: 'Quote with "quotes" & <tags>',
+    width: 400,
+    height: 300,
+  };
   const serialized = JSON.stringify(original);
   const parsed = parseImageValue(serialized);
   assert.equal(parsed.url, '/u/img.png');
@@ -131,8 +136,14 @@ test('T-19: imageAttrs — absent width/height are omitted (SC-7.3)', () => {
   assert.equal(attrs.width, undefined);
   assert.equal(attrs.height, undefined);
   // width and height should NOT be enumerable keys when absent
-  assert.ok(!Object.prototype.hasOwnProperty.call(attrs, 'width') || attrs.width === undefined, 'width absent');
-  assert.ok(!Object.prototype.hasOwnProperty.call(attrs, 'height') || attrs.height === undefined, 'height absent');
+  assert.ok(
+    !Object.prototype.hasOwnProperty.call(attrs, 'width') || attrs.width === undefined,
+    'width absent',
+  );
+  assert.ok(
+    !Object.prototype.hasOwnProperty.call(attrs, 'height') || attrs.height === undefined,
+    'height absent',
+  );
 });
 
 test('imageAttrs — missing alt defaults to ""', () => {
@@ -237,14 +248,14 @@ test('FIX-1: escapePickerHtml encodes double-quotes — broken escapeHtml does N
   const brokenAttrValue = htmlEscapeSimple(json);
   assert.ok(
     brokenAttrValue.includes('"'),
-    'broken escapeHtml should leave unescaped double-quotes (this is the bug)'
+    'broken escapeHtml should leave unescaped double-quotes (this is the bug)',
   );
 
   // Correct path: double-quote IS encoded → attribute is safe
   const safeAttrValue = htmlEscapeAttr(json);
   assert.ok(
     !safeAttrValue.includes('"'),
-    'correct escapePickerHtml should have NO unescaped double-quotes in the encoded output'
+    'correct escapePickerHtml should have NO unescaped double-quotes in the encoded output',
   );
 
   // Round-trip: decoding the safe attr value then JSON.parse yields original
@@ -294,9 +305,14 @@ test('FIX-2: parseImageValue — drops zero width/height from JSON', () => {
 
 test('FIX-2: mediaEntryToImageValue — drops negative dimensions', () => {
   const entry = {
-    id: '1', url: '/u.jpg', filename: 'u.jpg', size: 100,
-    mimeType: 'image/jpeg', createdAt: '2026-01-01T00:00:00.000Z',
-    width: -1, height: -1,
+    id: '1',
+    url: '/u.jpg',
+    filename: 'u.jpg',
+    size: 100,
+    mimeType: 'image/jpeg',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    width: -1,
+    height: -1,
   };
   const result = mediaEntryToImageValue(entry);
   assert.equal(result.width, undefined, 'negative width must be dropped');
@@ -305,9 +321,14 @@ test('FIX-2: mediaEntryToImageValue — drops negative dimensions', () => {
 
 test('FIX-2: mediaEntryToImageValue — drops zero dimensions', () => {
   const entry = {
-    id: '2', url: '/u.jpg', filename: 'u.jpg', size: 100,
-    mimeType: 'image/jpeg', createdAt: '2026-01-01T00:00:00.000Z',
-    width: 0, height: 0,
+    id: '2',
+    url: '/u.jpg',
+    filename: 'u.jpg',
+    size: 100,
+    mimeType: 'image/jpeg',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    width: 0,
+    height: 0,
   };
   const result = mediaEntryToImageValue(entry);
   assert.equal(result.width, undefined, 'zero width must be dropped');
@@ -335,23 +356,25 @@ test('FIX-3: serializeImageValueAttr — no raw double-quote in output (critical
   const serialized = serializeImageValueAttr(value);
   assert.ok(
     !serialized.includes('"'),
-    'serializeImageValueAttr must encode all double-quotes — a raw " breaks the HTML attribute'
+    'serializeImageValueAttr must encode all double-quotes — a raw " breaks the HTML attribute',
   );
   assert.ok(
     !serialized.includes('<'),
-    'serializeImageValueAttr must encode < to prevent tag injection'
+    'serializeImageValueAttr must encode < to prevent tag injection',
   );
+  assert.ok(!serialized.includes('>'), 'serializeImageValueAttr must encode >');
   assert.ok(
-    !serialized.includes('>'),
-    'serializeImageValueAttr must encode >'
-  );
-  assert.ok(
-    !serialized.includes('&') || serialized.includes('&amp;') || serialized.includes('&quot;') || serialized.includes('&lt;') || serialized.includes('&gt;') || serialized.includes('&#39;'),
-    'any & must be an entity prefix (escaped), not a raw ampersand'
+    !serialized.includes('&') ||
+      serialized.includes('&amp;') ||
+      serialized.includes('&quot;') ||
+      serialized.includes('&lt;') ||
+      serialized.includes('&gt;') ||
+      serialized.includes('&#39;'),
+    'any & must be an entity prefix (escaped), not a raw ampersand',
   );
   assert.ok(
     serialized.includes('&quot;'),
-    'double-quote must be encoded as &quot; (or equivalent numeric entity)'
+    'double-quote must be encoded as &quot; (or equivalent numeric entity)',
   );
 });
 
@@ -362,7 +385,11 @@ test('FIX-3: serializeImageValueAttr — HTML-attribute round-trip preserves all
   // Reverse HTML entity escaping (as the browser does when reading .value)
   const decoded = decodeHtmlEntitiesLocal(serialized);
   const roundTripped = JSON.parse(decoded);
-  assert.deepEqual(roundTripped, original, 'round-trip through HTML attribute must preserve all fields exactly');
+  assert.deepEqual(
+    roundTripped,
+    original,
+    'round-trip through HTML attribute must preserve all fields exactly',
+  );
 });
 
 test('FIX-3: serializeImageValueAttr — quote-blind escaper would FAIL (proves the test catches regression)', () => {
@@ -375,7 +402,7 @@ test('FIX-3: serializeImageValueAttr — quote-blind escaper would FAIL (proves 
   // If someone replaces serializeImageValueAttr with a quote-blind escapeHtml, this fails.
   assert.ok(
     !serialized.includes('"'),
-    'regression guard: if this fails, the call site was reverted to a quote-blind escaper'
+    'regression guard: if this fails, the call site was reverted to a quote-blind escaper',
   );
 });
 
@@ -388,12 +415,18 @@ test('toImageValue passes caption string', () => {
 
 test('toImageValue drops non-string caption', () => {
   const result = toImageValue({ url: '/img.jpg', alt: 'Alt', caption: 42 });
-  assert.ok(!Object.prototype.hasOwnProperty.call(result, 'caption'), 'non-string caption must be dropped');
+  assert.ok(
+    !Object.prototype.hasOwnProperty.call(result, 'caption'),
+    'non-string caption must be dropped',
+  );
 });
 
 test('toImageValue omits caption when absent', () => {
   const result = toImageValue({ url: '/img.jpg', alt: 'Alt' });
-  assert.ok(!Object.prototype.hasOwnProperty.call(result, 'caption'), 'caption key must be absent when not provided');
+  assert.ok(
+    !Object.prototype.hasOwnProperty.call(result, 'caption'),
+    'caption key must be absent when not provided',
+  );
 });
 
 test('parseImageValue round-trips caption', () => {
@@ -412,7 +445,10 @@ test('parseImageValue round-trips caption with quotes and unicode', () => {
 test('parseImageValue on legacy value (no caption)', () => {
   const raw = JSON.stringify({ url: '/img.jpg', alt: 'Old photo', width: 800, height: 600 });
   const result = parseImageValue(raw);
-  assert.ok(!Object.prototype.hasOwnProperty.call(result, 'caption'), 'legacy value must have no caption key');
+  assert.ok(
+    !Object.prototype.hasOwnProperty.call(result, 'caption'),
+    'legacy value must have no caption key',
+  );
   // All existing fields preserved
   assert.equal(result.url, '/img.jpg');
   assert.equal(result.alt, 'Old photo');
@@ -454,11 +490,17 @@ test('getCaption returns empty string for whitespace-only caption', () => {
 });
 
 test('getCaption returns trimmed string for non-empty caption', () => {
-  assert.equal(getCaption({ url: '/img.jpg', caption: '  Sunset over the lake  ' }), 'Sunset over the lake');
+  assert.equal(
+    getCaption({ url: '/img.jpg', caption: '  Sunset over the lake  ' }),
+    'Sunset over the lake',
+  );
 });
 
 test('getCaption override param takes precedence over value.caption', () => {
-  assert.equal(getCaption({ url: '/img.jpg', caption: 'Value caption' }, 'Override caption'), 'Override caption');
+  assert.equal(
+    getCaption({ url: '/img.jpg', caption: 'Value caption' }, 'Override caption'),
+    'Override caption',
+  );
 });
 
 test('getCaption override param: empty override falls back to value.caption', () => {

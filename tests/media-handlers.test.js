@@ -19,7 +19,12 @@ import {
   appendMediaEntry,
   generateId,
 } from '../dist/api/data.js';
-import { handleUpload, handleDeleteUpload, handleGetPages, handleReplaceUpload } from '../dist/api/handlers.js';
+import {
+  handleUpload,
+  handleDeleteUpload,
+  handleGetPages,
+  handleReplaceUpload,
+} from '../dist/api/handlers.js';
 import { replaceMediaEntryBytes } from '../dist/api/data.js';
 import { generateAndPersistVariants } from '../dist/utils/variant-generator.js';
 import { toImageValue } from '../dist/utils/image-value.js';
@@ -91,7 +96,18 @@ test('T14-10b: ensureDefaultFiles does not overwrite existing media.json', async
   await withTempProject(async (tempRoot) => {
     const mediaPath = path.join(tempRoot, 'data', 'media.json');
     // First call already ran; add a fake entry
-    const existing = { uploads: [{ id: 'test-id', url: '/uploads/x.jpg', filename: 'x.jpg', size: 100, mimeType: 'image/jpeg', createdAt: '2026-01-01T00:00:00.000Z' }] };
+    const existing = {
+      uploads: [
+        {
+          id: 'test-id',
+          url: '/uploads/x.jpg',
+          filename: 'x.jpg',
+          size: 100,
+          mimeType: 'image/jpeg',
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    };
     await fs.writeFile(mediaPath, JSON.stringify(existing), 'utf-8');
     // Call ensureDefaultFiles again — must not overwrite
     await ensureDefaultFiles();
@@ -105,7 +121,11 @@ test('T14-10b: ensureDefaultFiles does not overwrite existing media.json', async
 // T14-01: PDF upload accepted with default allowlist (R2.2, R10.1)
 test('T14-01: PDF upload accepted with default allowlist', async () => {
   await withTempProject(async () => {
-    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'document.pdf', 'application/pdf');
+    const req = makeUploadRequest(
+      new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      'document.pdf',
+      'application/pdf',
+    );
     const res = await handleUpload(req);
     assert.equal(res.status, 200);
     const body = await res.json();
@@ -138,7 +158,11 @@ test('T14-01b: upload with empty MIME type returns 415', async () => {
 // R6.1-A: JPEG upload → fileCategory 'image' (B3)
 test('R6.1-A: JPEG upload sets fileCategory to image', async () => {
   await withTempProject(async () => {
-    const req = makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), 'photo.jpg', 'image/jpeg');
+    const req = makeUploadRequest(
+      new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+      'photo.jpg',
+      'image/jpeg',
+    );
     const res = await handleUpload(req);
     assert.equal(res.status, 200);
     await drainVariantJobs();
@@ -151,7 +175,11 @@ test('R6.1-A: JPEG upload sets fileCategory to image', async () => {
 // R6.1-B: PDF upload → fileCategory 'document' (B3)
 test('R6.1-B: PDF upload sets fileCategory to document', async () => {
   await withTempProject(async () => {
-    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'doc.pdf', 'application/pdf');
+    const req = makeUploadRequest(
+      new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      'doc.pdf',
+      'application/pdf',
+    );
     const res = await handleUpload(req);
     assert.equal(res.status, 200);
     await drainVariantJobs();
@@ -164,21 +192,32 @@ test('R6.1-B: PDF upload sets fileCategory to document', async () => {
 // R4.3-A: PDF upload → no width/height on entry (B3 — imageSize skipped for non-raster)
 test('R4.3-A: PDF upload has no width or height on registry entry', async () => {
   await withTempProject(async () => {
-    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'doc.pdf', 'application/pdf');
+    const req = makeUploadRequest(
+      new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      'doc.pdf',
+      'application/pdf',
+    );
     const res = await handleUpload(req);
     assert.equal(res.status, 200);
     await drainVariantJobs();
     const mediaData = await loadMedia();
     const entry = mediaData.uploads[0];
     assert.ok(entry.width === undefined || entry.width === null, 'PDF entry should have no width');
-    assert.ok(entry.height === undefined || entry.height === null, 'PDF entry should have no height');
+    assert.ok(
+      entry.height === undefined || entry.height === null,
+      'PDF entry should have no height',
+    );
   });
 });
 
 // R2.5-A: PDF blob with wrong filename gets .pdf extension (B3)
 test('R2.5-A: PDF blob with wrong filename gets .pdf extension from MIME', async () => {
   await withTempProject(async () => {
-    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'document.docx', 'application/pdf');
+    const req = makeUploadRequest(
+      new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      'document.docx',
+      'application/pdf',
+    );
     const res = await handleUpload(req);
     assert.equal(res.status, 200);
     const body = await res.json();
@@ -189,7 +228,11 @@ test('R2.5-A: PDF blob with wrong filename gets .pdf extension from MIME', async
 // R2.2-B: PDF entry has fileCategory 'document' (second check via T14-01 extended)
 test('R2.2-B: PDF upload — loadMedia entry has fileCategory document', async () => {
   await withTempProject(async () => {
-    const req = makeUploadRequest(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'doc.pdf', 'application/pdf');
+    const req = makeUploadRequest(
+      new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      'doc.pdf',
+      'application/pdf',
+    );
     const res = await handleUpload(req);
     assert.equal(res.status, 200);
     const body = await res.json();
@@ -203,7 +246,11 @@ test('R2.2-B: PDF upload — loadMedia entry has fileCategory document', async (
 // T14-02: Upload with allowed MIME → HTTP 200, file on disk
 test('T14-02: upload with allowed MIME type (image/jpeg) returns 200 and file is on disk', async () => {
   await withTempProject(async (tempRoot) => {
-    const req = makeUploadRequest(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), 'photo.jpg', 'image/jpeg');
+    const req = makeUploadRequest(
+      new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+      'photo.jpg',
+      'image/jpeg',
+    );
     const res = await handleUpload(req);
     assert.equal(res.status, 200);
     const body = await res.json();
@@ -405,10 +452,18 @@ test('T1.2: invalid status coerced to undefined', async () => {
     // Directly write malformed JSON to bypass TypeScript
     const { getDataPath } = await import('../dist/utils/paths.js');
     const fs2 = (await import('node:fs/promises')).default;
-    await fs2.writeFile(getDataPath('media.json'), JSON.stringify({ uploads: [invalidEntry] }), 'utf-8');
+    await fs2.writeFile(
+      getDataPath('media.json'),
+      JSON.stringify({ uploads: [invalidEntry] }),
+      'utf-8',
+    );
     const loaded = await reloadMedia();
     assert.equal(loaded.uploads.length, 1);
-    assert.equal(loaded.uploads[0].status, undefined, 'invalid status should be coerced to undefined');
+    assert.equal(
+      loaded.uploads[0].status,
+      undefined,
+      'invalid status should be coerced to undefined',
+    );
   });
 });
 
@@ -436,7 +491,11 @@ test('T1.2: invalid variant element filtered out', async () => {
         { format: 'webp', width: 800 },
       ],
     };
-    await fs2.writeFile(getDataPath('media.json'), JSON.stringify({ uploads: [entryWithBadVariants] }), 'utf-8');
+    await fs2.writeFile(
+      getDataPath('media.json'),
+      JSON.stringify({ uploads: [entryWithBadVariants] }),
+      'utf-8',
+    );
     const loaded = await reloadMedia();
     assert.equal(loaded.uploads.length, 1);
     const entry = loaded.uploads[0];
@@ -526,8 +585,10 @@ test('T4.2: delete cascade — original + all variant files gone, entry pruned',
     // Create a PNG fixture that will produce variants
     const { default: sharp } = await import('sharp');
     const pngBuffer = await sharp({
-      create: { width: 1000, height: 50, channels: 3, background: { r: 100, g: 100, b: 100 } }
-    }).png().toBuffer();
+      create: { width: 1000, height: 50, channels: 3, background: { r: 100, g: 100, b: 100 } },
+    })
+      .png()
+      .toBuffer();
 
     // Write PNG to uploads dir
     const subdir = new Date().toISOString().slice(0, 7).replace(/-/g, '/');
@@ -589,7 +650,11 @@ test('T4.2: delete cascade — original + all variant files gone, entry pruned',
 
     // Registry should be pruned
     const after = await loadMedia();
-    assert.equal(after.uploads.find((u) => u.id === entry.id), undefined, 'entry should be pruned');
+    assert.equal(
+      after.uploads.find((u) => u.id === entry.id),
+      undefined,
+      'entry should be pruned',
+    );
   });
 });
 
@@ -603,9 +668,7 @@ test('T4.2: delete with missing variant files is idempotent', async () => {
     // Manually write a variant entry with a non-existent file
     const media = await loadMedia();
     const entry = media.uploads.find((u) => u.url === url);
-    const fakeVariants = [
-      { format: 'webp', width: 480, url: url.replace('.jpg', '-480.webp') },
-    ];
+    const fakeVariants = [{ format: 'webp', width: 480, url: url.replace('.jpg', '-480.webp') }];
     await markMediaVariantsReady(entry.id, fakeVariants);
     // Do NOT create the variant file on disk — it's missing
 
@@ -675,7 +738,11 @@ test('T5.1: replaceMediaEntryBytes returns { entry, oldVariants } with oldVarian
     assert.deepEqual(result.entry.variants, [], 'entry variants must be cleared');
 
     // oldVariants is what was live at mutation time
-    assert.deepEqual(result.oldVariants, oldVariantList, 'oldVariants must match the pre-mutation snapshot');
+    assert.deepEqual(
+      result.oldVariants,
+      oldVariantList,
+      'oldVariants must match the pre-mutation snapshot',
+    );
   });
 });
 
@@ -700,7 +767,11 @@ test('T5.1: replaceMediaEntryBytes returns empty oldVariants when entry had no v
 
     const result = await replaceMediaEntryBytes(id, { size: 1000 });
     assert.ok(result !== null);
-    assert.deepEqual(result.oldVariants, [], 'oldVariants should be empty when entry had no variants');
+    assert.deepEqual(
+      result.oldVariants,
+      [],
+      'oldVariants should be empty when entry had no variants',
+    );
   });
 });
 
@@ -802,9 +873,7 @@ test('T7.1: reconcile tolerates missing orphan variant files', async () => {
       mimeType: 'image/jpeg',
       createdAt: new Date().toISOString(),
       status: 'ready',
-      variants: [
-        { format: 'webp', width: 480, url: '/uploads/2026/06/ghost-480.webp' },
-      ],
+      variants: [{ format: 'webp', width: 480, url: '/uploads/2026/06/ghost-480.webp' }],
     });
 
     // Should not throw even though original AND variant files are missing
@@ -865,7 +934,11 @@ test('T7.1: existing reconcile behaviour preserved (entry with no variants still
     });
 
     const reconciled = await reconcileMedia();
-    assert.equal(reconciled.uploads.length, 0, 'entry with missing original and no variants should be pruned');
+    assert.equal(
+      reconciled.uploads.length,
+      0,
+      'entry with missing original and no variants should be pruned',
+    );
   });
 });
 
@@ -929,7 +1002,12 @@ test('T-8: toImageValue — coerces null to sentinel { url: "", alt: "" } (SC-1.
 });
 
 test('T-9: JSON hidden-input round-trip — special chars in alt (SC-1.5)', () => {
-  const original = { url: '/u/img.png', alt: 'Quote with "quotes" & <tags>', width: 400, height: 300 };
+  const original = {
+    url: '/u/img.png',
+    alt: 'Quote with "quotes" & <tags>',
+    width: 400,
+    height: 300,
+  };
   const serialized = JSON.stringify(original);
   // Simulate parseImageValue by JSON.parse — the full helper is tested in image-value.test.js
   const parsed = JSON.parse(serialized);
@@ -995,7 +1073,7 @@ test('FIX-3: handleGetPages — legacy string image prop is projected as { url, 
         '  "Hero": {"name":"Hero","items":{"image":{"type":"image","label":"Hero image"}}},',
         '};',
       ].join('\n'),
-      'utf-8'
+      'utf-8',
     );
 
     // Seed a page with a legacy string image prop
@@ -1030,7 +1108,11 @@ test('FIX-3: handleGetPages — legacy string image prop is projected as { url, 
 
     // The image prop must NOT be a bare string — it must be an object with url
     const imageProp = block.props.image;
-    assert.equal(typeof imageProp, 'object', 'FIX-3: image prop must be an object, not a bare string');
+    assert.equal(
+      typeof imageProp,
+      'object',
+      'FIX-3: image prop must be an object, not a bare string',
+    );
     assert.ok(imageProp !== null, 'FIX-3: image prop must not be null');
     assert.equal(imageProp.url, '/uploads/legacy.jpg', 'FIX-3: url must be preserved');
     assert.equal(imageProp.alt, '', 'FIX-3: alt must default to empty string');
@@ -1055,7 +1137,9 @@ async function importFreshHandlers(maxBytes) {
   const prev = process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
   process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES = String(maxBytes);
   try {
-    const url = new URL('../dist/api/handlers.js', import.meta.url).href + `?maxbytes=${maxBytes}-${Date.now()}-${Math.random()}`;
+    const url =
+      new URL('../dist/api/handlers.js', import.meta.url).href +
+      `?maxbytes=${maxBytes}-${Date.now()}-${Math.random()}`;
     return await import(url);
   } finally {
     if (prev === undefined) delete process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
@@ -1089,8 +1173,13 @@ test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleReplaceUpload honors 
     const url = `/uploads/${subdir}/${filename}`;
     const id = generateId();
     await appendMediaEntry({
-      id, url, filename, size: 4, mimeType: 'image/jpeg',
-      createdAt: new Date().toISOString(), status: 'ready',
+      id,
+      url,
+      filename,
+      size: 4,
+      mimeType: 'image/jpeg',
+      createdAt: new Date().toISOString(),
+      status: 'ready',
     });
 
     const handlersFresh = await importFreshHandlers(1024); // 1 KB limit
@@ -1098,7 +1187,9 @@ test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleReplaceUpload honors 
     // Auth token (replace requires auth)
     const { SignJWT } = await import('jose');
     const token = await new SignJWT({ email: 't@e.com', role: 'owner' })
-      .setSubject('uid').setProtectedHeader({ alg: 'HS256' }).setExpirationTime('1h')
+      .setSubject('uid')
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('1h')
       .sign(new TextEncoder().encode('cms-jwt-secret-change-me'));
 
     // Under limit replace → 200 processing (binary body transport)
@@ -1156,8 +1247,14 @@ test('R3.2-A: PDF can replace an existing PDF entry (same-MIME constraint satisf
     const url = `/uploads/${subdir}/${filename}`;
     const id = generateId();
     await appendMediaEntry({
-      id, url, filename, size: 4, mimeType: 'application/pdf',
-      fileCategory: 'document', createdAt: new Date().toISOString(), status: 'ready',
+      id,
+      url,
+      filename,
+      size: 4,
+      mimeType: 'application/pdf',
+      fileCategory: 'document',
+      createdAt: new Date().toISOString(),
+      status: 'ready',
     });
 
     const token = await mintJwt();
@@ -1192,8 +1289,14 @@ test('R3.2-B: image/jpeg cannot replace an existing PDF entry (same-MIME constra
     const url = `/uploads/${subdir}/${filename}`;
     const id = generateId();
     await appendMediaEntry({
-      id, url, filename, size: 4, mimeType: 'application/pdf',
-      fileCategory: 'document', createdAt: new Date().toISOString(), status: 'ready',
+      id,
+      url,
+      filename,
+      size: 4,
+      mimeType: 'application/pdf',
+      fileCategory: 'document',
+      createdAt: new Date().toISOString(),
+      status: 'ready',
     });
 
     const token = await mintJwt();
@@ -1210,7 +1313,7 @@ test('R3.2-B: image/jpeg cannot replace an existing PDF entry (same-MIME constra
     const res = await handleReplaceUpload(req, id);
     assert.ok(
       res.status === 415 || res.status === 409,
-      `jpeg→pdf cross-type replace should return 415 or 409; got ${res.status}`
+      `jpeg→pdf cross-type replace should return 415 or 409; got ${res.status}`,
     );
   });
 });
@@ -1266,10 +1369,28 @@ test('M-1: upload with MIME absent from MIME_TO_EXT yields 415 (unmapped extensi
 const ALLOWED_MIMES = [
   { mime: 'image/jpeg', bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), filename: 'file.jpg' },
   { mime: 'image/png', bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]), filename: 'file.png' },
-  { mime: 'image/webp', bytes: new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]), filename: 'file.webp' },
-  { mime: 'image/svg+xml', bytes: new Uint8Array(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><circle r="1"/></svg>')), filename: 'file.svg' },
-  { mime: 'image/gif', bytes: new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]), filename: 'file.gif' },
-  { mime: 'application/pdf', bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]), filename: 'file.pdf' },
+  {
+    mime: 'image/webp',
+    bytes: new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]),
+    filename: 'file.webp',
+  },
+  {
+    mime: 'image/svg+xml',
+    bytes: new Uint8Array(
+      Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><circle r="1"/></svg>'),
+    ),
+    filename: 'file.svg',
+  },
+  {
+    mime: 'image/gif',
+    bytes: new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]),
+    filename: 'file.gif',
+  },
+  {
+    mime: 'application/pdf',
+    bytes: new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34]),
+    filename: 'file.pdf',
+  },
 ];
 
 for (const { mime, bytes, filename } of ALLOWED_MIMES) {
@@ -1282,7 +1403,11 @@ for (const { mime, bytes, filename } of ALLOWED_MIMES) {
       assert.ok(body.url, 'should return url');
       assert.ok(body.entry, 'should return entry');
       assert.equal(body.entry.mimeType, mime, `entry.mimeType should equal ${mime}`);
-      assert.equal(body.entry.filename, filename, 'entry.filename should equal decoded x-cms-filename');
+      assert.equal(
+        body.entry.filename,
+        filename,
+        'entry.filename should equal decoded x-cms-filename',
+      );
       assert.equal(body.entry.size, bytes.byteLength, 'entry.size should equal buffer.byteLength');
       // File must exist on disk
       const filePath = path.join(tempRoot, 'public', body.url);
@@ -1314,7 +1439,11 @@ test('T-CSRF-03: non-ASCII filename round-trip — decodes correctly, no 500', a
     assert.equal(res.status, 200, 'upload should succeed with non-ASCII filename');
     const body = await res.json();
     // entry.filename is the decoded display name (pre-sanitization)
-    assert.equal(body.entry.filename, nonAsciiFilename, 'entry.filename must be the decoded original filename');
+    assert.equal(
+      body.entry.filename,
+      nonAsciiFilename,
+      'entry.filename must be the decoded original filename',
+    );
     // url must not contain raw non-ASCII bytes
     assert.doesNotMatch(body.url, /[^\x00-\x7F]/, 'url must not contain raw non-ASCII characters');
   });
@@ -1338,7 +1467,7 @@ test('T-CSRF-04: malformed x-cms-filename (invalid percent sequence) → falls b
     // filename should be 'upload' or the sanitized form of 'upload'
     assert.ok(
       body.entry.filename === 'upload' || body.entry.filename.startsWith('upload'),
-      `entry.filename should be "upload" fallback, got: ${body.entry.filename}`
+      `entry.filename should be "upload" fallback, got: ${body.entry.filename}`,
     );
   });
 });
@@ -1359,7 +1488,7 @@ test('T-CSRF-05: missing x-cms-filename header → falls back to "upload", statu
     const body = await res.json();
     assert.ok(
       body.entry.filename === 'upload' || body.entry.filename.startsWith('upload'),
-      `entry.filename should be "upload" fallback, got: ${body.entry.filename}`
+      `entry.filename should be "upload" fallback, got: ${body.entry.filename}`,
     );
   });
 });
@@ -1376,7 +1505,11 @@ test('T-CSRF-06a: disallowed MIME (text/html) → 415 via binary transport', asy
       body: new Uint8Array(Buffer.from('<html></html>')),
     });
     const res = await handleUpload(req);
-    assert.equal(res.status, 415, 'disallowed MIME must be rejected with 415 even via binary transport');
+    assert.equal(
+      res.status,
+      415,
+      'disallowed MIME must be rejected with 415 even via binary transport',
+    );
   });
 });
 

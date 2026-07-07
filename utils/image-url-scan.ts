@@ -51,7 +51,7 @@ const MAX_DEPTH = 4;
 function matchValue(
   value: unknown,
   targetUrl: string,
-  depth: number
+  depth: number,
 ): Array<{ shape: WalkerMatch['shape'] }> {
   if (depth > MAX_DEPTH) return [];
 
@@ -108,7 +108,9 @@ function matchValue(
 
     // Determine shape: if any value is a string, treat as localized STRING map (S-F)
     const hasStringValues = entries.some(([, v]) => typeof v === 'string');
-    const hasObjectValues = entries.some(([, v]) => v !== null && typeof v === 'object' && !Array.isArray(v));
+    const hasObjectValues = entries.some(
+      ([, v]) => v !== null && typeof v === 'object' && !Array.isArray(v),
+    );
 
     if (hasStringValues && !hasObjectValues) {
       // Localized string map: { es: '/uploads/...', en: '/uploads/...' }
@@ -156,7 +158,7 @@ function matchValue(
 function walkObject(
   props: Record<string, unknown>,
   targetUrl: string,
-  depth: number
+  depth: number,
 ): WalkerMatch[] {
   const results: WalkerMatch[] = [];
   for (const [key, value] of Object.entries(props)) {
@@ -175,10 +177,7 @@ function walkObject(
  *
  * EQUALITY ONLY — never substring. This is the data-loss acceptance gate.
  */
-export function scanPropsForUrl(
-  props: Record<string, unknown>,
-  targetUrl: string
-): WalkerMatch[] {
+export function scanPropsForUrl(props: Record<string, unknown>, targetUrl: string): WalkerMatch[] {
   return walkObject(props, targetUrl, 0);
 }
 
@@ -188,7 +187,7 @@ export function scanPropsForUrl(
  */
 export function findUrlRefsInProps(
   props: Record<string, unknown>,
-  targetUrl: string
+  targetUrl: string,
 ): { propName: string }[] {
   return scanPropsForUrl(props, targetUrl);
 }

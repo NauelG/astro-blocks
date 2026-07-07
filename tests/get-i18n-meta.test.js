@@ -14,7 +14,7 @@ test('getI18nMeta builds hreflang links and og locales', () => {
         { locale: 'ca', path: '/ca' },
       ],
     },
-    { baseUrl: 'https://example.com' }
+    { baseUrl: 'https://example.com' },
   );
 
   assert.ok(meta);

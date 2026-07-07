@@ -9,7 +9,12 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ensureDefaultFiles, loadGlobalBlocks, saveGlobalBlock, saveLanguages } from '../dist/api/data.js';
+import {
+  ensureDefaultFiles,
+  loadGlobalBlocks,
+  saveGlobalBlock,
+  saveLanguages,
+} from '../dist/api/data.js';
 import { handlePutGlobalBlock, handleGetGlobalBlock } from '../dist/api/handlers.js';
 
 async function seedMultiLanguage() {
@@ -42,7 +47,9 @@ async function withTempProject(fn) {
 }
 
 // v2 registry shape
-const REGISTRY = [{ slug: 'header', schemaName: 'Header', componentPath: '/fake/Header.astro', label: 'Header' }];
+const REGISTRY = [
+  { slug: 'header', schemaName: 'Header', componentPath: '/fake/Header.astro', label: 'Header' },
+];
 
 async function seedSchemaMap(tempRoot, schemaMap) {
   const dir = path.join(tempRoot, '.astro-blocks');
@@ -75,7 +82,7 @@ test('PUT → loadGlobalBlocks round-trip persists props correctly', async () =>
         body: JSON.stringify({ props }),
       }),
       {},
-      REGISTRY
+      REGISTRY,
     );
 
     assert.equal(putResponse.status, 200);
@@ -83,7 +90,10 @@ test('PUT → loadGlobalBlocks round-trip persists props correctly', async () =>
     const stored = await loadGlobalBlocks();
     assert.ok(stored.globalBlocks['header'], 'header entry should exist');
     assert.deepEqual(stored.globalBlocks['header'].props, props);
-    assert.ok(typeof stored.globalBlocks['header'].updatedAt === 'string', 'updatedAt should be set');
+    assert.ok(
+      typeof stored.globalBlocks['header'].updatedAt === 'string',
+      'updatedAt should be set',
+    );
   });
 });
 
@@ -116,14 +126,14 @@ test('locale-structured props are preserved as-is in storage (no locale projecti
         body: JSON.stringify({ props }),
       }),
       {},
-      REGISTRY
+      REGISTRY,
     );
 
     const stored = await loadGlobalBlocks();
     assert.deepEqual(
       stored.globalBlocks['header'].props.title,
       { en: 'Hello', es: 'Hola' },
-      'locale map should be preserved in storage'
+      'locale map should be preserved in storage',
     );
   });
 });
@@ -132,7 +142,10 @@ test('loadGlobalBlocks normalizes legacy { blocks: [...] } entry to { props: {} 
   await withTempProject(async (tempRoot) => {
     const legacyData = {
       globalBlocks: {
-        header: { blocks: [{ type: 'Hero', props: { title: 'Hello' } }], updatedAt: '2026-01-01T00:00:00.000Z' },
+        header: {
+          blocks: [{ type: 'Hero', props: { title: 'Hello' } }],
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
       },
     };
     const filePath = path.join(tempRoot, 'data', 'global-blocks.json');
@@ -140,7 +153,11 @@ test('loadGlobalBlocks normalizes legacy { blocks: [...] } entry to { props: {} 
 
     const data = await loadGlobalBlocks();
     assert.ok(data.globalBlocks['header'], 'header entry should exist');
-    assert.deepEqual(data.globalBlocks['header'].props, {}, 'legacy blocks entry should normalize to empty props');
+    assert.deepEqual(
+      data.globalBlocks['header'].props,
+      {},
+      'legacy blocks entry should normalize to empty props',
+    );
   });
 });
 
@@ -151,7 +168,7 @@ test('package.json exports map includes ./components/GlobalBlock entry', async (
 
   assert.ok(
     pkg.exports['./components/GlobalBlock'],
-    'package.json exports should have ./components/GlobalBlock'
+    'package.json exports should have ./components/GlobalBlock',
   );
 
   const entry = pkg.exports['./components/GlobalBlock'];
@@ -173,10 +190,16 @@ test('GlobalBlock.astro dist source uses single-instance render (no entry.blocks
 
   // v2: must NOT iterate entry.blocks
   assert.ok(!source.includes('entry.blocks'), 'v2 component must not reference entry.blocks array');
-  assert.ok(!source.includes('entry?.blocks'), 'v2 component must not reference entry?.blocks array');
+  assert.ok(
+    !source.includes('entry?.blocks'),
+    'v2 component must not reference entry?.blocks array',
+  );
 
   // v2: must use globalBlocksRegistry for slug lookup
-  assert.ok(source.includes('globalBlocksRegistry'), 'v2 component must import and use globalBlocksRegistry');
+  assert.ok(
+    source.includes('globalBlocksRegistry'),
+    'v2 component must import and use globalBlocksRegistry',
+  );
 });
 
 test('GlobalBlock.astro dist source uses props-based render (entry.props or entry?.props)', async () => {
@@ -186,6 +209,6 @@ test('GlobalBlock.astro dist source uses props-based render (entry.props or entr
   // v2: must use entry.props / entry?.props for localization
   assert.ok(
     source.includes('entry?.props') || source.includes('entry.props'),
-    'v2 component must use entry.props (not entry.blocks) for localization'
+    'v2 component must use entry.props (not entry.blocks) for localization',
   );
 });

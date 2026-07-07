@@ -24,7 +24,7 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
 
   if (!fs.existsSync(src)) {
     throw new Error(
-      `Playground .astro-blocks not found at ${src}. Run "npm run build:playground" first.`
+      `Playground .astro-blocks not found at ${src}. Run "npm run build:playground" first.`,
     );
   }
 

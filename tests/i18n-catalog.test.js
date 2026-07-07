@@ -60,7 +60,7 @@ test('all catalog values are strings', () => {
       assert.equal(
         typeof value,
         'string',
-        `catalogs.${locale}["${key}"] must be a string, got ${typeof value}`
+        `catalogs.${locale}["${key}"] must be a string, got ${typeof value}`,
       );
     }
   }
@@ -94,6 +94,6 @@ test('es values differ from en for at least some keys (es≠en sanity: REQ-5.3)'
 
   assert.ok(
     diffRatio >= 0.3,
-    `es catalog appears untranslated: only ${diffCount}/${enEntries.length} keys differ from en (${(diffRatio * 100).toFixed(1)}% < 30% required)`
+    `es catalog appears untranslated: only ${diffCount}/${enEntries.length} keys differ from en (${(diffRatio * 100).toFixed(1)}% < 30% required)`,
   );
 });

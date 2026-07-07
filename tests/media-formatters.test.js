@@ -21,7 +21,11 @@ Licensed under the Business Source License 1.1
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatBytes, formatDimensions, formatMediaDate } from '../dist/routes/admin/client/media-fetch.js';
+import {
+  formatBytes,
+  formatDimensions,
+  formatMediaDate,
+} from '../dist/routes/admin/client/media-fetch.js';
 
 // ─── formatBytes ──────────────────────────────────────────────────────────────
 

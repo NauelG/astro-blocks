@@ -38,7 +38,11 @@ export function pageToSlugParam(page?: { slug?: string | string[] } | null): str
 
 export function splitSlugSegments(slug?: string | string[]): string[] {
   if (!slug || slug === '/') return [];
-  if (Array.isArray(slug)) return slug.filter(Boolean).map((entry) => String(entry).replace(/^\/+|\/+$/g, '')).filter(Boolean);
+  if (Array.isArray(slug))
+    return slug
+      .filter(Boolean)
+      .map((entry) => String(entry).replace(/^\/+|\/+$/g, ''))
+      .filter(Boolean);
   return String(slug)
     .replace(/^\/+|\/+$/g, '')
     .split('/')
@@ -53,7 +57,11 @@ export function joinSlugSegments(segments: string[]): string | string[] {
   return clean;
 }
 
-export function buildLocalizedPath(slug: string | string[], locale: string, defaultLocale: string): string {
+export function buildLocalizedPath(
+  slug: string | string[],
+  locale: string,
+  defaultLocale: string,
+): string {
   const normalizedLocale = normalizeLocaleCode(locale);
   const normalizedDefault = normalizeLocaleCode(defaultLocale);
   const basePath = slugToPath(slug);
@@ -66,7 +74,7 @@ export function buildLocalizedPath(slug: string | string[], locale: string, defa
 export function resolveLocalizedSlug(
   slugParam: string | string[] | undefined,
   locales: string[],
-  defaultLocale: string
+  defaultLocale: string,
 ): { locale: string; slug: string | string[] } {
   const normalizedDefault = normalizeLocaleCode(defaultLocale);
   const localeSet = new Set(locales.map((entry) => normalizeLocaleCode(entry)).filter(Boolean));
@@ -103,7 +111,10 @@ export function resolveCanonical(baseUrl: string, slug: string | string[], seo?:
   return `${baseUrl}${pagePath === '/' ? '' : pagePath}`;
 }
 
-export function resolvePageSeo(site: Site, page: Pick<Page, 'title'> & { slug: string | string[]; seo?: SeoData; indexable?: boolean }): {
+export function resolvePageSeo(
+  site: Site,
+  page: Pick<Page, 'title'> & { slug: string | string[]; seo?: SeoData; indexable?: boolean },
+): {
   title: string;
   description: string;
   canonical: string;

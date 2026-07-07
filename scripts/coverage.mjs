@@ -93,9 +93,7 @@ function main() {
     'text-summary',
   ]);
 
-  const summary = JSON.parse(
-    fs.readFileSync(path.join(outDir, 'coverage-summary.json'), 'utf-8')
-  );
+  const summary = JSON.parse(fs.readFileSync(path.join(outDir, 'coverage-summary.json'), 'utf-8'));
   const pct = summary?.total?.lines?.pct;
 
   if (typeof pct !== 'number') {
@@ -111,7 +109,7 @@ function main() {
   };
   fs.writeFileSync(
     path.join(outDir, 'coverage-pct.json'),
-    `${JSON.stringify(summaryOut, null, 2)}\n`
+    `${JSON.stringify(summaryOut, null, 2)}\n`,
   );
 
   console.log(`\nCombined line coverage: ${pct}%`);

@@ -33,9 +33,7 @@ export const UNIT_TO_DATA_FILES: Record<ExportUnit, string[]> = {
 };
 
 /** All 9 allowed data file paths (for allowlist validation on import). */
-export const ALL_DATA_FILES = new Set<string>(
-  Object.values(UNIT_TO_DATA_FILES).flat(),
-);
+export const ALL_DATA_FILES = new Set<string>(Object.values(UNIT_TO_DATA_FILES).flat());
 
 function readPackageVersion(): string {
   try {
@@ -97,13 +95,20 @@ export function validateManifest(obj: unknown): { ok: boolean; reason?: string }
   const knownUnits = new Set<string>(Object.keys(UNIT_TO_DATA_FILES));
   for (const unit of m['units'] as unknown[]) {
     if (typeof unit !== 'string' || !knownUnits.has(unit)) {
-      return { ok: false, reason: `unknown unit "${unit}" — must be one of: ${[...knownUnits].join(', ')}` };
+      return {
+        ok: false,
+        reason: `unknown unit "${unit}" — must be one of: ${[...knownUnits].join(', ')}`,
+      };
     }
   }
   if (typeof m['counts'] !== 'object' || m['counts'] === null) {
     return { ok: false, reason: 'counts must be an object' };
   }
-  if (typeof m['checksums'] !== 'object' || m['checksums'] === null || Array.isArray(m['checksums'])) {
+  if (
+    typeof m['checksums'] !== 'object' ||
+    m['checksums'] === null ||
+    Array.isArray(m['checksums'])
+  ) {
     return { ok: false, reason: 'checksums must be a non-null object' };
   }
   // Validate every checksums KEY and VALUE.

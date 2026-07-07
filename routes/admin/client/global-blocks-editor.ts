@@ -19,12 +19,7 @@ Licensed under the Business Source License 1.1
 
 import type { SchemaMap } from '../../../types/index.js';
 import { validateBlockPropsAgainstSchema } from '../../../utils/block-validation.js';
-import {
-  authHeaders,
-  fetchJson,
-  getActiveContentLocale,
-  showToast,
-} from './common.js';
+import { authHeaders, fetchJson, getActiveContentLocale, showToast } from './common.js';
 import { ct } from '../i18n/client.js';
 import { mountBlockForm, type BlockFormHandle } from './block-form.js';
 
@@ -90,17 +85,16 @@ export function initGlobalBlocksEditor(): void {
     const [entryResponse, schemas] = await Promise.all([
       fetchJson<GlobalBlockResponse>(
         `/cms/api/global-blocks/${encodeURIComponent(slug)}${localeQuery()}`,
-        { headers: authHeaders(false) }
-      ).catch(() => ({} as GlobalBlockResponse)),
+        { headers: authHeaders(false) },
+      ).catch(() => ({}) as GlobalBlockResponse),
       fetchSchemas(),
     ]);
 
     if (entryResponse?.locale) currentLocale = entryResponse.locale;
 
     const entry = entryResponse?.globalBlocks?.[slug];
-    const rawProps = entry && typeof entry.props === 'object' && entry.props !== null
-      ? entry.props
-      : {};
+    const rawProps =
+      entry && typeof entry.props === 'object' && entry.props !== null ? entry.props : {};
     values = JSON.parse(JSON.stringify(rawProps));
 
     const schema = schemas[schemaName];
@@ -114,7 +108,9 @@ export function initGlobalBlocksEditor(): void {
       container,
       schemaItems: schema.items,
       values,
-      onChange: () => { /* values is mutated in place */ },
+      onChange: () => {
+        /* values is mutated in place */
+      },
       inlineErrors,
       fieldPrefix: `gb-${slug}`,
     });
@@ -137,13 +133,17 @@ export function initGlobalBlocksEditor(): void {
         schemaForValidation.name || currentSchemaName,
         0,
         schemaForValidation.items as Parameters<typeof validateBlockPropsAgainstSchema>[2],
-        values
+        values,
       );
       if (issue) {
         if (issue.propName) {
           inlineErrors.set(
-            [issue.propName, issue.itemIndex !== undefined ? String(issue.itemIndex) : '', issue.fieldName || ''].join('::'),
-            issue.message
+            [
+              issue.propName,
+              issue.itemIndex !== undefined ? String(issue.itemIndex) : '',
+              issue.fieldName || '',
+            ].join('::'),
+            issue.message,
           );
         }
         setError(issue.message);
@@ -151,9 +151,13 @@ export function initGlobalBlocksEditor(): void {
         formHandle?.destroy();
         formHandle = mountBlockForm({
           container,
-          schemaItems: schemaForValidation.items as Parameters<typeof mountBlockForm>[0]['schemaItems'],
+          schemaItems: schemaForValidation.items as Parameters<
+            typeof mountBlockForm
+          >[0]['schemaItems'],
           values,
-          onChange: () => { /* values mutated in place */ },
+          onChange: () => {
+            /* values mutated in place */
+          },
           inlineErrors,
           fieldPrefix: `gb-${currentSlug}`,
         });
@@ -177,7 +181,7 @@ export function initGlobalBlocksEditor(): void {
         dlg.close();
         showToast(ct('globalBlocks.saved'), 'success', ct('globalBlocks.savedTitle'));
       } else {
-        const body = await res.json().catch(() => ({})) as { error?: string };
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
         setError(body.error || ct('pageEditor.saveError'));
       }
     } catch {

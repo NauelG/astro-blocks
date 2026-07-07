@@ -12,7 +12,7 @@ export function localizeBlockPropsForRender(
   schemaMap: SchemaMap | null | undefined,
   locale: string,
   defaultLocale: string,
-  localeKeys: Set<string>
+  localeKeys: Set<string>,
 ): Record<string, unknown> {
   const schemaItems = schemaMap?.[blockType]?.items || {};
   const output: Record<string, unknown> = {};

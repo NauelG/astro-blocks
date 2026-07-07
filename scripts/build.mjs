@@ -42,7 +42,7 @@ async function copyRouteAstroFiles(sourceDir, targetDir) {
       if (entry.isFile() && entry.name.endsWith('.astro')) {
         await copyFile(sourcePath, targetPath);
       }
-    })
+    }),
   );
 }
 
@@ -57,7 +57,14 @@ async function copyStaticAssets() {
 
 function runTsc() {
   return new Promise((resolve, reject) => {
-    const args = ['exec', 'tsc', '--', '--project', 'tsconfig.json', ...(watchMode ? ['--watch'] : [])];
+    const args = [
+      'exec',
+      'tsc',
+      '--',
+      '--project',
+      'tsconfig.json',
+      ...(watchMode ? ['--watch'] : []),
+    ];
     const child = spawn(npmCommand, args, {
       cwd: rootDir,
       stdio: 'inherit',

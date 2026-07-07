@@ -73,7 +73,7 @@ test('handlePutSite updates site fields and returns the full updated site', asyn
           baseUrl: 'https://acme.example.com',
           primaryColor: '#ff0000',
         }),
-      })
+      }),
     );
 
     assert.equal(response.status, 200);
@@ -97,7 +97,7 @@ test('handlePutSite persists changes to the data store', async () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ siteName: 'Persisted Name' }),
-      })
+      }),
     );
 
     // Verify via the data loader that the change was written to disk
@@ -114,7 +114,7 @@ test('handlePutSite merges nested seo sub-object without losing unset fields', a
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ seo: { defaultTitle: 'My SEO Title' } }),
-      })
+      }),
     );
 
     // Second put: change only siteName — seo.defaultTitle should survive via loadSite merge
@@ -123,7 +123,7 @@ test('handlePutSite merges nested seo sub-object without losing unset fields', a
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ siteName: 'New Name' }),
-      })
+      }),
     );
 
     assert.equal(res.status, 200);
@@ -145,7 +145,7 @@ test('handlePutSite called with context (no cache) returns 200 without error', a
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ siteName: 'Context Test' }),
       }),
-      {} // HandlerContext with no cache
+      {}, // HandlerContext with no cache
     );
 
     assert.equal(response.status, 200);

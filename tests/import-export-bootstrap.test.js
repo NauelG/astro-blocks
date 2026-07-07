@@ -74,13 +74,19 @@ async function buildMinimalZip(entries) {
     const chunks = [];
     const zip = new Zip();
     zip.ondata = (err, chunk, final) => {
-      if (err) { reject(err); return; }
+      if (err) {
+        reject(err);
+        return;
+      }
       chunks.push(chunk);
       if (final) {
         const totalLen = chunks.reduce((s, c) => s + c.length, 0);
         const buf = Buffer.allocUnsafe(totalLen);
         let off = 0;
-        for (const c of chunks) { buf.set(c, off); off += c.length; }
+        for (const c of chunks) {
+          buf.set(c, off);
+          off += c.length;
+        }
         resolve(buf);
       }
     };
@@ -180,7 +186,11 @@ test('D-1: non-empty users → 403 and body is NOT consumed', async () => {
     // a backup would be created. 403 must return with zero new backups and zero staging dirs.
     const backupsDir = path.join(tempRoot, 'data', '_backups');
     let backupsBefore = 0;
-    try { backupsBefore = (await fs.readdir(backupsDir)).length; } catch { /* dir may not exist */ }
+    try {
+      backupsBefore = (await fs.readdir(backupsDir)).length;
+    } catch {
+      /* dir may not exist */
+    }
 
     const res = await handleBootstrapImport(req, { cache: null });
 
@@ -188,7 +198,11 @@ test('D-1: non-empty users → 403 and body is NOT consumed', async () => {
 
     // Pipeline must NOT have run: no new backups created
     let backupsAfter = 0;
-    try { backupsAfter = (await fs.readdir(backupsDir)).length; } catch { /* dir may not exist */ }
+    try {
+      backupsAfter = (await fs.readdir(backupsDir)).length;
+    } catch {
+      /* dir may not exist */
+    }
     assert.equal(backupsAfter, backupsBefore, 'no backups must be created when 403 gate fires');
   });
 });
@@ -287,7 +301,12 @@ test('D-1: empty users + path-traversal entry → 400, no files written', async 
     // Ensure no suspicious file exists before
     const evilPath = path.join(tempRoot, 'etc', 'passwd');
     let existedBefore = false;
-    try { await fs.access(evilPath); existedBefore = true; } catch { /* ok */ }
+    try {
+      await fs.access(evilPath);
+      existedBefore = true;
+    } catch {
+      /* ok */
+    }
     assert.equal(existedBefore, false, 'precondition: evil file must not exist before test');
 
     const req = makeRequest(zipBody);
@@ -298,7 +317,12 @@ test('D-1: empty users + path-traversal entry → 400, no files written', async 
 
     // Evil file must not have been written
     let existedAfter = false;
-    try { await fs.access(evilPath); existedAfter = true; } catch { /* ok */ }
+    try {
+      await fs.access(evilPath);
+      existedAfter = true;
+    } catch {
+      /* ok */
+    }
     assert.equal(existedAfter, false, 'path-traversal entry must not create files on disk');
   });
 });
@@ -397,13 +421,29 @@ test('B1: concurrent bootstrap POSTs — exactly one succeeds, second gets boots
     const successes = [r1, r2].filter((r) => r.ok).length;
     const usersExist = [r1, r2].filter((r) => r.errorCode === 'bootstrap-users-exist').length;
 
-    assert.equal(successes, 1, `expected exactly 1 success, got: r1=${JSON.stringify(r1)}, r2=${JSON.stringify(r2)}`);
-    assert.equal(usersExist, 1, `expected exactly 1 bootstrap-users-exist, got: r1=${JSON.stringify(r1)}, r2=${JSON.stringify(r2)}`);
+    assert.equal(
+      successes,
+      1,
+      `expected exactly 1 success, got: r1=${JSON.stringify(r1)}, r2=${JSON.stringify(r2)}`,
+    );
+    assert.equal(
+      usersExist,
+      1,
+      `expected exactly 1 bootstrap-users-exist, got: r1=${JSON.stringify(r1)}, r2=${JSON.stringify(r2)}`,
+    );
 
     // Final users.json must be internally consistent (one archive's users, not a merge).
     const finalUsers = await loadUsers();
-    assert.equal(finalUsers.users.length, 1, `expected exactly 1 user after import, got ${finalUsers.users.length}`);
-    assert.equal(typeof finalUsers.users[0].id, 'string', 'users.json must remain internally consistent');
+    assert.equal(
+      finalUsers.users.length,
+      1,
+      `expected exactly 1 user after import, got ${finalUsers.users.length}`,
+    );
+    assert.equal(
+      typeof finalUsers.users[0].id,
+      'string',
+      'users.json must remain internally consistent',
+    );
   });
 });
 
@@ -440,10 +480,18 @@ test('B1: in-lock re-check — users seeded before pipeline acquires lock → bo
     });
 
     assert.equal(result.ok, false, 'pipeline must not succeed when users exist at lock time');
-    assert.equal(result.errorCode, 'bootstrap-users-exist', `expected bootstrap-users-exist, got ${result.errorCode}`);
+    assert.equal(
+      result.errorCode,
+      'bootstrap-users-exist',
+      `expected bootstrap-users-exist, got ${result.errorCode}`,
+    );
 
     // Assert no backup was created (pipeline aborted before backup step).
-    assert.equal(await countBackups(tempRoot), 0, 'no backup must be created when in-lock re-check aborts');
+    assert.equal(
+      await countBackups(tempRoot),
+      0,
+      'no backup must be created when in-lock re-check aborts',
+    );
   });
 });
 
@@ -479,9 +527,21 @@ test('B2: unexpected throw → 500 with generic message, no path/err text leaked
     // Either way the body must NOT contain the sensitive path.
     const body = await res.json().catch(() => ({}));
     const bodyStr = JSON.stringify(body);
-    assert.equal(bodyStr.includes('/secret/path'), false, `response must not leak internal paths: ${bodyStr}`);
-    assert.equal(bodyStr.includes('was not found'), false, `response must not leak raw error text: ${bodyStr}`);
-    assert.equal(called, true, 'arrayBuffer must have been called (outer gate passes, body is read)');
+    assert.equal(
+      bodyStr.includes('/secret/path'),
+      false,
+      `response must not leak internal paths: ${bodyStr}`,
+    );
+    assert.equal(
+      bodyStr.includes('was not found'),
+      false,
+      `response must not leak raw error text: ${bodyStr}`,
+    );
+    assert.equal(
+      called,
+      true,
+      'arrayBuffer must have been called (outer gate passes, body is read)',
+    );
   });
 });
 
@@ -563,11 +623,19 @@ test('B5: Content-Length exceeds compressed ceiling → 413 with no staging/back
 
       // No staging directories must have been created.
       const stagingsAfter = await countStagingDirs();
-      assert.equal(stagingsAfter, stagingsBefore, 'no staging dirs must be created on Content-Length preflight rejection');
+      assert.equal(
+        stagingsAfter,
+        stagingsBefore,
+        'no staging dirs must be created on Content-Length preflight rejection',
+      );
 
       // No backups must have been created.
       const backupsAfter = await countBackups(tempRoot);
-      assert.equal(backupsAfter, backupsBefore, 'no backups must be created on Content-Length preflight rejection');
+      assert.equal(
+        backupsAfter,
+        backupsBefore,
+        'no backups must be created on Content-Length preflight rejection',
+      );
     } finally {
       if (originalCompressed === undefined) {
         delete process.env.ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES;

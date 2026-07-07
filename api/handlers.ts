@@ -10,7 +10,12 @@ import { pathToFileURL } from 'node:url';
 import type { APIContext } from 'astro';
 import { SignJWT, jwtVerify } from 'jose';
 import { imageSize } from 'image-size';
-import { getGlobalCachePaths, getGlobalCacheTags, getPageCachePath, getPageCacheTags } from '../utils/cache.js';
+import {
+  getGlobalCachePaths,
+  getGlobalCacheTags,
+  getPageCachePath,
+  getPageCacheTags,
+} from '../utils/cache.js';
 import { validateBlocks } from '../utils/blocks.js';
 import {
   getDefaultLanguageCode,
@@ -23,7 +28,11 @@ import {
 import { joinSlugSegments, slugToPath, splitSlugSegments } from '../utils/slug.js';
 import { getProjectRoot, getUploadsDir, resolveUploadPath } from '../utils/paths.js';
 import { generateAndPersistVariants } from '../utils/variant-generator.js';
-import { DEFAULT_ALLOWED_FILE_TYPES, MIME_TO_EXT as FILE_TYPES_MIME_TO_EXT, RASTER_MIME } from '../utils/file-types.js';
+import {
+  DEFAULT_ALLOWED_FILE_TYPES,
+  MIME_TO_EXT as FILE_TYPES_MIME_TO_EXT,
+  RASTER_MIME,
+} from '../utils/file-types.js';
 import { evaluateUpload } from '../utils/upload-gate.js';
 import {
   hasDuplicateRedirectFrom,
@@ -64,7 +73,9 @@ import { catalogs } from '../routes/admin/i18n/catalogs.js';
 import { t as translateFn } from '../routes/admin/i18n/t.js';
 
 /** Resolve the UI locale from the incoming API request (cookie > Accept-Language > 'en'). */
-function resolveRequestUiLocale(request: Request): import('../routes/admin/i18n/types.js').UiLocale {
+function resolveRequestUiLocale(
+  request: Request,
+): import('../routes/admin/i18n/types.js').UiLocale {
   return resolveUiLocale({
     cookie: request.headers.get('cookie'),
     acceptLanguage: request.headers.get('accept-language'),
@@ -77,7 +88,7 @@ export function localizedJsonError(
   key: string,
   status = 400,
   params?: Record<string, string | number>,
-  extra?: Record<string, unknown>
+  extra?: Record<string, unknown>,
 ): Response {
   const locale = resolveRequestUiLocale(request);
   const catalog = catalogs[locale];
@@ -101,7 +112,7 @@ export type JwtSecretStatus = 'configured' | 'insecure-dev' | 'insecure-producti
  */
 export function classifyJwtSecret(
   rawSecret: string | undefined,
-  isProduction: boolean
+  isProduction: boolean,
 ): JwtSecretStatus {
   if (rawSecret && rawSecret.trim()) return 'configured';
   return isProduction ? 'insecure-production' : 'insecure-dev';
@@ -132,7 +143,7 @@ function resolveConfiguredJwtSecret(): string | undefined {
   if (legacy) {
     console.warn(
       '[astro-blocks] CMS_JWT_SECRET is a deprecated alias and will be removed in a future release. ' +
-        'Rename it to ASTRO_BLOCKS_JWT_SECRET.'
+        'Rename it to ASTRO_BLOCKS_JWT_SECRET.',
     );
     return legacy;
   }
@@ -148,12 +159,12 @@ if (JWT_SECRET_STATUS === 'insecure-production') {
   console.warn(
     '[astro-blocks] SECURITY: ASTRO_BLOCKS_JWT_SECRET is not set. Admin authentication is DISABLED — ' +
       'the server refuses to sign or verify tokens with the built-in fallback secret in production. ' +
-      'Set ASTRO_BLOCKS_JWT_SECRET to a strong random value and restart.'
+      'Set ASTRO_BLOCKS_JWT_SECRET to a strong random value and restart.',
   );
 } else if (JWT_SECRET_STATUS === 'insecure-dev') {
   console.warn(
     '[astro-blocks] SECURITY WARNING: ASTRO_BLOCKS_JWT_SECRET is not set; using an insecure built-in fallback. ' +
-      'This is tolerated in development but MUST be set before deploying — otherwise anyone can forge an owner session token.'
+      'This is tolerated in development but MUST be set before deploying — otherwise anyone can forge an owner session token.',
   );
 }
 
@@ -189,12 +200,17 @@ function getAllowedFileTypes(): Set<string> {
   if (_allowedFileTypesCache !== null) return _allowedFileTypesCache;
 
   // biome-ignore lint/suspicious/noExplicitAny: import.meta.env is untyped at this call site; narrowed immediately below
-  const raw: string = ((import.meta as any).env as Record<string, unknown> | undefined)?.ASTRO_BLOCKS_ALLOWED_FILE_TYPES as string ?? '';
+  const raw: string =
+    (((import.meta as any).env as Record<string, unknown> | undefined)
+      ?.ASTRO_BLOCKS_ALLOWED_FILE_TYPES as string) ?? '';
   let parsed: string[] | null = null;
   if (typeof raw === 'string' && raw.trim().length > 0) {
     try {
       const decoded = JSON.parse(raw);
-      if (Array.isArray(decoded) && decoded.every((v) => typeof v === 'string' && v.trim().length > 0)) {
+      if (
+        Array.isArray(decoded) &&
+        decoded.every((v) => typeof v === 'string' && v.trim().length > 0)
+      ) {
         parsed = [...new Set(decoded.map((v: string) => v.toLowerCase().trim()))];
       }
     } catch {
@@ -234,7 +250,10 @@ function jsonError(message: string, status = 400, extra?: Record<string, unknown
 
 function normalizeSlugInput(rawSlug: unknown): string | string[] {
   if (Array.isArray(rawSlug)) {
-    const parts = rawSlug.map(String).map((entry) => entry.trim()).filter(Boolean);
+    const parts = rawSlug
+      .map(String)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
     return joinSlugSegments(parts);
   }
 
@@ -254,8 +273,12 @@ function normalizePageSeo(input: unknown): SeoData {
   const seo = input as Partial<SeoData>;
   return {
     ...(typeof seo.title === 'string' && seo.title.trim() ? { title: seo.title.trim() } : {}),
-    ...(typeof seo.description === 'string' && seo.description.trim() ? { description: seo.description.trim() } : {}),
-    ...(typeof seo.canonical === 'string' && seo.canonical.trim() ? { canonical: seo.canonical.trim() } : {}),
+    ...(typeof seo.description === 'string' && seo.description.trim()
+      ? { description: seo.description.trim() }
+      : {}),
+    ...(typeof seo.canonical === 'string' && seo.canonical.trim()
+      ? { canonical: seo.canonical.trim() }
+      : {}),
     ...(typeof seo.image === 'string' && seo.image.trim() ? { image: seo.image.trim() } : {}),
     ...(seo.nofollow !== undefined ? { nofollow: Boolean(seo.nofollow) } : {}),
   };
@@ -273,10 +296,13 @@ function normalizeLocaleFromRequest(request: Request, languagesData: LanguagesDa
 function resolveLocaleFromBody(
   body: Record<string, unknown>,
   request: Request,
-  languagesData: LanguagesData
+  languagesData: LanguagesData,
 ): string {
   const bodyLocale = normalizeLocaleCode(typeof body.locale === 'string' ? body.locale : '');
-  return data.ensureLocaleAvailable(bodyLocale || normalizeLocaleFromRequest(request, languagesData), languagesData);
+  return data.ensureLocaleAvailable(
+    bodyLocale || normalizeLocaleFromRequest(request, languagesData),
+    languagesData,
+  );
 }
 
 function normalizeLanguageCode(code: string): string {
@@ -287,20 +313,22 @@ function getLanguageLocaleKeys(languagesData: LanguagesData): Set<string> {
   return new Set(
     (languagesData.languages || [])
       .map((language) => normalizeLanguageCode(language.code))
-      .filter(Boolean)
+      .filter(Boolean),
   );
 }
 
 function ensureEnabledDefaultLanguage(
   languages: ContentLanguage[],
   preferredCode?: string,
-  fallbackToFirst = false
+  fallbackToFirst = false,
 ): ContentLanguage[] {
   if (!Array.isArray(languages) || languages.length === 0) return languages;
 
   let defaultCode = normalizeLanguageCode(preferredCode || '');
   if (!defaultCode) {
-    const currentDefault = languages.find((language) => language.isDefault && language.enabled !== false);
+    const currentDefault = languages.find(
+      (language) => language.isDefault && language.enabled !== false,
+    );
     defaultCode = normalizeLanguageCode(currentDefault?.code || '');
   }
   if (!defaultCode) {
@@ -317,7 +345,10 @@ function ensureEnabledDefaultLanguage(
   }));
 }
 
-async function invalidateCachePath(cache: AstroCache | null | undefined, pathname: string): Promise<boolean> {
+async function invalidateCachePath(
+  cache: AstroCache | null | undefined,
+  pathname: string,
+): Promise<boolean> {
   if (!cache?.enabled) return false;
 
   try {
@@ -329,7 +360,10 @@ async function invalidateCachePath(cache: AstroCache | null | undefined, pathnam
   }
 }
 
-async function invalidateCacheTags(cache: AstroCache | null | undefined, tags: string[]): Promise<boolean> {
+async function invalidateCacheTags(
+  cache: AstroCache | null | undefined,
+  tags: string[],
+): Promise<boolean> {
   if (!cache?.enabled || tags.length === 0) return false;
 
   try {
@@ -353,7 +387,7 @@ async function invalidatePageContentCache(
   locale: string,
   defaultLocale: string,
   currentPage?: Pick<Page, 'id' | 'slug'> | null,
-  previousPage?: Pick<Page, 'id' | 'slug'> | null
+  previousPage?: Pick<Page, 'id' | 'slug'> | null,
 ): Promise<void> {
   const tags = new Set<string>(getGlobalCacheTags());
   const paths = new Set<string>(getGlobalCachePaths());
@@ -371,7 +405,9 @@ async function invalidatePageContentCache(
   await invalidateCacheTags(cache, Array.from(tags));
 }
 
-async function parseJsonBody<T>(request: Request): Promise<{ data: T | null; error: Response | null }> {
+async function parseJsonBody<T>(
+  request: Request,
+): Promise<{ data: T | null; error: Response | null }> {
   try {
     return { data: (await request.json()) as T, error: null };
   } catch {
@@ -407,13 +443,19 @@ function validateMenuItemsPaths(items: unknown): string | null {
 }
 
 /** Returns a catalog error key (not a user-facing string) or null. */
-function validateMenuSelector(menusData: { menus: Menu[] }, selector: string, excludeMenuId: string | null): string | null {
+function validateMenuSelector(
+  menusData: { menus: Menu[] },
+  selector: string,
+  excludeMenuId: string | null,
+): string | null {
   if (!selector) return 'errors.menuSelectorRequired';
   if (!data.MENU_SELECTOR_REGEX.test(selector)) {
     return 'errors.invalidMenuSelector';
   }
 
-  const taken = menusData.menus.some((menu) => menu.selector === selector && menu.id !== excludeMenuId);
+  const taken = menusData.menus.some(
+    (menu) => menu.selector === selector && menu.id !== excludeMenuId,
+  );
   if (taken) return 'errors.menuSelectorExists';
 
   return null;
@@ -444,7 +486,10 @@ function hasDuplicateConfigKey(configs: ConfigEntry[], key: string, excludeId?: 
   });
 }
 
-function normalizeConfigPayload(body: Record<string, unknown>, current?: ConfigEntry): ConfigEntry | { errorKey: string } {
+function normalizeConfigPayload(
+  body: Record<string, unknown>,
+  current?: ConfigEntry,
+): ConfigEntry | { errorKey: string } {
   const key = normalizeConfigKey(body.key !== undefined ? body.key : current?.key);
   if (!key) return { errorKey: 'errors.configKeyRequired' };
   if (!CONFIG_KEY_REGEX.test(key)) {
@@ -452,7 +497,12 @@ function normalizeConfigPayload(body: Record<string, unknown>, current?: ConfigE
   }
 
   const valueInput = body.value !== undefined ? body.value : current?.value;
-  const value = typeof valueInput === 'string' ? valueInput : valueInput === undefined || valueInput === null ? '' : String(valueInput);
+  const value =
+    typeof valueInput === 'string'
+      ? valueInput
+      : valueInput === undefined || valueInput === null
+        ? ''
+        : String(valueInput);
   const descriptionInput = body.description !== undefined ? body.description : current?.description;
   const description = typeof descriptionInput === 'string' ? descriptionInput.trim() : '';
 
@@ -468,7 +518,7 @@ function normalizeConfigPayload(body: Record<string, unknown>, current?: ConfigE
 
 function normalizeRedirectPayload(
   body: Record<string, unknown>,
-  current?: RedirectRule
+  current?: RedirectRule,
 ): RedirectRule | { errorKey: string; fieldKey?: string } {
   const fromInput = body.from !== undefined ? body.from : current?.from;
   const toInput = body.to !== undefined ? body.to : current?.to;
@@ -488,7 +538,9 @@ function normalizeRedirectPayload(
     id: current?.id || '',
     from,
     to,
-    statusCode: normalizeRedirectStatusCode(body.statusCode !== undefined ? body.statusCode : current?.statusCode),
+    statusCode: normalizeRedirectStatusCode(
+      body.statusCode !== undefined ? body.statusCode : current?.statusCode,
+    ),
     enabled: body.enabled === undefined ? current?.enabled !== false : Boolean(body.enabled),
     createdAt: current?.createdAt,
     updatedAt: current?.updatedAt,
@@ -499,7 +551,7 @@ function validateLocalePrefixConflict(
   slug: string | string[],
   locale: string,
   defaultLocale: string,
-  languagesData: LanguagesData
+  languagesData: LanguagesData,
 ): { errorKey: string; params: Record<string, string> } | null {
   if (locale !== defaultLocale) return null;
 
@@ -521,7 +573,13 @@ function validateLocalePrefixConflict(
   return null;
 }
 
-function hasDuplicateSlug(pages: Page[], id: string | null, locale: string, defaultLocale: string, slug: string | string[]): boolean {
+function hasDuplicateSlug(
+  pages: Page[],
+  id: string | null,
+  locale: string,
+  defaultLocale: string,
+  slug: string | string[],
+): boolean {
   const nextPath = slugToPath(slug);
 
   return pages.some((entry) => {
@@ -534,15 +592,20 @@ function hasDuplicateSlug(pages: Page[], id: string | null, locale: string, defa
 function localizeSeoPayload(
   current: Page['seo'] | undefined,
   locale: string,
-  payloadSeo: SeoData
+  payloadSeo: SeoData,
 ): Page['seo'] {
   const next = { ...(current || {}) };
 
-  if (payloadSeo.title !== undefined) next.title = setLocalizedValue(next.title, locale, payloadSeo.title);
-  if (payloadSeo.description !== undefined) next.description = setLocalizedValue(next.description, locale, payloadSeo.description);
-  if (payloadSeo.canonical !== undefined) next.canonical = setLocalizedValue(next.canonical, locale, payloadSeo.canonical);
-  if (payloadSeo.image !== undefined) next.image = setLocalizedValue(next.image, locale, payloadSeo.image);
-  if (payloadSeo.nofollow !== undefined) next.nofollow = setLocalizedValue(next.nofollow, locale, Boolean(payloadSeo.nofollow));
+  if (payloadSeo.title !== undefined)
+    next.title = setLocalizedValue(next.title, locale, payloadSeo.title);
+  if (payloadSeo.description !== undefined)
+    next.description = setLocalizedValue(next.description, locale, payloadSeo.description);
+  if (payloadSeo.canonical !== undefined)
+    next.canonical = setLocalizedValue(next.canonical, locale, payloadSeo.canonical);
+  if (payloadSeo.image !== undefined)
+    next.image = setLocalizedValue(next.image, locale, payloadSeo.image);
+  if (payloadSeo.nofollow !== undefined)
+    next.nofollow = setLocalizedValue(next.nofollow, locale, Boolean(payloadSeo.nofollow));
 
   return next;
 }
@@ -551,7 +614,7 @@ function projectBlockProps(
   block: BlockInstance,
   schemaMap: SchemaMap | null,
   locale: string,
-  localeKeys: Set<string>
+  localeKeys: Set<string>,
 ): Record<string, unknown> {
   const output: Record<string, unknown> = {};
   const schemaItems = schemaMap?.[block.type]?.items || {};
@@ -585,7 +648,7 @@ function mergeBlockPropsForLocale(
   incomingBlock: BlockInstance,
   schemaMap: SchemaMap | null,
   locale: string,
-  localeKeys: Set<string>
+  localeKeys: Set<string>,
 ): BlockInstance {
   const schemaItems = schemaMap?.[incomingBlock.type]?.items || {};
   const output: Record<string, unknown> = {};
@@ -627,7 +690,7 @@ function projectPageForLocale(
   locale: string,
   defaultLocale: string,
   schemaMap: SchemaMap | null,
-  localeKeys: Set<string>
+  localeKeys: Set<string>,
 ): PageLocaleView {
   const view = data.getPageLocaleView(page, locale, defaultLocale);
   return {
@@ -639,14 +702,22 @@ function projectPageForLocale(
   };
 }
 
-function removeLocaleFromLocalizedMap<T>(map: Record<string, T> | undefined, locale: string): Record<string, T> | undefined {
+function removeLocaleFromLocalizedMap<T>(
+  map: Record<string, T> | undefined,
+  locale: string,
+): Record<string, T> | undefined {
   if (!map || typeof map !== 'object') return map;
   const next = { ...map };
   delete next[locale];
   return Object.keys(next).length > 0 ? next : undefined;
 }
 
-function removeLocaleFromPage(page: Page, locale: string, schemaMap: SchemaMap | null, localeKeys: Set<string>): Page | null {
+function removeLocaleFromPage(
+  page: Page,
+  locale: string,
+  schemaMap: SchemaMap | null,
+  localeKeys: Set<string>,
+): Page | null {
   const next: Page = {
     ...page,
     title: removeLocaleFromLocalizedMap(page.title, locale) || {},
@@ -667,7 +738,8 @@ function removeLocaleFromPage(page: Page, locale: string, schemaMap: SchemaMap |
 
       for (const [propName, value] of Object.entries(block.props || {})) {
         const def = schemaItems[propName];
-        const shouldLocalize = isSchemaPropLocalizable(def) || isLocalizedMapValue(value, localeKeys);
+        const shouldLocalize =
+          isSchemaPropLocalizable(def) || isLocalizedMapValue(value, localeKeys);
 
         if (!shouldLocalize) {
           props[propName] = value;
@@ -696,7 +768,11 @@ function removeLocaleFromPage(page: Page, locale: string, schemaMap: SchemaMap |
   return next;
 }
 
-async function loadSchemaMap(): Promise<{ schemaMap?: SchemaMap; error?: string; missing?: string[] }> {
+async function loadSchemaMap(): Promise<{
+  schemaMap?: SchemaMap;
+  error?: string;
+  missing?: string[];
+}> {
   const projectRoot = getProjectRoot();
   const schemaMapPath = path.join(projectRoot, '.astro-blocks', 'schema-map.mjs');
 
@@ -722,7 +798,10 @@ async function ensureValidBlocks(blocks: unknown, request?: Request): Promise<Re
   if (!Array.isArray(blocks) || blocks.length > 0) {
     const result = await loadSchemaMap();
     if (result.error) {
-      if (request) return localizedJsonError(request, 'errors.loadBlockSchemasFailed', 500, undefined, { missing: result.missing || [] });
+      if (request)
+        return localizedJsonError(request, 'errors.loadBlockSchemasFailed', 500, undefined, {
+          missing: result.missing || [],
+        });
       return jsonError(result.error, 500, { missing: result.missing || [] });
     }
 
@@ -740,7 +819,9 @@ async function ensureValidBlocks(blocks: unknown, request?: Request): Promise<Re
 
 export function hashPassword(password: string): Promise<string> {
   const salt = crypto.randomBytes(16);
-  return scryptAsync(password, salt, 64).then((hash) => `${salt.toString('base64')}:${hash.toString('base64')}`);
+  return scryptAsync(password, salt, 64).then(
+    (hash) => `${salt.toString('base64')}:${hash.toString('base64')}`,
+  );
 }
 
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
@@ -768,7 +849,10 @@ export async function getAuth(request: Request): Promise<AuthResult | null> {
   if (jwtSecretMisconfigured()) return null;
 
   const token =
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')?.trim() ||
+    request.headers
+      .get('authorization')
+      ?.replace(/^Bearer\s+/i, '')
+      ?.trim() ||
     request.headers.get('x-cms-token') ||
     '';
 
@@ -789,7 +873,9 @@ export async function getAuth(request: Request): Promise<AuthResult | null> {
 
 export function requireOwner(user?: AuthUser | null, request?: Request): Response | null {
   if (!user || user.role !== 'owner') {
-    return request ? localizedJsonError(request, 'errors.forbidden', 403) : jsonError('Forbidden', 403);
+    return request
+      ? localizedJsonError(request, 'errors.forbidden', 403)
+      : jsonError('Forbidden', 403);
   }
   return null;
 }
@@ -797,7 +883,10 @@ export function requireOwner(user?: AuthUser | null, request?: Request): Respons
 export async function handleLogin(request: Request): Promise<Response> {
   // Fail closed: refuse to issue tokens signed with the public fallback secret in production.
   if (jwtSecretMisconfigured()) {
-    return jsonError('Authentication is unavailable: the ASTRO_BLOCKS_JWT_SECRET environment variable must be set.', 503);
+    return jsonError(
+      'Authentication is unavailable: the ASTRO_BLOCKS_JWT_SECRET environment variable must be set.',
+      503,
+    );
   }
 
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
@@ -832,7 +921,9 @@ export async function handleLogin(request: Request): Promise<Response> {
 
 export async function handleAuthMe(user?: AuthUser | null, request?: Request): Promise<Response> {
   if (!user) {
-    return request ? localizedJsonError(request, 'errors.unauthorized', 401) : jsonError('Unauthorized', 401);
+    return request
+      ? localizedJsonError(request, 'errors.unauthorized', 401)
+      : jsonError('Unauthorized', 401);
   }
   return Response.json({ user });
 }
@@ -851,11 +942,19 @@ export async function handleGetUsers(user?: AuthUser | null): Promise<Response> 
   if (forbidden) return forbidden;
 
   const usersData = await data.loadUsers();
-  const list = (usersData.users || []).map(({ id, email, role, createdAt }) => ({ id, email, role, createdAt }));
+  const list = (usersData.users || []).map(({ id, email, role, createdAt }) => ({
+    id,
+    email,
+    role,
+    createdAt,
+  }));
   return Response.json({ users: list });
 }
 
-export async function handlePostUsers(request: Request, authUser?: AuthUser | null): Promise<Response> {
+export async function handlePostUsers(
+  request: Request,
+  authUser?: AuthUser | null,
+): Promise<Response> {
   const forbidden = requireOwner(authUser, request);
   if (forbidden) return forbidden;
 
@@ -868,7 +967,8 @@ export async function handlePostUsers(request: Request, authUser?: AuthUser | nu
   if (!email || !password) return localizedJsonError(request, 'errors.emailPasswordRequired');
 
   const usersData = await data.loadUsers();
-  if (usersData.users.some((user) => user.email === email)) return localizedJsonError(request, 'errors.emailExists');
+  if (usersData.users.some((user) => user.email === email))
+    return localizedJsonError(request, 'errors.emailExists');
 
   const createdAt = new Date().toISOString();
   const newUser: User = {
@@ -884,7 +984,11 @@ export async function handlePostUsers(request: Request, authUser?: AuthUser | nu
   return Response.json({ id: newUser.id, email, role, createdAt });
 }
 
-export async function handlePutUser(id: string, request: Request, authUser?: AuthUser | null): Promise<Response> {
+export async function handlePutUser(
+  id: string,
+  request: Request,
+  authUser?: AuthUser | null,
+): Promise<Response> {
   const forbidden = requireOwner(authUser, request);
   if (forbidden) return forbidden;
 
@@ -907,21 +1011,36 @@ export async function handlePutUser(id: string, request: Request, authUser?: Aut
   }
 
   if (typeof body.password === 'string' && body.password.length > 0) {
-    usersData.users[index] = { ...usersData.users[index], passwordHash: await hashPassword(body.password) };
+    usersData.users[index] = {
+      ...usersData.users[index],
+      passwordHash: await hashPassword(body.password),
+    };
   }
 
   await data.saveUsers(usersData);
   const updated = usersData.users[index];
-  return Response.json({ id: updated.id, email: updated.email, role: updated.role, createdAt: updated.createdAt });
+  return Response.json({
+    id: updated.id,
+    email: updated.email,
+    role: updated.role,
+    createdAt: updated.createdAt,
+  });
 }
 
-export async function handleDeleteUser(id: string, authUser?: AuthUser | null, request?: Request): Promise<Response> {
+export async function handleDeleteUser(
+  id: string,
+  authUser?: AuthUser | null,
+  request?: Request,
+): Promise<Response> {
   const forbidden = requireOwner(authUser, request);
   if (forbidden) return forbidden;
 
   const usersData = await data.loadUsers();
   const index = usersData.users.findIndex((user) => user.id === id);
-  if (index === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
+  if (index === -1)
+    return request
+      ? localizedJsonError(request, 'errors.notFound', 404)
+      : jsonError('Not found', 404);
 
   const target = usersData.users[index];
   const ownerCount = usersData.users.filter((user) => user.role === 'owner').length;
@@ -940,7 +1059,10 @@ export async function handleGetLanguages(): Promise<Response> {
   return Response.json(await data.loadLanguages());
 }
 
-export async function handlePostLanguages(request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handlePostLanguages(
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
@@ -966,7 +1088,9 @@ export async function handlePostLanguages(request: Request, context: HandlerCont
     languagesData.languages = ensureEnabledDefaultLanguage(languagesData.languages, code);
   }
 
-  if (!languagesData.languages.some((language) => language.isDefault && language.enabled !== false)) {
+  if (
+    !languagesData.languages.some((language) => language.isDefault && language.enabled !== false)
+  ) {
     languagesData.languages = ensureEnabledDefaultLanguage(languagesData.languages);
   }
 
@@ -975,13 +1099,19 @@ export async function handlePostLanguages(request: Request, context: HandlerCont
   return Response.json(newLanguage);
 }
 
-export async function handlePutLanguage(code: string, request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handlePutLanguage(
+  code: string,
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   const normalizedCode = normalizeLanguageCode(code);
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
   const languagesData = await data.loadLanguages();
-  const index = languagesData.languages.findIndex((language) => normalizeLanguageCode(language.code) === normalizedCode);
+  const index = languagesData.languages.findIndex(
+    (language) => normalizeLanguageCode(language.code) === normalizedCode,
+  );
   if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const current = languagesData.languages[index];
@@ -1002,7 +1132,9 @@ export async function handlePutLanguage(code: string, request: Request, context:
     return localizedJsonError(request, 'errors.mustHaveEnabledLanguage');
   }
 
-  if (!languagesData.languages.some((language) => language.isDefault && language.enabled !== false)) {
+  if (
+    !languagesData.languages.some((language) => language.isDefault && language.enabled !== false)
+  ) {
     languagesData.languages = ensureEnabledDefaultLanguage(languagesData.languages);
   }
 
@@ -1011,7 +1143,11 @@ export async function handlePutLanguage(code: string, request: Request, context:
   return Response.json(languagesData.languages[index]);
 }
 
-export async function handleDeleteLanguage(code: string, context: HandlerContext = {}, request?: Request): Promise<Response> {
+export async function handleDeleteLanguage(
+  code: string,
+  context: HandlerContext = {},
+  request?: Request,
+): Promise<Response> {
   const normalizedCode = normalizeLanguageCode(code);
 
   const [languagesData, pagesData, menusData, schemaResult] = await Promise.all([
@@ -1021,8 +1157,13 @@ export async function handleDeleteLanguage(code: string, context: HandlerContext
     loadSchemaMap(),
   ]);
 
-  const languageIndex = languagesData.languages.findIndex((language) => normalizeLanguageCode(language.code) === normalizedCode);
-  if (languageIndex === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
+  const languageIndex = languagesData.languages.findIndex(
+    (language) => normalizeLanguageCode(language.code) === normalizedCode,
+  );
+  if (languageIndex === -1)
+    return request
+      ? localizedJsonError(request, 'errors.notFound', 404)
+      : jsonError('Not found', 404);
   if (languagesData.languages.length <= 1) {
     return request
       ? localizedJsonError(request, 'errors.cannotDeleteLastLanguage')
@@ -1040,7 +1181,9 @@ export async function handleDeleteLanguage(code: string, context: HandlerContext
   }).length;
 
   pagesData.pages = pagesData.pages
-    .map((page) => removeLocaleFromPage(page, normalizedCode, schemaResult.schemaMap || null, localeKeys))
+    .map((page) =>
+      removeLocaleFromPage(page, normalizedCode, schemaResult.schemaMap || null, localeKeys),
+    )
     .filter(Boolean) as Page[];
 
   menusData.menus = menusData.menus
@@ -1054,8 +1197,14 @@ export async function handleDeleteLanguage(code: string, context: HandlerContext
 
   languagesData.languages.splice(languageIndex, 1);
 
-  if (!languagesData.languages.some((language) => language.isDefault && language.enabled !== false)) {
-    languagesData.languages = ensureEnabledDefaultLanguage(languagesData.languages, undefined, true);
+  if (
+    !languagesData.languages.some((language) => language.isDefault && language.enabled !== false)
+  ) {
+    languagesData.languages = ensureEnabledDefaultLanguage(
+      languagesData.languages,
+      undefined,
+      true,
+    );
   }
 
   await Promise.all([
@@ -1085,7 +1234,9 @@ export async function handleGetPages(request: Request): Promise<Response> {
   const locale = normalizeLocaleFromRequest(request, languagesData);
   const localeKeys = getLanguageLocaleKeys(languagesData);
 
-  const pages = pagesData.pages.map((page) => projectPageForLocale(page, locale, defaultLocale, schemaResult.schemaMap || null, localeKeys));
+  const pages = pagesData.pages.map((page) =>
+    projectPageForLocale(page, locale, defaultLocale, schemaResult.schemaMap || null, localeKeys),
+  );
   return Response.json({ pages, locale, defaultLocale });
 }
 
@@ -1096,7 +1247,10 @@ export async function handleGetBlockSchemas(): Promise<Response> {
   return Response.json(result.schemaMap || {});
 }
 
-export async function handlePostPages(request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handlePostPages(
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
@@ -1112,7 +1266,8 @@ export async function handlePostPages(request: Request, context: HandlerContext 
   const defaultLocale = getDefaultLanguageCode(languagesData);
   const locale = resolveLocaleFromBody(body, request, languagesData);
 
-  const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Untitled';
+  const title =
+    typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Untitled';
   const slug = normalizeSlugInput(body.slug);
   const status = normalizeStatus(body.status);
   const indexable = body.indexable !== undefined ? Boolean(body.indexable) : true;
@@ -1124,7 +1279,8 @@ export async function handlePostPages(request: Request, context: HandlerContext 
   }
 
   const conflictError = validateLocalePrefixConflict(slug, locale, defaultLocale, languagesData);
-  if (conflictError) return localizedJsonError(request, conflictError.errorKey, 400, conflictError.params);
+  if (conflictError)
+    return localizedJsonError(request, conflictError.errorKey, 400, conflictError.params);
 
   const localeKeys = getLanguageLocaleKeys(languagesData);
   const now = new Date().toISOString();
@@ -1136,7 +1292,15 @@ export async function handlePostPages(request: Request, context: HandlerContext 
     status: setLocalizedValue({}, locale, status),
     indexable: setLocalizedValue({}, locale, indexable),
     seo: localizeSeoPayload(undefined, locale, seo),
-    blocks: blocks.map((block) => mergeBlockPropsForLocale(undefined, block, schemaResult.schemaMap || null, locale, localeKeys)),
+    blocks: blocks.map((block) =>
+      mergeBlockPropsForLocale(
+        undefined,
+        block,
+        schemaResult.schemaMap || null,
+        locale,
+        localeKeys,
+      ),
+    ),
     publishedAt: setLocalizedValue({}, locale, status === 'published' ? now : null),
     createdAt: now,
     updatedAt: now,
@@ -1146,10 +1310,16 @@ export async function handlePostPages(request: Request, context: HandlerContext 
   await data.savePages(pagesData);
   await invalidatePageContentCache(context.cache, locale, defaultLocale, page);
 
-  return Response.json(projectPageForLocale(page, locale, defaultLocale, schemaResult.schemaMap || null, localeKeys));
+  return Response.json(
+    projectPageForLocale(page, locale, defaultLocale, schemaResult.schemaMap || null, localeKeys),
+  );
 }
 
-export async function handlePutPage(id: string, request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handlePutPage(
+  id: string,
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
@@ -1171,10 +1341,14 @@ export async function handlePutPage(id: string, request: Request, context: Handl
   const existing = pagesData.pages[index];
   const existingView = data.getPageLocaleView(existing, locale, defaultLocale);
 
-  const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : existingView.title || 'Untitled';
+  const title =
+    typeof body.title === 'string' && body.title.trim()
+      ? body.title.trim()
+      : existingView.title || 'Untitled';
   const slug = body.slug !== undefined ? normalizeSlugInput(body.slug) : existingView.slug;
   const status = body.status !== undefined ? normalizeStatus(body.status) : existingView.status;
-  const indexable = body.indexable !== undefined ? Boolean(body.indexable) : existingView.indexable !== false;
+  const indexable =
+    body.indexable !== undefined ? Boolean(body.indexable) : existingView.indexable !== false;
   const seo = body.seo !== undefined ? normalizePageSeo(body.seo) : existingView.seo || {};
 
   if (hasDuplicateSlug(pagesData.pages, id, locale, defaultLocale, slug)) {
@@ -1182,17 +1356,23 @@ export async function handlePutPage(id: string, request: Request, context: Handl
   }
 
   const conflictError = validateLocalePrefixConflict(slug, locale, defaultLocale, languagesData);
-  if (conflictError) return localizedJsonError(request, conflictError.errorKey, 400, conflictError.params);
+  if (conflictError)
+    return localizedJsonError(request, conflictError.errorKey, 400, conflictError.params);
 
   const localeKeys = getLanguageLocaleKeys(languagesData);
   const now = new Date().toISOString();
 
-  const nextBlocks =
-    Array.isArray(body.blocks)
-      ? (body.blocks as BlockInstance[]).map((block, blockIndex) =>
-          mergeBlockPropsForLocale(existing.blocks?.[blockIndex], block, schemaResult.schemaMap || null, locale, localeKeys)
-        )
-      : existing.blocks;
+  const nextBlocks = Array.isArray(body.blocks)
+    ? (body.blocks as BlockInstance[]).map((block, blockIndex) =>
+        mergeBlockPropsForLocale(
+          existing.blocks?.[blockIndex],
+          block,
+          schemaResult.schemaMap || null,
+          locale,
+          localeKeys,
+        ),
+      )
+    : existing.blocks;
 
   const nextPage: Page = {
     ...existing,
@@ -1202,7 +1382,13 @@ export async function handlePutPage(id: string, request: Request, context: Handl
     indexable: setLocalizedValue(existing.indexable, locale, indexable),
     seo: localizeSeoPayload(existing.seo, locale, seo),
     blocks: nextBlocks,
-    publishedAt: setLocalizedValue(existing.publishedAt, locale, status === 'published' ? getLocalizedValue(existing.publishedAt, locale, defaultLocale) || now : getLocalizedValue(existing.publishedAt, locale, defaultLocale) || null),
+    publishedAt: setLocalizedValue(
+      existing.publishedAt,
+      locale,
+      status === 'published'
+        ? getLocalizedValue(existing.publishedAt, locale, defaultLocale) || now
+        : getLocalizedValue(existing.publishedAt, locale, defaultLocale) || null,
+    ),
     updatedAt: now,
   };
 
@@ -1210,10 +1396,22 @@ export async function handlePutPage(id: string, request: Request, context: Handl
   await data.savePages(pagesData);
   await invalidatePageContentCache(context.cache, locale, defaultLocale, nextPage, existing);
 
-  return Response.json(projectPageForLocale(nextPage, locale, defaultLocale, schemaResult.schemaMap || null, localeKeys));
+  return Response.json(
+    projectPageForLocale(
+      nextPage,
+      locale,
+      defaultLocale,
+      schemaResult.schemaMap || null,
+      localeKeys,
+    ),
+  );
 }
 
-export async function handleDeletePage(id: string, request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handleDeletePage(
+  id: string,
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   const [pagesData, languagesData] = await Promise.all([data.loadPages(), data.loadLanguages()]);
 
   const index = pagesData.pages.findIndex((page) => page.id === id);
@@ -1233,7 +1431,10 @@ export async function handleGetSite(): Promise<Response> {
   return Response.json(await data.loadSite());
 }
 
-export async function handlePutSite(request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handlePutSite(
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   const { data: body, error } = await parseJsonBody<Partial<Site>>(request);
   if (error || !body) return error as Response;
 
@@ -1256,7 +1457,10 @@ export async function handleGetMenus(request: Request): Promise<Response> {
   });
 }
 
-export async function handlePostMenus(request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handlePostMenus(
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
@@ -1287,7 +1491,11 @@ export async function handlePostMenus(request: Request, context: HandlerContext 
   return Response.json(data.getMenuLocaleView(newMenu, locale, defaultLocale));
 }
 
-export async function handlePutMenu(id: string, request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handlePutMenu(
+  id: string,
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
@@ -1323,10 +1531,17 @@ export async function handlePutMenu(id: string, request: Request, context: Handl
   return Response.json(data.getMenuLocaleView(updated, locale, defaultLocale));
 }
 
-export async function handleDeleteMenu(id: string, context: HandlerContext = {}, request?: Request): Promise<Response> {
+export async function handleDeleteMenu(
+  id: string,
+  context: HandlerContext = {},
+  request?: Request,
+): Promise<Response> {
   const menusData = await data.loadMenus();
   const index = menusData.menus.findIndex((menu) => menu.id === id);
-  if (index === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
+  if (index === -1)
+    return request
+      ? localizedJsonError(request, 'errors.notFound', 404)
+      : jsonError('Not found', 404);
 
   menusData.menus.splice(index, 1);
   await data.saveMenus(menusData);
@@ -1339,7 +1554,10 @@ export async function handleGetRedirects(): Promise<Response> {
   return Response.json(redirectsData);
 }
 
-export async function handlePostRedirects(request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handlePostRedirects(
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
@@ -1349,7 +1567,12 @@ export async function handlePostRedirects(request: Request, context: HandlerCont
     const locale = resolveRequestUiLocale(request);
     const catalog = catalogs[locale];
     const fieldLabel = parsed.fieldKey ? translateFn(catalog, parsed.fieldKey) : '';
-    return localizedJsonError(request, parsed.errorKey, 400, fieldLabel ? { field: fieldLabel } : undefined);
+    return localizedJsonError(
+      request,
+      parsed.errorKey,
+      400,
+      fieldLabel ? { field: fieldLabel } : undefined,
+    );
   }
 
   if (hasDuplicateRedirectFrom(redirectsData.redirects, parsed.from)) {
@@ -1370,7 +1593,11 @@ export async function handlePostRedirects(request: Request, context: HandlerCont
   return Response.json(redirect);
 }
 
-export async function handlePutRedirect(id: string, request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handlePutRedirect(
+  id: string,
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
@@ -1384,7 +1611,12 @@ export async function handlePutRedirect(id: string, request: Request, context: H
     const locale = resolveRequestUiLocale(request);
     const catalog = catalogs[locale];
     const fieldLabel = parsed.fieldKey ? translateFn(catalog, parsed.fieldKey) : '';
-    return localizedJsonError(request, parsed.errorKey, 400, fieldLabel ? { field: fieldLabel } : undefined);
+    return localizedJsonError(
+      request,
+      parsed.errorKey,
+      400,
+      fieldLabel ? { field: fieldLabel } : undefined,
+    );
   }
 
   if (hasDuplicateRedirectFrom(redirectsData.redirects, parsed.from, id)) {
@@ -1405,10 +1637,17 @@ export async function handlePutRedirect(id: string, request: Request, context: H
   return Response.json(updated);
 }
 
-export async function handleDeleteRedirect(id: string, context: HandlerContext = {}, request?: Request): Promise<Response> {
+export async function handleDeleteRedirect(
+  id: string,
+  context: HandlerContext = {},
+  request?: Request,
+): Promise<Response> {
   const redirectsData = await data.loadRedirects();
   const index = redirectsData.redirects.findIndex((entry) => entry.id === id);
-  if (index === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
+  if (index === -1)
+    return request
+      ? localizedJsonError(request, 'errors.notFound', 404)
+      : jsonError('Not found', 404);
 
   redirectsData.redirects.splice(index, 1);
   await data.saveRedirects(redirectsData);
@@ -1421,7 +1660,10 @@ export async function handleGetConfigs(): Promise<Response> {
   return Response.json(configsData);
 }
 
-export async function handlePostConfigs(request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handlePostConfigs(
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
@@ -1447,7 +1689,11 @@ export async function handlePostConfigs(request: Request, context: HandlerContex
   return Response.json(entry);
 }
 
-export async function handlePutConfig(id: string, request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handlePutConfig(
+  id: string,
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
@@ -1477,10 +1723,17 @@ export async function handlePutConfig(id: string, request: Request, context: Han
   return Response.json(updated);
 }
 
-export async function handleDeleteConfig(id: string, context: HandlerContext = {}, request?: Request): Promise<Response> {
+export async function handleDeleteConfig(
+  id: string,
+  context: HandlerContext = {},
+  request?: Request,
+): Promise<Response> {
   const configsData = await data.loadConfigs();
   const index = configsData.configs.findIndex((entry) => entry.id === id);
-  if (index === -1) return request ? localizedJsonError(request, 'errors.notFound', 404) : jsonError('Not found', 404);
+  if (index === -1)
+    return request
+      ? localizedJsonError(request, 'errors.notFound', 404)
+      : jsonError('Not found', 404);
 
   configsData.configs.splice(index, 1);
   await data.saveConfigs(configsData);
@@ -1664,9 +1917,7 @@ export async function handleGetMedia(request: Request): Promise<Response> {
   });
 
   // Filter by filename substring (case-insensitive) if q is non-empty
-  const filtered = q
-    ? sorted.filter((entry) => entry.filename.toLowerCase().includes(q))
-    : sorted;
+  const filtered = q ? sorted.filter((entry) => entry.filename.toLowerCase().includes(q)) : sorted;
 
   const total = filtered.length;
   const uploads = filtered.slice((page - 1) * limit, page * limit);
@@ -1786,7 +2037,11 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   } catch (writeErr) {
     // Clean up the temp file on error (best-effort) and abort before any
     // variant unlink or registry update so the original stays intact.
-    try { await fs.unlink(tmpPath); } catch { /* ignore */ }
+    try {
+      await fs.unlink(tmpPath);
+    } catch {
+      /* ignore */
+    }
     return localizedJsonError(request, 'errors.replaceWriteFailed', 500);
   }
 
@@ -1845,7 +2100,7 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
 
 export async function handleGetGlobalBlocks(
   registry: GlobalBlockRuntimeEntry[],
-  request: Request
+  request: Request,
 ): Promise<Response> {
   const [globalBlocksData, languagesData, schemaResult] = await Promise.all([
     data.loadGlobalBlocks(),
@@ -1866,7 +2121,7 @@ export async function handleGetGlobalBlocks(
       { type: decl.schemaName, props: rawProps } as BlockInstance,
       schemaMap,
       locale,
-      localeKeys
+      localeKeys,
     );
     result[decl.slug] = {
       props: projected,
@@ -1880,7 +2135,7 @@ export async function handleGetGlobalBlocks(
 export async function handleGetGlobalBlock(
   slug: string,
   registry: GlobalBlockRuntimeEntry[],
-  request: Request
+  request: Request,
 ): Promise<Response> {
   const decl = registry.find((entry) => entry.slug === slug);
   if (!decl) return jsonError(`Global block slug "${slug}" not found`, 404);
@@ -1902,7 +2157,7 @@ export async function handleGetGlobalBlock(
     { type: decl.schemaName, props: rawProps } as BlockInstance,
     schemaMap,
     locale,
-    localeKeys
+    localeKeys,
   );
 
   return Response.json({
@@ -1921,7 +2176,7 @@ export async function handlePutGlobalBlock(
   slug: string,
   request: Request,
   context: HandlerContext = {},
-  registry: GlobalBlockRuntimeEntry[]
+  registry: GlobalBlockRuntimeEntry[],
 ): Promise<Response> {
   const decl = registry.find((entry) => entry.slug === slug);
   if (!decl) return localizedJsonError(request, 'errors.globalBlockNotFound', 404, { slug });
@@ -1929,7 +2184,8 @@ export async function handlePutGlobalBlock(
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
-  if (!Object.prototype.hasOwnProperty.call(body, 'props')) return localizedJsonError(request, 'errors.propsRequired');
+  if (!Object.prototype.hasOwnProperty.call(body, 'props'))
+    return localizedJsonError(request, 'errors.propsRequired');
   if (typeof body.props !== 'object' || body.props === null || Array.isArray(body.props)) {
     return localizedJsonError(request, 'errors.propsMustBePlainObject');
   }
@@ -1955,25 +2211,38 @@ export async function handlePutGlobalBlock(
     for (const [key, value] of Object.entries(incomingProps)) {
       const def = schemaItems[key];
       // Guard against legacy clients still posting LocalizedValueMap shape directly.
-      if (def && isSchemaPropLocalizable(def) && value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      if (
+        def &&
+        isSchemaPropLocalizable(def) &&
+        value !== null &&
+        typeof value === 'object' &&
+        !Array.isArray(value)
+      ) {
         const localeValues = Object.values(value as Record<string, unknown>);
         propsForValidation[key] = localeValues.length > 0 ? localeValues[0] : '';
       } else {
         propsForValidation[key] = value;
       }
     }
-    const issue = validateBlockPropsAgainstSchema(schema.name || decl.schemaName, 0, schemaItems, propsForValidation);
+    const issue = validateBlockPropsAgainstSchema(
+      schema.name || decl.schemaName,
+      0,
+      schemaItems,
+      propsForValidation,
+    );
     if (issue) return localizedJsonError(request, issue.messageKey, 400, issue.params);
   }
 
   // Merge incoming (scalar-per-locale) props into existing props so other locales are preserved.
   const existingEntry = globalBlocksData.globalBlocks[slug];
   const merged = mergeBlockPropsForLocale(
-    existingEntry ? ({ type: decl.schemaName, props: existingEntry.props ?? {} } as BlockInstance) : undefined,
+    existingEntry
+      ? ({ type: decl.schemaName, props: existingEntry.props ?? {} } as BlockInstance)
+      : undefined,
     { type: decl.schemaName, props: incomingProps } as BlockInstance,
     schemaMap,
     locale,
-    localeKeys
+    localeKeys,
   );
 
   await data.saveGlobalBlock(slug, merged.props);
@@ -1986,7 +2255,7 @@ export async function handlePutGlobalBlock(
     { type: decl.schemaName, props: entry?.props ?? {} } as BlockInstance,
     schemaMap,
     locale,
-    localeKeys
+    localeKeys,
   );
 
   return Response.json({
@@ -2001,7 +2270,10 @@ export async function handlePutGlobalBlock(
   });
 }
 
-export async function handleInvalidateCache(request: Request, context: HandlerContext = {}): Promise<Response> {
+export async function handleInvalidateCache(
+  request: Request,
+  context: HandlerContext = {},
+): Promise<Response> {
   if (!context.cache?.enabled) {
     return Response.json({
       ok: true,
@@ -2034,7 +2306,10 @@ export async function handleInvalidateCache(request: Request, context: HandlerCo
  * Owner-only streaming zip export of selected CMS units (ADR-4).
  * Returns the zip archive as a ReadableStream with Content-Type application/zip.
  */
-export async function handleExport(request: Request, authUser?: AuthUser | null): Promise<Response> {
+export async function handleExport(
+  request: Request,
+  authUser?: AuthUser | null,
+): Promise<Response> {
   // Auth gate: must be authenticated
   if (!authUser) {
     return request
@@ -2085,10 +2360,7 @@ export async function handleExport(request: Request, authUser?: AuthUser | null)
       },
     });
   } catch (error) {
-    return jsonError(
-      error instanceof Error ? error.message : 'Export failed',
-      500,
-    );
+    return jsonError(error instanceof Error ? error.message : 'Export failed', 500);
   }
 }
 
@@ -2295,7 +2567,10 @@ export async function handleBootstrapImport(
       case 'validation':
         return jsonError(result.reason ?? 'Validation failed', 422);
       case 'apply-failed':
-        return jsonError(result.reason ?? 'Bootstrap import apply failed (rollback attempted)', 500);
+        return jsonError(
+          result.reason ?? 'Bootstrap import apply failed (rollback attempted)',
+          500,
+        );
       case 'bootstrap-users-exist':
         return jsonError('Forbidden: instance already has users', 403);
       default:

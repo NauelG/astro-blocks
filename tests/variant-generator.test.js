@@ -116,8 +116,10 @@ test('width equals breakpoint — only lower breakpoints generated (800px wide)'
     // So only breakpoint 480 fires → 2 variants (webp + avif)
     const { default: sharp } = await import('sharp');
     const buf = await sharp({
-      create: { width: 800, height: 50, channels: 3, background: { r: 100, g: 150, b: 200 } }
-    }).png().toBuffer();
+      create: { width: 800, height: 50, channels: 3, background: { r: 100, g: 150, b: 200 } },
+    })
+      .png()
+      .toBuffer();
 
     const entry = await seedRasterUpload(tempRoot, buf, 800, 50);
     await generateAndPersistVariants(entry);
@@ -127,7 +129,11 @@ test('width equals breakpoint — only lower breakpoints generated (800px wide)'
     const updated = media.uploads.find((u) => u.id === entry.id);
 
     assert.equal(updated.status, 'ready');
-    assert.equal(updated.variants.length, 2, '1 width (480) × 2 formats = 2 variants for 800px image');
+    assert.equal(
+      updated.variants.length,
+      2,
+      '1 width (480) × 2 formats = 2 variants for 800px image',
+    );
     for (const v of updated.variants) {
       assert.equal(v.width, 480, 'only the 480 breakpoint should be generated');
     }

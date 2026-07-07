@@ -15,7 +15,13 @@ function toFullHex(value: string | null | undefined): string | null {
   const hex = value.slice(1).replace(/[^0-9a-fA-F]/g, '');
   if (hex.length === 6) return '#' + hex;
   if (hex.length === 3) {
-    return '#' + hex.split('').map((c) => c + c).join('');
+    return (
+      '#' +
+      hex
+        .split('')
+        .map((c) => c + c)
+        .join('')
+    );
   }
   return null;
 }
@@ -110,7 +116,12 @@ export function initSettingsEditor(): void {
   syncPickerToText('secondaryColor-picker', 'secondaryColor');
   syncTextToPicker('secondaryColor', 'secondaryColor-picker');
 
-  const previewInputs = ['primaryColor-picker', 'secondaryColor-picker', 'primaryColor', 'secondaryColor'];
+  const previewInputs = [
+    'primaryColor-picker',
+    'secondaryColor-picker',
+    'primaryColor',
+    'secondaryColor',
+  ];
   for (const id of previewInputs) {
     document.getElementById(id)?.addEventListener('input', updateThemePreview);
   }

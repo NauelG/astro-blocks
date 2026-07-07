@@ -35,7 +35,13 @@ if (!tarballName) {
 const tarballPath = path.join(rootDir, tarballName);
 
 try {
-  await run(npmCommand, ['install', '--workspace', 'astro-blocks-playground', '--no-save', tarballPath]);
+  await run(npmCommand, [
+    'install',
+    '--workspace',
+    'astro-blocks-playground',
+    '--no-save',
+    tarballPath,
+  ]);
 } finally {
   await fs.rm(tarballPath, { force: true });
 }

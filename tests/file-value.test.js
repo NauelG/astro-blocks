@@ -28,7 +28,11 @@ import {
 // ─── toFileValue ──────────────────────────────────────────────────────────────
 
 test('toFileValue — passes through valid object with url', () => {
-  const result = toFileValue({ url: '/uploads/doc.pdf', filename: 'doc.pdf', mimeType: 'application/pdf' });
+  const result = toFileValue({
+    url: '/uploads/doc.pdf',
+    filename: 'doc.pdf',
+    mimeType: 'application/pdf',
+  });
   assert.equal(result.url, '/uploads/doc.pdf');
   assert.equal(result.filename, 'doc.pdf');
   assert.equal(result.mimeType, 'application/pdf');
@@ -115,11 +119,19 @@ test('parseFileValue — download field false is preserved', () => {
 test('serializeFileValueAttr — no raw double-quote in output (critical breakout char)', () => {
   const value = { url: '/uploads/doc.pdf', filename: 'my "report".pdf' };
   const serialized = serializeFileValueAttr(value);
-  assert.ok(!serialized.includes('"'), 'must encode all double-quotes to prevent attribute breakout');
+  assert.ok(
+    !serialized.includes('"'),
+    'must encode all double-quotes to prevent attribute breakout',
+  );
 });
 
 test('serializeFileValueAttr — round-trip through HTML attribute preserves data', () => {
-  const original = { url: '/uploads/doc.pdf', filename: 'report.pdf', mimeType: 'application/pdf', download: true };
+  const original = {
+    url: '/uploads/doc.pdf',
+    filename: 'report.pdf',
+    mimeType: 'application/pdf',
+    download: true,
+  };
   const serialized = serializeFileValueAttr(original);
   // Decode HTML entities (as browser would when reading .value)
   const decoded = serialized
@@ -276,7 +288,7 @@ test('fileDownloadUrl — ?x=1&download=something with download=true → no doub
   const result = fileDownloadUrl(value);
   // Count occurrences of the key "download" in the search string
   const params = new URL(result, 'http://x').searchParams;
-  const keys = [...params.keys()].filter(k => k === 'download');
+  const keys = [...params.keys()].filter((k) => k === 'download');
   assert.equal(keys.length, 1, 'download key must appear exactly once');
 });
 
@@ -285,7 +297,7 @@ test('fileDownloadUrl — ?download already present with download=true → idemp
   const value = { url: '/uploads/doc.pdf?download', download: true };
   const result = fileDownloadUrl(value);
   const params = new URL(result, 'http://x').searchParams;
-  const keys = [...params.keys()].filter(k => k === 'download');
+  const keys = [...params.keys()].filter((k) => k === 'download');
   assert.equal(keys.length, 1, 'download must appear exactly once (idempotent)');
   // No extra &download should have been appended
   assert.ok(!result.includes('&download'), 'must not append a second &download');

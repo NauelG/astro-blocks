@@ -22,7 +22,7 @@ test('getLanguages returns enabled languages by default and exposes defaultLocal
           { code: 'ca', label: 'Català', enabled: false, isDefault: false },
         ],
       }),
-      'utf-8'
+      'utf-8',
     );
 
     process.env.ASTRO_BLOCKS_PROJECT_ROOT = tempRoot;
@@ -31,13 +31,13 @@ test('getLanguages returns enabled languages by default and exposes defaultLocal
     assert.equal(enabled.defaultLocale, 'es');
     assert.deepEqual(
       enabled.languages.map((entry) => entry.code),
-      ['es', 'en']
+      ['es', 'en'],
     );
 
     const all = await getLanguages({ enabledOnly: false });
     assert.deepEqual(
       all.languages.map((entry) => entry.code),
-      ['es', 'en', 'ca']
+      ['es', 'en', 'ca'],
     );
   } finally {
     if (previousRoot === undefined) delete process.env.ASTRO_BLOCKS_PROJECT_ROOT;
@@ -45,4 +45,3 @@ test('getLanguages returns enabled languages by default and exposes defaultLocal
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });
-

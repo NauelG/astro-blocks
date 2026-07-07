@@ -8,17 +8,22 @@ import { ct } from '../i18n/client.js';
 
 type CmsUser = { id: string; email: string; role: string } | null;
 
-type CmsWindow = Window & typeof globalThis & {
-  getCmsToken?: () => string;
-  getCmsUser?: () => CmsUser;
-  getCmsContentLocale?: () => string;
-  /** UI locale bridge — set by the layout once the locale selector is ready. */
-  getCmsUiLocale?: () => UiLocale;
-  setCmsUiLocale?: (locale: UiLocale) => void;
-  cmsAlert?: (options: { title?: string; message: string }) => Promise<unknown> | unknown;
-  cmsConfirm?: (options: { message: string; confirmLabel?: string }) => Promise<boolean>;
-  cmsToast?: (options: { title?: string; message: string; tone?: 'success' | 'error' | 'info' }) => void;
-};
+type CmsWindow = Window &
+  typeof globalThis & {
+    getCmsToken?: () => string;
+    getCmsUser?: () => CmsUser;
+    getCmsContentLocale?: () => string;
+    /** UI locale bridge — set by the layout once the locale selector is ready. */
+    getCmsUiLocale?: () => UiLocale;
+    setCmsUiLocale?: (locale: UiLocale) => void;
+    cmsAlert?: (options: { title?: string; message: string }) => Promise<unknown> | unknown;
+    cmsConfirm?: (options: { message: string; confirmLabel?: string }) => Promise<boolean>;
+    cmsToast?: (options: {
+      title?: string;
+      message: string;
+      tone?: 'success' | 'error' | 'info';
+    }) => void;
+  };
 
 export function getCmsWindow(): CmsWindow {
   return window as CmsWindow;
@@ -84,7 +89,9 @@ export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestInit)
   const response = await fetch(input, init);
   const data = await parseJsonResponse<T & { error?: string }>(response);
   if (!response.ok) {
-    throw new Error((data && typeof data === 'object' && 'error' in data && data.error) || 'Request failed');
+    throw new Error(
+      (data && typeof data === 'object' && 'error' in data && data.error) || 'Request failed',
+    );
   }
   return data as T;
 }
@@ -107,13 +114,20 @@ export async function showAlert(message: string, title = 'Error'): Promise<void>
   alert(message);
 }
 
-export async function showConfirm(message: string, confirmLabel = ct('dialog.defaultConfirmLabel')): Promise<boolean> {
+export async function showConfirm(
+  message: string,
+  confirmLabel = ct('dialog.defaultConfirmLabel'),
+): Promise<boolean> {
   const api = getCmsWindow().cmsConfirm;
   if (api) return api({ message, confirmLabel });
   return confirm(message);
 }
 
-export function showToast(message: string, tone: 'success' | 'error' | 'info' = 'info', title?: string): void {
+export function showToast(
+  message: string,
+  tone: 'success' | 'error' | 'info' = 'info',
+  title?: string,
+): void {
   const api = getCmsWindow().cmsToast;
   if (api) {
     api({ title, message, tone });

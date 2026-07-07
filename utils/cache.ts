@@ -27,7 +27,11 @@ function uniqueStrings(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
 }
 
-function localizedSlugFromPage(page: Pick<Page, 'slug'>, locale?: string, defaultLocale?: string): string | string[] {
+function localizedSlugFromPage(
+  page: Pick<Page, 'slug'>,
+  locale?: string,
+  defaultLocale?: string,
+): string | string[] {
   const rawSlug = page.slug as unknown;
 
   if (typeof rawSlug === 'string' || Array.isArray(rawSlug)) return rawSlug;
@@ -52,7 +56,7 @@ export function getPathCacheTag(pathname: string): string {
 export function getPageCachePath(
   page: Pick<Page, 'slug'> | string | string[],
   locale?: string,
-  defaultLocale?: string
+  defaultLocale?: string,
 ): string {
   const normalizedLocale = normalizeLocaleCode(locale);
   const normalizedDefault = normalizeLocaleCode(defaultLocale);
@@ -67,7 +71,16 @@ export function getPageCachePath(
 }
 
 export function getGlobalCacheTags(): string[] {
-  return [CACHE_TAGS.root, CACHE_TAGS.global, CACHE_TAGS.pages, CACHE_TAGS.menus, CACHE_TAGS.redirects, CACHE_TAGS.configs, CACHE_TAGS.site, CACHE_TAGS.globalBlocks];
+  return [
+    CACHE_TAGS.root,
+    CACHE_TAGS.global,
+    CACHE_TAGS.pages,
+    CACHE_TAGS.menus,
+    CACHE_TAGS.redirects,
+    CACHE_TAGS.configs,
+    CACHE_TAGS.site,
+    CACHE_TAGS.globalBlocks,
+  ];
 }
 
 export function getGlobalCachePaths(): string[] {
@@ -77,7 +90,7 @@ export function getGlobalCachePaths(): string[] {
 export function getPageCacheTags(
   page: Pick<Page, 'id' | 'slug'>,
   locale?: string,
-  defaultLocale?: string
+  defaultLocale?: string,
 ): string[] {
   const pagePath = getPageCachePath(page, locale, defaultLocale);
   return uniqueStrings([

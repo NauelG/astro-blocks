@@ -49,7 +49,7 @@ test('SEC-CDN-01: GET /uploads/*.svg returns Content-Disposition: attachment', a
     const disposition = res.headers.get('Content-Disposition');
     assert.ok(
       disposition !== null && disposition.includes('attachment'),
-      `SVG must be served with Content-Disposition: attachment to prevent inline rendering; got: ${disposition}`
+      `SVG must be served with Content-Disposition: attachment to prevent inline rendering; got: ${disposition}`,
     );
     assert.equal(res.headers.get('Content-Type'), 'image/svg+xml');
   });
@@ -64,8 +64,11 @@ test('SEC-CDN-02: GET /uploads/*.jpg does NOT return Content-Disposition header'
     const res = await GET({ request: req });
 
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get('Content-Disposition'), null,
-      'JPEG must NOT have Content-Disposition header');
+    assert.equal(
+      res.headers.get('Content-Disposition'),
+      null,
+      'JPEG must NOT have Content-Disposition header',
+    );
     assert.equal(res.headers.get('Content-Type'), 'image/jpeg');
   });
 });
@@ -79,8 +82,11 @@ test('SEC-CDN-03: GET /uploads/*.png does NOT return Content-Disposition header'
     const res = await GET({ request: req });
 
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get('Content-Disposition'), null,
-      'PNG must NOT have Content-Disposition header');
+    assert.equal(
+      res.headers.get('Content-Disposition'),
+      null,
+      'PNG must NOT have Content-Disposition header',
+    );
     assert.equal(res.headers.get('Content-Type'), 'image/png');
   });
 });
@@ -94,8 +100,11 @@ test('SEC-CDN-04: GET /uploads/*.webp does NOT return Content-Disposition header
     const res = await GET({ request: req });
 
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get('Content-Disposition'), null,
-      'WebP must NOT have Content-Disposition header');
+    assert.equal(
+      res.headers.get('Content-Disposition'),
+      null,
+      'WebP must NOT have Content-Disposition header',
+    );
     assert.equal(res.headers.get('Content-Type'), 'image/webp');
   });
 });
@@ -109,8 +118,11 @@ test('SEC-CDN-05: GET /uploads/*.gif does NOT return Content-Disposition header'
     const res = await GET({ request: req });
 
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get('Content-Disposition'), null,
-      'GIF must NOT have Content-Disposition header');
+    assert.equal(
+      res.headers.get('Content-Disposition'),
+      null,
+      'GIF must NOT have Content-Disposition header',
+    );
     assert.equal(res.headers.get('Content-Type'), 'image/gif');
   });
 });
@@ -170,7 +182,7 @@ test('R5.2-A: GET /uploads/*.pdf without ?download has no attachment disposition
     const disposition = res.headers.get('Content-Disposition');
     assert.ok(
       disposition === null || !disposition.includes('attachment'),
-      `Content-Disposition should not contain attachment; got: ${disposition}`
+      `Content-Disposition should not contain attachment; got: ${disposition}`,
     );
   });
 });
@@ -187,7 +199,7 @@ test('R5.3-A: GET /uploads/*.pdf?download returns Content-Disposition: attachmen
     const disposition = res.headers.get('Content-Disposition');
     assert.ok(
       disposition !== null && disposition.includes('attachment'),
-      `Content-Disposition should contain attachment; got: ${disposition}`
+      `Content-Disposition should contain attachment; got: ${disposition}`,
     );
   });
 });
@@ -224,10 +236,16 @@ test('CC-01: GET /uploads/*.jpg response includes Cache-Control: no-cache', asyn
     const req = new Request('http://localhost/uploads/2026/06/cache-test.jpg');
     const res = await GET({ request: req });
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get('Cache-Control'), 'no-cache',
-      'all uploads-get responses must include Cache-Control: no-cache');
-    assert.equal(res.headers.get('Content-Type'), 'image/jpeg',
-      'Content-Type must still be set correctly');
+    assert.equal(
+      res.headers.get('Cache-Control'),
+      'no-cache',
+      'all uploads-get responses must include Cache-Control: no-cache',
+    );
+    assert.equal(
+      res.headers.get('Content-Type'),
+      'image/jpeg',
+      'Content-Type must still be set correctly',
+    );
   });
 });
 
@@ -244,7 +262,10 @@ test('L-1: GET /uploads/*.pdf?download Content-Disposition filename contains onl
 
     assert.equal(res.status, 200);
     const disposition = res.headers.get('Content-Disposition');
-    assert.ok(disposition !== null && disposition.includes('attachment'), `Expected attachment disposition; got: ${disposition}`);
+    assert.ok(
+      disposition !== null && disposition.includes('attachment'),
+      `Expected attachment disposition; got: ${disposition}`,
+    );
 
     // Extract the filename= value from the header
     const match = disposition.match(/filename="([^"]*)"/);
@@ -255,7 +276,7 @@ test('L-1: GET /uploads/*.pdf?download Content-Disposition filename contains onl
     assert.match(
       filename,
       /^[A-Za-z0-9._-]+$/,
-      `Content-Disposition filename must contain only [A-Za-z0-9._-]; got: "${filename}"`
+      `Content-Disposition filename must contain only [A-Za-z0-9._-]; got: "${filename}"`,
     );
   });
 });
@@ -268,12 +289,15 @@ test('CC-02: GET /uploads/*.svg has both Cache-Control: no-cache and Content-Dis
     const req = new Request('http://localhost/uploads/2026/06/cache-test.svg');
     const res = await GET({ request: req });
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get('Cache-Control'), 'no-cache',
-      'SVG must also have Cache-Control: no-cache');
+    assert.equal(
+      res.headers.get('Cache-Control'),
+      'no-cache',
+      'SVG must also have Cache-Control: no-cache',
+    );
     const disposition = res.headers.get('Content-Disposition');
     assert.ok(
       disposition !== null && disposition.includes('attachment'),
-      `SVG must still have Content-Disposition: attachment; got: ${disposition}`
+      `SVG must still have Content-Disposition: attachment; got: ${disposition}`,
     );
   });
 });

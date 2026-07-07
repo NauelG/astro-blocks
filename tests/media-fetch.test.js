@@ -26,7 +26,9 @@ import assert from 'node:assert/strict';
 
 // ─── Formatter tests (can be tested immediately after build) ─────────────────
 
-const { formatBytes, formatDimensions, formatMediaDate } = await import('../dist/routes/admin/client/media-fetch.js');
+const { formatBytes, formatDimensions, formatMediaDate } = await import(
+  '../dist/routes/admin/client/media-fetch.js'
+);
 
 // formatBytes
 test('formatBytes: bytes < 1024 returns B suffix', () => {
@@ -88,8 +90,12 @@ function setupFakeBrowserEnv(token = 'test-token-123') {
   const storage = { 'cms-token': token };
   globalThis.sessionStorage = {
     getItem: (key) => storage[key] ?? null,
-    setItem: (key, val) => { storage[key] = val; },
-    removeItem: (key) => { delete storage[key]; },
+    setItem: (key, val) => {
+      storage[key] = val;
+    },
+    removeItem: (key) => {
+      delete storage[key];
+    },
   };
   // Stub window.getCmsToken to return token
   globalThis.window = globalThis.window ?? {};
@@ -119,7 +125,10 @@ test('fetchMedia: q and page supplied — query contains q and page, no limit', 
     assert.ok(capturedUrl !== null, 'fetch must have been called');
     assert.ok(capturedUrl.includes('q=cat'), `URL should include q=cat, got: ${capturedUrl}`);
     assert.ok(capturedUrl.includes('page=2'), `URL should include page=2, got: ${capturedUrl}`);
-    assert.ok(!capturedUrl.includes('limit='), `URL should NOT include limit=, got: ${capturedUrl}`);
+    assert.ok(
+      !capturedUrl.includes('limit='),
+      `URL should NOT include limit=, got: ${capturedUrl}`,
+    );
   } finally {
     globalThis.fetch = originalFetch;
     teardownFakeBrowserEnv();
@@ -140,7 +149,8 @@ test('fetchMedia: auth header is always sent', async () => {
     const { fetchMedia } = await import('../dist/routes/admin/client/media-fetch.js');
     await fetchMedia({});
     assert.ok(capturedInit !== null, 'fetch must have been called with init');
-    const authHeader = capturedInit?.headers?.['Authorization'] ?? capturedInit?.headers?.get?.('Authorization');
+    const authHeader =
+      capturedInit?.headers?.['Authorization'] ?? capturedInit?.headers?.get?.('Authorization');
     assert.ok(authHeader, 'Authorization header must be set');
     assert.ok(authHeader.startsWith('Bearer '), 'Authorization header must be Bearer token');
   } finally {

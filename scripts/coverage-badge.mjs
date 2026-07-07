@@ -11,9 +11,7 @@ const SUMMARY = 'coverage/coverage-pct.json';
 const README = 'README.md';
 
 if (!existsSync(SUMMARY)) {
-  console.error(
-    `[coverage-badge] ${SUMMARY} not found — run \`node scripts/coverage.mjs\` first.`
-  );
+  console.error(`[coverage-badge] ${SUMMARY} not found — run \`node scripts/coverage.mjs\` first.`);
   process.exit(1);
 }
 
@@ -25,12 +23,17 @@ if (typeof lines !== 'number') {
 
 // shields.io named colors by coverage band.
 const color =
-  lines >= 90 ? 'brightgreen'
-  : lines >= 80 ? 'green'
-  : lines >= 70 ? 'yellowgreen'
-  : lines >= 60 ? 'yellow'
-  : lines >= 50 ? 'orange'
-  : 'red';
+  lines >= 90
+    ? 'brightgreen'
+    : lines >= 80
+      ? 'green'
+      : lines >= 70
+        ? 'yellowgreen'
+        : lines >= 60
+          ? 'yellow'
+          : lines >= 50
+            ? 'orange'
+            : 'red';
 
 const readme = readFileSync(README, 'utf8');
 

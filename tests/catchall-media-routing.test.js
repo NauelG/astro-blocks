@@ -64,7 +64,10 @@ function authedGet(url, token) {
 }
 
 /** Seed a real on-disk media entry so usage/replace can find it (and reconcile keeps it). */
-async function seedEntry(tempRoot, { subdir = '2026/06', filename = 'cat.jpg', mimeType = 'image/jpeg' } = {}) {
+async function seedEntry(
+  tempRoot,
+  { subdir = '2026/06', filename = 'cat.jpg', mimeType = 'image/jpeg' } = {},
+) {
   const dir = path.join(tempRoot, 'public', 'uploads', subdir);
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, filename), new Uint8Array([0xff, 0xd8, 0xff, 0xe0]));
@@ -103,7 +106,9 @@ test('ROUTE-GET-usage: GET /cms/api/media/:id/usage dispatches to usage handler'
   await withTempProject(async (tempRoot) => {
     const entry = await seedEntry(tempRoot);
     const token = await makeAuthToken();
-    const res = await GET(ctx(authedGet(`http://localhost/cms/api/media/${entry.id}/usage`, token)));
+    const res = await GET(
+      ctx(authedGet(`http://localhost/cms/api/media/${entry.id}/usage`, token)),
+    );
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.ok(typeof body.count === 'number', 'usage response has count');
@@ -223,7 +228,9 @@ test('ROUTE-AUTH-patch: PATCH /cms/api/media/:id without token → 401', async (
 test('ROUTE-404-unknown-path: GET unknown path → 404', async () => {
   await withTempProject(async () => {
     const token = await makeAuthToken();
-    const res = await GET(ctx(authedGet('http://localhost/cms/api/media/123/nonsense/extra', token)));
+    const res = await GET(
+      ctx(authedGet('http://localhost/cms/api/media/123/nonsense/extra', token)),
+    );
     assert.equal(res.status, 404);
   });
 });
@@ -250,6 +257,10 @@ test('ROUTE-404-delete-media: DELETE /cms/api/media/:id → 404 (no media DELETE
       headers: { Authorization: `Bearer ${token}` },
     });
     const res = await DELETE(ctx(req));
-    assert.equal(res.status, 404, 'there is no DELETE /media/:id route — pruning is via DELETE /upload');
+    assert.equal(
+      res.status,
+      404,
+      'there is no DELETE /media/:id route — pruning is via DELETE /upload',
+    );
   });
 });
