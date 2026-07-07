@@ -1128,17 +1128,25 @@ test('FIX-3: handleGetPages — legacy string image prop is projected as { url, 
 
 // ─── P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override (read at MODULE LOAD) ──────────
 //
-// MAX_UPLOAD_BYTES is computed once when handlers.ts is first evaluated. To test
-// an override we must import a FRESH module instance AFTER setting the env var.
-// Node ESM caches by URL, so we cache-bust with a unique query string. The env
-// var is restored after each test so other suites see the default 5 MB limit.
+// MAX_UPLOAD_BYTES is computed once when handlers/media.ts is first evaluated. To
+// test an override we must import a FRESH module instance AFTER setting the env
+// var. Node ESM caches by URL, so we cache-bust with a unique query string. The
+// env var is restored after each test so other suites see the default 5 MB limit.
+//
+// NOTE: we import '../dist/api/handlers/media.js' directly (not the '../dist/api/
+// handlers.js' shim). Busting the shim's URL only re-evaluates the shim itself —
+// relative re-export specifiers like './handlers/media.js' resolve without the
+// query string, so they still hit the existing cached module. Importing the
+// concern module directly is required to actually force re-evaluation of the
+// module-load-time MAX_UPLOAD_BYTES singleton. `media.js` exports handleUpload/
+// handleReplaceUpload/etc. under the same public names as the shim.
 
 async function importFreshHandlers(maxBytes) {
   const prev = process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
   process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES = String(maxBytes);
   try {
     const url =
-      new URL('../dist/api/handlers.js', import.meta.url).href +
+      new URL('../dist/api/handlers/media.js', import.meta.url).href +
       `?maxbytes=${maxBytes}-${Date.now()}-${Math.random()}`;
     return await import(url);
   } finally {
