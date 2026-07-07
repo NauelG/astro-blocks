@@ -144,12 +144,6 @@ export function closeDialog(dialog: HTMLDialogElement | null): void {
   dialog?.close();
 }
 
-export function escapeHtml(value: string): string {
-  const div = document.createElement('div');
-  div.textContent = value;
-  return div.innerHTML;
-}
-
 export function formatDisplayDate(value?: string | null): string {
   if (!value) return ct('common.noDate');
   try {
