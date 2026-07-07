@@ -21,7 +21,7 @@ import path from 'node:path';
 
 import { ensureDefaultFiles, loadUsers, saveUsers } from '../dist/api/data.js';
 import { buildExportStream, runImportPipeline } from '../dist/api/backup.js';
-import { handleBootstrapImport } from '../dist/api/handlers.js';
+import { handleBootstrapImport, handleLogin } from '../dist/api/handlers.js';
 import { DATA_SCHEMA_VERSION } from '../dist/api/schema-version.js';
 
 // ---------------------------------------------------------------------------
@@ -644,4 +644,137 @@ test('B5: Content-Length exceeds compressed ceiling → 413 with no staging/back
       }
     }
   });
+});
+
+// ---------------------------------------------------------------------------
+// C1: login vs bootstrap concurrency (GitHub #25 — TOCTOU hardening)
+//
+// handleLogin's first-user creation and the bootstrap pipeline's users
+// existence-check-through-apply span now serialize through a shared
+// withUsersLock. This does NOT guarantee a fixed winner — it guarantees the
+// INVARIANT: exactly one coherent owner survives the race, and neither path
+// silently overwrites the owner the other one just created/applied.
+// ---------------------------------------------------------------------------
+
+function makeLoginRequest(email, password) {
+  return new Request('http://localhost/cms/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+async function assertSingleCoherentOwner(loginEmail, importedEmail, bootstrapResponse) {
+  const finalUsers = await loadUsers();
+  assert.equal(
+    finalUsers.users.length,
+    1,
+    `expected exactly 1 user after the race, got ${finalUsers.users.length}: ${JSON.stringify(finalUsers.users)}`,
+  );
+
+  if (bootstrapResponse.status === 200) {
+    // Bootstrap won the race: the imported owner must survive untouched —
+    // login must not have silently overwritten it.
+    assert.equal(
+      finalUsers.users[0].email,
+      importedEmail,
+      'bootstrap won the race: surviving owner must be the imported user',
+    );
+  } else {
+    // Login won the race: bootstrap must be rejected (the outer gate and
+    // the in-lock re-check both surface as 403 with the same message), and
+    // the login-created owner must survive untouched.
+    assert.equal(
+      bootstrapResponse.status,
+      403,
+      `bootstrap must be rejected with 403 when login wins the race, got ${bootstrapResponse.status}`,
+    );
+    assert.equal(
+      finalUsers.users[0].email,
+      loginEmail,
+      'login won the race: surviving owner must be the login-created user',
+    );
+  }
+}
+
+const C1_ITERATIONS = 3;
+
+test('C1: login-first ordering — concurrent first-user login vs bootstrap import never silently overwrites owner', async () => {
+  for (let i = 0; i < C1_ITERATIONS; i++) {
+    await withTempProject(async (tempRoot) => {
+      const importedEmail = 'imported-owner@example.com';
+      const loginEmail = 'login-owner@example.com';
+
+      // Build the bootstrap zip with a distinct 'users' unit BEFORE any
+      // mutation, then reset the instance back to zero users so both
+      // concurrent requests race against an empty instance.
+      await saveUsers({
+        users: [
+          {
+            id: 'imported-owner-id',
+            email: importedEmail,
+            passwordHash: 'hash',
+            role: 'owner',
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+      const zipBody = await buildZipBody(['users'], tempRoot);
+      await saveUsers({ users: [] });
+
+      const loginReq = makeLoginRequest(loginEmail, 'secret123');
+      const importReq = makeRequest(zipBody);
+
+      const [loginRes, bootstrapRes] = await Promise.all([
+        handleLogin(loginReq),
+        handleBootstrapImport(importReq, { cache: null }),
+      ]);
+
+      assert.ok(
+        loginRes.status === 200 || loginRes.status === 401,
+        `login must resolve to 200 (created/verified) or 401 (raced against a different owner), got ${loginRes.status}`,
+      );
+
+      await assertSingleCoherentOwner(loginEmail, importedEmail, bootstrapRes);
+    });
+  }
+});
+
+test('C1: bootstrap-first ordering — concurrent bootstrap import vs first-user login never silently overwrites owner', async () => {
+  for (let i = 0; i < C1_ITERATIONS; i++) {
+    await withTempProject(async (tempRoot) => {
+      const importedEmail = 'imported-owner@example.com';
+      const loginEmail = 'login-owner@example.com';
+
+      await saveUsers({
+        users: [
+          {
+            id: 'imported-owner-id',
+            email: importedEmail,
+            passwordHash: 'hash',
+            role: 'owner',
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+      const zipBody = await buildZipBody(['users'], tempRoot);
+      await saveUsers({ users: [] });
+
+      const loginReq = makeLoginRequest(loginEmail, 'secret123');
+      const importReq = makeRequest(zipBody);
+
+      // Same pair, array order swapped per the design's Testing Strategy.
+      const [bootstrapRes, loginRes] = await Promise.all([
+        handleBootstrapImport(importReq, { cache: null }),
+        handleLogin(loginReq),
+      ]);
+
+      assert.ok(
+        loginRes.status === 200 || loginRes.status === 401,
+        `login must resolve to 200 (created/verified) or 401 (raced against a different owner), got ${loginRes.status}`,
+      );
+
+      await assertSingleCoherentOwner(loginEmail, importedEmail, bootstrapRes);
+    });
+  }
 });
