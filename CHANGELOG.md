@@ -9,6 +9,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.5.2] - 2026-07-07
+
+### Title
+
+Serialize first-user login against the bootstrap import to close a TOCTOU race
+
+### Security
+
+- **The unauthenticated bootstrap import can no longer silently overwrite a just-created
+  owner account.** On a zero-user instance, a first-user login (`handleLogin`) and the
+  one-time bootstrap import (`POST /cms/api/import/bootstrap`) could race: the login's user
+  write could land between the import's in-lock re-check and its own user write (during
+  archive extraction), letting the import overwrite the freshly created owner. First-user
+  creation and the bootstrap user mutation now serialize on a single `users.json` lock via a
+  narrow `withUsersLock` guard, so the two can no longer interleave. The window was narrow and
+  the practical risk on a self-hosted single-owner CMS low, but it was a real correctness hole
+  on a destructive unauthenticated path. Internal change only — no public API or configuration
+  change for consumers.
+
 ## [3.5.1] - 2026-07-06
 
 ### Title
