@@ -7,7 +7,6 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { SignJWT, jwtVerify } from 'jose';
 import { imageSize } from 'image-size';
 import { getGlobalCachePaths, getGlobalCacheTags } from '../utils/cache.js';
 import { validateBlocks } from '../utils/blocks.js';
@@ -42,7 +41,6 @@ import {
   removeLocaleFromPage,
 } from '../utils/locale-projection.js';
 import type {
-  AuthResult,
   AuthUser,
   BlockInstance,
   ConfigEntry,
@@ -59,7 +57,6 @@ import type {
   RedirectRule,
   SchemaMap,
   SeoData,
-  User,
 } from '../types/index.js';
 import * as data from './data.js';
 import { buildExportStream, runImportPipeline } from './backup.js';
@@ -79,88 +76,25 @@ import {
   invalidateGlobalContentCache,
   invalidatePageContentCache,
 } from './handlers/cache-invalidation.js';
+import { getAuth, requireOwner } from './handlers/auth-core.js';
 export { localizedJsonError } from './handlers/shared.js';
 export { handleGetSite, handlePutSite } from './handlers/site.js';
+export {
+  classifyJwtSecret,
+  getAuth,
+  hashPassword,
+  requireOwner,
+  verifyPassword,
+} from './handlers/auth-core.js';
+export type { JwtSecretStatus } from './handlers/auth-core.js';
+export { handleLogin, handleAuthMe, handleAuthStatus } from './handlers/auth.js';
+export {
+  handleGetUsers,
+  handlePostUsers,
+  handlePutUser,
+  handleDeleteUser,
+} from './handlers/users.js';
 
-// SECURITY: this constant signs and verifies admin session tokens. When no secret is
-// configured we fall back to a well-known string ONLY to keep local development frictionless.
-// Signing/verifying with a public constant in production would let anyone forge an owner
-// token, so production refuses it (see classifyJwtSecret / jwtSecretMisconfigured below).
-const INSECURE_JWT_FALLBACK = 'cms-jwt-secret-change-me';
-
-export type JwtSecretStatus = 'configured' | 'insecure-dev' | 'insecure-production';
-
-/**
- * Pure classification of the JWT secret configuration. Exported for unit testing.
- * - 'configured': a non-empty secret is present — safe in any environment.
- * - 'insecure-production': no secret AND running in production — auth must fail closed.
- * - 'insecure-dev': no secret outside production — tolerated with a loud warning.
- */
-export function classifyJwtSecret(
-  rawSecret: string | undefined,
-  isProduction: boolean,
-): JwtSecretStatus {
-  if (rawSecret && rawSecret.trim()) return 'configured';
-  return isProduction ? 'insecure-production' : 'insecure-dev';
-}
-
-/**
- * Whether the server is running as a production build. Uses Astro/Vite's build-time
- * `import.meta.env.PROD` (baked into the production SSR bundle) as the primary signal so the
- * guard fires even when the host does not set NODE_ENV; NODE_ENV==='production' is a secondary
- * signal for platforms that do. Outside a Vite build (e.g. unit tests importing raw dist),
- * `import.meta.env` is undefined and only NODE_ENV applies.
- */
-function isProductionRuntime(): boolean {
-  const viteEnv = (import.meta as unknown as { env?: { PROD?: boolean } }).env;
-  return viteEnv?.PROD === true || process.env.NODE_ENV === 'production';
-}
-
-/**
- * Resolve the configured JWT secret from the environment. The documented, prefix-consistent
- * variable is ASTRO_BLOCKS_JWT_SECRET; CMS_JWT_SECRET is accepted as a deprecated legacy alias
- * (earlier releases read only that name while the docs specified the ASTRO_BLOCKS_ one, so
- * deployments that followed the docs were silently running on the built-in fallback).
- */
-function resolveConfiguredJwtSecret(): string | undefined {
-  const primary = process.env.ASTRO_BLOCKS_JWT_SECRET?.trim();
-  if (primary) return primary;
-  const legacy = process.env.CMS_JWT_SECRET?.trim();
-  if (legacy) {
-    console.warn(
-      '[astro-blocks] CMS_JWT_SECRET is a deprecated alias and will be removed in a future release. ' +
-        'Rename it to ASTRO_BLOCKS_JWT_SECRET.',
-    );
-    return legacy;
-  }
-  return undefined;
-}
-
-const CONFIGURED_JWT_SECRET = resolveConfiguredJwtSecret();
-const JWT_SECRET_STATUS = classifyJwtSecret(CONFIGURED_JWT_SECRET, isProductionRuntime());
-const JWT_SECRET = new TextEncoder().encode(CONFIGURED_JWT_SECRET || INSECURE_JWT_FALLBACK);
-const JWT_EXPIRY = '7d';
-
-if (JWT_SECRET_STATUS === 'insecure-production') {
-  console.warn(
-    '[astro-blocks] SECURITY: ASTRO_BLOCKS_JWT_SECRET is not set. Admin authentication is DISABLED — ' +
-      'the server refuses to sign or verify tokens with the built-in fallback secret in production. ' +
-      'Set ASTRO_BLOCKS_JWT_SECRET to a strong random value and restart.',
-  );
-} else if (JWT_SECRET_STATUS === 'insecure-dev') {
-  console.warn(
-    '[astro-blocks] SECURITY WARNING: ASTRO_BLOCKS_JWT_SECRET is not set; using an insecure built-in fallback. ' +
-      'This is tolerated in development but MUST be set before deploying — otherwise anyone can forge an owner session token.',
-  );
-}
-
-/**
- * True only when the secret is the insecure fallback AND we are in production. In that
- * state every auth operation fails closed rather than trusting a publicly-known key.
- */
-function jwtSecretMisconfigured(): boolean {
-  return JWT_SECRET_STATUS === 'insecure-production';
-}
 const CONFIG_KEY_REGEX = /^[A-Za-z][A-Za-z0-9_.-]*$/;
 
 // Media upload constants
@@ -308,15 +242,6 @@ function ensureEnabledDefaultLanguage(
     ...language,
     isDefault: defaultCode ? normalizeLanguageCode(language.code) === defaultCode : false,
   }));
-}
-
-function scryptAsync(password: string, salt: crypto.BinaryLike, keylen: number): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    crypto.scrypt(password, salt, keylen, (error, derived) => {
-      if (error) reject(error);
-      else resolve(derived as Buffer);
-    });
-  });
 }
 
 /** Returns a catalog error key (not a user-facing string) or null. */
@@ -569,264 +494,6 @@ async function ensureValidBlocks(blocks: unknown, request?: Request): Promise<Re
   }
 
   return null;
-}
-
-export function hashPassword(password: string): Promise<string> {
-  const salt = crypto.randomBytes(16);
-  return scryptAsync(password, salt, 64).then(
-    (hash) => `${salt.toString('base64')}:${hash.toString('base64')}`,
-  );
-}
-
-export async function verifyPassword(password: string, stored: string): Promise<boolean> {
-  if (!stored || !password) return false;
-
-  const [saltB64, hashB64] = stored.split(':');
-  if (!saltB64 || !hashB64) return false;
-
-  const salt = Buffer.from(saltB64, 'base64');
-  const expected = Buffer.from(hashB64, 'base64');
-  const derived = await scryptAsync(password, salt, 64);
-  return crypto.timingSafeEqual(derived, expected);
-}
-
-async function createToken(user: Pick<User, 'id' | 'email' | 'role'>): Promise<string> {
-  return new SignJWT({ email: user.email, role: user.role })
-    .setSubject(user.id)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime(JWT_EXPIRY)
-    .sign(JWT_SECRET);
-}
-
-export async function getAuth(request: Request): Promise<AuthResult | null> {
-  // Fail closed: never trust a token verified with the public fallback secret in production.
-  if (jwtSecretMisconfigured()) return null;
-
-  const token =
-    request.headers
-      .get('authorization')
-      ?.replace(/^Bearer\s+/i, '')
-      ?.trim() ||
-    request.headers.get('x-cms-token') ||
-    '';
-
-  if (!token) return null;
-
-  try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
-    const id = payload.sub;
-    const email = payload.email;
-    const role = payload.role;
-    if (!id || !email || !role) return null;
-
-    return { user: { id: String(id), email: String(email), role: String(role) } };
-  } catch {
-    return null;
-  }
-}
-
-export function requireOwner(user?: AuthUser | null, request?: Request): Response | null {
-  if (!user || user.role !== 'owner') {
-    return request
-      ? localizedJsonError(request, 'errors.forbidden', 403)
-      : jsonError('Forbidden', 403);
-  }
-  return null;
-}
-
-export async function handleLogin(request: Request): Promise<Response> {
-  // Fail closed: refuse to issue tokens signed with the public fallback secret in production.
-  if (jwtSecretMisconfigured()) {
-    return jsonError(
-      'Authentication is unavailable: the ASTRO_BLOCKS_JWT_SECRET environment variable must be set.',
-      503,
-    );
-  }
-
-  const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
-  if (error || !body) return error as Response;
-
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-  const password = typeof body.password === 'string' ? body.password : '';
-  if (!email || !password) return localizedJsonError(request, 'errors.emailPasswordRequired');
-
-  const usersData = await data.loadUsers();
-  let users = usersData.users || [];
-
-  if (users.length === 0) {
-    // First-user creation races against a concurrent bootstrap import
-    // (GitHub #25): serialize via withUsersLock and re-check INSIDE the
-    // lock (check-and-write atomic) so neither path silently overwrites
-    // the owner the other one just created/applied.
-    const result = await data.withUsersLock(async () => {
-      const fresh = await data.loadUsers();
-      if ((fresh.users?.length ?? 0) !== 0) {
-        return { kind: 'raced' as const, users: fresh.users || [] };
-      }
-      const id = data.generateId();
-      const createdAt = new Date().toISOString();
-      const passwordHash = await hashPassword(password);
-      const newUser: User = { id, email, passwordHash, role: 'owner', createdAt };
-      await data.saveUsers({ users: [newUser] });
-      return { kind: 'created' as const, user: newUser };
-    });
-
-    if (result.kind === 'created') {
-      const token = await createToken(result.user);
-      return Response.json({
-        token,
-        user: { id: result.user.id, email: result.user.email, role: 'owner' },
-      });
-    }
-
-    // Raced: a concurrent bootstrap import created the owner first. Fall
-    // through to the shared find/verify path using the fresh users list.
-    users = result.users;
-  }
-
-  const user = users.find((entry) => entry.email === email);
-  if (!user || !(await verifyPassword(password, user.passwordHash))) {
-    return localizedJsonError(request, 'errors.invalidCredentials', 401);
-  }
-
-  const token = await createToken(user);
-  return Response.json({ token, user: { id: user.id, email: user.email, role: user.role } });
-}
-
-export async function handleAuthMe(user?: AuthUser | null, request?: Request): Promise<Response> {
-  if (!user) {
-    return request
-      ? localizedJsonError(request, 'errors.unauthorized', 401)
-      : jsonError('Unauthorized', 401);
-  }
-  return Response.json({ user });
-}
-
-export async function handleAuthStatus(): Promise<Response> {
-  const [usersData, site] = await Promise.all([data.loadUsers(), data.loadSite()]);
-  return Response.json({
-    hasUsers: (usersData.users || []).length > 0,
-    logo: site.logo || '',
-    siteName: site.siteName || 'CMS',
-  });
-}
-
-export async function handleGetUsers(user?: AuthUser | null): Promise<Response> {
-  const forbidden = requireOwner(user);
-  if (forbidden) return forbidden;
-
-  const usersData = await data.loadUsers();
-  const list = (usersData.users || []).map(({ id, email, role, createdAt }) => ({
-    id,
-    email,
-    role,
-    createdAt,
-  }));
-  return Response.json({ users: list });
-}
-
-export async function handlePostUsers(
-  request: Request,
-  authUser?: AuthUser | null,
-): Promise<Response> {
-  const forbidden = requireOwner(authUser, request);
-  if (forbidden) return forbidden;
-
-  const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
-  if (error || !body) return error as Response;
-
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-  const password = typeof body.password === 'string' ? body.password : '';
-  const role = body.role === 'owner' ? 'owner' : 'user';
-  if (!email || !password) return localizedJsonError(request, 'errors.emailPasswordRequired');
-
-  const usersData = await data.loadUsers();
-  if (usersData.users.some((user) => user.email === email))
-    return localizedJsonError(request, 'errors.emailExists');
-
-  const createdAt = new Date().toISOString();
-  const newUser: User = {
-    id: data.generateId(),
-    email,
-    passwordHash: await hashPassword(password),
-    role,
-    createdAt,
-  };
-
-  usersData.users.push(newUser);
-  await data.saveUsers(usersData);
-  return Response.json({ id: newUser.id, email, role, createdAt });
-}
-
-export async function handlePutUser(
-  id: string,
-  request: Request,
-  authUser?: AuthUser | null,
-): Promise<Response> {
-  const forbidden = requireOwner(authUser, request);
-  if (forbidden) return forbidden;
-
-  const usersData = await data.loadUsers();
-  const index = usersData.users.findIndex((user) => user.id === id);
-  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
-
-  const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
-  if (error || !body) return error as Response;
-
-  const target = usersData.users[index];
-  const ownerCount = usersData.users.filter((user) => user.role === 'owner').length;
-
-  if (body.role !== undefined) {
-    const newRole = body.role === 'owner' ? 'owner' : 'user';
-    if (target.role === 'owner' && newRole === 'user' && ownerCount <= 1) {
-      return localizedJsonError(request, 'errors.cannotRemoveLastOwner', 400);
-    }
-    usersData.users[index] = { ...target, role: newRole };
-  }
-
-  if (typeof body.password === 'string' && body.password.length > 0) {
-    usersData.users[index] = {
-      ...usersData.users[index],
-      passwordHash: await hashPassword(body.password),
-    };
-  }
-
-  await data.saveUsers(usersData);
-  const updated = usersData.users[index];
-  return Response.json({
-    id: updated.id,
-    email: updated.email,
-    role: updated.role,
-    createdAt: updated.createdAt,
-  });
-}
-
-export async function handleDeleteUser(
-  id: string,
-  authUser?: AuthUser | null,
-  request?: Request,
-): Promise<Response> {
-  const forbidden = requireOwner(authUser, request);
-  if (forbidden) return forbidden;
-
-  const usersData = await data.loadUsers();
-  const index = usersData.users.findIndex((user) => user.id === id);
-  if (index === -1)
-    return request
-      ? localizedJsonError(request, 'errors.notFound', 404)
-      : jsonError('Not found', 404);
-
-  const target = usersData.users[index];
-  const ownerCount = usersData.users.filter((user) => user.role === 'owner').length;
-  if (target.role === 'owner' && ownerCount <= 1) {
-    return request
-      ? localizedJsonError(request, 'errors.cannotDeleteLastOwner', 400)
-      : jsonError('Cannot delete the only owner.', 400);
-  }
-
-  usersData.users.splice(index, 1);
-  await data.saveUsers(usersData);
-  return new Response(null, { status: 204 });
 }
 
 export async function handleGetLanguages(): Promise<Response> {
