@@ -80,7 +80,10 @@ function req(url, method, { token, body } = {}) {
 }
 
 /** Seed a real on-disk media entry (mirrors catchall-media-routing.test.js's seedEntry). */
-async function seedEntry(tempRoot, { subdir = '2026/06', filename = 'cat.jpg', mimeType = 'image/jpeg' } = {}) {
+async function seedEntry(
+  tempRoot,
+  { subdir = '2026/06', filename = 'cat.jpg', mimeType = 'image/jpeg' } = {},
+) {
   const dir = path.join(tempRoot, 'public', 'uploads', subdir);
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, filename), new Uint8Array([0xff, 0xd8, 0xff, 0xe0]));
@@ -113,13 +116,23 @@ test('FRAGILE-POST-languages: 401 unauth, 403 non-owner, owner creates a languag
 
     const userToken = await makeToken('user');
     const nonOwner = await POST(
-      ctx(req('http://localhost/cms/api/languages', 'POST', { token: userToken, body: { code: 'fr', label: 'Français' } }))
+      ctx(
+        req('http://localhost/cms/api/languages', 'POST', {
+          token: userToken,
+          body: { code: 'fr', label: 'Français' },
+        }),
+      ),
     );
     assert.equal(nonOwner.status, 403);
 
     const ownerToken = await makeToken('owner');
     const owner = await POST(
-      ctx(req('http://localhost/cms/api/languages', 'POST', { token: ownerToken, body: { code: 'fr', label: 'Français' } }))
+      ctx(
+        req('http://localhost/cms/api/languages', 'POST', {
+          token: ownerToken,
+          body: { code: 'fr', label: 'Français' },
+        }),
+      ),
     );
     assert.equal(owner.status, 200);
     const body = await owner.json();
@@ -134,13 +147,23 @@ test('FRAGILE-PUT-languages-id: 401 unauth, 403 non-owner, owner updates a langu
 
     const userToken = await makeToken('user');
     const nonOwner = await PUT(
-      ctx(req('http://localhost/cms/api/languages/es', 'PUT', { token: userToken, body: { label: 'Hacked' } }))
+      ctx(
+        req('http://localhost/cms/api/languages/es', 'PUT', {
+          token: userToken,
+          body: { label: 'Hacked' },
+        }),
+      ),
     );
     assert.equal(nonOwner.status, 403);
 
     const ownerToken = await makeToken('owner');
     const owner = await PUT(
-      ctx(req('http://localhost/cms/api/languages/es', 'PUT', { token: ownerToken, body: { label: 'Español (ES)' } }))
+      ctx(
+        req('http://localhost/cms/api/languages/es', 'PUT', {
+          token: ownerToken,
+          body: { label: 'Español (ES)' },
+        }),
+      ),
     );
     assert.equal(owner.status, 200);
     const body = await owner.json();
@@ -154,16 +177,25 @@ test('FRAGILE-DELETE-languages-id: 401 unauth, 403 non-owner, owner deletes a la
     assert.equal(unauth.status, 401);
 
     const userToken = await makeToken('user');
-    const nonOwner = await DELETE(ctx(req('http://localhost/cms/api/languages/es', 'DELETE', { token: userToken })));
+    const nonOwner = await DELETE(
+      ctx(req('http://localhost/cms/api/languages/es', 'DELETE', { token: userToken })),
+    );
     assert.equal(nonOwner.status, 403);
 
     const ownerToken = await makeToken('owner');
     // Add a second language first so deleting 'es' does not hit the "cannot
     // delete the last language" business rule — that would mask the auth outcome.
     await POST(
-      ctx(req('http://localhost/cms/api/languages', 'POST', { token: ownerToken, body: { code: 'en', label: 'English' } }))
+      ctx(
+        req('http://localhost/cms/api/languages', 'POST', {
+          token: ownerToken,
+          body: { code: 'en', label: 'English' },
+        }),
+      ),
     );
-    const owner = await DELETE(ctx(req('http://localhost/cms/api/languages/es', 'DELETE', { token: ownerToken })));
+    const owner = await DELETE(
+      ctx(req('http://localhost/cms/api/languages/es', 'DELETE', { token: ownerToken })),
+    );
     assert.equal(owner.status, 200);
     const body = await owner.json();
     assert.equal(body.deletedLocale, 'es');
@@ -177,13 +209,23 @@ test('FRAGILE-PUT-site: 401 unauth, 403 non-owner, owner updates site settings',
 
     const userToken = await makeToken('user');
     const nonOwner = await PUT(
-      ctx(req('http://localhost/cms/api/site', 'PUT', { token: userToken, body: { siteName: 'Hacked' } }))
+      ctx(
+        req('http://localhost/cms/api/site', 'PUT', {
+          token: userToken,
+          body: { siteName: 'Hacked' },
+        }),
+      ),
     );
     assert.equal(nonOwner.status, 403);
 
     const ownerToken = await makeToken('owner');
     const owner = await PUT(
-      ctx(req('http://localhost/cms/api/site', 'PUT', { token: ownerToken, body: { siteName: 'Acme Corp' } }))
+      ctx(
+        req('http://localhost/cms/api/site', 'PUT', {
+          token: ownerToken,
+          body: { siteName: 'Acme Corp' },
+        }),
+      ),
     );
     assert.equal(owner.status, 200);
     const body = await owner.json();
@@ -203,11 +245,15 @@ test('OWNER-GET-export: 401 unauth, 403 non-owner, owner reaches the handler', a
     assert.equal(unauth.status, 401);
 
     const userToken = await makeToken('user');
-    const nonOwner = await GET(ctx(req('http://localhost/cms/api/export', 'GET', { token: userToken })));
+    const nonOwner = await GET(
+      ctx(req('http://localhost/cms/api/export', 'GET', { token: userToken })),
+    );
     assert.equal(nonOwner.status, 403);
 
     const ownerToken = await makeToken('owner');
-    const owner = await GET(ctx(req('http://localhost/cms/api/export?units=pages', 'GET', { token: ownerToken })));
+    const owner = await GET(
+      ctx(req('http://localhost/cms/api/export?units=pages', 'GET', { token: ownerToken })),
+    );
     assert.notEqual(owner.status, 401);
     assert.notEqual(owner.status, 403);
   });
@@ -219,11 +265,15 @@ test('OWNER-GET-users: 401 unauth, 403 non-owner, owner lists users', async () =
     assert.equal(unauth.status, 401);
 
     const userToken = await makeToken('user');
-    const nonOwner = await GET(ctx(req('http://localhost/cms/api/users', 'GET', { token: userToken })));
+    const nonOwner = await GET(
+      ctx(req('http://localhost/cms/api/users', 'GET', { token: userToken })),
+    );
     assert.equal(nonOwner.status, 403);
 
     const ownerToken = await makeToken('owner');
-    const owner = await GET(ctx(req('http://localhost/cms/api/users', 'GET', { token: ownerToken })));
+    const owner = await GET(
+      ctx(req('http://localhost/cms/api/users', 'GET', { token: ownerToken })),
+    );
     assert.equal(owner.status, 200);
     const body = await owner.json();
     assert.ok(Array.isArray(body.users));
@@ -237,13 +287,23 @@ test('OWNER-POST-users: 401 unauth, 403 non-owner, owner creates a user', async 
 
     const userToken = await makeToken('user');
     const nonOwner = await POST(
-      ctx(req('http://localhost/cms/api/users', 'POST', { token: userToken, body: { email: 'x@example.com', password: 'secret123' } }))
+      ctx(
+        req('http://localhost/cms/api/users', 'POST', {
+          token: userToken,
+          body: { email: 'x@example.com', password: 'secret123' },
+        }),
+      ),
     );
     assert.equal(nonOwner.status, 403);
 
     const ownerToken = await makeToken('owner');
     const owner = await POST(
-      ctx(req('http://localhost/cms/api/users', 'POST', { token: ownerToken, body: { email: 'editor@example.com', password: 'secret123' } }))
+      ctx(
+        req('http://localhost/cms/api/users', 'POST', {
+          token: ownerToken,
+          body: { email: 'editor@example.com', password: 'secret123' },
+        }),
+      ),
     );
     assert.equal(owner.status, 200);
     const body = await owner.json();
@@ -256,7 +316,12 @@ test('OWNER-PUT-users-id: 401 unauth, 403 non-owner, owner updates a user', asyn
     const ownerToken = await makeToken('owner');
     const created = await (
       await POST(
-        ctx(req('http://localhost/cms/api/users', 'POST', { token: ownerToken, body: { email: 'editor@example.com', password: 'secret123' } }))
+        ctx(
+          req('http://localhost/cms/api/users', 'POST', {
+            token: ownerToken,
+            body: { email: 'editor@example.com', password: 'secret123' },
+          }),
+        ),
       )
     ).json();
 
@@ -265,12 +330,22 @@ test('OWNER-PUT-users-id: 401 unauth, 403 non-owner, owner updates a user', asyn
 
     const userToken = await makeToken('user');
     const nonOwner = await PUT(
-      ctx(req(`http://localhost/cms/api/users/${created.id}`, 'PUT', { token: userToken, body: { role: 'owner' } }))
+      ctx(
+        req(`http://localhost/cms/api/users/${created.id}`, 'PUT', {
+          token: userToken,
+          body: { role: 'owner' },
+        }),
+      ),
     );
     assert.equal(nonOwner.status, 403);
 
     const owner = await PUT(
-      ctx(req(`http://localhost/cms/api/users/${created.id}`, 'PUT', { token: ownerToken, body: { password: 'newpass456' } }))
+      ctx(
+        req(`http://localhost/cms/api/users/${created.id}`, 'PUT', {
+          token: ownerToken,
+          body: { password: 'newpass456' },
+        }),
+      ),
     );
     assert.equal(owner.status, 200);
   });
@@ -281,7 +356,12 @@ test('OWNER-DELETE-users-id: 401 unauth, 403 non-owner, owner deletes a user', a
     const ownerToken = await makeToken('owner');
     const created = await (
       await POST(
-        ctx(req('http://localhost/cms/api/users', 'POST', { token: ownerToken, body: { email: 'editor@example.com', password: 'secret123' } }))
+        ctx(
+          req('http://localhost/cms/api/users', 'POST', {
+            token: ownerToken,
+            body: { email: 'editor@example.com', password: 'secret123' },
+          }),
+        ),
       )
     ).json();
 
@@ -289,10 +369,14 @@ test('OWNER-DELETE-users-id: 401 unauth, 403 non-owner, owner deletes a user', a
     assert.equal(unauth.status, 401);
 
     const userToken = await makeToken('user');
-    const nonOwner = await DELETE(ctx(req(`http://localhost/cms/api/users/${created.id}`, 'DELETE', { token: userToken })));
+    const nonOwner = await DELETE(
+      ctx(req(`http://localhost/cms/api/users/${created.id}`, 'DELETE', { token: userToken })),
+    );
     assert.equal(nonOwner.status, 403);
 
-    const owner = await DELETE(ctx(req(`http://localhost/cms/api/users/${created.id}`, 'DELETE', { token: ownerToken })));
+    const owner = await DELETE(
+      ctx(req(`http://localhost/cms/api/users/${created.id}`, 'DELETE', { token: ownerToken })),
+    );
     assert.equal(owner.status, 204);
   });
 });
@@ -303,11 +387,15 @@ test('OWNER-POST-import: 401 unauth, 403 non-owner, owner reaches the handler', 
     assert.equal(unauth.status, 401);
 
     const userToken = await makeToken('user');
-    const nonOwner = await POST(ctx(req('http://localhost/cms/api/import', 'POST', { token: userToken })));
+    const nonOwner = await POST(
+      ctx(req('http://localhost/cms/api/import', 'POST', { token: userToken })),
+    );
     assert.equal(nonOwner.status, 403);
 
     const ownerToken = await makeToken('owner');
-    const owner = await POST(ctx(req('http://localhost/cms/api/import', 'POST', { token: ownerToken })));
+    const owner = await POST(
+      ctx(req('http://localhost/cms/api/import', 'POST', { token: ownerToken })),
+    );
     assert.notEqual(owner.status, 401);
     assert.notEqual(owner.status, 403);
   });
@@ -343,7 +431,9 @@ test('PUBLIC-GET-auth-me: no token self-reports 401, valid token returns the use
 
 test('PUBLIC-POST-import-bootstrap: reachable with no token (zero-user gate is business logic, not auth)', async () => {
   await withTempProject(async () => {
-    const res = await POST(ctx(req('http://localhost/cms/api/import/bootstrap', 'POST', { body: {} })));
+    const res = await POST(
+      ctx(req('http://localhost/cms/api/import/bootstrap', 'POST', { body: {} })),
+    );
     assert.notEqual(res.status, 401, 'public route must never be blocked by the central auth gate');
   });
 });
@@ -354,23 +444,38 @@ test('USER-GET-pages: 401 unauth, 200 for both user and owner roles', async () =
     assert.equal(unauth.status, 401);
 
     const userToken = await makeToken('user');
-    const asUser = await GET(ctx(req('http://localhost/cms/api/pages', 'GET', { token: userToken })));
+    const asUser = await GET(
+      ctx(req('http://localhost/cms/api/pages', 'GET', { token: userToken })),
+    );
     assert.equal(asUser.status, 200);
 
     const ownerToken = await makeToken('owner');
-    const asOwner = await GET(ctx(req('http://localhost/cms/api/pages', 'GET', { token: ownerToken })));
+    const asOwner = await GET(
+      ctx(req('http://localhost/cms/api/pages', 'GET', { token: ownerToken })),
+    );
     assert.equal(asOwner.status, 200, 'user-tier routes admit owner callers too');
   });
 });
 
 test('USER-POST-pages: 401 unauth, 200 authed creates a page', async () => {
   await withTempProject(async () => {
-    const unauth = await POST(ctx(req('http://localhost/cms/api/pages', 'POST', { body: { title: 'Home', slug: '/', status: 'published', blocks: [] } })));
+    const unauth = await POST(
+      ctx(
+        req('http://localhost/cms/api/pages', 'POST', {
+          body: { title: 'Home', slug: '/', status: 'published', blocks: [] },
+        }),
+      ),
+    );
     assert.equal(unauth.status, 401);
 
     const token = await makeToken('user');
     const authed = await POST(
-      ctx(req('http://localhost/cms/api/pages', 'POST', { token, body: { title: 'Home', slug: '/', status: 'published', blocks: [] } }))
+      ctx(
+        req('http://localhost/cms/api/pages', 'POST', {
+          token,
+          body: { title: 'Home', slug: '/', status: 'published', blocks: [] },
+        }),
+      ),
     );
     assert.equal(authed.status, 200);
     const body = await authed.json();
@@ -383,15 +488,31 @@ test('USER-PUT-pages-id: 401 unauth, 200 authed updates the page', async () => {
     const token = await makeToken('user');
     const created = await (
       await POST(
-        ctx(req('http://localhost/cms/api/pages', 'POST', { token, body: { title: 'Home', slug: '/', status: 'published', blocks: [] } }))
+        ctx(
+          req('http://localhost/cms/api/pages', 'POST', {
+            token,
+            body: { title: 'Home', slug: '/', status: 'published', blocks: [] },
+          }),
+        ),
       )
     ).json();
 
-    const unauth = await PUT(ctx(req(`http://localhost/cms/api/pages/${created.id}`, 'PUT', { body: { title: 'Home Updated', slug: '/', status: 'published', blocks: [] } })));
+    const unauth = await PUT(
+      ctx(
+        req(`http://localhost/cms/api/pages/${created.id}`, 'PUT', {
+          body: { title: 'Home Updated', slug: '/', status: 'published', blocks: [] },
+        }),
+      ),
+    );
     assert.equal(unauth.status, 401);
 
     const authed = await PUT(
-      ctx(req(`http://localhost/cms/api/pages/${created.id}`, 'PUT', { token, body: { title: 'Home Updated', slug: '/', status: 'published', blocks: [] } }))
+      ctx(
+        req(`http://localhost/cms/api/pages/${created.id}`, 'PUT', {
+          token,
+          body: { title: 'Home Updated', slug: '/', status: 'published', blocks: [] },
+        }),
+      ),
     );
     assert.equal(authed.status, 200);
     const body = await authed.json();
@@ -403,12 +524,19 @@ test('USER-PATCH-media-id: 401 unauth, 200 authed updates media alt text', async
   await withTempProject(async (tempRoot) => {
     const entry = await seedEntry(tempRoot);
 
-    const unauth = await PATCH(ctx(req(`http://localhost/cms/api/media/${entry.id}`, 'PATCH', { body: { alt: 'x' } })));
+    const unauth = await PATCH(
+      ctx(req(`http://localhost/cms/api/media/${entry.id}`, 'PATCH', { body: { alt: 'x' } })),
+    );
     assert.equal(unauth.status, 401);
 
     const token = await makeToken('user');
     const authed = await PATCH(
-      ctx(req(`http://localhost/cms/api/media/${entry.id}`, 'PATCH', { token, body: { alt: 'A cat' } }))
+      ctx(
+        req(`http://localhost/cms/api/media/${entry.id}`, 'PATCH', {
+          token,
+          body: { alt: 'A cat' },
+        }),
+      ),
     );
     assert.equal(authed.status, 200);
     const body = await authed.json();
@@ -421,14 +549,21 @@ test('USER-DELETE-pages-id: 401 unauth, 204 authed deletes the page', async () =
     const token = await makeToken('user');
     const created = await (
       await POST(
-        ctx(req('http://localhost/cms/api/pages', 'POST', { token, body: { title: 'Temp', slug: '/temp', status: 'draft', blocks: [] } }))
+        ctx(
+          req('http://localhost/cms/api/pages', 'POST', {
+            token,
+            body: { title: 'Temp', slug: '/temp', status: 'draft', blocks: [] },
+          }),
+        ),
       )
     ).json();
 
     const unauth = await DELETE(ctx(req(`http://localhost/cms/api/pages/${created.id}`, 'DELETE')));
     assert.equal(unauth.status, 401);
 
-    const authed = await DELETE(ctx(req(`http://localhost/cms/api/pages/${created.id}`, 'DELETE', { token })));
+    const authed = await DELETE(
+      ctx(req(`http://localhost/cms/api/pages/${created.id}`, 'DELETE', { token })),
+    );
     assert.equal(authed.status, 204);
   });
 });
@@ -438,10 +573,20 @@ test('USER-DELETE-pages-id: 401 unauth, 204 authed deletes the page', async () =
 test('LADDER-unknown-path: unauthenticated -> 401 (never 404), authenticated -> 404', async () => {
   await withTempProject(async () => {
     const unauth = await GET(ctx(req('http://localhost/cms/api/does-not-exist-xyz', 'GET')));
-    assert.equal(unauth.status, 401, 'existence of a route must never be disclosed to an unauthenticated caller');
+    assert.equal(
+      unauth.status,
+      401,
+      'existence of a route must never be disclosed to an unauthenticated caller',
+    );
 
     const token = await makeToken('user');
-    const authed = await GET(ctx(req('http://localhost/cms/api/does-not-exist-xyz', 'GET', { token })));
-    assert.equal(authed.status, 404, 'only an authenticated caller can observe a 404 for an unmatched path');
+    const authed = await GET(
+      ctx(req('http://localhost/cms/api/does-not-exist-xyz', 'GET', { token })),
+    );
+    assert.equal(
+      authed.status,
+      404,
+      'only an authenticated caller can observe a 404 for an unmatched path',
+    );
   });
 });

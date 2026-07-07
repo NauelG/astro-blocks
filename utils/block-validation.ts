@@ -3,10 +3,27 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-import type { ArrayItemDef, ArrayPropDef, FileFieldValue, ObjectArrayItemDef, PrimitivePropDef, PrimitivePropType, PropDef } from '../types/index.js';
+import type {
+  ArrayItemDef,
+  ArrayPropDef,
+  FileFieldValue,
+  ObjectArrayItemDef,
+  PrimitivePropDef,
+  PrimitivePropType,
+  PropDef,
+} from '../types/index.js';
 import { isEmptyImageValue } from './image-value.js';
 
-const PRIMITIVE_TYPES = new Set<PrimitivePropType>(['string', 'text', 'number', 'boolean', 'image', 'link', 'select', 'file']);
+const PRIMITIVE_TYPES = new Set<PrimitivePropType>([
+  'string',
+  'text',
+  'number',
+  'boolean',
+  'image',
+  'link',
+  'select',
+  'file',
+]);
 // 'image' is intentionally NOT in STRING_LIKE_TYPES — image values are objects, not strings.
 const STRING_LIKE_TYPES = new Set<PrimitivePropType>(['string', 'text', 'link', 'select']);
 
@@ -70,7 +87,7 @@ function validatePrimitiveDefinition(
   def: PrimitivePropDef,
   schemaName: string,
   propName: string,
-  fieldName?: string
+  fieldName?: string,
 ): string | null {
   const label = fieldName ? `field "${fieldName}" of "${propName}"` : `prop "${propName}"`;
 
@@ -89,14 +106,21 @@ function validatePrimitiveDefinition(
   return null;
 }
 
-export function validateSchemaItemsDefinition(items: Record<string, unknown>, schemaName: string): string | null {
+export function validateSchemaItemsDefinition(
+  items: Record<string, unknown>,
+  schemaName: string,
+): string | null {
   for (const [propName, rawDef] of Object.entries(items || {})) {
     if (!isRecord(rawDef)) {
       return `Schema "${schemaName}": prop "${propName}" is invalid.`;
     }
 
     if (isPrimitivePropType(rawDef.type)) {
-      const message = validatePrimitiveDefinition(rawDef as unknown as PrimitivePropDef, schemaName, propName);
+      const message = validatePrimitiveDefinition(
+        rawDef as unknown as PrimitivePropDef,
+        schemaName,
+        propName,
+      );
       if (message) return message;
       continue;
     }
@@ -133,7 +157,11 @@ export function validateSchemaItemsDefinition(items: Record<string, unknown>, sc
     }
 
     if (isPrimitivePropType(rawDef.item.type)) {
-      const message = validatePrimitiveDefinition(rawDef.item as unknown as PrimitivePropDef, schemaName, propName);
+      const message = validatePrimitiveDefinition(
+        rawDef.item as unknown as PrimitivePropDef,
+        schemaName,
+        propName,
+      );
       if (message) return message;
       continue;
     }
@@ -159,7 +187,12 @@ export function validateSchemaItemsDefinition(items: Record<string, unknown>, sc
         return `Schema "${schemaName}": prop "${propName}" does not support nested fields in an object item ("${fieldName}").`;
       }
 
-      const message = validatePrimitiveDefinition(rawFieldDef as unknown as PrimitivePropDef, schemaName, propName, fieldName);
+      const message = validatePrimitiveDefinition(
+        rawFieldDef as unknown as PrimitivePropDef,
+        schemaName,
+        propName,
+        fieldName,
+      );
       if (message) return message;
     }
 
@@ -207,25 +240,44 @@ export interface BlockValidationIssue {
  * Keep in sync with blockValidation.* keys in routes/admin/i18n/en.ts.
  */
 const EN_BLOCK_MESSAGES: Record<string, string> = {
-  'blockValidation.fieldRequired': 'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
-  'blockValidation.fieldMustBeImage': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be an image object.',
-  'blockValidation.fieldImageNeedsUrl': 'Block "{blockName}" (index {blockIndex}): field "{label}" requires a valid URL.',
-  'blockValidation.fieldCannotBeEmpty': 'Block "{blockName}" (index {blockIndex}): field "{label}" cannot be empty.',
-  'blockValidation.fieldAltMustBeText': 'Block "{blockName}" (index {blockIndex}): field "{label}" — alt must be text.',
-  'blockValidation.fieldCaptionMustBeText': 'Block "{blockName}" (index {blockIndex}): field "{label}" — caption must be text.',
-  'blockValidation.fieldDimInvalid': 'Block "{blockName}" (index {blockIndex}): field "{label}" — {dim} must be a positive integer (> 0).',
-  'blockValidation.fieldMustBeText': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be text.',
-  'blockValidation.fieldInvalidOption': 'Block "{blockName}" (index {blockIndex}): field "{label}" has an invalid option.',
-  'blockValidation.fieldMustBeNumber': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be a valid number.',
-  'blockValidation.fieldMustBeBoolean': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be a boolean.',
-  'blockValidation.fieldMustBeFile': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be a file object.',
-  'blockValidation.fieldFileNeedsUrl': 'Block "{blockName}" (index {blockIndex}): field "{label}" requires a valid URL.',
-  'blockValidation.arrayMustContainObjects': 'Block "{blockName}" (index {blockIndex}): "{label}" must contain valid objects.',
-  'blockValidation.arrayRequired': 'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
-  'blockValidation.arrayMustBeArray': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be an array.',
-  'blockValidation.arrayMinItems': 'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
-  'blockValidation.arrayMaxItems': 'Block "{blockName}" (index {blockIndex}): field "{label}" allows at most {max} item(s).',
-  'blockValidation.arrayIsRequired': 'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
+  'blockValidation.fieldRequired':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
+  'blockValidation.fieldMustBeImage':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" must be an image object.',
+  'blockValidation.fieldImageNeedsUrl':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" requires a valid URL.',
+  'blockValidation.fieldCannotBeEmpty':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" cannot be empty.',
+  'blockValidation.fieldAltMustBeText':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" — alt must be text.',
+  'blockValidation.fieldCaptionMustBeText':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" — caption must be text.',
+  'blockValidation.fieldDimInvalid':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" — {dim} must be a positive integer (> 0).',
+  'blockValidation.fieldMustBeText':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" must be text.',
+  'blockValidation.fieldInvalidOption':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" has an invalid option.',
+  'blockValidation.fieldMustBeNumber':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" must be a valid number.',
+  'blockValidation.fieldMustBeBoolean':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" must be a boolean.',
+  'blockValidation.fieldMustBeFile':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" must be a file object.',
+  'blockValidation.fieldFileNeedsUrl':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" requires a valid URL.',
+  'blockValidation.arrayMustContainObjects':
+    'Block "{blockName}" (index {blockIndex}): "{label}" must contain valid objects.',
+  'blockValidation.arrayRequired':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
+  'blockValidation.arrayMustBeArray':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" must be an array.',
+  'blockValidation.arrayMinItems':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
+  'blockValidation.arrayMaxItems':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" allows at most {max} item(s).',
+  'blockValidation.arrayIsRequired':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
 };
 
 /** Interpolate a template string with params (same logic as routes/admin/i18n/t.ts). */
@@ -248,7 +300,7 @@ function issue(
   blockIndex: number,
   propName: string,
   itemIndex?: number,
-  fieldName?: string
+  fieldName?: string,
 ): BlockValidationIssue {
   return {
     messageKey,
@@ -270,7 +322,7 @@ function validatePrimitiveValue(
   label: string,
   required: boolean,
   itemIndex?: number,
-  fieldName?: string
+  fieldName?: string,
 ): BlockValidationIssue | null {
   const base = { blockName, blockIndex: String(blockIndex), label };
 
@@ -281,33 +333,82 @@ function validatePrimitiveValue(
     // null/undefined → truly no value → empty
     if (value === null || value === undefined) {
       if (required) {
-        return issue('blockValidation.fieldRequired', base, blockIndex, propName, itemIndex, fieldName);
+        return issue(
+          'blockValidation.fieldRequired',
+          base,
+          blockIndex,
+          propName,
+          itemIndex,
+          fieldName,
+        );
       }
       return null;
     }
 
     // Any non-object (incl. string) → always an error
     if (!isRecord(value)) {
-      return issue('blockValidation.fieldMustBeImage', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldMustBeImage',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     const imgVal = value as Record<string, unknown>;
     if (typeof imgVal.url !== 'string') {
-      return issue('blockValidation.fieldImageNeedsUrl', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldImageNeedsUrl',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     if (required && imgVal.url.trim() === '') {
-      return issue('blockValidation.fieldCannotBeEmpty', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldCannotBeEmpty',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     if (imgVal.alt !== undefined && typeof imgVal.alt !== 'string') {
-      return issue('blockValidation.fieldAltMustBeText', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldAltMustBeText',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     if (imgVal.caption !== undefined && typeof imgVal.caption !== 'string') {
-      return issue('blockValidation.fieldCaptionMustBeText', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldCaptionMustBeText',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     for (const dim of ['width', 'height'] as const) {
       const v = imgVal[dim];
       if (v !== undefined) {
         if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0 || !Number.isInteger(v)) {
-          return issue('blockValidation.fieldDimInvalid', { ...base, dim }, blockIndex, propName, itemIndex, fieldName);
+          return issue(
+            'blockValidation.fieldDimInvalid',
+            { ...base, dim },
+            blockIndex,
+            propName,
+            itemIndex,
+            fieldName,
+          );
         }
       }
     }
@@ -320,32 +421,81 @@ function validatePrimitiveValue(
     // null/undefined → truly no value → empty
     if (value === null || value === undefined) {
       if (required) {
-        return issue('blockValidation.fieldRequired', base, blockIndex, propName, itemIndex, fieldName);
+        return issue(
+          'blockValidation.fieldRequired',
+          base,
+          blockIndex,
+          propName,
+          itemIndex,
+          fieldName,
+        );
       }
       return null;
     }
 
     // Any non-object (incl. string) → always an error
     if (!isRecord(value)) {
-      return issue('blockValidation.fieldMustBeFile', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldMustBeFile',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     // Cast through unknown: at this point we know value is Record<string,unknown>,
     // and we validate each field manually below before trusting the shape.
     const fileVal = value as unknown as FileFieldValue;
     if (typeof fileVal.url !== 'string') {
-      return issue('blockValidation.fieldFileNeedsUrl', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldFileNeedsUrl',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     if (required && fileVal.url.trim() === '') {
-      return issue('blockValidation.fieldCannotBeEmpty', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldCannotBeEmpty',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     if (fileVal.filename !== undefined && typeof fileVal.filename !== 'string') {
-      return issue('blockValidation.fieldMustBeFile', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldMustBeFile',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     if (fileVal.mimeType !== undefined && typeof fileVal.mimeType !== 'string') {
-      return issue('blockValidation.fieldMustBeFile', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldMustBeFile',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     if (fileVal.download !== undefined && typeof fileVal.download !== 'boolean') {
-      return issue('blockValidation.fieldMustBeFile', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldMustBeFile',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     return null;
   }
@@ -354,22 +504,55 @@ function validatePrimitiveValue(
   const empty = value === undefined || value === null || value === '';
   if (empty) {
     if (required) {
-      return issue('blockValidation.fieldRequired', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldRequired',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     return null;
   }
 
   if (STRING_LIKE_TYPES.has(def.type)) {
     if (typeof value !== 'string') {
-      return issue('blockValidation.fieldMustBeText', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldMustBeText',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
 
     if (required && value.trim() === '') {
-      return issue('blockValidation.fieldCannotBeEmpty', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldCannotBeEmpty',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
 
-    if (def.type === 'select' && Array.isArray(def.options) && value && !def.options.includes(value)) {
-      return issue('blockValidation.fieldInvalidOption', base, blockIndex, propName, itemIndex, fieldName);
+    if (
+      def.type === 'select' &&
+      Array.isArray(def.options) &&
+      value &&
+      !def.options.includes(value)
+    ) {
+      return issue(
+        'blockValidation.fieldInvalidOption',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
 
     return null;
@@ -377,14 +560,28 @@ function validatePrimitiveValue(
 
   if (def.type === 'number') {
     if (typeof value !== 'number' || Number.isNaN(value)) {
-      return issue('blockValidation.fieldMustBeNumber', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldMustBeNumber',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
     return null;
   }
 
   if (def.type === 'boolean') {
     if (typeof value !== 'boolean') {
-      return issue('blockValidation.fieldMustBeBoolean', base, blockIndex, propName, itemIndex, fieldName);
+      return issue(
+        'blockValidation.fieldMustBeBoolean',
+        base,
+        blockIndex,
+        propName,
+        itemIndex,
+        fieldName,
+      );
     }
   }
 
@@ -396,7 +593,7 @@ function validateArrayItems(
   values: unknown[],
   blockName: string,
   blockIndex: number,
-  propName: string
+  propName: string,
 ): BlockValidationIssue | null {
   if (isPrimitivePropDef(def.item)) {
     const primitive = def.item;
@@ -413,7 +610,7 @@ function validateArrayItems(
         propName,
         itemLabel,
         required,
-        itemIndex
+        itemIndex,
       );
       if (valueIssue) return valueIssue;
     }
@@ -429,7 +626,7 @@ function validateArrayItems(
         { blockName, blockIndex: String(blockIndex), label: def.label },
         blockIndex,
         propName,
-        itemIndex
+        itemIndex,
       );
     }
 
@@ -444,7 +641,7 @@ function validateArrayItems(
         fieldLabel,
         fieldDef.required === true,
         itemIndex,
-        fieldName
+        fieldName,
       );
       if (fieldIssue) return fieldIssue;
     }
@@ -457,7 +654,7 @@ export function validateBlockPropsAgainstSchema(
   blockName: string,
   blockIndex: number,
   schemaItems: Record<string, PropDef>,
-  blockProps: Record<string, unknown>
+  blockProps: Record<string, unknown>,
 ): BlockValidationIssue | null {
   for (const [propName, def] of Object.entries(schemaItems || {})) {
     if (def.type === 'array') {
@@ -469,9 +666,14 @@ export function validateBlockPropsAgainstSchema(
         if (def.required === true || (minItems !== null && minItems > 0)) {
           return issue(
             'blockValidation.arrayRequired',
-            { blockName, blockIndex: String(blockIndex), label: def.label || propName, min: minItems || 1 },
+            {
+              blockName,
+              blockIndex: String(blockIndex),
+              label: def.label || propName,
+              min: minItems || 1,
+            },
             blockIndex,
-            propName
+            propName,
           );
         }
         continue;
@@ -482,7 +684,7 @@ export function validateBlockPropsAgainstSchema(
           'blockValidation.arrayMustBeArray',
           { blockName, blockIndex: String(blockIndex), label: def.label || propName },
           blockIndex,
-          propName
+          propName,
         );
       }
 
@@ -491,25 +693,35 @@ export function validateBlockPropsAgainstSchema(
           'blockValidation.arrayIsRequired',
           { blockName, blockIndex: String(blockIndex), label: def.label || propName },
           blockIndex,
-          propName
+          propName,
         );
       }
 
       if (minItems !== null && value.length < minItems) {
         return issue(
           'blockValidation.arrayMinItems',
-          { blockName, blockIndex: String(blockIndex), label: def.label || propName, min: minItems },
+          {
+            blockName,
+            blockIndex: String(blockIndex),
+            label: def.label || propName,
+            min: minItems,
+          },
           blockIndex,
-          propName
+          propName,
         );
       }
 
       if (maxItems !== null && value.length > maxItems) {
         return issue(
           'blockValidation.arrayMaxItems',
-          { blockName, blockIndex: String(blockIndex), label: def.label || propName, max: maxItems },
+          {
+            blockName,
+            blockIndex: String(blockIndex),
+            label: def.label || propName,
+            max: maxItems,
+          },
           blockIndex,
-          propName
+          propName,
         );
       }
 
@@ -526,7 +738,7 @@ export function validateBlockPropsAgainstSchema(
       blockIndex,
       propName,
       def.label || propName,
-      def.required === true
+      def.required === true,
     );
     if (fieldIssue) return fieldIssue;
   }

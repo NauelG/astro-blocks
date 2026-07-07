@@ -40,7 +40,10 @@ export async function GET({ request }: { request: Request }): Promise<Response> 
     const buffer = await fs.readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME[ext] ?? 'application/octet-stream';
-    const headers: Record<string, string> = { 'Content-Type': contentType, 'Cache-Control': 'no-cache' };
+    const headers: Record<string, string> = {
+      'Content-Type': contentType,
+      'Cache-Control': 'no-cache',
+    };
 
     if (ext === '.svg') {
       // SVG always served as attachment — XSS guard (R5.4, existing behavior unchanged)
@@ -58,7 +61,8 @@ export async function GET({ request }: { request: Request }): Promise<Response> 
 
     return new Response(buffer, { headers });
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return new Response(null, { status: 404 });
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      return new Response(null, { status: 404 });
     return new Response(null, { status: 500 });
   }
 }

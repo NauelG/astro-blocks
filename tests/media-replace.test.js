@@ -15,7 +15,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { SignJWT } from 'jose';
 
-import { ensureDefaultFiles, loadMedia, appendMediaEntry, generateId, markMediaVariantsReady } from '../dist/api/data.js';
+import {
+  ensureDefaultFiles,
+  loadMedia,
+  appendMediaEntry,
+  generateId,
+  markMediaVariantsReady,
+} from '../dist/api/data.js';
 import { handleReplaceUpload } from '../dist/api/handlers.js';
 import { getMediaVariants } from '../dist/utils/getMediaVariants.js';
 
@@ -56,9 +62,13 @@ async function withTempProject(fn) {
  * Minimal JPEG bytes (enough for a valid file but not a real image).
  * image-size may fail to extract dimensions — that is fine (swallowed by handler).
  */
-const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]);
+const JPEG_BYTES = new Uint8Array([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+]);
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const WEBP_BYTES = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]);
+const WEBP_BYTES = new Uint8Array([
+  0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
+]);
 
 /**
  * Create a media entry with a real file on disk and return its registered entry.
@@ -142,12 +152,20 @@ test('RE-01: same-MIME replace → 200, bytes overwritten, status=processing, mi
     const { resolveUploadPath } = await import('../dist/utils/paths.js');
     const filePath = resolveUploadPath(originalUrl);
     const diskBytes = await fs.readFile(filePath);
-    assert.deepEqual(Array.from(diskBytes), Array.from(newContent), 'disk bytes should match new content');
+    assert.deepEqual(
+      Array.from(diskBytes),
+      Array.from(newContent),
+      'disk bytes should match new content',
+    );
 
     // Variant file should be gone (cascade unlink)
     const variantUrl = entry.variants[0].url;
     const variantPath = resolveUploadPath(variantUrl);
-    await assert.rejects(() => fs.stat(variantPath), { code: 'ENOENT' }, 'old variant file should be deleted');
+    await assert.rejects(
+      () => fs.stat(variantPath),
+      { code: 'ENOENT' },
+      'old variant file should be deleted',
+    );
   });
 });
 
@@ -167,7 +185,7 @@ test('RE-02: different-MIME replace → 415 with expected-type message', async (
     assert.ok(body.error, 'should have error message');
     assert.ok(
       body.error.includes('image/jpeg') || body.error.toLowerCase().includes('expected'),
-      `Error message should mention expected MIME type, got: ${body.error}`
+      `Error message should mention expected MIME type, got: ${body.error}`,
     );
   });
 });
@@ -251,7 +269,13 @@ test('RE-07: non-allowed MIME type → 415', async () => {
     const entry = await seedMediaEntry(tempRoot);
     const token = await makeAuthToken();
 
-    const req = makeReplaceRequest(entry.id, new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'doc.pdf', 'application/pdf', token);
+    const req = makeReplaceRequest(
+      entry.id,
+      new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      'doc.pdf',
+      'application/pdf',
+      token,
+    );
     const res = await handleReplaceUpload(req, entry.id);
     assert.equal(res.status, 415);
     const body = await res.json();
@@ -273,10 +297,14 @@ test('L-2: replace with denylisted MIME (text/html) → 415 (denylist gate runs 
       Buffer.from('<script>alert(1)</script>'),
       'evil.html',
       'text/html',
-      token
+      token,
     );
     const res = await handleReplaceUpload(req, entry.id);
-    assert.equal(res.status, 415, 'denylisted MIME (text/html) must be rejected with 415 on replace');
+    assert.equal(
+      res.status,
+      415,
+      'denylisted MIME (text/html) must be rejected with 415 on replace',
+    );
     const body = await res.json();
     assert.ok(body.error, 'response must have error message');
   });

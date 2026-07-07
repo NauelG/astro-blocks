@@ -5,7 +5,17 @@ Licensed under the Business Source License 1.1
 
 import type { RedirectRule, RedirectsData } from '../../../types/index.js';
 import { normalizeRedirectPath } from '../../../utils/redirects.js';
-import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, openDialog, showAlert, showConfirm, showToast } from './common.js';
+import {
+  authHeaders,
+  closeDialog,
+  escapeHtml,
+  fetchJson,
+  fetchOk,
+  openDialog,
+  showAlert,
+  showConfirm,
+  showToast,
+} from './common.js';
 import { ct } from '../i18n/client.js';
 import { escapeAttr } from '../../../utils/html-escape.js';
 
@@ -20,19 +30,37 @@ export function initRedirectsEditor(): void {
   const idInput = document.getElementById('redirect-detail-id') as HTMLInputElement | null;
   const fromInput = document.getElementById('redirect-detail-from') as HTMLInputElement | null;
   const toInput = document.getElementById('redirect-detail-to') as HTMLInputElement | null;
-  const statusCodeInput = document.getElementById('redirect-detail-status-code') as HTMLSelectElement | null;
-  const enabledInput = document.getElementById('redirect-detail-enabled') as HTMLInputElement | null;
+  const statusCodeInput = document.getElementById(
+    'redirect-detail-status-code',
+  ) as HTMLSelectElement | null;
+  const enabledInput = document.getElementById(
+    'redirect-detail-enabled',
+  ) as HTMLInputElement | null;
   const submitBtn = document.getElementById('redirect-detail-submit') as HTMLButtonElement | null;
   const form = document.getElementById('redirect-detail-form') as HTMLFormElement | null;
   const errorEl = document.getElementById('redirect-detail-error') as HTMLElement | null;
-  const redirectsTbody = document.getElementById('cms-redirects-tbody') as HTMLTableSectionElement | null;
-  const redirectsSearch = document.getElementById('cms-redirects-search') as HTMLInputElement | null;
+  const redirectsTbody = document.getElementById(
+    'cms-redirects-tbody',
+  ) as HTMLTableSectionElement | null;
+  const redirectsSearch = document.getElementById(
+    'cms-redirects-search',
+  ) as HTMLInputElement | null;
   const redirectsCount = document.getElementById('cms-redirects-count');
   const redirectsEmpty = document.getElementById('cms-redirects-empty');
   const newBtn = document.getElementById('cms-redirect-new-btn');
   const newEmptyBtn = document.querySelector('[data-open-redirect-new]');
 
-  if (!dialog || !redirectsTbody || !form || !idInput || !fromInput || !toInput || !statusCodeInput || !enabledInput) return;
+  if (
+    !dialog ||
+    !redirectsTbody ||
+    !form ||
+    !idInput ||
+    !fromInput ||
+    !toInput ||
+    !statusCodeInput ||
+    !enabledInput
+  )
+    return;
 
   const idField = idInput;
   const fromField = fromInput;
@@ -58,13 +86,17 @@ export function initRedirectsEditor(): void {
     return normalizeRedirectPath(raw || '/');
   }
 
-  function validatePath(raw: string, fieldKey: 'redirects.labelFrom' | 'redirects.labelTo'): string | null {
+  function validatePath(
+    raw: string,
+    fieldKey: 'redirects.labelFrom' | 'redirects.labelTo',
+  ): string | null {
     const value = raw.trim();
     const field = ct(fieldKey);
     if (!value) return ct('redirects.pathRequired', { field });
     if (/^https?:\/\//i.test(value)) return ct('redirects.pathMustBeInternal', { field });
     if (!value.startsWith('/')) return ct('redirects.pathMustStartSlash', { field });
-    if (value.includes('?') || value.includes('#')) return ct('redirects.pathNoQueryFragment', { field });
+    if (value.includes('?') || value.includes('#'))
+      return ct('redirects.pathNoQueryFragment', { field });
     return null;
   }
 
@@ -126,7 +158,9 @@ export function initRedirectsEditor(): void {
       button.addEventListener('click', () => {
         const id = button.dataset.id || '';
         if (!id) return;
-        openEdit(id).catch((error) => showAlert(error instanceof Error ? error.message : String(error)));
+        openEdit(id).catch((error) =>
+          showAlert(error instanceof Error ? error.message : String(error)),
+        );
       });
     });
 
@@ -138,7 +172,7 @@ export function initRedirectsEditor(): void {
         const entry = redirectsState.find((item) => item.id === id);
         const confirmed = await showConfirm(
           ct('redirects.deleteConfirm', { from: entry?.from || '', to: entry?.to || '' }),
-          ct('common.delete')
+          ct('common.delete'),
         );
         if (!confirmed) return;
 
@@ -159,16 +193,17 @@ export function initRedirectsEditor(): void {
   function renderTable(): void {
     const list = filteredRedirects();
     redirectsTableBody.innerHTML = list
-      .map((entry) => (
-        `<tr data-id="${escapeAttr(entry.id)}">` +
-        `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-redirect-edit" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
-        `<td class="cms-table-cell-monospace">${escapeHtml(entry.from)}</td>` +
-        `<td class="cms-table-cell-monospace">${escapeHtml(entry.to)}</td>` +
-        `<td><span class="cms-badge cms-badge-neutral">${entry.statusCode}</span></td>` +
-        `<td><span class="cms-badge ${entry.enabled !== false ? 'cms-badge-success' : 'cms-badge-neutral'}">${entry.enabled !== false ? ct('redirects.statusActive') : ct('redirects.statusInactive')}</span></td>` +
-        `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-redirect-delete" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
-        '</tr>'
-      ))
+      .map(
+        (entry) =>
+          `<tr data-id="${escapeAttr(entry.id)}">` +
+          `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-redirect-edit" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
+          `<td class="cms-table-cell-monospace">${escapeHtml(entry.from)}</td>` +
+          `<td class="cms-table-cell-monospace">${escapeHtml(entry.to)}</td>` +
+          `<td><span class="cms-badge cms-badge-neutral">${entry.statusCode}</span></td>` +
+          `<td><span class="cms-badge ${entry.enabled !== false ? 'cms-badge-success' : 'cms-badge-neutral'}">${entry.enabled !== false ? ct('redirects.statusActive') : ct('redirects.statusInactive')}</span></td>` +
+          `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-redirect-delete" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
+          '</tr>',
+      )
       .join('');
 
     if (redirectsCount) redirectsCount.textContent = ct('redirects.count', { count: list.length });

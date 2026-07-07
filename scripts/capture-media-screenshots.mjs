@@ -153,7 +153,9 @@ function runCommand(command, args, options = {}) {
     child.on('error', reject);
     child.on('exit', (code) => {
       if (code === 0) return resolve();
-      return reject(new Error(`Command failed (${command} ${args.join(' ')}), exit code: ${code ?? 'null'}`));
+      return reject(
+        new Error(`Command failed (${command} ${args.join(' ')}), exit code: ${code ?? 'null'}`),
+      );
     });
   });
 }
@@ -224,7 +226,7 @@ async function captureScreenshots(baseUrl, token) {
       sessionStorage.setItem('cms-token', authToken);
       sessionStorage.setItem('cms-user', JSON.stringify(user));
     },
-    { authToken: token, user: SCREENSHOT_USER }
+    { authToken: token, user: SCREENSHOT_USER },
   );
 
   const page = await context.newPage();
@@ -239,12 +241,15 @@ async function captureScreenshots(baseUrl, token) {
 
     // Wait until at least half the thumbnails have actually loaded (naturalWidth > 0).
     // This prevents capturing broken-image icons instead of real thumbnails.
-    await page.waitForFunction(() => {
-      const imgs = document.querySelectorAll('#cms-media-grid .cms-media-card-img');
-      if (imgs.length === 0) return false;
-      const loaded = Array.from(imgs).filter(img => img.naturalWidth > 0);
-      return loaded.length >= Math.ceil(imgs.length * 0.5);
-    }, { timeout: 20000 });
+    await page.waitForFunction(
+      () => {
+        const imgs = document.querySelectorAll('#cms-media-grid .cms-media-card-img');
+        if (imgs.length === 0) return false;
+        const loaded = Array.from(imgs).filter((img) => img.naturalWidth > 0);
+        return loaded.length >= Math.ceil(imgs.length * 0.5);
+      },
+      { timeout: 20000 },
+    );
 
     // Allow any CSS enter-transitions to settle.
     await sleep(800);
@@ -265,12 +270,11 @@ async function captureScreenshots(baseUrl, token) {
     // versioned demo pages.json ships a "media-showcase-page" whose default-locale
     // (es) slug is "/galeria"; we match the row by that slug so we don't depend on
     // row ordering or on the localized title shown in the CMS table.
-    const mediaPageRow = page
-      .locator('#cms-pages-tbody tr')
-      .filter({ hasText: '/galeria' });
-    const editBtn = (await mediaPageRow.count()) > 0
-      ? mediaPageRow.first().locator('.cms-page-edit')
-      : page.locator('.cms-page-edit').first();
+    const mediaPageRow = page.locator('#cms-pages-tbody tr').filter({ hasText: '/galeria' });
+    const editBtn =
+      (await mediaPageRow.count()) > 0
+        ? mediaPageRow.first().locator('.cms-page-edit')
+        : page.locator('.cms-page-edit').first();
     await editBtn.click();
 
     // Wait for the editor modal to open (showModal() sets the [open] attribute).
@@ -286,19 +290,22 @@ async function captureScreenshots(baseUrl, token) {
       .filter({ has: page.locator('.cms-block-item-name', { hasText: 'Media Showcase' }) })
       .locator('.cms-block-item-toggle');
 
-    if (await mediaBlockToggle.count() > 0) {
+    if ((await mediaBlockToggle.count()) > 0) {
       await mediaBlockToggle.first().click();
       // Wait until the block body loses the cms-hidden class (i.e. is expanded).
-      await page.waitForFunction(() => {
-        const names = document.querySelectorAll('.cms-block-item-name');
-        for (const name of names) {
-          if (name.textContent?.includes('Media Showcase')) {
-            const body = name.closest('.cms-block-item')?.querySelector('.cms-block-item-body');
-            return body && !body.classList.contains('cms-hidden');
+      await page.waitForFunction(
+        () => {
+          const names = document.querySelectorAll('.cms-block-item-name');
+          for (const name of names) {
+            if (name.textContent?.includes('Media Showcase')) {
+              const body = name.closest('.cms-block-item')?.querySelector('.cms-block-item-body');
+              return body && !body.classList.contains('cms-hidden');
+            }
           }
-        }
-        return false;
-      }, { timeout: 10000 });
+          return false;
+        },
+        { timeout: 10000 },
+      );
       // Brief settle to let any transition animations complete.
       await sleep(300);
     } else {
@@ -309,16 +316,16 @@ async function captureScreenshots(baseUrl, token) {
       for (let i = 0; i < toggleCount; i++) {
         await allToggles.nth(i).click();
         await sleep(200);
-        if (await page.locator('[data-picker-for]').count() > 0) break;
+        if ((await page.locator('[data-picker-for]').count()) > 0) break;
       }
     }
 
     // At this point the expanded block body must contain at least one [data-picker-for]
     // button (the "Choose image" button rendered by block-form.ts for each image field).
-    if (await page.locator('[data-picker-for]').count() === 0) {
+    if ((await page.locator('[data-picker-for]').count()) === 0) {
       throw new Error(
         'No image picker button found after expanding MediaShowcase block. ' +
-        'Ensure the versioned pages.json still contains a MediaShowcase block with image fields.'
+          'Ensure the versioned pages.json still contains a MediaShowcase block with image fields.',
       );
     }
 
@@ -330,24 +337,26 @@ async function captureScreenshots(baseUrl, token) {
     await page.waitForSelector('.cms-media-picker-grid', { timeout: 20000 });
 
     // Wait for picker thumbnails to load before capturing.
-    await page.waitForFunction(() => {
-      const imgs = document.querySelectorAll('.cms-media-picker-grid .cms-media-picker-img');
-      if (imgs.length === 0) return false;
-      const loaded = Array.from(imgs).filter(img => img.naturalWidth > 0);
-      return loaded.length >= Math.ceil(imgs.length * 0.5);
-    }, { timeout: 20000 });
+    await page.waitForFunction(
+      () => {
+        const imgs = document.querySelectorAll('.cms-media-picker-grid .cms-media-picker-img');
+        if (imgs.length === 0) return false;
+        const loaded = Array.from(imgs).filter((img) => img.naturalWidth > 0);
+        return loaded.length >= Math.ceil(imgs.length * 0.5);
+      },
+      { timeout: 20000 },
+    );
 
     await sleep(800);
 
     // Crop to the picker panel for a clean, focused screenshot.
     const pickerPanel = page.locator('.cms-media-picker-panel');
-    if (await pickerPanel.count() > 0) {
+    if ((await pickerPanel.count()) > 0) {
       await pickerPanel.screenshot({ path: IMAGE_PICKER_PATH, type: 'png' });
     } else {
       await page.screenshot({ path: IMAGE_PICKER_PATH, type: 'png', fullPage: false });
     }
     console.log(`[media-screenshots] Saved ${path.relative(ROOT, IMAGE_PICKER_PATH)}`);
-
   } finally {
     await context.close();
     await browser.close();
@@ -404,7 +413,6 @@ async function main() {
       console.log('[media-screenshots] Capturing screenshots...');
       await fs.mkdir(IMG_DIR, { recursive: true });
       await captureScreenshots(baseUrl, token);
-
     } catch (err) {
       if (String(err).includes("Executable doesn't exist")) {
         console.error('[media-screenshots] Chromium is not installed.');
@@ -416,7 +424,6 @@ async function main() {
       console.log('[media-screenshots] Stopping dev server...');
       await closeDevServer(devServer);
     }
-
   } finally {
     // ── Step 6: Restore the versioned demo — always runs, even on error ───────
     // Guarantees the only working-tree change left behind is the regenerated

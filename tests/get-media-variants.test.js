@@ -43,9 +43,7 @@ test('cache hit — single loadMedia call when mtime unchanged', async () => {
       mimeType: 'image/jpeg',
       createdAt: new Date().toISOString(),
       status: 'ready',
-      variants: [
-        { format: 'webp', width: 480, url: '/uploads/2026/06/img-480.webp' },
-      ],
+      variants: [{ format: 'webp', width: 480, url: '/uploads/2026/06/img-480.webp' }],
     };
     await saveMedia({ uploads: [entry] });
 
@@ -87,9 +85,7 @@ test('cache invalidation — re-reads after mtime changes', async () => {
     const entry2 = {
       ...entry1,
       status: 'ready',
-      variants: [
-        { format: 'webp', width: 480, url: '/uploads/2026/06/img2-480.webp' },
-      ],
+      variants: [{ format: 'webp', width: 480, url: '/uploads/2026/06/img2-480.webp' }],
     };
     await saveMedia({ uploads: [entry2] });
 
@@ -155,7 +151,7 @@ test('legacy entry (no status/variants) → status:none (plain-img branch)', asy
           },
         ],
       }),
-      'utf-8'
+      'utf-8',
     );
 
     const result = await getMediaVariants(legacyUrl);

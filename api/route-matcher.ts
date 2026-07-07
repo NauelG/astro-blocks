@@ -49,7 +49,9 @@ export interface RouteContext<A extends AuthLevel = AuthLevel> {
   user: UserForAuth<A>;
 }
 
-export type RouteHandler<A extends AuthLevel> = (ctx: RouteContext<A>) => Response | Promise<Response>;
+export type RouteHandler<A extends AuthLevel> = (
+  ctx: RouteContext<A>,
+) => Response | Promise<Response>;
 
 /** A single declared route: method + seg-relative pattern + auth level + handler. */
 export interface RouteDescriptor<A extends AuthLevel = AuthLevel> {
@@ -81,7 +83,11 @@ export interface RouteMatch {
  * `method` and `pattern` match — mirroring the original if-chain's first-match
  * semantics exactly (ADR-4). Returns `null` when nothing matches.
  */
-export function matchRoute(method: HttpMethod, segments: string[], table: RouteDescriptor[]): RouteMatch | null {
+export function matchRoute(
+  method: HttpMethod,
+  segments: string[],
+  table: RouteDescriptor[],
+): RouteMatch | null {
   for (const descriptor of table) {
     if (descriptor.method !== method) continue;
     const params = matchPattern(descriptor.pattern, segments);

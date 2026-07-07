@@ -22,7 +22,14 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { ZipDeflate, Unzip, UnzipInflate } from 'fflate';
 import { fflateZipToReadableStream } from './backup-stream.js';
-import { ALL_DATA_FILES, UNIT_TO_DATA_FILES, buildManifest, sha256Hex, validateManifest, verifyChecksums } from './manifest.js';
+import {
+  ALL_DATA_FILES,
+  UNIT_TO_DATA_FILES,
+  buildManifest,
+  sha256Hex,
+  validateManifest,
+  verifyChecksums,
+} from './manifest.js';
 import type { ExportUnit, BackupManifest } from './manifest.js';
 import { unitValidators } from './import-validate.js';
 import type { CeilingLimits } from './import-utils.js';
@@ -247,7 +254,9 @@ export async function extractToStaging(
     unzip.onfile = (file) => {
       // Early-exit when a previous entry already aborted the extraction.
       // Avoids calling file.start() and wasting CPU decompressing zip-bomb tails.
-      if (aborted) { return; }
+      if (aborted) {
+        return;
+      }
 
       const entryName = file.name;
 
@@ -273,18 +282,14 @@ export async function extractToStaging(
         const relative = entryName.slice('uploads/'.length);
         if (!relative || relative.includes('..')) {
           aborted = true;
-          reject(
-            new Error(`Path traversal attempt in uploads entry: "${entryName}"`),
-          );
+          reject(new Error(`Path traversal attempt in uploads entry: "${entryName}"`));
           return;
         }
         // Additional absolute path guard: ensure resolved path stays under stagingUploadsDir
         const resolved = path.resolve(path.join(stagingUploadsDir, relative));
         if (!resolved.startsWith(stagingUploadsDir + path.sep) && resolved !== stagingUploadsDir) {
           aborted = true;
-          reject(
-            new Error(`Path traversal attempt in uploads entry: "${entryName}"`),
-          );
+          reject(new Error(`Path traversal attempt in uploads entry: "${entryName}"`));
           return;
         }
         destPath = resolved;
@@ -306,7 +311,9 @@ export async function extractToStaging(
       file.ondata = (err, chunk, final) => {
         // Early-exit after abort: a prior entry already hit a ceiling or path-guard
         // reject. Do NOT decompress further chunks — saves CPU on zip-bomb tails.
-        if (aborted) { return; }
+        if (aborted) {
+          return;
+        }
         if (err) {
           aborted = true;
           reject(err);
@@ -596,10 +603,19 @@ export async function applyImport(
           // configuration maps to 5 files: site, configs, menus, redirects, languages
           const confFiles: Array<[string, (d: unknown) => Promise<void>]> = [
             ['site.json', async (d) => data.saveSite(d as Parameters<typeof data.saveSite>[0])],
-            ['configs.json', async (d) => data.saveConfigs(d as Parameters<typeof data.saveConfigs>[0])],
+            [
+              'configs.json',
+              async (d) => data.saveConfigs(d as Parameters<typeof data.saveConfigs>[0]),
+            ],
             ['menus.json', async (d) => data.saveMenus(d as Parameters<typeof data.saveMenus>[0])],
-            ['redirects.json', async (d) => data.saveRedirects(d as Parameters<typeof data.saveRedirects>[0])],
-            ['languages.json', async (d) => data.saveLanguages(d as Parameters<typeof data.saveLanguages>[0])],
+            [
+              'redirects.json',
+              async (d) => data.saveRedirects(d as Parameters<typeof data.saveRedirects>[0]),
+            ],
+            [
+              'languages.json',
+              async (d) => data.saveLanguages(d as Parameters<typeof data.saveLanguages>[0]),
+            ],
           ];
           for (const [filename, saver] of confFiles) {
             try {
@@ -641,7 +657,9 @@ export async function applyImport(
           const oldUploadsDir = liveUploadsDir + '.import-old';
           await fs.rm(oldUploadsDir, { recursive: true, force: true });
           // Move live aside (non-destructive move; fails gracefully if absent)
-          await fs.rename(liveUploadsDir, oldUploadsDir).catch(() => {/* live dir absent — ok */});
+          await fs.rename(liveUploadsDir, oldUploadsDir).catch(() => {
+            /* live dir absent — ok */
+          });
           // Promote the prepared temp dir to live
           await fs.rename(tempUploadsDir, liveUploadsDir);
           // Step 3: remove the old dir
@@ -651,7 +669,10 @@ export async function applyImport(
           break;
         }
         case 'global-blocks': {
-          const raw = await fs.readFile(path.join(stagingDir, 'data', 'global-blocks.json'), 'utf-8');
+          const raw = await fs.readFile(
+            path.join(stagingDir, 'data', 'global-blocks.json'),
+            'utf-8',
+          );
           await data.saveGlobalBlocks(JSON.parse(raw));
           break;
         }
@@ -659,7 +680,11 @@ export async function applyImport(
     }
 
     // Invalidate cache if available
-    if (context.cache && typeof (context.cache as { enabled?: boolean }).enabled === 'boolean' && (context.cache as { enabled?: boolean }).enabled) {
+    if (
+      context.cache &&
+      typeof (context.cache as { enabled?: boolean }).enabled === 'boolean' &&
+      (context.cache as { enabled?: boolean }).enabled
+    ) {
       const { getGlobalCachePaths, getGlobalCacheTags } = await import('../utils/cache.js');
       const cacheCtx = context.cache as {
         invalidate: (opts: { path?: string; tags?: string[] }) => Promise<void>;
@@ -721,7 +746,13 @@ export interface ImportPipelineOptions {
 export interface ImportPipelineResult {
   ok: boolean;
   usersReplaced?: boolean;
-  errorCode?: 'empty' | 'corrupt' | 'ceiling' | 'validation' | 'apply-failed' | 'bootstrap-users-exist';
+  errorCode?:
+    | 'empty'
+    | 'corrupt'
+    | 'ceiling'
+    | 'validation'
+    | 'apply-failed'
+    | 'bootstrap-users-exist';
   reason?: string;
 }
 
@@ -743,14 +774,18 @@ export function runImportPipeline(
 ): Promise<ImportPipelineResult> {
   // Acquire the lock: chain our work after whatever is currently running.
   let resolveLock!: () => void;
-  const nextLock = new Promise<void>((res) => { resolveLock = res; });
+  const nextLock = new Promise<void>((res) => {
+    resolveLock = res;
+  });
 
   const prevLock = _importLock;
   _importLock = nextLock;
 
-  return prevLock.then(() => _runImportPipelineCore(body, opts)).finally(() => {
-    resolveLock();
-  });
+  return prevLock
+    .then(() => _runImportPipelineCore(body, opts))
+    .finally(() => {
+      resolveLock();
+    });
 }
 
 async function _runImportPipelineCore(
@@ -767,7 +802,11 @@ async function _runImportPipelineCore(
   if (opts.bootstrapMode) {
     const currentUsers = await data.loadUsers();
     if (currentUsers.users.length !== 0) {
-      return { ok: false, errorCode: 'bootstrap-users-exist', reason: 'instance already has users (in-lock check)' };
+      return {
+        ok: false,
+        errorCode: 'bootstrap-users-exist',
+        reason: 'instance already has users (in-lock check)',
+      };
     }
   }
 

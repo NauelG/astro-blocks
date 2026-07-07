@@ -25,30 +25,20 @@ const COMPONENTS_DIR = path.join(ROOT, 'playgrounds', 'basic', 'src', 'component
 
 test('R9.1-A: DownloadButton.astro exists in playground components', () => {
   const filePath = path.join(COMPONENTS_DIR, 'DownloadButton.astro');
-  assert.ok(
-    fs.existsSync(filePath),
-    `Expected file to exist: ${filePath}`,
-  );
+  assert.ok(fs.existsSync(filePath), `Expected file to exist: ${filePath}`);
 });
 
 // ─── R9.2-A — DownloadButton.schema.ts exists and has correct declarations ───
 
 test('R9.2-A: DownloadButton.schema.ts exists in playground components', () => {
   const filePath = path.join(COMPONENTS_DIR, 'DownloadButton.schema.ts');
-  assert.ok(
-    fs.existsSync(filePath),
-    `Expected file to exist: ${filePath}`,
-  );
+  assert.ok(fs.existsSync(filePath), `Expected file to exist: ${filePath}`);
 });
 
 test("R9.2-A: DownloadButton.schema.ts declares a prop with type 'file'", () => {
   const filePath = path.join(COMPONENTS_DIR, 'DownloadButton.schema.ts');
   const content = fs.readFileSync(filePath, 'utf-8');
-  assert.match(
-    content,
-    /type:\s*['"]file['"]/,
-    "Schema should contain type: 'file' declaration",
-  );
+  assert.match(content, /type:\s*['"]file['"]/, "Schema should contain type: 'file' declaration");
 });
 
 test("R9.2-A: DownloadButton.schema.ts includes 'application/pdf' in accept", () => {
@@ -64,11 +54,7 @@ test("R9.2-A: DownloadButton.schema.ts includes 'application/pdf' in accept", ()
 test('R9.2-A: DownloadButton.schema.ts declares download: true', () => {
   const filePath = path.join(COMPONENTS_DIR, 'DownloadButton.schema.ts');
   const content = fs.readFileSync(filePath, 'utf-8');
-  assert.match(
-    content,
-    /download:\s*true/,
-    "Schema should contain download: true",
-  );
+  assert.match(content, /download:\s*true/, 'Schema should contain download: true');
 });
 
 // ─── DownloadButton.astro uses fileDownloadUrl ────────────────────────────────
@@ -79,7 +65,7 @@ test('DownloadButton.astro imports or references fileDownloadUrl', () => {
   assert.match(
     content,
     /fileDownloadUrl/,
-    "DownloadButton.astro should reference fileDownloadUrl helper",
+    'DownloadButton.astro should reference fileDownloadUrl helper',
   );
 });
 
@@ -102,6 +88,6 @@ test('R8.2-A: routes/admin/client/media.ts contains non-image (document) card br
   assert.match(
     content,
     /fileCategory|document|non.?image/i,
-    "media.ts should contain a conditional branch for non-image (document) entries",
+    'media.ts should contain a conditional branch for non-image (document) entries',
   );
 });

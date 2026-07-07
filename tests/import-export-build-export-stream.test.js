@@ -102,11 +102,20 @@ test('B-1: zip contains manifest.json and it is parseable JSON', async () => {
 
     assert.ok('manifest.json' in entries, 'zip must contain manifest.json');
     const manifest = JSON.parse(entries['manifest.json'].toString('utf-8'));
-    assert.ok(typeof manifest.schemaVersion === 'number', 'manifest.schemaVersion must be a number');
-    assert.ok(typeof manifest.astroBlocksVersion === 'string', 'manifest.astroBlocksVersion must be a string');
+    assert.ok(
+      typeof manifest.schemaVersion === 'number',
+      'manifest.schemaVersion must be a number',
+    );
+    assert.ok(
+      typeof manifest.astroBlocksVersion === 'string',
+      'manifest.astroBlocksVersion must be a string',
+    );
     assert.ok(typeof manifest.exportedAt === 'string', 'manifest.exportedAt must be a string');
     assert.deepEqual(manifest.units, ['pages']);
-    assert.ok(typeof manifest.checksums === 'object' && manifest.checksums !== null, 'manifest.checksums must be object');
+    assert.ok(
+      typeof manifest.checksums === 'object' && manifest.checksums !== null,
+      'manifest.checksums must be object',
+    );
   });
 });
 
@@ -121,7 +130,10 @@ test('B-1: pages unit — data/pages.json present, data/users.json absent', asyn
     assert.ok('data/pages.json' in entries, 'data/pages.json must be in zip');
     assert.ok(!('data/users.json' in entries), 'data/users.json must NOT be in zip');
     assert.ok(!('data/site.json' in entries), 'data/site.json must NOT be in zip');
-    assert.ok(!('data/global-blocks.json' in entries), 'data/global-blocks.json must NOT be in zip');
+    assert.ok(
+      !('data/global-blocks.json' in entries),
+      'data/global-blocks.json must NOT be in zip',
+    );
   });
 });
 
@@ -136,7 +148,10 @@ test('B-1: configuration unit — all 5 config files present, pages absent', asy
     assert.ok('data/menus.json' in entries, 'data/menus.json must be in zip');
     assert.ok('data/redirects.json' in entries, 'data/redirects.json must be in zip');
     assert.ok('data/languages.json' in entries, 'data/languages.json must be in zip');
-    assert.ok(!('data/pages.json' in entries), 'data/pages.json must NOT be in zip for configuration only');
+    assert.ok(
+      !('data/pages.json' in entries),
+      'data/pages.json must NOT be in zip for configuration only',
+    );
   });
 });
 
@@ -186,7 +201,10 @@ test('B-1: zip never includes entries under data/_backups/', async () => {
     const entries = await extractZip(buf);
 
     for (const name of Object.keys(entries)) {
-      assert.ok(!name.startsWith('data/_backups'), `entry "${name}" must not be under data/_backups/`);
+      assert.ok(
+        !name.startsWith('data/_backups'),
+        `entry "${name}" must not be under data/_backups/`,
+      );
     }
   });
 });
@@ -244,10 +262,7 @@ test('B-1: media unit — uploads entries checksums match actual bytes', async (
 
 test('B-1: buildExportStream rejects when units array is empty', async () => {
   await withTempProject(async (tempRoot) => {
-    await assert.rejects(
-      async () => buildExportStream([], tempRoot),
-      /units/i,
-    );
+    await assert.rejects(async () => buildExportStream([], tempRoot), /units/i);
   });
 });
 

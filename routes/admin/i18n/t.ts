@@ -26,10 +26,7 @@ export function t(
   fallbackCatalog?: Catalog,
 ): string {
   const enFallback: Catalog = catalogs.en;
-  const raw =
-    catalog[key] ??
-    (fallbackCatalog ?? enFallback)[key] ??
-    key;
+  const raw = catalog[key] ?? (fallbackCatalog ?? enFallback)[key] ?? key;
 
   if (!params) return raw;
 

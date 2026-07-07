@@ -23,10 +23,15 @@ test('getConfig reads values case-insensitively and getConfigMap returns all ent
       JSON.stringify({
         configs: [
           { id: 'c1', key: 'GOOGLE_MAPS_API_KEY', value: 'maps-key' },
-          { id: 'c2', key: 'Form_Recipient', value: 'forms@example.com', description: 'Forms inbox' },
+          {
+            id: 'c2',
+            key: 'Form_Recipient',
+            value: 'forms@example.com',
+            description: 'Forms inbox',
+          },
         ],
       }),
-      'utf-8'
+      'utf-8',
     );
 
     process.env.ASTRO_BLOCKS_PROJECT_ROOT = tempRoot;

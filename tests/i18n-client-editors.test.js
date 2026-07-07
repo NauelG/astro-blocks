@@ -90,7 +90,10 @@ test('ct equivalent: createT("es") resolves globalBlocks.networkError', () => {
 
 test('ct equivalent: createT("en") resolves pageEditor.arrayMaxReached with interpolation', () => {
   const t = createT('en');
-  assert.equal(t('pageEditor.arrayMaxReached', { value: '5' }), 'You have reached the maximum of 5 item(s) in this field.');
+  assert.equal(
+    t('pageEditor.arrayMaxReached', { value: '5' }),
+    'You have reached the maximum of 5 item(s) in this field.',
+  );
 });
 
 test('ct equivalent: createT("en") resolves blockForm.maxReached with interpolation', () => {

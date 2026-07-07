@@ -21,9 +21,14 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  */
 test('every injected admin route declares prerender = false (so SSR reads cms-ui-locale)', () => {
   const pluginSrc = fs.readFileSync(path.join(ROOT, 'plugin', 'index.ts'), 'utf8');
-  const injected = [...pluginSrc.matchAll(/resolveCms\(['"]admin\/([a-z0-9-]+\.astro)['"]\)/g)].map((m) => m[1]);
+  const injected = [...pluginSrc.matchAll(/resolveCms\(['"]admin\/([a-z0-9-]+\.astro)['"]\)/g)].map(
+    (m) => m[1],
+  );
 
-  assert.ok(injected.length >= 11, `expected to find the injected admin routes, found ${injected.length}`);
+  assert.ok(
+    injected.length >= 11,
+    `expected to find the injected admin routes, found ${injected.length}`,
+  );
 
   const missing = injected.filter((file) => {
     const src = fs.readFileSync(path.join(ROOT, 'routes', 'admin', file), 'utf8');

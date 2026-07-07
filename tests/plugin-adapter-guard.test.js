@@ -37,7 +37,7 @@ test('build with no adapter throws an actionable error', () => {
       assert.match(err.message, /adapter/i);
       assert.match(err.message, /Aborting build/);
       return true;
-    }
+    },
   );
 });
 
@@ -105,7 +105,7 @@ test('e2e: config:done throws when build ran config:setup with no adapter', asyn
     await runSetup(integration, tempRoot, 'build');
     assert.throws(
       () => integration.hooks['astro:config:done']({ config: { adapter: undefined } }),
-      /Aborting build/
+      /Aborting build/,
     );
   });
 });
@@ -116,8 +116,8 @@ test('e2e: config:done stays silent when build has an adapter', async () => {
     await runSetup(integration, tempRoot, 'build');
     const warnings = captureWarnings(() =>
       assert.doesNotThrow(() =>
-        integration.hooks['astro:config:done']({ config: { adapter: anAdapter } })
-      )
+        integration.hooks['astro:config:done']({ config: { adapter: anAdapter } }),
+      ),
     );
     assert.equal(warnings.length, 0);
   });
@@ -129,8 +129,8 @@ test('e2e: config:done warns (no throw) when dev ran config:setup with no adapte
     await runSetup(integration, tempRoot, 'dev');
     const warnings = captureWarnings(() =>
       assert.doesNotThrow(() =>
-        integration.hooks['astro:config:done']({ config: { adapter: undefined } })
-      )
+        integration.hooks['astro:config:done']({ config: { adapter: undefined } }),
+      ),
     );
     assert.equal(warnings.length, 1);
     assert.match(warnings[0], /astro-blocks/);

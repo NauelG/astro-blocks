@@ -80,13 +80,19 @@ async function buildMinimalZip(entries) {
     const chunks = [];
     const zip = new Zip();
     zip.ondata = (err, chunk, final) => {
-      if (err) { reject(err); return; }
+      if (err) {
+        reject(err);
+        return;
+      }
       chunks.push(chunk);
       if (final) {
         const totalLen = chunks.reduce((s, c) => s + c.length, 0);
         const buf = Buffer.allocUnsafe(totalLen);
         let off = 0;
-        for (const c of chunks) { buf.set(c, off); off += c.length; }
+        for (const c of chunks) {
+          buf.set(c, off);
+          off += c.length;
+        }
         resolve(buf);
       }
     };
@@ -102,7 +108,11 @@ async function buildMinimalZip(entries) {
 /** Extract a real zip into a staging dir. Returns stagingDir (caller must rm). */
 async function prepareStaging(zipBody, projectRoot) {
   const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-'));
-  const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
+  const ceilings = {
+    perFile: 50 * 1024 * 1024,
+    total: 500 * 1024 * 1024,
+    compressed: 1024 * 1024 * 1024,
+  };
   await extractToStaging(zipBody, stagingDir, ceilings, projectRoot);
   return stagingDir;
 }
@@ -173,10 +183,7 @@ test('C-2: validateStagedImport fails with /version mismatch/ on wrong schemaVer
       checksums: {},
     };
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-badver-'));
-    await fs.writeFile(
-      path.join(stagingDir, 'manifest.json'),
-      JSON.stringify(wrongManifest),
-    );
+    await fs.writeFile(path.join(stagingDir, 'manifest.json'), JSON.stringify(wrongManifest));
     try {
       const result = await validateStagedImport(stagingDir, ['pages'], tempRoot);
       assert.equal(result.ok, false, 'expected ok:false for version mismatch');
@@ -202,7 +209,9 @@ test('C-2: validateStagedImport fails with /structural/ message on invalid user 
     const { DATA_SCHEMA_VERSION: SV } = await import('../dist/api/schema-version.js');
     const { buildManifest } = await import('../dist/api/manifest.js');
 
-    const badUsersData = JSON.stringify({ users: [{ id: '1', email: 'a@b.com', passwordHash: 'x', role: 'superadmin' }] });
+    const badUsersData = JSON.stringify({
+      users: [{ id: '1', email: 'a@b.com', passwordHash: 'x', role: 'superadmin' }],
+    });
     const badUsersBytes = Buffer.from(badUsersData, 'utf-8');
     const usersChecksum = sha256Hex(badUsersBytes);
 
@@ -265,7 +274,11 @@ test('C-3: createBackupSnapshot with 6 existing snapshots prunes oldest (retains
     await createBackupSnapshot(tempRoot, ['pages']);
 
     const entries = await fs.readdir(backupsDir);
-    assert.equal(entries.length, 5, `should retain 5 snapshots, got ${entries.length}: ${entries.join(', ')}`);
+    assert.equal(
+      entries.length,
+      5,
+      `should retain 5 snapshots, got ${entries.length}: ${entries.join(', ')}`,
+    );
 
     // Oldest should have been pruned
     assert.ok(
@@ -289,7 +302,10 @@ test('C-3: createBackupSnapshot with media unit copies uploads/ dir', async () =
     const snapshotDir = path.join(backupsDir, entries[0]);
     const uploadsSnapshot = path.join(snapshotDir, 'uploads');
     const uploadsStat = await fs.stat(uploadsSnapshot);
-    assert.ok(uploadsStat.isDirectory(), 'snapshot must contain uploads/ dir when media unit selected');
+    assert.ok(
+      uploadsStat.isDirectory(),
+      'snapshot must contain uploads/ dir when media unit selected',
+    );
   });
 });
 
@@ -306,8 +322,15 @@ test('C-3: createBackupSnapshot without media unit does NOT copy uploads/', asyn
     const entries = await fs.readdir(backupsDir);
     const snapshotDir = path.join(backupsDir, entries[0]);
     const uploadsSnapshot = path.join(snapshotDir, 'uploads');
-    const exists = await fs.stat(uploadsSnapshot).then(() => true).catch(() => false);
-    assert.equal(exists, false, 'uploads/ snapshot dir must NOT exist when media unit not selected');
+    const exists = await fs
+      .stat(uploadsSnapshot)
+      .then(() => true)
+      .catch(() => false);
+    assert.equal(
+      exists,
+      false,
+      'uploads/ snapshot dir must NOT exist when media unit not selected',
+    );
   });
 });
 
@@ -321,7 +344,17 @@ test('C-4: applyImport replaces live data files from staging', async () => {
     const zipBody = await buildZipBody(['pages'], tempRoot);
 
     // Modify live pages.json to something different
-    await savePages({ pages: [{ id: 'original', slug: { en: 'original' }, title: { en: 'Original' }, blocks: [], status: { en: 'published' } }] });
+    await savePages({
+      pages: [
+        {
+          id: 'original',
+          slug: { en: 'original' },
+          title: { en: 'Original' },
+          blocks: [],
+          status: { en: 'published' },
+        },
+      ],
+    });
 
     // Stage the export (which had empty pages)
     const stagingDir = await prepareStaging(zipBody, tempRoot);
@@ -343,7 +376,11 @@ test('C-4: applyImport usersReplaced is true when users unit was in selectedUnit
     const stagingDir = await prepareStaging(zipBody, tempRoot);
     try {
       const result = await applyImport(stagingDir, tempRoot, ['users'], {});
-      assert.equal(result.usersReplaced, true, 'usersReplaced must be true when users unit imported');
+      assert.equal(
+        result.usersReplaced,
+        true,
+        'usersReplaced must be true when users unit imported',
+      );
     } finally {
       await fs.rm(stagingDir, { recursive: true, force: true });
     }
@@ -356,7 +393,11 @@ test('C-4: applyImport usersReplaced is false when users unit not in selectedUni
     const stagingDir = await prepareStaging(zipBody, tempRoot);
     try {
       const result = await applyImport(stagingDir, tempRoot, ['pages'], {});
-      assert.equal(result.usersReplaced, false, 'usersReplaced must be false when users unit not imported');
+      assert.equal(
+        result.usersReplaced,
+        false,
+        'usersReplaced must be false when users unit not imported',
+      );
     } finally {
       await fs.rm(stagingDir, { recursive: true, force: true });
     }
@@ -488,7 +529,9 @@ test('C-5: handleImport returns 422 for checksum mismatch', async () => {
       units: ['pages'],
       counts: { pages: 0 },
       // Deliberately wrong checksum
-      checksums: { 'data/pages.json': 'deadbeef0000000000000000000000000000000000000000000000000000cafe' },
+      checksums: {
+        'data/pages.json': 'deadbeef0000000000000000000000000000000000000000000000000000cafe',
+      },
     };
     const zipBody2 = await buildMinimalZip([
       { name: 'manifest.json', bytes: Buffer.from(JSON.stringify(manifest)) },
@@ -562,7 +605,9 @@ test('FIX-1: validateManifest rejects checksums key containing path traversal (.
     exportedAt: new Date().toISOString(),
     units: ['pages'],
     counts: { pages: 0 },
-    checksums: { '../../etc/passwd': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' },
+    checksums: {
+      '../../etc/passwd': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    },
   };
   const result = validateManifest(manifest);
   assert.equal(result.ok, false, 'should reject traversal key in checksums');
@@ -579,7 +624,9 @@ test('FIX-1: validateManifest rejects checksums key with data/../secret (dotdot)
     exportedAt: new Date().toISOString(),
     units: ['pages'],
     counts: { pages: 0 },
-    checksums: { 'data/../secret': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' },
+    checksums: {
+      'data/../secret': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    },
   };
   const result = validateManifest(manifest);
   assert.equal(result.ok, false, 'should reject dotdot key in checksums');
@@ -596,10 +643,16 @@ test('FIX-1: validateManifest rejects checksums key outside allowlist (not data/
     exportedAt: new Date().toISOString(),
     units: ['pages'],
     counts: { pages: 0 },
-    checksums: { 'evil/file.json': 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' },
+    checksums: {
+      'evil/file.json': 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    },
   };
   const result = validateManifest(manifest);
-  assert.equal(result.ok, false, 'should reject checksums key outside data/ and uploads/ allowlists');
+  assert.equal(
+    result.ok,
+    false,
+    'should reject checksums key outside data/ and uploads/ allowlists',
+  );
   assert.match(result.reason ?? '', /not an allowed path|not allowed/i);
 });
 
@@ -613,9 +666,13 @@ test('FIX-1: validateStagedImport detects injected file in staging (not in manif
     // but also contains an extra injected file unknown to the manifest.
     const pagesJson = JSON.stringify({ pages: [] });
     const pagesBytes = Buffer.from(pagesJson, 'utf-8');
-    const manifest = buildManifest(['pages'], { pages: 0 }, {
-      'data/pages.json': sha256Hex(pagesBytes),
-    });
+    const manifest = buildManifest(
+      ['pages'],
+      { pages: 0 },
+      {
+        'data/pages.json': sha256Hex(pagesBytes),
+      },
+    );
 
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-inject-'));
     await fs.mkdir(path.join(stagingDir, 'data'), { recursive: true });
@@ -627,7 +684,11 @@ test('FIX-1: validateStagedImport detects injected file in staging (not in manif
     try {
       const result = await validateStagedImport(stagingDir, ['pages'], tempRoot);
       // The injected file (data/users.json) is not in manifest.checksums → should fail
-      assert.equal(result.ok, false, 'expected ok:false when staging contains a file absent from manifest');
+      assert.equal(
+        result.ok,
+        false,
+        'expected ok:false when staging contains a file absent from manifest',
+      );
       assert.match(result.reason ?? '', /checksum/i);
     } finally {
       await fs.rm(stagingDir, { recursive: true, force: true });
@@ -642,7 +703,11 @@ test('FIX-1: validateStagedImport happy-path still returns ok:true with disk-wal
     const stagingDir = await prepareStaging(zipBody, tempRoot);
     try {
       const result = await validateStagedImport(stagingDir, ['pages'], tempRoot);
-      assert.equal(result.ok, true, `expected ok:true for valid staged import, got: ${result.reason}`);
+      assert.equal(
+        result.ok,
+        true,
+        `expected ok:true for valid staged import, got: ${result.reason}`,
+      );
     } finally {
       await fs.rm(stagingDir, { recursive: true, force: true });
     }
@@ -683,29 +748,47 @@ test('FIX-2: handleImport returns 413 when Content-Length exceeds compressed cei
 });
 
 test('FIX-2: readCeilingEnvVars returns compressed ceiling with default, env override, and invalid→default', async () => {
-  const { readCeilingEnvVars, DEFAULT_MAX_IMPORT_COMPRESSED_BYTES } = await import('../dist/api/import-utils.js');
+  const { readCeilingEnvVars, DEFAULT_MAX_IMPORT_COMPRESSED_BYTES } = await import(
+    '../dist/api/import-utils.js'
+  );
 
   const savedCompressed = process.env.ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES;
   try {
     // Default
     delete process.env.ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES;
     const defaults = readCeilingEnvVars();
-    assert.equal(defaults.compressed, DEFAULT_MAX_IMPORT_COMPRESSED_BYTES, 'should return default compressed ceiling');
+    assert.equal(
+      defaults.compressed,
+      DEFAULT_MAX_IMPORT_COMPRESSED_BYTES,
+      'should return default compressed ceiling',
+    );
 
     // Env override
     process.env.ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES = String(200 * 1024 * 1024);
     const overridden = readCeilingEnvVars();
-    assert.equal(overridden.compressed, 200 * 1024 * 1024, 'should use ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES env var');
+    assert.equal(
+      overridden.compressed,
+      200 * 1024 * 1024,
+      'should use ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES env var',
+    );
 
     // Invalid value → default
     process.env.ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES = 'not-a-number';
     const invalid = readCeilingEnvVars();
-    assert.equal(invalid.compressed, DEFAULT_MAX_IMPORT_COMPRESSED_BYTES, 'invalid env var should fall back to default');
+    assert.equal(
+      invalid.compressed,
+      DEFAULT_MAX_IMPORT_COMPRESSED_BYTES,
+      'invalid env var should fall back to default',
+    );
 
     // Zero → default
     process.env.ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES = '0';
     const zero = readCeilingEnvVars();
-    assert.equal(zero.compressed, DEFAULT_MAX_IMPORT_COMPRESSED_BYTES, 'zero env var should fall back to default');
+    assert.equal(
+      zero.compressed,
+      DEFAULT_MAX_IMPORT_COMPRESSED_BYTES,
+      'zero env var should fall back to default',
+    );
   } finally {
     if (savedCompressed === undefined) delete process.env.ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES;
     else process.env.ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES = savedCompressed;
@@ -762,7 +845,17 @@ test('FIX-4: applyImport propagates non-ENOENT errors from configuration savers'
 test('FIX-5: applyImport failure triggers rollback; _rollbackFromSnapshot restores live data', async () => {
   await withTempProject(async (tempRoot) => {
     // Set up a distinctive pre-import live state
-    const preImportRaw = JSON.stringify({ pages: [{ id: 'pre-rollback', slug: { en: 'pre' }, title: { en: 'Pre' }, blocks: [], status: { en: 'published' } }] });
+    const preImportRaw = JSON.stringify({
+      pages: [
+        {
+          id: 'pre-rollback',
+          slug: { en: 'pre' },
+          title: { en: 'Pre' },
+          blocks: [],
+          status: { en: 'published' },
+        },
+      ],
+    });
     await fs.writeFile(path.join(tempRoot, 'data', 'pages.json'), preImportRaw);
 
     // Build a valid zip for pages (empty pages — different from pre-state)
@@ -771,11 +864,19 @@ test('FIX-5: applyImport failure triggers rollback; _rollbackFromSnapshot restor
     // Extract to staging + validate (these pass normally)
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-gap1-staging-'));
     try {
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
+      const ceilings = {
+        perFile: 50 * 1024 * 1024,
+        total: 500 * 1024 * 1024,
+        compressed: 1024 * 1024 * 1024,
+      };
       await extractToStaging(zipBody, stagingDir, ceilings, tempRoot);
 
       const validResult = await validateStagedImport(stagingDir, ['pages'], tempRoot);
-      assert.equal(validResult.ok, true, `staging validation must pass, got: ${validResult.reason}`);
+      assert.equal(
+        validResult.ok,
+        true,
+        `staging validation must pass, got: ${validResult.reason}`,
+      );
 
       // Create snapshot BEFORE any live mutation (this is what runImportPipeline does)
       const snapshotDir = await createBackupSnapshot(tempRoot, ['pages']);
@@ -794,7 +895,10 @@ test('FIX-5: applyImport failure triggers rollback; _rollbackFromSnapshot restor
       }
 
       // (a) applyImport must have thrown
-      assert.ok(applyError instanceof Error, 'applyImport must throw when live pages.json is a directory');
+      assert.ok(
+        applyError instanceof Error,
+        'applyImport must throw when live pages.json is a directory',
+      );
 
       // (b) Rollback from snapshot
       // Remove the sabotaged dir first so rollback copyFile can write the file
@@ -803,7 +907,11 @@ test('FIX-5: applyImport failure triggers rollback; _rollbackFromSnapshot restor
 
       // (c) Live data must be restored to the pre-import raw state
       const liveAfterRollback = await fs.readFile(livePagesPath, 'utf-8');
-      assert.equal(liveAfterRollback, preImportRaw, 'live data must be restored to pre-import state after rollback');
+      assert.equal(
+        liveAfterRollback,
+        preImportRaw,
+        'live data must be restored to pre-import state after rollback',
+      );
     } finally {
       // Ensure livePagesPath is not a dir so withTempProject cleanup works
       const lp = path.join(tempRoot, 'data', 'pages.json');
@@ -828,20 +936,29 @@ test('FIX-5: _rollbackFromSnapshot restores live data files from snapshot (unit)
     const snapshotDataDir = path.join(snapshotDir, 'data');
     await fs.mkdir(snapshotDataDir, { recursive: true });
 
-    const preStateRaw = '{"pages":[{"id":"snapshot-state","slug":{"en":"snap"},"title":{"en":"Snapshot"},"blocks":[],"status":{"en":"published"}}]}';
+    const preStateRaw =
+      '{"pages":[{"id":"snapshot-state","slug":{"en":"snap"},"title":{"en":"Snapshot"},"blocks":[],"status":{"en":"published"}}]}';
     await fs.writeFile(path.join(snapshotDataDir, 'pages.json'), preStateRaw);
 
     try {
       // Mutate live data to something different (raw write to bypass normalization)
-      const mutatedRaw = '{"pages":[{"id":"post-mutation","slug":{"en":"mut"},"title":{"en":"Mutated"},"blocks":[],"status":{"en":"draft"}}]}';
+      const mutatedRaw =
+        '{"pages":[{"id":"post-mutation","slug":{"en":"mut"},"title":{"en":"Mutated"},"blocks":[],"status":{"en":"draft"}}]}';
       await fs.writeFile(path.join(tempRoot, 'data', 'pages.json'), mutatedRaw);
 
       // Call rollback
       await _rollbackFromSnapshot(snapshotDir, tempRoot, ['pages']);
 
       // Live file bytes must equal the snapshot bytes
-      const liveAfterRollback = await fs.readFile(path.join(tempRoot, 'data', 'pages.json'), 'utf-8');
-      assert.equal(liveAfterRollback, preStateRaw, 'live data file bytes must equal snapshot pre-state after rollback');
+      const liveAfterRollback = await fs.readFile(
+        path.join(tempRoot, 'data', 'pages.json'),
+        'utf-8',
+      );
+      assert.equal(
+        liveAfterRollback,
+        preStateRaw,
+        'live data file bytes must equal snapshot pre-state after rollback',
+      );
     } finally {
       await fs.rm(snapshotDir, { recursive: true, force: true });
     }
@@ -860,7 +977,10 @@ test('FIX-5c: handleImport always returns valid JSON even for unexpected errors'
     const res = await handleImport(req, OWNER_USER);
     // Should be a JSON response regardless of status
     const ct = res.headers.get('content-type') ?? '';
-    assert.ok(ct.includes('json') || ct.includes('application'), `expected JSON content-type, got: ${ct}`);
+    assert.ok(
+      ct.includes('json') || ct.includes('application'),
+      `expected JSON content-type, got: ${ct}`,
+    );
     const body = await res.json().catch(() => null);
     assert.ok(body !== null, 'response must be parseable JSON');
   });
@@ -876,7 +996,11 @@ test('FIX-7: createBackupSnapshot creates snapshot dir with hyphenated timestamp
     const dirName = path.basename(snapshotDir);
     assert.ok(!dirName.includes(':'), `snapshot dir name must not contain colons, got: ${dirName}`);
     // Should match hyphenated ISO format: YYYY-MM-DDTHH-MM-SS.mmmZ
-    assert.match(dirName, /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z$/, 'snapshot name should be ISO with hyphens');
+    assert.match(
+      dirName,
+      /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z$/,
+      'snapshot name should be ISO with hyphens',
+    );
   });
 });
 
@@ -913,11 +1037,19 @@ test('FIX-8: after schemaVersion mismatch (422), live data is unchanged and no b
 
     // Live data must be unchanged
     const postImportPages = await fs.readFile(path.join(liveDataDir, 'pages.json'), 'utf-8');
-    assert.equal(postImportPages, preImportPages, 'live pages.json must be unchanged after 422 failure');
+    assert.equal(
+      postImportPages,
+      preImportPages,
+      'live pages.json must be unchanged after 422 failure',
+    );
 
     // No snapshot should have been created (backup comes AFTER validation)
     const backupEntries = await fs.readdir(backupsDir).catch(() => []);
-    assert.equal(backupEntries.length, 0, 'no backup snapshot should exist after a validation failure');
+    assert.equal(
+      backupEntries.length,
+      0,
+      'no backup snapshot should exist after a validation failure',
+    );
   });
 });
 
@@ -936,7 +1068,9 @@ test('FIX-8: after checksum mismatch (422), live data is unchanged and no backup
       exportedAt: new Date().toISOString(),
       units: ['pages'],
       counts: { pages: 0 },
-      checksums: { 'data/pages.json': 'deadbeef0000000000000000000000000000000000000000000000000000cafe' },
+      checksums: {
+        'data/pages.json': 'deadbeef0000000000000000000000000000000000000000000000000000cafe',
+      },
     };
     const zipBody = await buildMinimalZip([
       { name: 'manifest.json', bytes: Buffer.from(JSON.stringify(manifest)) },
@@ -948,11 +1082,19 @@ test('FIX-8: after checksum mismatch (422), live data is unchanged and no backup
 
     // Live data must be unchanged
     const postImportPages = await fs.readFile(path.join(liveDataDir, 'pages.json'), 'utf-8');
-    assert.equal(postImportPages, preImportPages, 'live pages.json must be unchanged after checksum mismatch');
+    assert.equal(
+      postImportPages,
+      preImportPages,
+      'live pages.json must be unchanged after checksum mismatch',
+    );
 
     // No snapshot should have been created
     const backupEntries = await fs.readdir(backupsDir).catch(() => []);
-    assert.equal(backupEntries.length, 0, 'no backup snapshot should exist after a checksum mismatch');
+    assert.equal(
+      backupEntries.length,
+      0,
+      'no backup snapshot should exist after a checksum mismatch',
+    );
   });
 });
 
@@ -960,7 +1102,17 @@ test('FIX-8: after checksum mismatch (422), live data is unchanged and no backup
 test('FIX-8: after successful import, a snapshot exists with pre-import state and live data matches import', async () => {
   await withTempProject(async (tempRoot) => {
     // Set up distinctive pre-import live state
-    const preImportPages = { pages: [{ id: 'pre-import', slug: { en: 'pre-import' }, title: { en: 'Pre Import' }, blocks: [], status: { en: 'published' } }] };
+    const preImportPages = {
+      pages: [
+        {
+          id: 'pre-import',
+          slug: { en: 'pre-import' },
+          title: { en: 'Pre Import' },
+          blocks: [],
+          status: { en: 'published' },
+        },
+      ],
+    };
     await savePages(preImportPages);
 
     // Build a zip from a clean project (empty pages) to import
@@ -986,15 +1138,22 @@ test('FIX-8: after successful import, a snapshot exists with pre-import state an
     // 1. At least one snapshot should exist
     const backupsDir = path.join(tempRoot, 'data', '_backups');
     const backupEntries = await fs.readdir(backupsDir);
-    assert.ok(backupEntries.length >= 1, 'at least one backup snapshot should exist after successful import');
+    assert.ok(
+      backupEntries.length >= 1,
+      'at least one backup snapshot should exist after successful import',
+    );
 
     // 2. The snapshot should contain the PRE-import pages.json
     const snapshotDir = path.join(backupsDir, [...backupEntries].sort().at(-1));
-    const snapshotPages = JSON.parse(await fs.readFile(path.join(snapshotDir, 'data', 'pages.json'), 'utf-8'));
+    const snapshotPages = JSON.parse(
+      await fs.readFile(path.join(snapshotDir, 'data', 'pages.json'), 'utf-8'),
+    );
     assert.deepEqual(snapshotPages, preImportPages, 'snapshot must contain the pre-import state');
 
     // 3. Live data should match the imported state (empty pages from clean project)
-    const livePages = JSON.parse(await fs.readFile(path.join(tempRoot, 'data', 'pages.json'), 'utf-8'));
+    const livePages = JSON.parse(
+      await fs.readFile(path.join(tempRoot, 'data', 'pages.json'), 'utf-8'),
+    );
     assert.equal(livePages.pages.length, 0, 'live data should match imported state (empty pages)');
   });
 });
@@ -1008,7 +1167,10 @@ test('GAP-2: after successful media import, .import-tmp and .import-old dirs do 
     // Create a source upload file so the media unit has something to export
     const uploadsDir = path.join(tempRoot, 'public', 'uploads', '2026', '06');
     await fs.mkdir(uploadsDir, { recursive: true });
-    await fs.writeFile(path.join(uploadsDir, 'gap2-test.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xe0]));
+    await fs.writeFile(
+      path.join(uploadsDir, 'gap2-test.jpg'),
+      Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+    );
 
     const zipBody = await buildZipBody(['media'], tempRoot);
     const req = buildImportRequest(zipBody);
@@ -1020,11 +1182,25 @@ test('GAP-2: after successful media import, .import-tmp and .import-old dirs do 
     const tempDir = liveUploadsDir + '.import-tmp';
     const oldDir = liveUploadsDir + '.import-old';
 
-    const tmpExists = await fs.stat(tempDir).then(() => true).catch(() => false);
-    const oldExists = await fs.stat(oldDir).then(() => true).catch(() => false);
+    const tmpExists = await fs
+      .stat(tempDir)
+      .then(() => true)
+      .catch(() => false);
+    const oldExists = await fs
+      .stat(oldDir)
+      .then(() => true)
+      .catch(() => false);
 
-    assert.equal(tmpExists, false, `.import-tmp must not exist after successful media import (found: ${tempDir})`);
-    assert.equal(oldExists, false, `.import-old must not exist after successful media import (found: ${oldDir})`);
+    assert.equal(
+      tmpExists,
+      false,
+      `.import-tmp must not exist after successful media import (found: ${tempDir})`,
+    );
+    assert.equal(
+      oldExists,
+      false,
+      `.import-old must not exist after successful media import (found: ${oldDir})`,
+    );
   });
 });
 
@@ -1062,7 +1238,11 @@ test('W-2: partial import (pages only) leaves data/users.json bytes identical to
     assert.equal(body.success, true, 'response.success must be true');
 
     // (a) usersReplaced must be false — users unit was not in the zip
-    assert.equal(body.usersReplaced, false, 'usersReplaced must be false when only pages unit was imported');
+    assert.equal(
+      body.usersReplaced,
+      false,
+      'usersReplaced must be false when only pages unit was imported',
+    );
 
     // (b) data/users.json bytes on disk must be IDENTICAL to pre-import content
     const postImportUsersBytes = await fs.readFile(path.join(tempRoot, 'data', 'users.json'));
@@ -1098,9 +1278,27 @@ test('GAP-3: concurrent runImportPipeline calls serialize — live data is a com
 
     // Build two zips with different but valid page content.
     // zipA: one page, zipB: two pages (different counts make it easy to tell them apart)
-    const pageA = { id: 'page-a', slug: { en: 'a' }, title: { en: 'Page A' }, blocks: [], status: { en: 'published' } };
-    const pageB1 = { id: 'page-b1', slug: { en: 'b1' }, title: { en: 'Page B1' }, blocks: [], status: { en: 'published' } };
-    const pageB2 = { id: 'page-b2', slug: { en: 'b2' }, title: { en: 'Page B2' }, blocks: [], status: { en: 'published' } };
+    const pageA = {
+      id: 'page-a',
+      slug: { en: 'a' },
+      title: { en: 'Page A' },
+      blocks: [],
+      status: { en: 'published' },
+    };
+    const pageB1 = {
+      id: 'page-b1',
+      slug: { en: 'b1' },
+      title: { en: 'Page B1' },
+      blocks: [],
+      status: { en: 'published' },
+    };
+    const pageB2 = {
+      id: 'page-b2',
+      slug: { en: 'b2' },
+      title: { en: 'Page B2' },
+      blocks: [],
+      status: { en: 'published' },
+    };
 
     const { sha256Hex, buildManifest } = await import('../dist/api/manifest.js');
     const { DATA_SCHEMA_VERSION: SV } = await import('../dist/api/schema-version.js');
@@ -1108,7 +1306,11 @@ test('GAP-3: concurrent runImportPipeline calls serialize — live data is a com
     function makeZip(pages) {
       const pagesJson = JSON.stringify({ pages });
       const pagesBytes = Buffer.from(pagesJson);
-      const manifest = buildManifest(['pages'], { pages: pages.length }, { 'data/pages.json': sha256Hex(pagesBytes) });
+      const manifest = buildManifest(
+        ['pages'],
+        { pages: pages.length },
+        { 'data/pages.json': sha256Hex(pagesBytes) },
+      );
       return buildMinimalZip([
         { name: 'manifest.json', bytes: Buffer.from(JSON.stringify(manifest)) },
         { name: 'data/pages.json', bytes: pagesBytes },

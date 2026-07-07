@@ -60,7 +60,15 @@ test('dist/routes/admin/i18n/ directory exists after build (REQ packaging)', asy
 
 test('dist/routes/admin/i18n/ contains all required module files', async () => {
   const i18nDistDir = path.resolve(import.meta.dirname, '..', 'dist', 'routes', 'admin', 'i18n');
-  const requiredModules = ['types.js', 'en.js', 'es.js', 'catalogs.js', 't.js', 'resolve.js', 'client.js'];
+  const requiredModules = [
+    'types.js',
+    'en.js',
+    'es.js',
+    'catalogs.js',
+    't.js',
+    'resolve.js',
+    'client.js',
+  ];
 
   let files;
   try {
@@ -73,7 +81,7 @@ test('dist/routes/admin/i18n/ contains all required module files', async () => {
   for (const required of requiredModules) {
     assert.ok(
       fileSet.has(required),
-      `Missing required i18n module in dist: ${required}. Found: ${[...fileSet].join(', ')}`
+      `Missing required i18n module in dist: ${required}. Found: ${[...fileSet].join(', ')}`,
     );
   }
 });
@@ -151,7 +159,11 @@ test('createT(en) returns English strings from built dist catalog', () => {
   assert.equal(typeof result, 'string', 'translate must return a string');
   assert.ok(result.length > 0, 'English nav.dashboard must be non-empty');
   // Should be English — not empty and does not contain accented Spanish chars
-  assert.doesNotMatch(result, /[áéíóúñÁÉÍÓÚÑ]/u, 'English nav.dashboard must not contain Spanish accent');
+  assert.doesNotMatch(
+    result,
+    /[áéíóúñÁÉÍÓÚÑ]/u,
+    'English nav.dashboard must not contain Spanish accent',
+  );
 });
 
 test('createT(es) returns Spanish strings from built dist catalog', () => {
@@ -171,7 +183,11 @@ test('createT: per-key en fallback when key absent from es (REQ-5.4)', () => {
   // (key-as-sentinel behavior per REQ-5.5)
   const translate = createT('es');
   const missingResult = translate('__nonexistent.key.for.test__');
-  assert.equal(missingResult, '__nonexistent.key.for.test__', 'Missing key must return key itself as sentinel');
+  assert.equal(
+    missingResult,
+    '__nonexistent.key.for.test__',
+    'Missing key must return key itself as sentinel',
+  );
   assert.ok(enValue.length > 0, 'en fallback value must be non-empty');
 });
 
@@ -226,7 +242,10 @@ test('dist catalogs: all keys have non-empty string values in both locales', () 
 
 test('dist catalogs: at least 300 keys (completeness sanity — full PR-4 catalog)', () => {
   const keyCount = Object.keys(catalogs.en).length;
-  assert.ok(keyCount >= 300, `Expected at least 300 keys in built dist en catalog, got ${keyCount}`);
+  assert.ok(
+    keyCount >= 300,
+    `Expected at least 300 keys in built dist en catalog, got ${keyCount}`,
+  );
 });
 
 // ─── SUPPORTED_UI_LOCALES from dist ──────────────────────────────────────────
@@ -244,7 +263,11 @@ test('HARD WALL: getActiveContentLocale exists independently of UI i18n (SCENARI
   // Import the content-locale helper from dist and verify it still works
   const common = await import('../dist/routes/admin/client/common.js');
   const { getActiveContentLocale } = common;
-  assert.equal(typeof getActiveContentLocale, 'function', 'getActiveContentLocale must be a function');
+  assert.equal(
+    typeof getActiveContentLocale,
+    'function',
+    'getActiveContentLocale must be a function',
+  );
 
   // Verify the function accepts a fallback parameter and returns a string.
   // In non-browser environments sessionStorage is undefined, so we mock it
@@ -261,13 +284,19 @@ test('HARD WALL: getActiveContentLocale exists independently of UI i18n (SCENARI
     assert.equal(typeof result, 'string', 'getActiveContentLocale must return a string');
     assert.ok(result.length > 0, 'getActiveContentLocale must return a non-empty string');
     // Must use the fallback when sessionStorage has no cms-content-locale key
-    assert.equal(result, 'en', 'getActiveContentLocale must return the fallback when no stored locale');
+    assert.equal(
+      result,
+      'en',
+      'getActiveContentLocale must return the fallback when no stored locale',
+    );
   } finally {
     if (savedSessionStorage === undefined) {
       // Remove the temporary mock
       try {
         delete globalThis.sessionStorage;
-      } catch { /* ignore — non-configurable in some envs */ }
+      } catch {
+        /* ignore — non-configurable in some envs */
+      }
     } else {
       Object.defineProperty(globalThis, 'sessionStorage', {
         value: savedSessionStorage,

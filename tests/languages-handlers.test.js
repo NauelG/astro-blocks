@@ -59,7 +59,7 @@ test('language handlers support full CRUD lifecycle', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: 'EN', label: 'English', enabled: true }),
-      })
+      }),
     );
 
     assert.equal(postResponse.status, 200);
@@ -82,7 +82,7 @@ test('language handlers support full CRUD lifecycle', async () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ label: 'English (US)' }),
-      })
+      }),
     );
 
     assert.equal(putResponse.status, 200);
@@ -117,7 +117,7 @@ test('handlePostLanguages rejects missing code', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ label: 'No Code' }),
-      })
+      }),
     );
 
     assert.equal(response.status, 400);
@@ -133,7 +133,7 @@ test('handlePostLanguages rejects invalid code format', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: 'invalid code!', label: 'Bad' }),
-      })
+      }),
     );
 
     assert.equal(response.status, 400);
@@ -150,7 +150,7 @@ test('handlePostLanguages rejects duplicate language code', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: 'es', label: 'Español Duplicado' }),
-      })
+      }),
     );
 
     assert.equal(response.status, 400);
@@ -167,7 +167,7 @@ test('handlePostLanguages normalizes code to lowercase before duplicate check', 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: 'ES', label: 'Español Upper' }),
-      })
+      }),
     );
 
     assert.equal(response.status, 400);
@@ -203,7 +203,7 @@ test('handlePutLanguage returns 404 for unknown code', async () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ label: 'Does not exist' }),
-      })
+      }),
     );
 
     assert.equal(response.status, 404);
@@ -221,7 +221,7 @@ test('handlePutLanguage refuses to disable the only enabled language', async () 
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: false }),
-      })
+      }),
     );
 
     assert.equal(response.status, 400);
@@ -238,7 +238,7 @@ test('handlePutLanguage can disable a non-last enabled language', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: 'en', label: 'English', enabled: true }),
-      })
+      }),
     );
     assert.equal(post.status, 200);
 
@@ -249,7 +249,7 @@ test('handlePutLanguage can disable a non-last enabled language', async () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: false }),
-      })
+      }),
     );
 
     assert.equal(put.status, 200);
@@ -272,7 +272,7 @@ test('handleDeleteLanguage reports affected pages and menus counts', async () =>
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: 'en', label: 'English', enabled: true }),
-      })
+      }),
     );
     assert.equal(post.status, 200);
 
@@ -297,7 +297,7 @@ test('handlePostLanguages with isDefault:true promotes the new language as defau
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: 'en', label: 'English', enabled: true, isDefault: true }),
-      })
+      }),
     );
     assert.equal(post.status, 200);
     const created = await post.json();
@@ -322,7 +322,7 @@ test('handlePutLanguage can update isDefault to promote a language', async () =>
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: 'en', label: 'English', enabled: true }),
-      })
+      }),
     );
     assert.equal(post.status, 200);
 
@@ -333,7 +333,7 @@ test('handlePutLanguage can update isDefault to promote a language', async () =>
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isDefault: true }),
-      })
+      }),
     );
     assert.equal(put.status, 200);
     const body = await put.json();
@@ -354,7 +354,7 @@ test('handlePostLanguages accepts valid BCP-47 subtag codes like pt-br', async (
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: 'pt-br', label: 'Português (Brasil)', enabled: true }),
-      })
+      }),
     );
 
     assert.equal(response.status, 200);

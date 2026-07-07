@@ -9,7 +9,12 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ensureDefaultFiles, loadGlobalBlocks, saveGlobalBlock, saveGlobalBlocks } from '../dist/api/data.js';
+import {
+  ensureDefaultFiles,
+  loadGlobalBlocks,
+  saveGlobalBlock,
+  saveGlobalBlocks,
+} from '../dist/api/data.js';
 
 async function withTempProject(fn) {
   const previousRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
@@ -57,7 +62,10 @@ test('saveGlobalBlock round-trips props for a slug', async () => {
     const data = await loadGlobalBlocks();
     assert.ok(data.globalBlocks['header'], 'header entry should exist');
     assert.deepEqual(data.globalBlocks['header'].props, props);
-    assert.ok(typeof data.globalBlocks['header'].updatedAt === 'string', 'updatedAt should be a string');
+    assert.ok(
+      typeof data.globalBlocks['header'].updatedAt === 'string',
+      'updatedAt should be a string',
+    );
   });
 });
 
@@ -94,7 +102,10 @@ test('loadGlobalBlocks normalises legacy entry { blocks: [...] } to { props: {} 
     // Seed legacy v1 data directly
     const legacyData = {
       globalBlocks: {
-        header: { blocks: [{ type: 'Hero', props: { title: 'Hello' } }], updatedAt: '2026-01-01T00:00:00.000Z' },
+        header: {
+          blocks: [{ type: 'Hero', props: { title: 'Hello' } }],
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
       },
     };
     const filePath = path.join(tempRoot, 'data', 'global-blocks.json');
@@ -102,7 +113,15 @@ test('loadGlobalBlocks normalises legacy entry { blocks: [...] } to { props: {} 
 
     const data = await loadGlobalBlocks();
     assert.ok(data.globalBlocks['header'], 'header entry should exist');
-    assert.deepEqual(data.globalBlocks['header'].props, {}, 'legacy blocks entry should normalize to empty props');
-    assert.equal(data.globalBlocks['header'].updatedAt, '2026-01-01T00:00:00.000Z', 'updatedAt preserved from legacy');
+    assert.deepEqual(
+      data.globalBlocks['header'].props,
+      {},
+      'legacy blocks entry should normalize to empty props',
+    );
+    assert.equal(
+      data.globalBlocks['header'].updatedAt,
+      '2026-01-01T00:00:00.000Z',
+      'updatedAt preserved from legacy',
+    );
   });
 });

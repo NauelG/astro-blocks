@@ -61,10 +61,7 @@ test('A-6: assertWithinCeilings throws with /per-file/ when perFile exceeds limi
 });
 
 test('A-6: assertWithinCeilings throws with /total/ when total exceeds limit', () => {
-  assert.throws(
-    () => assertWithinCeilings(500, 20000, { perFile: 1024, total: 10240 }),
-    /total/,
-  );
+  assert.throws(() => assertWithinCeilings(500, 20000, { perFile: 1024, total: 10240 }), /total/);
 });
 
 // A-6: readCeilingEnvVars

@@ -18,14 +18,21 @@ export type GetMenuLocaleOptions = {
  * Locale can be passed as a string or as { locale }.
  * Items may include nested `children` for dropdown/submenus.
  */
-export async function getMenu(key: string, localeOrOptions?: string | GetMenuLocaleOptions): Promise<MenuItem[]> {
+export async function getMenu(
+  key: string,
+  localeOrOptions?: string | GetMenuLocaleOptions,
+): Promise<MenuItem[]> {
   const [menusData, languagesData] = await Promise.all([loadMenus(), loadLanguages()]);
   const menus = menusData.menus ?? [];
   const menu = menus.find((entry) => entry.selector === key);
   if (!menu) return [];
 
   const requestedLocale =
-    typeof localeOrOptions === 'string' ? localeOrOptions : localeOrOptions && typeof localeOrOptions.locale === 'string' ? localeOrOptions.locale : '';
+    typeof localeOrOptions === 'string'
+      ? localeOrOptions
+      : localeOrOptions && typeof localeOrOptions.locale === 'string'
+        ? localeOrOptions.locale
+        : '';
 
   const locale = normalizeLocaleCode(requestedLocale) || getDefaultLocale(languagesData);
 

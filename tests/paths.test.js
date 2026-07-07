@@ -29,29 +29,26 @@ test('buildVariantFilename: png extension', () => {
 test('variantUrlFor: nominal case', () => {
   assert.equal(
     variantUrlFor('/uploads/2026/06/ab12-photo.jpg', 800, 'webp'),
-    '/uploads/2026/06/ab12-photo-800.webp'
+    '/uploads/2026/06/ab12-photo-800.webp',
   );
 });
 
 test('variantUrlFor: avif format', () => {
   assert.equal(
     variantUrlFor('/uploads/2026/06/ab12-photo.jpg', 480, 'avif'),
-    '/uploads/2026/06/ab12-photo-480.avif'
+    '/uploads/2026/06/ab12-photo-480.avif',
   );
 });
 
 test('variantUrlFor: no directory prefix', () => {
-  assert.equal(
-    variantUrlFor('photo.jpg', 800, 'webp'),
-    'photo-800.webp'
-  );
+  assert.equal(variantUrlFor('photo.jpg', 800, 'webp'), 'photo-800.webp');
 });
 
 test('variantUrlFor: trailing slash in url is normalized', () => {
   // Trailing slash is stripped, then the filename is extracted normally
   assert.equal(
     variantUrlFor('/uploads/2026/06/ab12-photo.jpg/', 800, 'webp'),
-    '/uploads/2026/06/ab12-photo-800.webp'
+    '/uploads/2026/06/ab12-photo-800.webp',
   );
 });
 
@@ -94,7 +91,10 @@ test('buildSrcset: sorts ascending by width', () => {
     { format: 'webp', width: 1200, url: '/img-1200.webp' },
   ];
   const result = buildSrcset(variants, 'webp');
-  assert.equal(result, '/img-480.webp 480w, /img-800.webp 800w, /img-1200.webp 1200w, /img-1920.webp 1920w');
+  assert.equal(
+    result,
+    '/img-480.webp 480w, /img-800.webp 800w, /img-1200.webp 1200w, /img-1920.webp 1920w',
+  );
 });
 
 test('resolveUploadPath accepts valid upload URLs', () => {
@@ -135,17 +135,17 @@ test('SEC-04: resolveUploadPath rejects sibling directory with uploads-foo prefi
     const siblingPath = path.join(fakeRoot, 'public', 'uploads-evil', 'x.js');
     assert.ok(
       siblingPath.startsWith(uploadsDir),
-      'Baseline: sibling path DOES start with uploadsDir (bug exists without fix)'
+      'Baseline: sibling path DOES start with uploadsDir (bug exists without fix)',
     );
     // With separator appended, the sibling is correctly excluded
     assert.ok(
       !siblingPath.startsWith(uploadsDir + path.sep),
-      'Fix: sibling path does NOT start with uploadsDir + sep (guard is correct)'
+      'Fix: sibling path does NOT start with uploadsDir + sep (guard is correct)',
     );
     // The uploadsDir itself must still be matched (resolved === uploadsDir edge case)
     assert.ok(
       uploadsDir === uploadsDir || uploadsDir.startsWith(uploadsDir + path.sep),
-      'Fix: the uploads dir itself passes (equal branch)'
+      'Fix: the uploads dir itself passes (equal branch)',
     );
 
     // Functional test: traversal to sibling is rejected by existing '..' guard

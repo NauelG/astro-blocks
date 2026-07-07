@@ -7,7 +7,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { COMPONENT_PATH_KEY } from '../contract/index.js';
 import type { BlockInstance, BlockSchema, SchemaMap, SerializedSchema } from '../types/index.js';
-import { validateBlockPropsAgainstSchema, validateSchemaItemsDefinition } from './block-validation.js';
+import {
+  validateBlockPropsAgainstSchema,
+  validateSchemaItemsDefinition,
+} from './block-validation.js';
 
 export interface ResolvedBlockEntry {
   key: string;
@@ -31,13 +34,18 @@ export function getBlockKey(schema: BlockSchema, resolvedPath: string): string {
     : path.basename(resolvedPath, '.astro');
 }
 
-export function resolveBlockEntries(projectRoot: string, blocks: BlockSchema[]): ResolvedBlockEntry[] {
+export function resolveBlockEntries(
+  projectRoot: string,
+  blocks: BlockSchema[],
+): ResolvedBlockEntry[] {
   const seenKeys = new Set<string>();
 
   return blocks.map((schema, index) => {
     const schemaValidationError = validateSchemaItemsDefinition(
-      schema.items && typeof schema.items === 'object' ? (schema.items as Record<string, unknown>) : {},
-      schema.name || `block at index ${index}`
+      schema.items && typeof schema.items === 'object'
+        ? (schema.items as Record<string, unknown>)
+        : {},
+      schema.name || `block at index ${index}`,
     );
 
     if (schemaValidationError) {
@@ -46,10 +54,14 @@ export function resolveBlockEntries(projectRoot: string, blocks: BlockSchema[]):
 
     const componentPathUrl = schema[COMPONENT_PATH_KEY];
 
-    if (componentPathUrl === undefined || componentPathUrl === null || String(componentPathUrl).trim() === '') {
+    if (
+      componentPathUrl === undefined ||
+      componentPathUrl === null ||
+      String(componentPathUrl).trim() === ''
+    ) {
       const name = schema.name || `block at index ${index}`;
       throw new Error(
-        `[astro-blocks] Block schema for "${name}" is missing component path. Use defineBlockSchema(definition, import.meta.url) in the component.`
+        `[astro-blocks] Block schema for "${name}" is missing component path. Use defineBlockSchema(definition, import.meta.url) in the component.`,
       );
     }
 
@@ -61,7 +73,9 @@ export function resolveBlockEntries(projectRoot: string, blocks: BlockSchema[]):
     const key = getBlockKey(schema, resolvedPath);
 
     if (seenKeys.has(key)) {
-      throw new Error(`[astro-blocks] Duplicate block key: ${key}. Use schema.key to disambiguate or rename the component file.`);
+      throw new Error(
+        `[astro-blocks] Duplicate block key: ${key}. Use schema.key to disambiguate or rename the component file.`,
+      );
     }
 
     seenKeys.add(key);
@@ -79,7 +93,7 @@ export function buildSchemaMap(entries: ResolvedBlockEntry[]): SchemaMap {
 
 export function validateBlocks(
   schemaMap: SchemaMap,
-  blocks: unknown
+  blocks: unknown,
 ): { message: string; messageKey?: string; params?: Record<string, string | number> } | null {
   if (!Array.isArray(blocks) || blocks.length === 0) return null;
 
@@ -88,19 +102,33 @@ export function validateBlocks(
     const type = block && typeof block === 'object' ? block.type : undefined;
 
     if (typeof type !== 'string' || type.trim() === '') {
-      return { message: `Block at index ${index}: missing or invalid type.`, messageKey: 'errors.blockTypeMissing', params: { n: index } };
+      return {
+        message: `Block at index ${index}: missing or invalid type.`,
+        messageKey: 'errors.blockTypeMissing',
+        params: { n: index },
+      };
     }
 
     const schema = schemaMap[type];
     if (!schema || !schema.items) {
-      return { message: `Block at index ${index}: unknown type "${type}".`, messageKey: 'errors.blockTypeUnknown', params: { n: index, type: String(type) } };
+      return {
+        message: `Block at index ${index}: unknown type "${type}".`,
+        messageKey: 'errors.blockTypeUnknown',
+        params: { n: index, type: String(type) },
+      };
     }
 
-    const props = block?.props && typeof block.props === 'object' && !Array.isArray(block.props)
-      ? block.props as Record<string, unknown>
-      : {};
+    const props =
+      block?.props && typeof block.props === 'object' && !Array.isArray(block.props)
+        ? (block.props as Record<string, unknown>)
+        : {};
 
-    const issue = validateBlockPropsAgainstSchema(schema.name || type, index, schema.items || {}, props);
+    const issue = validateBlockPropsAgainstSchema(
+      schema.name || type,
+      index,
+      schema.items || {},
+      props,
+    );
     if (issue) {
       return { message: issue.message, messageKey: issue.messageKey, params: issue.params };
     }

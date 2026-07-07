@@ -28,7 +28,10 @@ export const COMPONENT_PATH_KEY = '__componentPath' as const;
  * Define the block schema. Call from your component with import.meta.url so the
  * plugin can resolve the component path.
  */
-export function defineBlockSchema(definition: BlockDefinition, componentUrl?: string | URL): BlockSchema {
+export function defineBlockSchema(
+  definition: BlockDefinition,
+  componentUrl?: string | URL,
+): BlockSchema {
   const schema: BlockSchema = { ...definition };
 
   if (componentUrl !== undefined && componentUrl !== null) {

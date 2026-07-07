@@ -26,11 +26,12 @@ export async function getLanguages(options?: GetLanguagesOptions): Promise<GetLa
   const all = Array.isArray(data.languages) ? data.languages : [];
   const enabledOnly = options?.enabledOnly !== false;
 
-  const languages = (enabledOnly ? all.filter((entry) => entry.enabled !== false) : all).map((entry) => ({ ...entry }));
+  const languages = (enabledOnly ? all.filter((entry) => entry.enabled !== false) : all).map(
+    (entry) => ({ ...entry }),
+  );
 
   return {
     languages,
     defaultLocale: getDefaultLocale(data),
   };
 }
-

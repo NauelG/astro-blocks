@@ -10,11 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { ensureDefaultFiles, loadUsers } from '../dist/api/data.js';
-import {
-  handleLogin,
-  handleAuthMe,
-  handleAuthStatus,
-} from '../dist/api/handlers.js';
+import { handleLogin, handleAuthMe, handleAuthStatus } from '../dist/api/handlers.js';
 
 async function withTempProject(fn) {
   const previousRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
@@ -45,16 +41,22 @@ test('handleLogin: first login creates owner and returns token + user', async ()
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'admin@example.com', password: 'secret123' }),
-      })
+      }),
     );
 
     assert.equal(response.status, 200);
     const body = await response.json();
 
-    assert.ok(typeof body.token === 'string' && body.token.length > 0, 'token must be a non-empty string');
+    assert.ok(
+      typeof body.token === 'string' && body.token.length > 0,
+      'token must be a non-empty string',
+    );
     assert.equal(body.user.email, 'admin@example.com');
     assert.equal(body.user.role, 'owner');
-    assert.ok(typeof body.user.id === 'string' && body.user.id.length > 0, 'user id must be present');
+    assert.ok(
+      typeof body.user.id === 'string' && body.user.id.length > 0,
+      'user id must be present',
+    );
 
     // The user must be persisted so subsequent logins can verify the password.
     const stored = await loadUsers();
@@ -72,7 +74,7 @@ test('handleLogin: successful login after user already exists returns token + us
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'admin@example.com', password: 'secret123' }),
-      })
+      }),
     );
 
     // Log in again with valid credentials.
@@ -81,7 +83,7 @@ test('handleLogin: successful login after user already exists returns token + us
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'admin@example.com', password: 'secret123' }),
-      })
+      }),
     );
 
     assert.equal(response.status, 200);
@@ -99,7 +101,7 @@ test('handleLogin: bad password returns 401', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'admin@example.com', password: 'secret123' }),
-      })
+      }),
     );
 
     // Try with a wrong password.
@@ -108,7 +110,7 @@ test('handleLogin: bad password returns 401', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'admin@example.com', password: 'wrongpassword' }),
-      })
+      }),
     );
 
     assert.equal(response.status, 401);
@@ -125,7 +127,7 @@ test('handleLogin: unknown email after users exist returns 401', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'admin@example.com', password: 'secret123' }),
-      })
+      }),
     );
 
     // Try with an email that was never registered.
@@ -134,7 +136,7 @@ test('handleLogin: unknown email after users exist returns 401', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'nobody@example.com', password: 'secret123' }),
-      })
+      }),
     );
 
     assert.equal(response.status, 401);
@@ -150,7 +152,7 @@ test('handleLogin: missing email or password returns 400', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: '', password: '' }),
-      })
+      }),
     );
 
     assert.equal(response.status, 400);
@@ -167,7 +169,7 @@ test('handleLogin: email is normalized to lowercase', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'Admin@Example.COM', password: 'secret123' }),
-      })
+      }),
     );
 
     const stored = await loadUsers();
@@ -180,7 +182,7 @@ test('handleLogin: email is normalized to lowercase', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'admin@example.com', password: 'secret123' }),
-      })
+      }),
     );
 
     assert.equal(response.status, 200);
@@ -243,7 +245,7 @@ test('handleAuthStatus: returns hasUsers=true after a user is created', async ()
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'admin@example.com', password: 'secret123' }),
-      })
+      }),
     );
 
     const response = await handleAuthStatus();

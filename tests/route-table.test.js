@@ -32,7 +32,10 @@ test('every entry has a valid method, pattern, and auth level', () => {
     assert.ok(VALID_METHODS.has(entry.method), `invalid method: ${entry.method}`);
     assert.equal(typeof entry.pattern, 'string');
     assert.ok(entry.pattern.length > 0);
-    assert.ok(VALID_AUTH_LEVELS.has(entry.auth), `invalid auth level for ${entry.method} ${entry.pattern}: ${entry.auth}`);
+    assert.ok(
+      VALID_AUTH_LEVELS.has(entry.auth),
+      `invalid auth level for ${entry.method} ${entry.pattern}: ${entry.auth}`,
+    );
     assert.equal(typeof entry.handler, 'function');
   }
 });
@@ -53,7 +56,9 @@ test('method distribution matches the equivalence checklist (GET 15 / POST 12 / 
 });
 
 test('exactly 10 routes are owner-gated, matching the design inventory', () => {
-  const ownerRoutes = routes.filter((r) => r.auth === 'owner').map((r) => `${r.method} ${r.pattern}`);
+  const ownerRoutes = routes
+    .filter((r) => r.auth === 'owner')
+    .map((r) => `${r.method} ${r.pattern}`);
   assert.equal(ownerRoutes.length, 10);
   assert.deepEqual(
     new Set(ownerRoutes),
@@ -68,6 +73,6 @@ test('exactly 10 routes are owner-gated, matching the design inventory', () => {
       'PUT languages/:id',
       'DELETE users/:id',
       'DELETE languages/:id',
-    ])
+    ]),
   );
 });

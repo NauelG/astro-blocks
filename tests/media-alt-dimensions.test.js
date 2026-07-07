@@ -70,29 +70,29 @@ async function withTempProject(fn) {
 // Created from known-good minimal PNG bytes.
 const MINIMAL_PNG_1x1 = Buffer.from(
   '89504e470d0a1a0a0000000d49484452000000010000000108020000009001' +
-  '2e00000000c4944415478016360f8cfc00000000200013358a420000000049454e44ae426082',
-  'hex'
+    '2e00000000c4944415478016360f8cfc00000000200013358a420000000049454e44ae426082',
+  'hex',
 );
 
 // Real minimal JPEG (with valid JPEG SOF0 dimensions 1×1)
 // SOI + APP0 + SOF0 declaring 1×1 + EOI
 const MINIMAL_JPEG_1x1 = Buffer.from(
   'ffd8ffe000104a46494600010100000100010000' + // SOI + APP0
-  'ffdb0043000102020201020202030303030403040505040404050a07070605' +
-  '0a0b0a0b0b0a0a0b0a0b0a0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b' +
-  '0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b' +
-  'ffc000110800010001030111000211010311010fffd9',
-  'hex'
+    'ffdb0043000102020201020202030303030403040505040404050a07070605' +
+    '0a0b0a0b0b0a0a0b0a0b0a0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b' +
+    '0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b' +
+    'ffc000110800010001030111000211010311010fffd9',
+  'hex',
 );
 
 // SVG without viewBox — image-size should throw / return no dims
 const SVG_NO_VIEWBOX = Buffer.from(
-  '<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>'
+  '<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>',
 );
 
 // SVG with viewBox — image-size should return dims
 const SVG_WITH_VIEWBOX = Buffer.from(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200"><circle r="10"/></svg>'
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 200"><circle r="10"/></svg>',
 );
 
 function makeUploadRequest(fileContent, fileName, mimeType) {
@@ -176,7 +176,7 @@ test('T-12: PATCH /cms/api/media — updates alt, returns 200 (SC-5.1)', async (
     const uploadReq = makeUploadRequest(
       Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
       'test.jpg',
-      'image/jpeg'
+      'image/jpeg',
     );
     const uploadRes = await handleUpload(uploadReq);
     assert.equal(uploadRes.status, 200);

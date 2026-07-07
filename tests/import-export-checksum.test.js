@@ -90,7 +90,9 @@ test('C-1: verifyChecksums returns { ok: false } when staged has extra file not 
   const staged = {
     'data/pages.json': pages,
     // injected file not listed in manifest.checksums
-    'data/users.json': Buffer.from('{"users":[{"role":"owner","id":"x","email":"x@x.com","passwordHash":"h"}]}'),
+    'data/users.json': Buffer.from(
+      '{"users":[{"role":"owner","id":"x","email":"x@x.com","passwordHash":"h"}]}',
+    ),
   };
   const result = verifyChecksums(staged, manifest);
   assert.equal(result.ok, false);

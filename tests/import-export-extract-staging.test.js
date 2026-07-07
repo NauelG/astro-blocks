@@ -69,13 +69,19 @@ async function buildMinimalZip(entries) {
     const chunks = [];
     const zip = new Zip();
     zip.ondata = (err, chunk, final) => {
-      if (err) { reject(err); return; }
+      if (err) {
+        reject(err);
+        return;
+      }
       chunks.push(chunk);
       if (final) {
         const totalLen = chunks.reduce((s, c) => s + c.length, 0);
         const buf = Buffer.allocUnsafe(totalLen);
         let offset = 0;
-        for (const c of chunks) { buf.set(c, offset); offset += c.length; }
+        for (const c of chunks) {
+          buf.set(c, offset);
+          offset += c.length;
+        }
         resolve(buf);
       }
     };
@@ -100,7 +106,11 @@ test('C-1: extractToStaging extracts valid zip to staging dir', async () => {
     const zipBody = await buildValidZipBody(tempRoot);
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-'));
     try {
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
+      const ceilings = {
+        perFile: 50 * 1024 * 1024,
+        total: 500 * 1024 * 1024,
+        compressed: 1024 * 1024 * 1024,
+      };
       await extractToStaging(zipBody, stagingDir, ceilings, tempRoot);
 
       // manifest.json + data/pages.json should exist
@@ -126,7 +136,11 @@ test('C-1: extractToStaging rejects path traversal entry (uploads/../../etc/pass
     const zipBody = await buildMinimalZip([traversalEntry]);
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-traversal-'));
     try {
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
+      const ceilings = {
+        perFile: 50 * 1024 * 1024,
+        total: 500 * 1024 * 1024,
+        compressed: 1024 * 1024 * 1024,
+      };
       await assert.rejects(
         async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
         /traversal|not allowed/i,
@@ -144,7 +158,11 @@ test('C-1: extractToStaging rejects unknown data entry (data/unknown.json)', asy
     ]);
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-unknown-'));
     try {
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
+      const ceilings = {
+        perFile: 50 * 1024 * 1024,
+        total: 500 * 1024 * 1024,
+        compressed: 1024 * 1024 * 1024,
+      };
       await assert.rejects(
         async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
         /unknown|not allowed|disallowed/i,
@@ -162,7 +180,11 @@ test('C-1: extractToStaging rejects data/_backups/ entries', async () => {
     ]);
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-backups-'));
     try {
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
+      const ceilings = {
+        perFile: 50 * 1024 * 1024,
+        total: 500 * 1024 * 1024,
+        compressed: 1024 * 1024 * 1024,
+      };
       await assert.rejects(
         async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
         /unknown|not allowed|disallowed|backup/i,
@@ -177,9 +199,7 @@ test('C-1: extractToStaging enforces per-file ceiling mid-stream (M-1)', async (
   await withTempProject(async (tempRoot) => {
     // Build a zip entry larger than the per-file ceiling
     const bigContent = Buffer.alloc(1024, 0x61); // 1 KB of 'a'
-    const zipBody = await buildMinimalZip([
-      { name: 'data/pages.json', bytes: bigContent },
-    ]);
+    const zipBody = await buildMinimalZip([{ name: 'data/pages.json', bytes: bigContent }]);
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-perfile-'));
     try {
       // Set per-file ceiling to 512 bytes — below the 1 KB entry
@@ -201,7 +221,11 @@ test('FIX-3a: extractToStaging does NOT modify process.env.ASTRO_BLOCKS_PROJECT_
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-envcheck-'));
     try {
       const before = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
+      const ceilings = {
+        perFile: 50 * 1024 * 1024,
+        total: 500 * 1024 * 1024,
+        compressed: 1024 * 1024 * 1024,
+      };
       await extractToStaging(zipBody, stagingDir, ceilings, tempRoot);
       const after = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
       assert.equal(after, before, 'extractToStaging must not change ASTRO_BLOCKS_PROJECT_ROOT');
@@ -221,15 +245,26 @@ test('FIX-6: extractToStaging with invalid first entry aborts — valid second e
     ]);
     const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-abort-'));
     try {
-      const ceilings = { perFile: 50 * 1024 * 1024, total: 500 * 1024 * 1024, compressed: 1024 * 1024 * 1024 };
+      const ceilings = {
+        perFile: 50 * 1024 * 1024,
+        total: 500 * 1024 * 1024,
+        compressed: 1024 * 1024 * 1024,
+      };
       await assert.rejects(
         async () => extractToStaging(zipBody, stagingDir, ceilings, tempRoot),
         /not allowed/i,
       );
       // The valid second entry (data/pages.json) must NOT have been written
       const pagesPath = path.join(stagingDir, 'data', 'pages.json');
-      const exists = await fs.stat(pagesPath).then(() => true).catch(() => false);
-      assert.equal(exists, false, 'data/pages.json must NOT be written after first-entry rejection (aborted=true)');
+      const exists = await fs
+        .stat(pagesPath)
+        .then(() => true)
+        .catch(() => false);
+      assert.equal(
+        exists,
+        false,
+        'data/pages.json must NOT be written after first-entry rejection (aborted=true)',
+      );
     } finally {
       await fs.rm(stagingDir, { recursive: true, force: true });
     }
@@ -283,7 +318,10 @@ test('GAP-5: ceiling-exceeding first entry causes rejection; subsequent entries 
       );
       // Second entry (data/users.json) must NOT have been written — onfile exits early after abort
       const usersPath = path.join(stagingDir, 'data', 'users.json');
-      const usersExists = await fs.stat(usersPath).then(() => true).catch(() => false);
+      const usersExists = await fs
+        .stat(usersPath)
+        .then(() => true)
+        .catch(() => false);
       assert.equal(
         usersExists,
         false,

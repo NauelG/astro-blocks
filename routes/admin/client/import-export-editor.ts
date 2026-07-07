@@ -56,8 +56,16 @@ type ImportExportI18n = {
 type CmsWindow = Window &
   typeof globalThis & {
     __cmsImportExportI18n?: ImportExportI18n;
-    cmsConfirm?: (opts: { message: string; title?: string; confirmLabel?: string }) => Promise<boolean>;
-    cmsToast?: (opts: { title?: string; message: string; tone?: 'success' | 'error' | 'info' }) => void;
+    cmsConfirm?: (opts: {
+      message: string;
+      title?: string;
+      confirmLabel?: string;
+    }) => Promise<boolean>;
+    cmsToast?: (opts: {
+      title?: string;
+      message: string;
+      tone?: 'success' | 'error' | 'info';
+    }) => void;
   };
 
 function getI18n(): ImportExportI18n {
@@ -86,9 +94,9 @@ function clearStatus(el: HTMLElement | null): void {
 
 function getCheckedUnits(fieldset: HTMLFieldSetElement | null): string[] {
   if (!fieldset) return [];
-  return Array.from(fieldset.querySelectorAll<HTMLInputElement>('input[type="checkbox"]:checked')).map(
-    (cb) => cb.value,
-  );
+  return Array.from(
+    fieldset.querySelectorAll<HTMLInputElement>('input[type="checkbox"]:checked'),
+  ).map((cb) => cb.value);
 }
 
 async function handleExport(
@@ -117,10 +125,7 @@ async function handleExport(
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ error: String(res.status) }));
       const detail = (errData as { error?: string }).error || String(res.status);
-      setStatus(
-        statusEl,
-        interpolate(i18n.statusError || 'Error: {detail}', { detail }),
-      );
+      setStatus(statusEl, interpolate(i18n.statusError || 'Error: {detail}', { detail }));
       return;
     }
 
@@ -288,16 +293,22 @@ async function handleImport(
   const hasUsers = units.includes('users');
 
   // Build confirm message — concatenate replace warning and optional session warning.
-  let confirmMsg = (i18n.confirmReplace || 'Replace all selected data with the imported backup?') +
+  let confirmMsg =
+    (i18n.confirmReplace || 'Replace all selected data with the imported backup?') +
     '\n\n' +
-    (i18n.confirmReplaceWarning || 'This action replaces existing content permanently. A backup snapshot will be created before proceeding.');
+    (i18n.confirmReplaceWarning ||
+      'This action replaces existing content permanently. A backup snapshot will be created before proceeding.');
   if (hasUsers) {
-    confirmMsg += '\n\n' + (i18n.usersSessionWarning || 'Importing the Users unit will replace all user accounts. Your current session will end immediately after the import completes.');
+    confirmMsg +=
+      '\n\n' +
+      (i18n.usersSessionWarning ||
+        'Importing the Users unit will replace all user accounts. Your current session will end immediately after the import completes.');
   }
 
   const cmsConfirm = (window as CmsWindow).cmsConfirm;
   if (!cmsConfirm) {
-    const msg = i18n.confirmUnavailable || 'Confirm dialog is not available. Please reload the page.';
+    const msg =
+      i18n.confirmUnavailable || 'Confirm dialog is not available. Please reload the page.';
     setStatus(statusEl, msg);
     showToast(msg, 'error');
     return;
@@ -327,14 +338,14 @@ async function handleImport(
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ error: String(res.status) }));
       const detail = (errData as { error?: string }).error || String(res.status);
-      setStatus(
-        statusEl,
-        interpolate(i18n.statusError || 'Error: {detail}', { detail }),
-      );
+      setStatus(statusEl, interpolate(i18n.statusError || 'Error: {detail}', { detail }));
       return;
     }
 
-    const data = (await res.json().catch(() => ({}))) as { success?: boolean; usersReplaced?: boolean };
+    const data = (await res.json().catch(() => ({}))) as {
+      success?: boolean;
+      usersReplaced?: boolean;
+    };
 
     setStatus(statusEl, i18n.statusDone || 'Done.');
     showToast(i18n.statusDone || 'Done.', 'success', i18n.upload || 'Import backup');
@@ -358,7 +369,9 @@ export function initImportExportEditor(): void {
   const fileInput = document.getElementById('ie-import-file') as HTMLInputElement | null;
   const fileSelectBtn = document.getElementById('ie-import-file-btn') as HTMLButtonElement | null;
   const fileNameDisplay = document.getElementById('ie-import-file-name') as HTMLElement | null;
-  const importUnitFieldset = document.getElementById('ie-import-units') as HTMLFieldSetElement | null;
+  const importUnitFieldset = document.getElementById(
+    'ie-import-units',
+  ) as HTMLFieldSetElement | null;
   const importBtn = document.getElementById('ie-import-btn') as HTMLButtonElement | null;
   const manifestPreview = document.getElementById('ie-manifest-preview') as HTMLElement | null;
 

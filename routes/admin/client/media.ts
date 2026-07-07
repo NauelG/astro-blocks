@@ -10,7 +10,13 @@ Licensed under the Business Source License 1.1
  */
 
 import { getCmsToken, getCmsWindow } from './common.js';
-import { fetchMedia, formatBytes, formatDimensions, formatMediaDate, uploadMedia } from './media-fetch.js';
+import {
+  fetchMedia,
+  formatBytes,
+  formatDimensions,
+  formatMediaDate,
+  uploadMedia,
+} from './media-fetch.js';
 import type { MediaListEnvelope, MediaEntry } from './media-fetch.js';
 import { ct } from '../i18n/client.js';
 
@@ -39,7 +45,12 @@ let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 // ─── Grid rendering ───────────────────────────────────────────────────────────
 
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function escapeAttr(s: string): string {
@@ -52,7 +63,10 @@ const docIconSvg =
 
 function renderCard(entry: MediaEntry): string {
   const dims = formatDimensions(entry.width, entry.height);
-  const metaDims = dims !== '—' ? `<span class="cms-media-card-meta-dim">${escapeHtml(dims)}</span><span class="cms-media-card-meta-sep" aria-hidden="true">·</span>` : '';
+  const metaDims =
+    dims !== '—'
+      ? `<span class="cms-media-card-meta-dim">${escapeHtml(dims)}</span><span class="cms-media-card-meta-sep" aria-hidden="true">·</span>`
+      : '';
   const metaRow = `
     <div class="cms-media-card-meta cms-muted" aria-label="${escapeAttr(ct('media.imageMetaAriaLabel'))}">
       ${metaDims}<span class="cms-media-card-meta-size">${escapeHtml(formatBytes(entry.size))}</span><span class="cms-media-card-meta-sep" aria-hidden="true">·</span><span class="cms-media-card-meta-type">${escapeHtml(entry.mimeType)}</span><span class="cms-media-card-meta-sep" aria-hidden="true">·</span><span class="cms-media-card-meta-date">${escapeHtml(formatMediaDate(entry.createdAt))}</span>
@@ -65,8 +79,10 @@ function renderCard(entry: MediaEntry): string {
   // Determine whether this entry is an image or a document file.
   // Prefer the stored fileCategory field (set by the backend since Slice B);
   // fall back to MIME-type derivation for any legacy entries loaded without it.
-  const isDocument = (entry as MediaEntry & { fileCategory?: string }).fileCategory === 'document'
-    || (!(entry as MediaEntry & { fileCategory?: string }).fileCategory && !entry.mimeType.startsWith('image/'));
+  const isDocument =
+    (entry as MediaEntry & { fileCategory?: string }).fileCategory === 'document' ||
+    (!(entry as MediaEntry & { fileCategory?: string }).fileCategory &&
+      !entry.mimeType.startsWith('image/'));
 
   // Thumbnail section: <img> for images, accessible document tile for non-images.
   // Per accessibility skill (WCAG 1.1 text alternatives):
@@ -172,10 +188,18 @@ function renderGrid(envelope: MediaListEnvelope): void {
   gridCard.innerHTML = `<div id="cms-media-grid" class="cms-media-grid" aria-label="${escapeAttr(ct('media.imageLibraryAriaLabel'))}" role="list">${items}</div>`;
 
   // Update count region (aria-live polite)
-  if (countEl) countEl.textContent = total === 1 ? ct('media.count', { total: String(total) }) : ct('media.countPlural', { total: String(total) });
+  if (countEl)
+    countEl.textContent =
+      total === 1
+        ? ct('media.count', { total: String(total) })
+        : ct('media.countPlural', { total: String(total) });
 
   // Update page indicator
-  if (pageIndicator) pageIndicator.textContent = ct('media.pageIndicator', { page: String(page), totalPages: String(totalPages) });
+  if (pageIndicator)
+    pageIndicator.textContent = ct('media.pageIndicator', {
+      page: String(page),
+      totalPages: String(totalPages),
+    });
 
   // Update pagination button states
   if (prevBtn) prevBtn.disabled = page <= 1;
@@ -190,7 +214,11 @@ function renderGrid(envelope: MediaListEnvelope): void {
 
 async function loadMedia(): Promise<void> {
   const seq = ++reqSeq;
-  const envelope = await fetchMedia({ q: state.q || undefined, page: state.page, limit: state.limit });
+  const envelope = await fetchMedia({
+    q: state.q || undefined,
+    page: state.page,
+    limit: state.limit,
+  });
   // Stale response guard: discard if a newer request has already been issued
   if (seq !== reqSeq) return;
   renderGrid(envelope);
@@ -203,16 +231,22 @@ async function uploadFile(file: File): Promise<void> {
   const res = await uploadMedia(file);
 
   if (res.ok) {
-    cmsWindow.cmsToast?.({ title: ct('media.uploadSuccess'), message: ct('media.uploadSuccessMessage', { filename: file.name }), tone: 'success' });
+    cmsWindow.cmsToast?.({
+      title: ct('media.uploadSuccess'),
+      message: ct('media.uploadSuccessMessage', { filename: file.name }),
+      tone: 'success',
+    });
     // Reset to page 1 to show newly uploaded file
     state.page = 1;
     await loadMedia();
   } else {
     let errorMsg = ct('media.uploadFailed');
     try {
-      const body = await res.json() as { error?: string };
+      const body = (await res.json()) as { error?: string };
       if (body.error) errorMsg = body.error;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     cmsWindow.cmsToast?.({ title: ct('media.uploadError'), message: errorMsg, tone: 'error' });
   }
 }
@@ -221,7 +255,13 @@ async function uploadFile(file: File): Promise<void> {
 
 interface UsageResult {
   count: number;
-  usages: Array<{ source: string; id: string; label: string; blockIndex?: number; propName?: string }>;
+  usages: Array<{
+    source: string;
+    id: string;
+    label: string;
+    blockIndex?: number;
+    propName?: string;
+  }>;
 }
 
 async function fetchMediaUsage(id: string): Promise<UsageResult | null> {
@@ -237,7 +277,12 @@ async function fetchMediaUsage(id: string): Promise<UsageResult | null> {
   }
 }
 
-async function deleteMedia(url: string, filename: string, id: string, triggerBtn: HTMLButtonElement): Promise<void> {
+async function deleteMedia(
+  url: string,
+  filename: string,
+  id: string,
+  triggerBtn: HTMLButtonElement,
+): Promise<void> {
   const cmsWindow = getCmsWindow();
 
   // Pre-fetch usage — warn-and-allow; failure falls back to plain confirm
@@ -248,13 +293,23 @@ async function deleteMedia(url: string, filename: string, id: string, triggerBtn
       .slice(0, 5)
       .map((u) => `  - ${u.label}`)
       .join('\n');
-    const more = usage.count > 5 ? `\n${ct('media.deleteConfirmUsedMore', { more: String(usage.count - 5) })}` : '';
-    confirmMessage = ct('media.deleteConfirmUsed', { count: String(usage.count), list: labelList + more, filename });
+    const more =
+      usage.count > 5
+        ? `\n${ct('media.deleteConfirmUsedMore', { more: String(usage.count - 5) })}`
+        : '';
+    confirmMessage = ct('media.deleteConfirmUsed', {
+      count: String(usage.count),
+      list: labelList + more,
+      filename,
+    });
   } else {
     confirmMessage = ct('media.deleteConfirmSingle', { filename });
   }
 
-  const confirmed = await cmsWindow.cmsConfirm?.({ message: confirmMessage, confirmLabel: ct('media.deleteLabel') });
+  const confirmed = await cmsWindow.cmsConfirm?.({
+    message: confirmMessage,
+    confirmLabel: ct('media.deleteLabel'),
+  });
   if (!confirmed) return;
 
   const token = getCmsToken();
@@ -268,13 +323,21 @@ async function deleteMedia(url: string, filename: string, id: string, triggerBtn
   });
 
   if (res.ok || res.status === 204) {
-    cmsWindow.cmsToast?.({ title: ct('media.deleted'), message: ct('media.deletedMessage', { filename }), tone: 'success' });
+    cmsWindow.cmsToast?.({
+      title: ct('media.deleted'),
+      message: ct('media.deletedMessage', { filename }),
+      tone: 'success',
+    });
     await loadMedia();
     // Return focus to prev/next if possible, else search
     const searchInput = document.getElementById('cms-media-search') as HTMLInputElement | null;
     searchInput?.focus();
   } else {
-    cmsWindow.cmsToast?.({ title: ct('media.deleteFailed'), message: ct('media.deleteFailedMessage'), tone: 'error' });
+    cmsWindow.cmsToast?.({
+      title: ct('media.deleteFailed'),
+      message: ct('media.deleteFailedMessage'),
+      tone: 'error',
+    });
     triggerBtn.focus();
   }
 }
@@ -287,14 +350,21 @@ function bindDeleteButtons(): void {
       const url = btn.dataset.deleteUrl ?? '';
       const filename = btn.dataset.deleteFilename ?? url;
       const id = btn.dataset.deleteId ?? '';
-      deleteMedia(url, filename, id, btn).catch(() => { /* handled in fn */ });
+      deleteMedia(url, filename, id, btn).catch(() => {
+        /* handled in fn */
+      });
     });
   });
 }
 
 // ─── Replace ──────────────────────────────────────────────────────────────────
 
-async function replaceMedia(id: string, filename: string, mimeType: string, triggerBtn: HTMLButtonElement): Promise<void> {
+async function replaceMedia(
+  id: string,
+  filename: string,
+  mimeType: string,
+  triggerBtn: HTMLButtonElement,
+): Promise<void> {
   const cmsWindow = getCmsWindow();
 
   // Create a hidden file input restricted to the original MIME type
@@ -314,7 +384,11 @@ async function replaceMedia(id: string, filename: string, mimeType: string, trig
     // Show processing hint
     triggerBtn.disabled = true;
     triggerBtn.setAttribute('aria-busy', 'true');
-    cmsWindow.cmsToast?.({ title: ct('media.replacing'), message: ct('media.replacingMessage', { filename }), tone: 'success' });
+    cmsWindow.cmsToast?.({
+      title: ct('media.replacing'),
+      message: ct('media.replacingMessage', { filename }),
+      tone: 'success',
+    });
 
     try {
       // Send the raw binary body with the file's real MIME as Content-Type. CSRF is not a
@@ -332,21 +406,31 @@ async function replaceMedia(id: string, filename: string, mimeType: string, trig
       });
 
       if (res.ok) {
-        cmsWindow.cmsToast?.({ title: ct('media.replaceSuccess'), message: ct('media.replaceSuccessMessage', { filename }), tone: 'success' });
+        cmsWindow.cmsToast?.({
+          title: ct('media.replaceSuccess'),
+          message: ct('media.replaceSuccessMessage', { filename }),
+          tone: 'success',
+        });
         await loadMedia();
       } else {
         let errorMsg = ct('media.replaceFailed');
         try {
-          const body = await res.json() as { error?: string };
+          const body = (await res.json()) as { error?: string };
           if (body.error) errorMsg = body.error;
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
         cmsWindow.cmsToast?.({ title: ct('media.replaceError'), message: errorMsg, tone: 'error' });
         triggerBtn.disabled = false;
         triggerBtn.removeAttribute('aria-busy');
         triggerBtn.focus();
       }
     } catch {
-      cmsWindow.cmsToast?.({ title: ct('media.replaceError'), message: ct('media.replaceNetworkError'), tone: 'error' });
+      cmsWindow.cmsToast?.({
+        title: ct('media.replaceError'),
+        message: ct('media.replaceNetworkError'),
+        tone: 'error',
+      });
       triggerBtn.disabled = false;
       triggerBtn.removeAttribute('aria-busy');
       triggerBtn.focus();
@@ -364,7 +448,9 @@ function bindReplaceButtons(): void {
       const id = btn.dataset.replaceId ?? '';
       const filename = btn.dataset.replaceFilename ?? id;
       const mimeType = btn.dataset.replaceMime ?? 'image/*';
-      replaceMedia(id, filename, mimeType, btn).catch(() => { /* handled in fn */ });
+      replaceMedia(id, filename, mimeType, btn).catch(() => {
+        /* handled in fn */
+      });
     });
   });
 }
@@ -384,9 +470,17 @@ async function patchMediaAlt(id: string, alt: string): Promise<void> {
   });
 
   if (res.ok) {
-    cmsWindow.cmsToast?.({ title: ct('media.altSaved'), message: ct('media.altSavedMessage'), tone: 'success' });
+    cmsWindow.cmsToast?.({
+      title: ct('media.altSaved'),
+      message: ct('media.altSavedMessage'),
+      tone: 'success',
+    });
   } else {
-    cmsWindow.cmsToast?.({ title: ct('media.altSaveFailed'), message: ct('media.altSaveFailedMessage'), tone: 'error' });
+    cmsWindow.cmsToast?.({
+      title: ct('media.altSaveFailed'),
+      message: ct('media.altSaveFailedMessage'),
+      tone: 'error',
+    });
   }
 }
 
@@ -398,7 +492,9 @@ function bindAltEditors(): void {
     const saveAlt = (): void => {
       const id = input.dataset.altId ?? '';
       if (!id) return;
-      patchMediaAlt(id, input.value).catch(() => { /* handled in fn */ });
+      patchMediaAlt(id, input.value).catch(() => {
+        /* handled in fn */
+      });
     };
 
     input.addEventListener('blur', saveAlt);
@@ -423,7 +519,9 @@ function bindSearchInput(): void {
     searchDebounceTimer = setTimeout(() => {
       state.q = searchInput.value.trim();
       state.page = 1; // reset to first page on new search
-      loadMedia().catch(() => { /* handled in fn */ });
+      loadMedia().catch(() => {
+        /* handled in fn */
+      });
     }, 250);
   });
 }
@@ -446,7 +544,9 @@ function bindPaginationButtons(): void {
         // Retain focus on Prev (may be disabled now; browser handles it)
         prevBtn.focus();
       })
-      .catch(() => { /* handled in fn */ });
+      .catch(() => {
+        /* handled in fn */
+      });
   });
 
   nextBtn?.addEventListener('click', () => {
@@ -460,7 +560,9 @@ function bindPaginationButtons(): void {
       .then(() => {
         nextBtn.focus();
       })
-      .catch(() => { /* handled in fn */ });
+      .catch(() => {
+        /* handled in fn */
+      });
   });
 }
 
@@ -481,7 +583,9 @@ function initDropzone(): void {
     const files = fileInput.files;
     if (!files || files.length === 0) return;
     Array.from(files).forEach((file) => {
-      uploadFile(file).catch(() => { /* handled in fn */ });
+      uploadFile(file).catch(() => {
+        /* handled in fn */
+      });
     });
     fileInput.value = '';
   });
@@ -501,7 +605,9 @@ function initDropzone(): void {
     const files = e.dataTransfer?.files;
     if (!files || files.length === 0) return;
     Array.from(files).forEach((file) => {
-      uploadFile(file).catch(() => { /* handled in fn */ });
+      uploadFile(file).catch(() => {
+        /* handled in fn */
+      });
     });
   });
 }
@@ -513,5 +619,7 @@ export function initMediaPage(): void {
   bindSearchInput();
   bindPaginationButtons();
   // Initial load: replace SSR grid with client-rendered paginated grid
-  loadMedia().catch(() => { /* fetchMedia already returns safe default on error */ });
+  loadMedia().catch(() => {
+    /* fetchMedia already returns safe default on error */
+  });
 }

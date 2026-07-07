@@ -52,7 +52,9 @@ export function normalizeLanguages(input: unknown): LanguagesData {
     normalized[0].enabled = true;
   }
 
-  let defaultIndex = normalized.findIndex((language) => language.isDefault && language.enabled !== false);
+  let defaultIndex = normalized.findIndex(
+    (language) => language.isDefault && language.enabled !== false,
+  );
   if (defaultIndex === -1) {
     defaultIndex = normalized.findIndex((language) => language.enabled !== false);
   }
@@ -81,7 +83,7 @@ export function getDefaultLanguageCode(languagesData: LanguagesData): string {
 export function getLocalizedValue<T>(
   map: LocalizedValueMap<T> | undefined,
   locale: string,
-  defaultLocale?: string
+  defaultLocale?: string,
 ): T | undefined {
   if (!map || typeof map !== 'object') return undefined;
 
@@ -97,7 +99,7 @@ export function getLocalizedValue<T>(
 
 export function getLocalizedValueForLocale<T>(
   map: LocalizedValueMap<T> | undefined,
-  locale: string
+  locale: string,
 ): T | undefined {
   if (!map || typeof map !== 'object') return undefined;
 
@@ -108,7 +110,7 @@ export function getLocalizedValueForLocale<T>(
 
 export function hasLocalizedValue<T>(
   map: LocalizedValueMap<T> | undefined,
-  locale: string
+  locale: string,
 ): boolean {
   return getLocalizedValueForLocale(map, locale) !== undefined;
 }
@@ -116,7 +118,7 @@ export function hasLocalizedValue<T>(
 export function setLocalizedValue<T>(
   map: LocalizedValueMap<T> | undefined,
   locale: string,
-  value: T
+  value: T,
 ): LocalizedValueMap<T> {
   const normalizedLocale = normalizeLocaleCode(locale);
   return {
@@ -127,17 +129,24 @@ export function setLocalizedValue<T>(
 
 export function isKnownLocale(locale: string, languagesData: LanguagesData): boolean {
   const normalizedLocale = normalizeLocaleCode(locale);
-  return getEnabledLanguages(languagesData).some((language) => normalizeLocaleCode(language.code) === normalizedLocale);
+  return getEnabledLanguages(languagesData).some(
+    (language) => normalizeLocaleCode(language.code) === normalizedLocale,
+  );
 }
 
-export function isLocalizedMapValue(value: unknown, localeKeys: Set<string>): value is Record<string, unknown> {
+export function isLocalizedMapValue(
+  value: unknown,
+  localeKeys: Set<string>,
+): value is Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const keys = Object.keys(value);
   if (keys.length === 0) return false;
   return keys.every((key) => localeKeys.has(normalizeLocaleCode(key)));
 }
 
-export function isSchemaPropLocalizable(def: Pick<PropDef, 'type' | 'localizable'> | undefined): boolean {
+export function isSchemaPropLocalizable(
+  def: Pick<PropDef, 'type' | 'localizable'> | undefined,
+): boolean {
   if (!def) return false;
   if (def.localizable === true) return true;
   if (def.localizable === false) return false;
@@ -185,7 +194,7 @@ function parseAcceptLanguage(headerValue: string | null | undefined): AcceptLang
 function resolveLocaleCandidate(
   requestedLocale: string,
   availableLocales: string[],
-  localeSet: Set<string>
+  localeSet: Set<string>,
 ): string | null {
   if (localeSet.has(requestedLocale)) return requestedLocale;
 
@@ -202,12 +211,16 @@ function resolveLocaleCandidate(
 export function resolvePreferredLocaleFromAcceptLanguage(
   headerValue: string | null | undefined,
   availableLocalesInput: string[],
-  defaultLocaleInput: string
+  defaultLocaleInput: string,
 ): string {
-  const availableLocales = (availableLocalesInput || []).map((entry) => normalizeLocaleCode(entry)).filter(Boolean);
+  const availableLocales = (availableLocalesInput || [])
+    .map((entry) => normalizeLocaleCode(entry))
+    .filter(Boolean);
   const localeSet = new Set(availableLocales);
   const defaultLocale = normalizeLocaleCode(defaultLocaleInput);
-  const safeDefault = localeSet.has(defaultLocale) ? defaultLocale : availableLocales[0] || defaultLocale || 'es';
+  const safeDefault = localeSet.has(defaultLocale)
+    ? defaultLocale
+    : availableLocales[0] || defaultLocale || 'es';
 
   if (availableLocales.length === 0) return safeDefault;
 
@@ -222,9 +235,11 @@ export function resolvePreferredLocaleFromAcceptLanguage(
 
 export function getLocaleFromCookiePreference(
   cookieValue: string | null | undefined,
-  availableLocalesInput: string[]
+  availableLocalesInput: string[],
 ): string | null {
-  const availableLocales = (availableLocalesInput || []).map((entry) => normalizeLocaleCode(entry)).filter(Boolean);
+  const availableLocales = (availableLocalesInput || [])
+    .map((entry) => normalizeLocaleCode(entry))
+    .filter(Boolean);
   const localeSet = new Set(availableLocales);
   const locale = normalizeLocaleCode(cookieValue);
   if (!locale) return null;
@@ -233,7 +248,7 @@ export function getLocaleFromCookiePreference(
 
 export function hasSameOriginReferrer(
   requestUrl: URL,
-  refererValue: string | null | undefined
+  refererValue: string | null | undefined,
 ): boolean {
   const raw = String(refererValue || '').trim();
   if (!raw) return false;
@@ -264,12 +279,14 @@ type ResolveRootLocaleRedirectInput = {
 };
 
 export function resolveRootLocaleRedirect(
-  input: ResolveRootLocaleRedirectInput
+  input: ResolveRootLocaleRedirectInput,
 ): RootLocaleRedirectResolution | null {
   if (input.requestUrl.pathname !== '/') return null;
   if (hasSameOriginReferrer(input.requestUrl, input.referer)) return null;
 
-  const availableLocales = (input.availableLocales || []).map((entry) => normalizeLocaleCode(entry)).filter(Boolean);
+  const availableLocales = (input.availableLocales || [])
+    .map((entry) => normalizeLocaleCode(entry))
+    .filter(Boolean);
   const defaultLocale = normalizeLocaleCode(input.defaultLocale);
 
   const cookieLocale = getLocaleFromCookiePreference(input.cookieLocale, availableLocales);
@@ -284,10 +301,14 @@ export function resolveRootLocaleRedirect(
   const preferredLocale = resolvePreferredLocaleFromAcceptLanguage(
     input.acceptLanguage,
     availableLocales,
-    defaultLocale
+    defaultLocale,
   );
 
-  if (preferredLocale && preferredLocale !== defaultLocale && input.hasPublishedHome(preferredLocale)) {
+  if (
+    preferredLocale &&
+    preferredLocale !== defaultLocale &&
+    input.hasPublishedHome(preferredLocale)
+  ) {
     return {
       locale: preferredLocale,
       source: 'accept-language',

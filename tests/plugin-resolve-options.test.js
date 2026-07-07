@@ -53,8 +53,7 @@ async function withTempProject(fn) {
 async function runSetupHook(options, tempRoot) {
   // Load the plugin. Cache-bust so different option combos load fresh.
   const url =
-    new URL('../dist/plugin/index.js', import.meta.url).href +
-    `?cb=${Date.now()}-${Math.random()}`;
+    new URL('../dist/plugin/index.js', import.meta.url).href + `?cb=${Date.now()}-${Math.random()}`;
   const { default: astroBlocks } = await import(url);
 
   const integration = astroBlocks({ blocks: [], ...options });
@@ -75,17 +74,16 @@ async function runSetupHook(options, tempRoot) {
 
 test('C5: DEFAULT_ALLOWED_FILE_TYPES is importable from package root', async () => {
   const url =
-    new URL('../dist/plugin/index.js', import.meta.url).href +
-    `?cb=${Date.now()}-${Math.random()}`;
+    new URL('../dist/plugin/index.js', import.meta.url).href + `?cb=${Date.now()}-${Math.random()}`;
   const mod = await import(url);
   assert.ok(
     'DEFAULT_ALLOWED_FILE_TYPES' in mod,
-    'DEFAULT_ALLOWED_FILE_TYPES must be exported from plugin/index.js (package root)'
+    'DEFAULT_ALLOWED_FILE_TYPES must be exported from plugin/index.js (package root)',
   );
   assert.deepEqual(
     [...mod.DEFAULT_ALLOWED_FILE_TYPES].sort(),
     [...DEFAULT_ALLOWED_FILE_TYPES].sort(),
-    'root re-export must match utils/file-types.ts source'
+    'root re-export must match utils/file-types.ts source',
   );
 });
 
@@ -100,18 +98,25 @@ test('C3 R1.1-A: resolveOptions defaults allowedFileTypes to DEFAULT_ALLOWED_FIL
     assert.deepEqual(
       [...parsed].sort(),
       [...DEFAULT_ALLOWED_FILE_TYPES].sort(),
-      'default allowedFileTypes must equal DEFAULT_ALLOWED_FILE_TYPES'
+      'default allowedFileTypes must equal DEFAULT_ALLOWED_FILE_TYPES',
     );
   });
 });
 
 test('C3 R1.2-A: resolveOptions uses custom allowedFileTypes (replaces defaults)', async () => {
   await withTempProject(async (tempRoot) => {
-    const vite = await runSetupHook({ allowedFileTypes: ['image/jpeg', 'application/pdf'] }, tempRoot);
+    const vite = await runSetupHook(
+      { allowedFileTypes: ['image/jpeg', 'application/pdf'] },
+      tempRoot,
+    );
     const raw = vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'];
     assert.ok(raw !== undefined);
     const parsed = JSON.parse(raw);
-    assert.deepEqual(parsed.sort(), ['application/pdf', 'image/jpeg'], 'custom list must replace defaults');
+    assert.deepEqual(
+      parsed.sort(),
+      ['application/pdf', 'image/jpeg'],
+      'custom list must replace defaults',
+    );
   });
 });
 
@@ -119,12 +124,16 @@ test('C3 R1.3-A: resolveOptions deduplicates and lowercases allowedFileTypes', a
   await withTempProject(async (tempRoot) => {
     const vite = await runSetupHook(
       { allowedFileTypes: ['Image/JPEG', 'image/jpeg', 'Application/PDF', 'APPLICATION/PDF'] },
-      tempRoot
+      tempRoot,
     );
     const raw = vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'];
     assert.ok(raw !== undefined);
     const parsed = JSON.parse(raw);
-    assert.deepEqual(parsed.sort(), ['application/pdf', 'image/jpeg'], 'dedup+lowercase must reduce to 2 entries');
+    assert.deepEqual(
+      parsed.sort(),
+      ['application/pdf', 'image/jpeg'],
+      'dedup+lowercase must reduce to 2 entries',
+    );
   });
 });
 
@@ -137,7 +146,11 @@ test('C3 R1.4-A: vite.define ASTRO_BLOCKS_ALLOWED_FILE_TYPES matches resolved al
     const raw = vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'];
     assert.ok(raw !== undefined, 'define key must be present');
     const parsed = JSON.parse(raw);
-    assert.deepEqual(parsed.sort(), [...custom].sort(), 'define value must deep-equal resolved allowlist');
+    assert.deepEqual(
+      parsed.sort(),
+      [...custom].sort(),
+      'define value must deep-equal resolved allowlist',
+    );
   });
 });
 
@@ -157,11 +170,11 @@ test('I2: allowedFileTypes:[] resolves to [] and emits empty-allowlist warn', as
       assert.deepEqual(parsed, [], 'empty allowedFileTypes must resolve to []');
       assert.ok(
         warns.some((w) => w.includes('allowedFileTypes is empty')),
-        `expected empty-allowlist warn, got: ${JSON.stringify(warns)}`
+        `expected empty-allowlist warn, got: ${JSON.stringify(warns)}`,
       );
       assert.ok(
         warns.some((w) => w.includes('all file uploads will be rejected')),
-        `expected rejection warning in message, got: ${JSON.stringify(warns)}`
+        `expected rejection warning in message, got: ${JSON.stringify(warns)}`,
       );
     });
   } finally {
@@ -179,7 +192,7 @@ test('C4 R7.2-A: out-of-allowlist MIME emits advisory warn (will be ignored by t
   try {
     const { validateFileProps } = await import(
       new URL('../dist/plugin/index.js', import.meta.url).href +
-      `?cb=${Date.now()}-${Math.random()}`
+        `?cb=${Date.now()}-${Math.random()}`
     );
     assert.ok(typeof validateFileProps === 'function', 'validateFileProps must be exported');
 
@@ -200,23 +213,23 @@ test('C4 R7.2-A: out-of-allowlist MIME emits advisory warn (will be ignored by t
 
     assert.ok(
       warns.some((w) => w.includes('application/msword')),
-      `expected a warn about "application/msword", got: ${JSON.stringify(warns)}`
+      `expected a warn about "application/msword", got: ${JSON.stringify(warns)}`,
     );
     assert.ok(
       warns.some((w) => w.includes('Download')),
-      `expected block name "Download" in warn, got: ${JSON.stringify(warns)}`
+      `expected block name "Download" in warn, got: ${JSON.stringify(warns)}`,
     );
     assert.ok(
       warns.some((w) => w.includes('brochure')),
-      `expected prop name "brochure" in warn, got: ${JSON.stringify(warns)}`
+      `expected prop name "brochure" in warn, got: ${JSON.stringify(warns)}`,
     );
     assert.ok(
       warns.some((w) => w.includes('will be ignored by the media picker')),
-      `expected new wording "will be ignored by the media picker", got: ${JSON.stringify(warns)}`
+      `expected new wording "will be ignored by the media picker", got: ${JSON.stringify(warns)}`,
     );
     assert.ok(
       !warns.some((w) => w.includes('was dropped')),
-      `must NOT use old wording "was dropped", got: ${JSON.stringify(warns)}`
+      `must NOT use old wording "was dropped", got: ${JSON.stringify(warns)}`,
     );
   } finally {
     console.warn = origWarn;
@@ -231,7 +244,7 @@ test('C4 R7.3-A: file prop with no accept emits no warn', async () => {
   try {
     const { validateFileProps } = await import(
       new URL('../dist/plugin/index.js', import.meta.url).href +
-      `?cb=${Date.now()}-${Math.random()}`
+        `?cb=${Date.now()}-${Math.random()}`
     );
     const blocks = [
       {
@@ -254,7 +267,7 @@ test('C4: valid accept subset emits no warn', async () => {
   try {
     const { validateFileProps } = await import(
       new URL('../dist/plugin/index.js', import.meta.url).href +
-      `?cb=${Date.now()}-${Math.random()}`
+        `?cb=${Date.now()}-${Math.random()}`
     );
     const blocks = [
       {
@@ -277,7 +290,7 @@ test('C4: non-file props are ignored by validateFileProps', async () => {
   try {
     const { validateFileProps } = await import(
       new URL('../dist/plugin/index.js', import.meta.url).href +
-      `?cb=${Date.now()}-${Math.random()}`
+        `?cb=${Date.now()}-${Math.random()}`
     );
     const blocks = [
       {

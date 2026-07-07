@@ -22,19 +22,34 @@ test('normalizeRedirectPath canonicalizes trailing and repeated slashes', () => 
 test('validateRedirectPathInput rejects external urls, query and hash', () => {
   // Now returns { errorKey, fieldKey } objects instead of strings (localization is done at handler level)
   const emptyFrom = validateRedirectPathInput('', 'from');
-  assert.deepEqual(emptyFrom, { errorKey: 'redirects.pathRequired', fieldKey: 'redirects.labelFrom' });
+  assert.deepEqual(emptyFrom, {
+    errorKey: 'redirects.pathRequired',
+    fieldKey: 'redirects.labelFrom',
+  });
 
   const externalFrom = validateRedirectPathInput('https://example.com/old', 'from');
-  assert.deepEqual(externalFrom, { errorKey: 'redirects.pathMustBeInternal', fieldKey: 'redirects.labelFrom' });
+  assert.deepEqual(externalFrom, {
+    errorKey: 'redirects.pathMustBeInternal',
+    fieldKey: 'redirects.labelFrom',
+  });
 
   const noSlashTo = validateRedirectPathInput('old', 'to');
-  assert.deepEqual(noSlashTo, { errorKey: 'redirects.pathMustStartSlash', fieldKey: 'redirects.labelTo' });
+  assert.deepEqual(noSlashTo, {
+    errorKey: 'redirects.pathMustStartSlash',
+    fieldKey: 'redirects.labelTo',
+  });
 
   const queryFrom = validateRedirectPathInput('/old?a=1', 'from');
-  assert.deepEqual(queryFrom, { errorKey: 'redirects.pathNoQueryFragment', fieldKey: 'redirects.labelFrom' });
+  assert.deepEqual(queryFrom, {
+    errorKey: 'redirects.pathNoQueryFragment',
+    fieldKey: 'redirects.labelFrom',
+  });
 
   const hashTo = validateRedirectPathInput('/old#section', 'to');
-  assert.deepEqual(hashTo, { errorKey: 'redirects.pathNoQueryFragment', fieldKey: 'redirects.labelTo' });
+  assert.deepEqual(hashTo, {
+    errorKey: 'redirects.pathNoQueryFragment',
+    fieldKey: 'redirects.labelTo',
+  });
 
   assert.equal(validateRedirectPathInput('/valid-path', 'from'), null);
 });

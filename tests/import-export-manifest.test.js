@@ -6,21 +6,13 @@ Licensed under the Business Source License 1.1
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  buildManifest,
-  validateManifest,
-  UNIT_TO_DATA_FILES,
-} from '../dist/api/manifest.js';
+import { buildManifest, validateManifest, UNIT_TO_DATA_FILES } from '../dist/api/manifest.js';
 import { DATA_SCHEMA_VERSION } from '../dist/api/schema-version.js';
 
 // A-3: buildManifest
 
 test('A-3: buildManifest returns object with schemaVersion equal to DATA_SCHEMA_VERSION', () => {
-  const manifest = buildManifest(
-    ['pages'],
-    { pages: 3 },
-    { 'data/pages.json': 'abc123' },
-  );
+  const manifest = buildManifest(['pages'], { pages: 3 }, { 'data/pages.json': 'abc123' });
   assert.equal(manifest.schemaVersion, DATA_SCHEMA_VERSION);
 });
 

@@ -28,14 +28,18 @@ export function normalizeRedirectPath(pathname: string): string {
   return normalizePathname(pathname);
 }
 
-export function validateRedirectPathInput(value: unknown, field: RedirectPathField): RedirectPathError | null {
+export function validateRedirectPathInput(
+  value: unknown,
+  field: RedirectPathField,
+): RedirectPathError | null {
   const path = typeof value === 'string' ? value.trim() : '';
   const fieldKey = fieldLabelKey(field);
 
   if (!path) return { errorKey: 'redirects.pathRequired', fieldKey };
   if (ABSOLUTE_URL_REGEX.test(path)) return { errorKey: 'redirects.pathMustBeInternal', fieldKey };
   if (!path.startsWith('/')) return { errorKey: 'redirects.pathMustStartSlash', fieldKey };
-  if (path.includes('?') || path.includes('#')) return { errorKey: 'redirects.pathNoQueryFragment', fieldKey };
+  if (path.includes('?') || path.includes('#'))
+    return { errorKey: 'redirects.pathNoQueryFragment', fieldKey };
 
   return null;
 }
@@ -43,14 +47,14 @@ export function validateRedirectPathInput(value: unknown, field: RedirectPathFie
 export function hasDuplicateRedirectFrom(
   redirects: RedirectRule[],
   fromPath: string,
-  excludeId?: string
+  excludeId?: string,
 ): boolean {
   return redirects.some((entry) => entry.from === fromPath && entry.id !== excludeId);
 }
 
 export function findRedirectByPath(
   redirects: RedirectRule[],
-  pathname: string
+  pathname: string,
 ): RedirectRule | null {
   const targetPath = normalizeRedirectPath(pathname);
   return redirects.find((entry) => entry.enabled !== false && entry.from === targetPath) || null;

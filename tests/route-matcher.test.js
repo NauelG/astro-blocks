@@ -24,7 +24,9 @@ const noopHandler = () => new Response(null, { status: 204 });
 // ─── Exact static match ─────────────────────────────────────────────────────
 
 test('matchRoute: exact static pattern matches identical segments', () => {
-  const routes = [defineRoute({ method: 'GET', pattern: 'pages', auth: 'user', handler: noopHandler })];
+  const routes = [
+    defineRoute({ method: 'GET', pattern: 'pages', auth: 'user', handler: noopHandler }),
+  ];
 
   const match = matchRoute('GET', ['pages'], routes);
 
@@ -36,13 +38,17 @@ test('matchRoute: exact static pattern matches identical segments', () => {
 // ─── Arity-exact rejection ──────────────────────────────────────────────────
 
 test('matchRoute: arity mismatch (extra segment) never matches', () => {
-  const routes = [defineRoute({ method: 'GET', pattern: 'pages', auth: 'user', handler: noopHandler })];
+  const routes = [
+    defineRoute({ method: 'GET', pattern: 'pages', auth: 'user', handler: noopHandler }),
+  ];
 
   assert.equal(matchRoute('GET', ['pages', 'extra'], routes), null);
 });
 
 test('matchRoute: arity mismatch (missing segment) never matches', () => {
-  const routes = [defineRoute({ method: 'GET', pattern: 'media/:id/usage', auth: 'user', handler: noopHandler })];
+  const routes = [
+    defineRoute({ method: 'GET', pattern: 'media/:id/usage', auth: 'user', handler: noopHandler }),
+  ];
 
   assert.equal(matchRoute('GET', ['media', '123'], routes), null);
 });
@@ -50,7 +56,9 @@ test('matchRoute: arity mismatch (missing segment) never matches', () => {
 // ─── Literal mismatch ───────────────────────────────────────────────────────
 
 test('matchRoute: literal segment mismatch never matches', () => {
-  const routes = [defineRoute({ method: 'GET', pattern: 'pages', auth: 'user', handler: noopHandler })];
+  const routes = [
+    defineRoute({ method: 'GET', pattern: 'pages', auth: 'user', handler: noopHandler }),
+  ];
 
   assert.equal(matchRoute('GET', ['menus'], routes), null);
 });
@@ -58,7 +66,9 @@ test('matchRoute: literal segment mismatch never matches', () => {
 // ─── Dynamic :param extraction ──────────────────────────────────────────────
 
 test('matchRoute: single :param captures the segment value', () => {
-  const routes = [defineRoute({ method: 'PUT', pattern: 'languages/:id', auth: 'owner', handler: noopHandler })];
+  const routes = [
+    defineRoute({ method: 'PUT', pattern: 'languages/:id', auth: 'owner', handler: noopHandler }),
+  ];
 
   const match = matchRoute('PUT', ['languages', 'es'], routes);
 
@@ -67,7 +77,9 @@ test('matchRoute: single :param captures the segment value', () => {
 });
 
 test('matchRoute: nested :param mid-pattern captures correctly (media/:id/usage)', () => {
-  const routes = [defineRoute({ method: 'GET', pattern: 'media/:id/usage', auth: 'user', handler: noopHandler })];
+  const routes = [
+    defineRoute({ method: 'GET', pattern: 'media/:id/usage', auth: 'user', handler: noopHandler }),
+  ];
 
   const match = matchRoute('GET', ['media', 'abc-123', 'usage'], routes);
 
@@ -76,13 +88,17 @@ test('matchRoute: nested :param mid-pattern captures correctly (media/:id/usage)
 });
 
 test('matchRoute: empty-segment never captures a :param (no match)', () => {
-  const routes = [defineRoute({ method: 'GET', pattern: 'media/:id/usage', auth: 'user', handler: noopHandler })];
+  const routes = [
+    defineRoute({ method: 'GET', pattern: 'media/:id/usage', auth: 'user', handler: noopHandler }),
+  ];
 
   assert.equal(matchRoute('GET', ['media', '', 'usage'], routes), null);
 });
 
 test('matchRoute: multiple :params in one pattern each capture independently', () => {
-  const routes = [defineRoute({ method: 'GET', pattern: 'a/:x/:y', auth: 'user', handler: noopHandler })];
+  const routes = [
+    defineRoute({ method: 'GET', pattern: 'a/:x/:y', auth: 'user', handler: noopHandler }),
+  ];
 
   const match = matchRoute('GET', ['a', '1', '2'], routes);
 
@@ -91,7 +107,9 @@ test('matchRoute: multiple :params in one pattern each capture independently', (
 });
 
 test('matchRoute: leading :param (first segment) captures correctly', () => {
-  const routes = [defineRoute({ method: 'GET', pattern: ':id', auth: 'user', handler: noopHandler })];
+  const routes = [
+    defineRoute({ method: 'GET', pattern: ':id', auth: 'user', handler: noopHandler }),
+  ];
 
   const match = matchRoute('GET', ['42'], routes);
 
@@ -102,7 +120,9 @@ test('matchRoute: leading :param (first segment) captures correctly', () => {
 // ─── Method filter ──────────────────────────────────────────────────────────
 
 test('matchRoute: same pattern, different declared method, does not cross-match', () => {
-  const routes = [defineRoute({ method: 'GET', pattern: 'languages/:id', auth: 'owner', handler: noopHandler })];
+  const routes = [
+    defineRoute({ method: 'GET', pattern: 'languages/:id', auth: 'owner', handler: noopHandler }),
+  ];
 
   assert.equal(matchRoute('DELETE', ['languages', 'es'], routes), null);
 });
@@ -110,7 +130,12 @@ test('matchRoute: same pattern, different declared method, does not cross-match'
 test('matchRoute: method filter still returns the correct entry when methods differ', () => {
   const routes = [
     defineRoute({ method: 'GET', pattern: 'languages/:id', auth: 'user', handler: noopHandler }),
-    defineRoute({ method: 'DELETE', pattern: 'languages/:id', auth: 'owner', handler: noopHandler }),
+    defineRoute({
+      method: 'DELETE',
+      pattern: 'languages/:id',
+      auth: 'owner',
+      handler: noopHandler,
+    }),
   ];
 
   const match = matchRoute('DELETE', ['languages', 'es'], routes);
@@ -122,8 +147,18 @@ test('matchRoute: method filter still returns the correct entry when methods dif
 // ─── Declaration-order, first-match-wins (ADR-4) ────────────────────────────
 
 test('matchRoute: first declared match wins when two entries could both match', () => {
-  const first = defineRoute({ method: 'GET', pattern: 'media/:id', auth: 'user', handler: noopHandler });
-  const second = defineRoute({ method: 'GET', pattern: 'media/:id', auth: 'owner', handler: noopHandler });
+  const first = defineRoute({
+    method: 'GET',
+    pattern: 'media/:id',
+    auth: 'user',
+    handler: noopHandler,
+  });
+  const second = defineRoute({
+    method: 'GET',
+    pattern: 'media/:id',
+    auth: 'owner',
+    handler: noopHandler,
+  });
 
   const match = matchRoute('GET', ['media', '42'], [first, second]);
 
@@ -132,8 +167,18 @@ test('matchRoute: first declared match wins when two entries could both match', 
 });
 
 test('matchRoute: reordering the same two entries changes which one wins (order-dependent, not type-dependent)', () => {
-  const paramFirst = defineRoute({ method: 'GET', pattern: 'media/:id', auth: 'user', handler: noopHandler });
-  const staticSecond = defineRoute({ method: 'GET', pattern: 'media/replace', auth: 'owner', handler: noopHandler });
+  const paramFirst = defineRoute({
+    method: 'GET',
+    pattern: 'media/:id',
+    auth: 'user',
+    handler: noopHandler,
+  });
+  const staticSecond = defineRoute({
+    method: 'GET',
+    pattern: 'media/replace',
+    auth: 'owner',
+    handler: noopHandler,
+  });
 
   // "media/replace" as a concrete segment set would also satisfy "media/:id" — first
   // declaration wins regardless of static vs. param shape (no special precedence rule).
@@ -146,7 +191,9 @@ test('matchRoute: reordering the same two entries changes which one wins (order-
 // ─── No match → null ─────────────────────────────────────────────────────────
 
 test('matchRoute: unknown path returns null (no matching descriptor at all)', () => {
-  const routes = [defineRoute({ method: 'GET', pattern: 'pages', auth: 'user', handler: noopHandler })];
+  const routes = [
+    defineRoute({ method: 'GET', pattern: 'pages', auth: 'user', handler: noopHandler }),
+  ];
 
   assert.equal(matchRoute('GET', ['does-not-exist'], routes), null);
 });
@@ -161,7 +208,14 @@ test('matchRoute: patterns are mount-relative — no leading/trailing slash nois
   // getPathSegments() already strips the /cms/api mount prefix (slice(2)) before
   // segments reach the matcher, so patterns never carry a leading slash. The
   // matcher must be robust to accidental slashes via split('/').filter(Boolean).
-  const routes = [defineRoute({ method: 'GET', pattern: '/global-blocks/:id/', auth: 'user', handler: noopHandler })];
+  const routes = [
+    defineRoute({
+      method: 'GET',
+      pattern: '/global-blocks/:id/',
+      auth: 'user',
+      handler: noopHandler,
+    }),
+  ];
 
   const match = matchRoute('GET', ['global-blocks', 'hero'], routes);
 

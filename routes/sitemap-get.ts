@@ -3,7 +3,14 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-import { getDefaultLocale, getPageLocaleViewStrict, getPublishedPagesStrict, loadLanguages, loadPages, loadSite } from '../api/data.js';
+import {
+  getDefaultLocale,
+  getPageLocaleViewStrict,
+  getPublishedPagesStrict,
+  loadLanguages,
+  loadPages,
+  loadSite,
+} from '../api/data.js';
 import { getCacheConfig, getSitemapCacheTags } from '../utils/cache.js';
 import { buildLocalizedPath, slugToPath } from '../utils/slug.js';
 import { normalizeLocaleCode } from '../utils/localization.js';
@@ -24,9 +31,15 @@ export async function GET(Astro: import('astro').APIContext): Promise<Response> 
     });
   }
 
-  const [pagesData, site, languagesData] = await Promise.all([loadPages(), loadSite(), loadLanguages()]);
+  const [pagesData, site, languagesData] = await Promise.all([
+    loadPages(),
+    loadSite(),
+    loadLanguages(),
+  ]);
   const defaultLocale = getDefaultLocale(languagesData);
-  const enabledLocales = languagesData.languages.filter((language) => language.enabled !== false).map((language) => normalizeLocaleCode(language.code));
+  const enabledLocales = languagesData.languages
+    .filter((language) => language.enabled !== false)
+    .map((language) => normalizeLocaleCode(language.code));
   const baseUrl = site.baseUrl?.replace(/\/$/, '') || '';
 
   const entries: Array<{ path: string; updatedAt: string }> = [];
@@ -51,7 +64,7 @@ ${entries
     (entry) => `  <url>
     <loc>${pageUrl(baseUrl, entry.path)}</loc>
     <lastmod>${entry.updatedAt}</lastmod>
-  </url>`
+  </url>`,
   )
   .join('\n')}
 </urlset>`;

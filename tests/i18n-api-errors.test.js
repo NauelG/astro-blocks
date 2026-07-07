@@ -74,10 +74,12 @@ function withUiLocale(locale, extraHeaders = {}) {
 
 test('handleLogin returns English error for missing credentials (no cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handleLogin(makeRequest('http://localhost/cms/api/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: '', password: '' }),
-    }));
+    const res = await handleLogin(
+      makeRequest('http://localhost/cms/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: '', password: '' }),
+      }),
+    );
     assert.equal(res.status, 400);
     const body = await res.json();
     assert.ok(typeof body.error === 'string', 'error must be a string');
@@ -89,11 +91,13 @@ test('handleLogin returns English error for missing credentials (no cookie)', as
 
 test('handleLogin returns Spanish error for missing credentials (es cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handleLogin(makeRequest('http://localhost/cms/api/login', {
-      method: 'POST',
-      headers: withUiLocale('es'),
-      body: JSON.stringify({ email: '', password: '' }),
-    }));
+    const res = await handleLogin(
+      makeRequest('http://localhost/cms/api/login', {
+        method: 'POST',
+        headers: withUiLocale('es'),
+        body: JSON.stringify({ email: '', password: '' }),
+      }),
+    );
     assert.equal(res.status, 400);
     const body = await res.json();
     assert.ok(typeof body.error === 'string', 'error must be a string');
@@ -105,16 +109,20 @@ test('handleLogin returns Spanish error for missing credentials (es cookie)', as
 test('handleLogin returns English error for invalid credentials (en cookie)', async () => {
   await withTempProject(async () => {
     // First create a user
-    await handleLogin(makeRequest('http://localhost/cms/api/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'admin@test.com', password: 'secret' }),
-    }));
+    await handleLogin(
+      makeRequest('http://localhost/cms/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'admin@test.com', password: 'secret' }),
+      }),
+    );
 
-    const res = await handleLogin(makeRequest('http://localhost/cms/api/login', {
-      method: 'POST',
-      headers: withUiLocale('en'),
-      body: JSON.stringify({ email: 'admin@test.com', password: 'wrongpass' }),
-    }));
+    const res = await handleLogin(
+      makeRequest('http://localhost/cms/api/login', {
+        method: 'POST',
+        headers: withUiLocale('en'),
+        body: JSON.stringify({ email: 'admin@test.com', password: 'wrongpass' }),
+      }),
+    );
     assert.equal(res.status, 401);
     const body = await res.json();
     assert.match(body.error, /credential/i, 'Must be English');
@@ -125,16 +133,20 @@ test('handleLogin returns English error for invalid credentials (en cookie)', as
 test('handleLogin returns Spanish error for invalid credentials (es cookie)', async () => {
   await withTempProject(async () => {
     // First create a user
-    await handleLogin(makeRequest('http://localhost/cms/api/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'admin@test.com', password: 'secret' }),
-    }));
+    await handleLogin(
+      makeRequest('http://localhost/cms/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'admin@test.com', password: 'secret' }),
+      }),
+    );
 
-    const res = await handleLogin(makeRequest('http://localhost/cms/api/login', {
-      method: 'POST',
-      headers: withUiLocale('es'),
-      body: JSON.stringify({ email: 'admin@test.com', password: 'wrongpass' }),
-    }));
+    const res = await handleLogin(
+      makeRequest('http://localhost/cms/api/login', {
+        method: 'POST',
+        headers: withUiLocale('es'),
+        body: JSON.stringify({ email: 'admin@test.com', password: 'wrongpass' }),
+      }),
+    );
     assert.equal(res.status, 401);
     const body = await res.json();
     assert.match(body.error, /credencial/i, 'Must be Spanish');
@@ -146,24 +158,32 @@ test('handleLogin returns Spanish error for invalid credentials (es cookie)', as
 test('handlePostUsers returns English "email already exists" (en cookie)', async () => {
   await withTempProject(async () => {
     // Bootstrap owner
-    await handleLogin(makeRequest('http://localhost/cms/api/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'admin@test.com', password: 'secret' }),
-    }));
+    await handleLogin(
+      makeRequest('http://localhost/cms/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'admin@test.com', password: 'secret' }),
+      }),
+    );
 
     // First creation
-    await handlePostUsers(makeRequest('http://localhost/cms/api/users', {
-      method: 'POST',
-      headers: withUiLocale('en'),
-      body: JSON.stringify({ email: 'user@test.com', password: 'pass123', role: 'user' }),
-    }), { role: 'owner' });
+    await handlePostUsers(
+      makeRequest('http://localhost/cms/api/users', {
+        method: 'POST',
+        headers: withUiLocale('en'),
+        body: JSON.stringify({ email: 'user@test.com', password: 'pass123', role: 'user' }),
+      }),
+      { role: 'owner' },
+    );
 
     // Duplicate
-    const res = await handlePostUsers(makeRequest('http://localhost/cms/api/users', {
-      method: 'POST',
-      headers: withUiLocale('en'),
-      body: JSON.stringify({ email: 'user@test.com', password: 'pass123', role: 'user' }),
-    }), { role: 'owner' });
+    const res = await handlePostUsers(
+      makeRequest('http://localhost/cms/api/users', {
+        method: 'POST',
+        headers: withUiLocale('en'),
+        body: JSON.stringify({ email: 'user@test.com', password: 'pass123', role: 'user' }),
+      }),
+      { role: 'owner' },
+    );
 
     const body = await res.json();
     assert.match(body.error, /email/i, 'Must mention email');
@@ -174,24 +194,32 @@ test('handlePostUsers returns English "email already exists" (en cookie)', async
 test('handlePostUsers returns Spanish "email already exists" (es cookie)', async () => {
   await withTempProject(async () => {
     // Bootstrap owner
-    await handleLogin(makeRequest('http://localhost/cms/api/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'admin@test.com', password: 'secret' }),
-    }));
+    await handleLogin(
+      makeRequest('http://localhost/cms/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'admin@test.com', password: 'secret' }),
+      }),
+    );
 
     // First creation
-    await handlePostUsers(makeRequest('http://localhost/cms/api/users', {
-      method: 'POST',
-      headers: withUiLocale('es'),
-      body: JSON.stringify({ email: 'user2@test.com', password: 'pass123', role: 'user' }),
-    }), { role: 'owner' });
+    await handlePostUsers(
+      makeRequest('http://localhost/cms/api/users', {
+        method: 'POST',
+        headers: withUiLocale('es'),
+        body: JSON.stringify({ email: 'user2@test.com', password: 'pass123', role: 'user' }),
+      }),
+      { role: 'owner' },
+    );
 
     // Duplicate
-    const res = await handlePostUsers(makeRequest('http://localhost/cms/api/users', {
-      method: 'POST',
-      headers: withUiLocale('es'),
-      body: JSON.stringify({ email: 'user2@test.com', password: 'pass123', role: 'user' }),
-    }), { role: 'owner' });
+    const res = await handlePostUsers(
+      makeRequest('http://localhost/cms/api/users', {
+        method: 'POST',
+        headers: withUiLocale('es'),
+        body: JSON.stringify({ email: 'user2@test.com', password: 'pass123', role: 'user' }),
+      }),
+      { role: 'owner' },
+    );
 
     const body = await res.json();
     assert.match(body.error, /existe|ya/i, 'Must be Spanish');
@@ -202,11 +230,13 @@ test('handlePostUsers returns Spanish "email already exists" (es cookie)', async
 
 test('handlePostLanguages returns English error for missing code (en cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handlePostLanguages(makeRequest('http://localhost/cms/api/languages', {
-      method: 'POST',
-      headers: withUiLocale('en'),
-      body: JSON.stringify({ code: '', label: 'French' }),
-    }));
+    const res = await handlePostLanguages(
+      makeRequest('http://localhost/cms/api/languages', {
+        method: 'POST',
+        headers: withUiLocale('en'),
+        body: JSON.stringify({ code: '', label: 'French' }),
+      }),
+    );
     const body = await res.json();
     assert.ok(typeof body.error === 'string');
     assert.match(body.error, /code|required/i, 'Must be English');
@@ -216,11 +246,13 @@ test('handlePostLanguages returns English error for missing code (en cookie)', a
 
 test('handlePostLanguages returns Spanish error for missing code (es cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handlePostLanguages(makeRequest('http://localhost/cms/api/languages', {
-      method: 'POST',
-      headers: withUiLocale('es'),
-      body: JSON.stringify({ code: '', label: 'Francés' }),
-    }));
+    const res = await handlePostLanguages(
+      makeRequest('http://localhost/cms/api/languages', {
+        method: 'POST',
+        headers: withUiLocale('es'),
+        body: JSON.stringify({ code: '', label: 'Francés' }),
+      }),
+    );
     const body = await res.json();
     assert.ok(typeof body.error === 'string');
     assert.match(body.error, /obligatorio/i, 'Must be Spanish');
@@ -231,11 +263,13 @@ test('handlePostLanguages returns Spanish error for missing code (es cookie)', a
 
 test('handlePostMenus returns English error for missing selector (en cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handlePostMenus(makeRequest('http://localhost/cms/api/menus', {
-      method: 'POST',
-      headers: withUiLocale('en'),
-      body: JSON.stringify({ name: 'Main', selector: '', items: [] }),
-    }));
+    const res = await handlePostMenus(
+      makeRequest('http://localhost/cms/api/menus', {
+        method: 'POST',
+        headers: withUiLocale('en'),
+        body: JSON.stringify({ name: 'Main', selector: '', items: [] }),
+      }),
+    );
     const body = await res.json();
     assert.ok(typeof body.error === 'string');
     assert.match(body.error, /selector|required/i, 'Must be English');
@@ -245,11 +279,13 @@ test('handlePostMenus returns English error for missing selector (en cookie)', a
 
 test('handlePostMenus returns Spanish error for missing selector (es cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handlePostMenus(makeRequest('http://localhost/cms/api/menus', {
-      method: 'POST',
-      headers: withUiLocale('es'),
-      body: JSON.stringify({ name: 'Principal', selector: '', items: [] }),
-    }));
+    const res = await handlePostMenus(
+      makeRequest('http://localhost/cms/api/menus', {
+        method: 'POST',
+        headers: withUiLocale('es'),
+        body: JSON.stringify({ name: 'Principal', selector: '', items: [] }),
+      }),
+    );
     const body = await res.json();
     assert.ok(typeof body.error === 'string');
     assert.match(body.error, /obligatorio/i, 'Must be Spanish');
@@ -260,11 +296,13 @@ test('handlePostMenus returns Spanish error for missing selector (es cookie)', a
 
 test('handlePostConfigs returns English error for missing key (en cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handlePostConfigs(makeRequest('http://localhost/cms/api/configs', {
-      method: 'POST',
-      headers: withUiLocale('en'),
-      body: JSON.stringify({ key: '', value: 'val' }),
-    }));
+    const res = await handlePostConfigs(
+      makeRequest('http://localhost/cms/api/configs', {
+        method: 'POST',
+        headers: withUiLocale('en'),
+        body: JSON.stringify({ key: '', value: 'val' }),
+      }),
+    );
     const body = await res.json();
     assert.ok(typeof body.error === 'string');
     assert.match(body.error, /key|required/i, 'Must be English');
@@ -274,11 +312,13 @@ test('handlePostConfigs returns English error for missing key (en cookie)', asyn
 
 test('handlePostConfigs returns Spanish error for missing key (es cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handlePostConfigs(makeRequest('http://localhost/cms/api/configs', {
-      method: 'POST',
-      headers: withUiLocale('es'),
-      body: JSON.stringify({ key: '', value: 'val' }),
-    }));
+    const res = await handlePostConfigs(
+      makeRequest('http://localhost/cms/api/configs', {
+        method: 'POST',
+        headers: withUiLocale('es'),
+        body: JSON.stringify({ key: '', value: 'val' }),
+      }),
+    );
     const body = await res.json();
     assert.ok(typeof body.error === 'string');
     assert.match(body.error, /clave|obligatoria/i, 'Must be Spanish');
@@ -289,11 +329,13 @@ test('handlePostConfigs returns Spanish error for missing key (es cookie)', asyn
 
 test('error response wire shape is { error: string } — no extra fields from localization', async () => {
   await withTempProject(async () => {
-    const res = await handleLogin(makeRequest('http://localhost/cms/api/login', {
-      method: 'POST',
-      headers: withUiLocale('es'),
-      body: JSON.stringify({ email: '', password: '' }),
-    }));
+    const res = await handleLogin(
+      makeRequest('http://localhost/cms/api/login', {
+        method: 'POST',
+        headers: withUiLocale('es'),
+        body: JSON.stringify({ email: '', password: '' }),
+      }),
+    );
     const body = await res.json();
     assert.ok(Object.prototype.hasOwnProperty.call(body, 'error'), 'Must have error field');
     assert.ok(typeof body.error === 'string', 'error must be string');
@@ -303,14 +345,20 @@ test('error response wire shape is { error: string } — no extra fields from lo
 
 test('Accept-Language header falls back correctly when no cookie is present', async () => {
   await withTempProject(async () => {
-    const res = await handleLogin(makeRequest('http://localhost/cms/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept-Language': 'es-MX,es;q=0.9' },
-      body: JSON.stringify({ email: '', password: '' }),
-    }));
+    const res = await handleLogin(
+      makeRequest('http://localhost/cms/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept-Language': 'es-MX,es;q=0.9' },
+        body: JSON.stringify({ email: '', password: '' }),
+      }),
+    );
     const body = await res.json();
     // Accept-Language es should produce Spanish error
-    assert.match(body.error, /contraseña|obligatorio/i, 'Accept-Language es should yield Spanish error');
+    assert.match(
+      body.error,
+      /contraseña|obligatorio/i,
+      'Accept-Language es should yield Spanish error',
+    );
   });
 });
 
@@ -318,11 +366,13 @@ test('Accept-Language header falls back correctly when no cookie is present', as
 
 test('parseJsonBody returns English error for invalid JSON body (en cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handlePostRedirects(makeRequest('http://localhost/cms/api/redirects', {
-      method: 'POST',
-      headers: withUiLocale('en'),
-      body: 'not-json-at-all',
-    }));
+    const res = await handlePostRedirects(
+      makeRequest('http://localhost/cms/api/redirects', {
+        method: 'POST',
+        headers: withUiLocale('en'),
+        body: 'not-json-at-all',
+      }),
+    );
     assert.equal(res.status, 400);
     const body = await res.json();
     assert.ok(typeof body.error === 'string', 'error must be a string');
@@ -333,11 +383,13 @@ test('parseJsonBody returns English error for invalid JSON body (en cookie)', as
 
 test('parseJsonBody returns Spanish error for invalid JSON body (es cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handlePostRedirects(makeRequest('http://localhost/cms/api/redirects', {
-      method: 'POST',
-      headers: withUiLocale('es'),
-      body: 'not-json-at-all',
-    }));
+    const res = await handlePostRedirects(
+      makeRequest('http://localhost/cms/api/redirects', {
+        method: 'POST',
+        headers: withUiLocale('es'),
+        body: 'not-json-at-all',
+      }),
+    );
     assert.equal(res.status, 400);
     const body = await res.json();
     assert.ok(typeof body.error === 'string', 'error must be a string');
@@ -349,11 +401,13 @@ test('parseJsonBody returns Spanish error for invalid JSON body (es cookie)', as
 
 test('handlePostRedirects path validation returns English error for absolute URL (en cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handlePostRedirects(makeRequest('http://localhost/cms/api/redirects', {
-      method: 'POST',
-      headers: withUiLocale('en'),
-      body: JSON.stringify({ from: 'https://example.com/old', to: '/new' }),
-    }));
+    const res = await handlePostRedirects(
+      makeRequest('http://localhost/cms/api/redirects', {
+        method: 'POST',
+        headers: withUiLocale('en'),
+        body: JSON.stringify({ from: 'https://example.com/old', to: '/new' }),
+      }),
+    );
     assert.equal(res.status, 400);
     const body = await res.json();
     assert.ok(typeof body.error === 'string');
@@ -364,11 +418,13 @@ test('handlePostRedirects path validation returns English error for absolute URL
 
 test('handlePostRedirects path validation returns Spanish error for absolute URL (es cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handlePostRedirects(makeRequest('http://localhost/cms/api/redirects', {
-      method: 'POST',
-      headers: withUiLocale('es'),
-      body: JSON.stringify({ from: 'https://example.com/old', to: '/new' }),
-    }));
+    const res = await handlePostRedirects(
+      makeRequest('http://localhost/cms/api/redirects', {
+        method: 'POST',
+        headers: withUiLocale('es'),
+        body: JSON.stringify({ from: 'https://example.com/old', to: '/new' }),
+      }),
+    );
     assert.equal(res.status, 400);
     const body = await res.json();
     assert.ok(typeof body.error === 'string');
@@ -380,9 +436,12 @@ test('handlePostRedirects path validation returns Spanish error for absolute URL
 
 test('handleAuthMe returns English error for unauthenticated (en cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handleAuthMe(null, makeRequest('http://localhost/cms/api/auth/me', {
-      headers: withUiLocale('en'),
-    }));
+    const res = await handleAuthMe(
+      null,
+      makeRequest('http://localhost/cms/api/auth/me', {
+        headers: withUiLocale('en'),
+      }),
+    );
     assert.equal(res.status, 401);
     const body = await res.json();
     assert.ok(typeof body.error === 'string');
@@ -393,9 +452,12 @@ test('handleAuthMe returns English error for unauthenticated (en cookie)', async
 
 test('handleAuthMe returns Spanish error for unauthenticated (es cookie)', async () => {
   await withTempProject(async () => {
-    const res = await handleAuthMe(null, makeRequest('http://localhost/cms/api/auth/me', {
-      headers: withUiLocale('es'),
-    }));
+    const res = await handleAuthMe(
+      null,
+      makeRequest('http://localhost/cms/api/auth/me', {
+        headers: withUiLocale('es'),
+      }),
+    );
     assert.equal(res.status, 401);
     const body = await res.json();
     assert.ok(typeof body.error === 'string');
@@ -464,10 +526,12 @@ test('handleDeleteUser returns Spanish not-found error for unknown id (es cookie
 test('handleDeleteUser returns Spanish cannotDeleteLastOwner error (es cookie)', async () => {
   await withTempProject(async () => {
     // Bootstrap an owner user
-    await handleLogin(makeRequest('http://localhost/cms/api/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'owner@test.com', password: 'secret' }),
-    }));
+    await handleLogin(
+      makeRequest('http://localhost/cms/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'owner@test.com', password: 'secret' }),
+      }),
+    );
 
     // Load users to find the owner id
     const { loadUsers } = await import('../dist/api/data.js');
@@ -489,10 +553,12 @@ test('handleDeleteUser returns Spanish cannotDeleteLastOwner error (es cookie)',
 test('handleDeleteUser returns English cannotDeleteLastOwner error (en cookie)', async () => {
   await withTempProject(async () => {
     // Bootstrap an owner user
-    await handleLogin(makeRequest('http://localhost/cms/api/login', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'owner2@test.com', password: 'secret' }),
-    }));
+    await handleLogin(
+      makeRequest('http://localhost/cms/api/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'owner2@test.com', password: 'secret' }),
+      }),
+    );
 
     const { loadUsers } = await import('../dist/api/data.js');
     const usersData = await loadUsers();

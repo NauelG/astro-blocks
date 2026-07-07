@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildLocalizedPath, pageToSlugParam, resolveCanonical, resolveLocalizedSlug, resolveSeoImage, slugToPath } from '../dist/utils/slug.js';
+import {
+  buildLocalizedPath,
+  pageToSlugParam,
+  resolveCanonical,
+  resolveLocalizedSlug,
+  resolveSeoImage,
+  slugToPath,
+} from '../dist/utils/slug.js';
 
 test('slugToPath normalizes homepage and nested slugs', () => {
   assert.equal(slugToPath('/'), '/');
@@ -15,12 +22,23 @@ test('pageToSlugParam returns empty string for home', () => {
 });
 
 test('resolveSeoImage turns relative paths into absolute URLs', () => {
-  assert.equal(resolveSeoImage('https://example.com', '/cover.png'), 'https://example.com/cover.png');
-  assert.equal(resolveSeoImage('https://example.com', 'https://cdn.example.com/cover.png'), 'https://cdn.example.com/cover.png');
+  assert.equal(
+    resolveSeoImage('https://example.com', '/cover.png'),
+    'https://example.com/cover.png',
+  );
+  assert.equal(
+    resolveSeoImage('https://example.com', 'https://cdn.example.com/cover.png'),
+    'https://cdn.example.com/cover.png',
+  );
 });
 
 test('resolveCanonical preserves explicit canonical values', () => {
-  assert.equal(resolveCanonical('https://example.com', '/about', { canonical: 'https://canonical.test/about' }), 'https://canonical.test/about');
+  assert.equal(
+    resolveCanonical('https://example.com', '/about', {
+      canonical: 'https://canonical.test/about',
+    }),
+    'https://canonical.test/about',
+  );
   assert.equal(resolveCanonical('https://example.com', '/about'), 'https://example.com/about');
 });
 
@@ -30,6 +48,9 @@ test('buildLocalizedPath prefixes non-default locales', () => {
 });
 
 test('resolveLocalizedSlug detects locale prefixes for non-default locales', () => {
-  assert.deepEqual(resolveLocalizedSlug('en/about', ['es', 'en'], 'es'), { locale: 'en', slug: 'about' });
+  assert.deepEqual(resolveLocalizedSlug('en/about', ['es', 'en'], 'es'), {
+    locale: 'en',
+    slug: 'about',
+  });
   assert.deepEqual(resolveLocalizedSlug('', ['es', 'en'], 'es'), { locale: 'es', slug: '/' });
 });

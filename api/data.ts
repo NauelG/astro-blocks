@@ -8,7 +8,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getDataDir, getDataPath, getUploadsDir } from '../utils/paths.js';
 import { findUrlRefsInProps, type UsageRef } from '../utils/image-url-scan.js';
-import { normalizeRedirectPath, normalizeRedirectStatusCode, validateRedirectPathInput } from '../utils/redirects.js';
+import {
+  normalizeRedirectPath,
+  normalizeRedirectStatusCode,
+  validateRedirectPathInput,
+} from '../utils/redirects.js';
 import { pageToSlugParam, slugToPath } from '../utils/slug.js';
 import {
   DEFAULT_CONTENT_LANGUAGES,
@@ -69,7 +73,8 @@ const DEFAULT_USERS: UsersData = { users: [] };
 const DEFAULT_LANGUAGES: LanguagesData = {
   languages: DEFAULT_CONTENT_LANGUAGES.languages.map((language) => ({ ...language })),
 };
-const LEGACY_FALLBACK_LOCALE = normalizeLocaleCode(DEFAULT_CONTENT_LANGUAGES.languages[0]?.code || 'es') || 'es';
+const LEGACY_FALLBACK_LOCALE =
+  normalizeLocaleCode(DEFAULT_CONTENT_LANGUAGES.languages[0]?.code || 'es') || 'es';
 
 export const MENU_SELECTOR_REGEX = /^[a-zA-Z0-9_-]+$/;
 
@@ -176,7 +181,7 @@ function ensurePageStatus(value: unknown): PageStatus {
 
 function normalizeLocalizedMap<T>(
   input: unknown,
-  normalizer: (value: unknown) => T | undefined
+  normalizer: (value: unknown) => T | undefined,
 ): Record<string, T> {
   if (!input || typeof input !== 'object') return {};
 
@@ -213,16 +218,30 @@ function normalizePage(page: unknown): Page | null {
     return undefined;
   });
 
-  const status = normalizeLocalizedMap(withLegacyLocale(raw.status), (value) => ensurePageStatus(value));
-  const indexable = normalizeLocalizedMap(withLegacyLocale(raw.indexable), (value) => (value === undefined ? undefined : Boolean(value)));
+  const status = normalizeLocalizedMap(withLegacyLocale(raw.status), (value) =>
+    ensurePageStatus(value),
+  );
+  const indexable = normalizeLocalizedMap(withLegacyLocale(raw.indexable), (value) =>
+    value === undefined ? undefined : Boolean(value),
+  );
 
   const seoRaw = raw.seo && typeof raw.seo === 'object' ? (raw.seo as Record<string, unknown>) : {};
   const seo = {
-    title: normalizeLocalizedMap(withLegacyLocale(seoRaw.title), (value) => (typeof value === 'string' ? value : undefined)),
-    description: normalizeLocalizedMap(withLegacyLocale(seoRaw.description), (value) => (typeof value === 'string' ? value : undefined)),
-    canonical: normalizeLocalizedMap(withLegacyLocale(seoRaw.canonical), (value) => (typeof value === 'string' ? value : undefined)),
-    image: normalizeLocalizedMap(withLegacyLocale(seoRaw.image), (value) => (typeof value === 'string' ? value : undefined)),
-    nofollow: normalizeLocalizedMap(withLegacyLocale(seoRaw.nofollow), (value) => (value === undefined ? undefined : Boolean(value))),
+    title: normalizeLocalizedMap(withLegacyLocale(seoRaw.title), (value) =>
+      typeof value === 'string' ? value : undefined,
+    ),
+    description: normalizeLocalizedMap(withLegacyLocale(seoRaw.description), (value) =>
+      typeof value === 'string' ? value : undefined,
+    ),
+    canonical: normalizeLocalizedMap(withLegacyLocale(seoRaw.canonical), (value) =>
+      typeof value === 'string' ? value : undefined,
+    ),
+    image: normalizeLocalizedMap(withLegacyLocale(seoRaw.image), (value) =>
+      typeof value === 'string' ? value : undefined,
+    ),
+    nofollow: normalizeLocalizedMap(withLegacyLocale(seoRaw.nofollow), (value) =>
+      value === undefined ? undefined : Boolean(value),
+    ),
   };
 
   const publishedAt = normalizeLocalizedMap(withLegacyLocale(raw.publishedAt), (value) => {
@@ -238,12 +257,19 @@ function normalizePage(page: unknown): Page | null {
     status,
     indexable,
     seo,
-    blocks: Array.isArray(raw.blocks) ? raw.blocks.map((entry) => ({
-      type: String((entry as { type?: unknown }).type || ''),
-      props: (entry as { props?: Record<string, unknown> }).props && typeof (entry as { props?: unknown }).props === 'object'
-        ? ({ ...(entry as { props: Record<string, unknown> }).props } as Record<string, unknown>)
-        : {},
-    })) : [],
+    blocks: Array.isArray(raw.blocks)
+      ? raw.blocks.map((entry) => ({
+          type: String((entry as { type?: unknown }).type || ''),
+          props:
+            (entry as { props?: Record<string, unknown> }).props &&
+            typeof (entry as { props?: unknown }).props === 'object'
+              ? ({ ...(entry as { props: Record<string, unknown> }).props } as Record<
+                  string,
+                  unknown
+                >)
+              : {},
+        }))
+      : [],
     publishedAt,
     createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : undefined,
     updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : undefined,
@@ -280,13 +306,18 @@ const fileLocks = new Map<string, Promise<unknown>>();
 function withFileLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const prev = fileLocks.get(key) ?? Promise.resolve();
   const next = prev.then(fn, fn); // run fn after prev settles (success or failure)
-  fileLocks.set(key, next.catch(() => {}));
+  fileLocks.set(
+    key,
+    next.catch(() => {}),
+  );
   return next;
 }
 
 export async function loadPages(): Promise<PagesData> {
   const data = await readJson(getDataPath('pages.json'), DEFAULT_PAGES);
-  const pages = Array.isArray(data.pages) ? data.pages.map(normalizePage).filter(Boolean) as Page[] : [];
+  const pages = Array.isArray(data.pages)
+    ? (data.pages.map(normalizePage).filter(Boolean) as Page[])
+    : [];
   return { pages };
 }
 
@@ -378,10 +409,16 @@ export async function loadGlobalBlocks(): Promise<GlobalBlocksData> {
       const e = entry as Record<string, unknown>;
       if (e.props !== undefined) {
         // v2 shape — pass through
-        normalised[slug] = { props: e.props as Record<string, unknown>, ...(e.updatedAt !== undefined ? { updatedAt: e.updatedAt as string } : {}) };
+        normalised[slug] = {
+          props: e.props as Record<string, unknown>,
+          ...(e.updatedAt !== undefined ? { updatedAt: e.updatedAt as string } : {}),
+        };
       } else if (e.blocks !== undefined) {
         // legacy v1 shape — treat as empty props
-        normalised[slug] = { props: {}, ...(e.updatedAt !== undefined ? { updatedAt: e.updatedAt as string } : {}) };
+        normalised[slug] = {
+          props: {},
+          ...(e.updatedAt !== undefined ? { updatedAt: e.updatedAt as string } : {}),
+        };
       } else {
         normalised[slug] = { props: {} };
       }
@@ -416,7 +453,9 @@ export type { UsageRef };
  *
  * Returns { count, usages } where count === usages.length (invariant).
  */
-export async function findMediaUsages(targetUrl: string): Promise<{ count: number; usages: UsageRef[] }> {
+export async function findMediaUsages(
+  targetUrl: string,
+): Promise<{ count: number; usages: UsageRef[] }> {
   const usages: UsageRef[] = [];
 
   // ── Scan pages ────────────────────────────────────────────────────────────
@@ -484,7 +523,7 @@ export async function findMediaUsages(targetUrl: string): Promise<{ count: numbe
  */
 export async function replaceMediaEntryBytes(
   id: string,
-  patch: { size: number; width?: number; height?: number }
+  patch: { size: number; width?: number; height?: number },
 ): Promise<{ entry: MediaEntry; oldVariants: MediaVariant[] } | null> {
   return withFileLock(mediaLockKey(), async () => {
     const m = await loadMedia();
@@ -512,57 +551,70 @@ export async function replaceMediaEntryBytes(
 
 export async function loadMedia(): Promise<MediaData> {
   const raw = await readJson(getDataPath('media.json'), DEFAULT_MEDIA);
-  const uploads = Array.isArray(raw.uploads) ? raw.uploads.reduce((acc: MediaEntry[], entry: unknown) => {
-    if (
-      entry !== null &&
-      typeof entry === 'object' &&
-      !Array.isArray(entry) &&
-      typeof (entry as Record<string, unknown>).id === 'string' &&
-      typeof (entry as Record<string, unknown>).url === 'string' &&
-      typeof (entry as Record<string, unknown>).filename === 'string' &&
-      typeof (entry as Record<string, unknown>).size === 'number' &&
-      typeof (entry as Record<string, unknown>).mimeType === 'string' &&
-      typeof (entry as Record<string, unknown>).createdAt === 'string'
-    ) {
-      const e = entry as Record<string, unknown>;
-      const VALID_STATUSES = new Set(['processing', 'ready', 'failed']);
-      const normalised: MediaEntry = {
-        id: e.id as string,
-        url: e.url as string,
-        filename: e.filename as string,
-        size: e.size as number,
-        mimeType: e.mimeType as string,
-        createdAt: e.createdAt as string,
-        // Pass-through new optional fields when present and valid.
-        // width/height must be STRICTLY positive (> 0) to match the projection layer
-        // (toImageValue / imageAttrs / mediaEntryToImageValue all require > 0). A stored
-        // 0 is dropped here so a 0-dimension entry never leaks an inconsistent value
-        // downstream (SSR card → "—", projected ImageFieldValue → no width/height attr).
-        ...(typeof e.alt === 'string' && { alt: e.alt }),
-        ...(typeof e.width === 'number' && Number.isFinite(e.width) && e.width > 0 && { width: e.width }),
-        ...(typeof e.height === 'number' && Number.isFinite(e.height) && e.height > 0 && { height: e.height }),
-        // fileCategory: pass-through when explicitly set, otherwise derive from mimeType (backward compat ADR-2).
-        // Never mutates the file on disk — derivation is in-memory only.
-        fileCategory: (e.fileCategory === 'image' || e.fileCategory === 'document')
-          ? e.fileCategory
-          : ((e.mimeType as string).startsWith('image/') ? 'image' : 'document'),
-        // Pass-through status only when it is a valid literal
-        ...(typeof e.status === 'string' && VALID_STATUSES.has(e.status) && { status: e.status as MediaEntry['status'] }),
-        // Pass-through variants only when each element is a valid {format, width, url}
-        ...(Array.isArray(e.variants) && {
-          variants: (e.variants as unknown[]).filter((v): v is MediaVariant => {
-            if (v === null || typeof v !== 'object' || Array.isArray(v)) return false;
-            const vObj = v as Record<string, unknown>;
-            return (vObj.format === 'webp' || vObj.format === 'avif') &&
-              typeof vObj.width === 'number' && vObj.width > 0 &&
-              typeof vObj.url === 'string';
-          }),
-        }),
-      };
-      acc.push(normalised);
-    }
-    return acc;
-  }, []) : [];
+  const uploads = Array.isArray(raw.uploads)
+    ? raw.uploads.reduce((acc: MediaEntry[], entry: unknown) => {
+        if (
+          entry !== null &&
+          typeof entry === 'object' &&
+          !Array.isArray(entry) &&
+          typeof (entry as Record<string, unknown>).id === 'string' &&
+          typeof (entry as Record<string, unknown>).url === 'string' &&
+          typeof (entry as Record<string, unknown>).filename === 'string' &&
+          typeof (entry as Record<string, unknown>).size === 'number' &&
+          typeof (entry as Record<string, unknown>).mimeType === 'string' &&
+          typeof (entry as Record<string, unknown>).createdAt === 'string'
+        ) {
+          const e = entry as Record<string, unknown>;
+          const VALID_STATUSES = new Set(['processing', 'ready', 'failed']);
+          const normalised: MediaEntry = {
+            id: e.id as string,
+            url: e.url as string,
+            filename: e.filename as string,
+            size: e.size as number,
+            mimeType: e.mimeType as string,
+            createdAt: e.createdAt as string,
+            // Pass-through new optional fields when present and valid.
+            // width/height must be STRICTLY positive (> 0) to match the projection layer
+            // (toImageValue / imageAttrs / mediaEntryToImageValue all require > 0). A stored
+            // 0 is dropped here so a 0-dimension entry never leaks an inconsistent value
+            // downstream (SSR card → "—", projected ImageFieldValue → no width/height attr).
+            ...(typeof e.alt === 'string' && { alt: e.alt }),
+            ...(typeof e.width === 'number' &&
+              Number.isFinite(e.width) &&
+              e.width > 0 && { width: e.width }),
+            ...(typeof e.height === 'number' &&
+              Number.isFinite(e.height) &&
+              e.height > 0 && { height: e.height }),
+            // fileCategory: pass-through when explicitly set, otherwise derive from mimeType (backward compat ADR-2).
+            // Never mutates the file on disk — derivation is in-memory only.
+            fileCategory:
+              e.fileCategory === 'image' || e.fileCategory === 'document'
+                ? e.fileCategory
+                : (e.mimeType as string).startsWith('image/')
+                  ? 'image'
+                  : 'document',
+            // Pass-through status only when it is a valid literal
+            ...(typeof e.status === 'string' &&
+              VALID_STATUSES.has(e.status) && { status: e.status as MediaEntry['status'] }),
+            // Pass-through variants only when each element is a valid {format, width, url}
+            ...(Array.isArray(e.variants) && {
+              variants: (e.variants as unknown[]).filter((v): v is MediaVariant => {
+                if (v === null || typeof v !== 'object' || Array.isArray(v)) return false;
+                const vObj = v as Record<string, unknown>;
+                return (
+                  (vObj.format === 'webp' || vObj.format === 'avif') &&
+                  typeof vObj.width === 'number' &&
+                  vObj.width > 0 &&
+                  typeof vObj.url === 'string'
+                );
+              }),
+            }),
+          };
+          acc.push(normalised);
+        }
+        return acc;
+      }, [])
+    : [];
   return { uploads };
 }
 
@@ -778,7 +830,11 @@ export function getPageSeo(page: Page, locale: string, defaultLocale: string): S
   };
 }
 
-export function getPagePublishedAt(page: Page, locale: string, defaultLocale: string): string | null {
+export function getPagePublishedAt(
+  page: Page,
+  locale: string,
+  defaultLocale: string,
+): string | null {
   return getLocalizedValue(page.publishedAt, locale, defaultLocale) ?? null;
 }
 
@@ -786,7 +842,11 @@ export function isPagePublished(page: Page, locale: string, defaultLocale: strin
   return getPageStatus(page, locale, defaultLocale) === 'published';
 }
 
-export function getPageLocaleView(page: Page, locale: string, defaultLocale: string): PageLocaleView {
+export function getPageLocaleView(
+  page: Page,
+  locale: string,
+  defaultLocale: string,
+): PageLocaleView {
   return {
     id: page.id,
     locale: normalizeLocaleCode(locale),
@@ -832,11 +892,19 @@ export function getPageLocaleViewStrict(page: Page, locale: string): PageLocaleV
   };
 }
 
-export function setPageLocaleValue<T>(map: Record<string, T> | undefined, locale: string, value: T): Record<string, T> {
+export function setPageLocaleValue<T>(
+  map: Record<string, T> | undefined,
+  locale: string,
+  value: T,
+): Record<string, T> {
   return setLocalizedValue(map, locale, value);
 }
 
-export function getPublishedPages(pagesData: PagesData, locale: string, defaultLocale: string): Page[] {
+export function getPublishedPages(
+  pagesData: PagesData,
+  locale: string,
+  defaultLocale: string,
+): Page[] {
   const list = pagesData.pages ?? [];
   return list.filter((page) => isPagePublished(page, locale, defaultLocale));
 }
@@ -850,22 +918,28 @@ export function getPageBySlug(
   pagesData: PagesData,
   slug: string | string[],
   locale: string,
-  defaultLocale: string
+  defaultLocale: string,
 ): Page | undefined {
   const pathStr = slugToPath(slug);
-  return (pagesData.pages ?? []).find((page) => slugToPath(getPageSlug(page, locale, defaultLocale)) === pathStr && isPagePublished(page, locale, defaultLocale));
+  return (pagesData.pages ?? []).find(
+    (page) =>
+      slugToPath(getPageSlug(page, locale, defaultLocale)) === pathStr &&
+      isPagePublished(page, locale, defaultLocale),
+  );
 }
 
 export function getPageBySlugStrict(
   pagesData: PagesData,
   slug: string | string[],
-  locale: string
+  locale: string,
 ): Page | undefined {
   const pathStr = slugToPath(slug);
   return (pagesData.pages ?? []).find((page) => {
     const localizedSlug = getPageSlugStrict(page, locale);
     if (!localizedSlug) return false;
-    return slugToPath(localizedSlug) === pathStr && getPageStatusStrict(page, locale) === 'published';
+    return (
+      slugToPath(localizedSlug) === pathStr && getPageStatusStrict(page, locale) === 'published'
+    );
   });
 }
 
@@ -883,7 +957,11 @@ export function getMenuItemsStrict(menu: Menu, locale: string): MenuItem[] {
   return Array.isArray(selected) ? selected : [];
 }
 
-export function getMenuLocaleView(menu: Menu, locale: string, defaultLocale: string): MenuLocaleView {
+export function getMenuLocaleView(
+  menu: Menu,
+  locale: string,
+  defaultLocale: string,
+): MenuLocaleView {
   return {
     id: menu.id,
     locale: normalizeLocaleCode(locale),
@@ -932,15 +1010,22 @@ export function ensureLocaleAvailable(locale: string, languagesData: LanguagesDa
   const normalized = normalizeLocaleCode(locale);
   const available = languagesData.languages.filter((language) => language.enabled !== false);
   if (available.length === 0) return getDefaultLanguageCode(languagesData);
-  if (available.some((language) => normalizeLocaleCode(language.code) === normalized)) return normalized;
+  if (available.some((language) => normalizeLocaleCode(language.code) === normalized))
+    return normalized;
   return getDefaultLanguageCode(languagesData);
 }
 
-export function buildLocalizedSlugMap(locale: string, slug: string | string[]): Record<string, string | string[]> {
+export function buildLocalizedSlugMap(
+  locale: string,
+  slug: string | string[],
+): Record<string, string | string[]> {
   return { [normalizeLocaleCode(locale)]: slug };
 }
 
-export function buildLocalizedStatusMap(locale: string, status: PageStatus): Record<string, PageStatus> {
+export function buildLocalizedStatusMap(
+  locale: string,
+  status: PageStatus,
+): Record<string, PageStatus> {
   return { [normalizeLocaleCode(locale)]: ensurePageStatus(status) };
 }
 

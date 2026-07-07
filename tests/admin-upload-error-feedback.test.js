@@ -26,58 +26,52 @@ import { join } from 'node:path';
 
 const root = process.cwd();
 
-const pageEditor = await readFile(
-  join(root, 'routes/admin/client/page-editor.ts'),
-  'utf-8'
-);
-const blockForm = await readFile(
-  join(root, 'routes/admin/client/block-form.ts'),
-  'utf-8'
-);
+const pageEditor = await readFile(join(root, 'routes/admin/client/page-editor.ts'), 'utf-8');
+const blockForm = await readFile(join(root, 'routes/admin/client/block-form.ts'), 'utf-8');
 
 test('page-editor.ts — SEO image upload surfaces failures via showToast', () => {
   const fn = pageEditor.slice(
     pageEditor.indexOf('async function uploadSeoImage'),
-    pageEditor.indexOf('async function removeSeoImage')
+    pageEditor.indexOf('async function removeSeoImage'),
   );
   assert.ok(fn.length > 0, 'uploadSeoImage() not found');
   assert.ok(
     !/throw new Error/.test(fn),
-    'uploadSeoImage() still throws instead of surfacing the error to the user'
+    'uploadSeoImage() still throws instead of surfacing the error to the user',
   );
   assert.ok(
     /media\.uploadError/.test(fn),
-    'uploadSeoImage() must call showToast with the media.uploadError title'
+    'uploadSeoImage() must call showToast with the media.uploadError title',
   );
   // Guard against a silent-swallow regression on the non-2xx branch specifically:
   // the response-error path (distinct from the network-error catch, which uses
   // ct('media.uploadFailed')) must forward the server-provided error message.
   assert.ok(
     /showToast\(\s*data\.error/.test(fn),
-    'uploadSeoImage() must forward the server error (data.error) to showToast on a non-ok response'
+    'uploadSeoImage() must forward the server error (data.error) to showToast on a non-ok response',
   );
 });
 
 test('block-form.ts — picker upload surfaces failures via showToast', () => {
   const handler = blockForm.slice(
     blockForm.indexOf("uploadBtn?.addEventListener('click'"),
-    blockForm.indexOf('uploadBtn.disabled = false;')
+    blockForm.indexOf('uploadBtn.disabled = false;'),
   );
   assert.ok(handler.length > 0, 'picker upload handler not found');
   assert.ok(
     /media\.uploadError/.test(handler),
-    'picker upload must use the media.uploadError title'
+    'picker upload must use the media.uploadError title',
   );
   // The non-ok branch must READ the server error body and surface it. This
   // cannot be satisfied by an empty `else {}` (the issue #31 regression) nor by
   // the network-error catch block, which uses ct('media.uploadFailed') and never
   // parses the response — so it pins the exact bug this guard exists to catch.
   assert.ok(
-    /const errBody = await uploadRes\.json\(\)/.test(handler),
-    'picker upload must read the server error body on a non-ok response'
+    /const errBody = \(?await uploadRes\.json\(\)/.test(handler),
+    'picker upload must read the server error body on a non-ok response',
   );
   assert.ok(
     /showToast\(\s*errBody\.error/.test(handler),
-    'picker upload must forward the server error (errBody.error) to showToast on a non-ok response'
+    'picker upload must forward the server error (errBody.error) to showToast on a non-ok response',
   );
 });

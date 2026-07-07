@@ -95,7 +95,11 @@ test('handleGetGlobalBlocks silently ignores orphan slugs in data file', async (
     const response = await handleGetGlobalBlocks(REGISTRY, getReq());
     const body = await response.json();
 
-    assert.equal(Object.hasOwn(body.globalBlocks, 'orphan'), false, 'orphan slug should be excluded');
+    assert.equal(
+      Object.hasOwn(body.globalBlocks, 'orphan'),
+      false,
+      'orphan slug should be excluded',
+    );
     assert.ok(Object.hasOwn(body.globalBlocks, 'header'));
     assert.ok(Object.hasOwn(body.globalBlocks, 'footer'));
   });
@@ -132,7 +136,7 @@ test('handlePutGlobalBlock returns 404 for unregistered slug', async () => {
       'unknown',
       putReq('unknown', { props: {} }),
       {},
-      REGISTRY
+      REGISTRY,
     );
     assert.equal(response.status, 404);
     const body = await response.json();
@@ -150,11 +154,14 @@ test('handlePutGlobalBlock returns 400 when props key is missing (SCEN-11b)', as
       'header',
       putReq('header', { blocks: [] }),
       {},
-      REGISTRY
+      REGISTRY,
     );
     assert.equal(response.status, 400);
     const body = await response.json();
-    assert.ok(body.error.toLowerCase().includes('props'), `expected "props" in error: ${body.error}`);
+    assert.ok(
+      body.error.toLowerCase().includes('props'),
+      `expected "props" in error: ${body.error}`,
+    );
   });
 });
 
@@ -168,7 +175,7 @@ test('handlePutGlobalBlock returns 400 when props is not an object', async () =>
       'header',
       putReq('header', { props: 'not-an-object' }),
       {},
-      REGISTRY
+      REGISTRY,
     );
     assert.equal(response.status, 400);
   });
@@ -190,7 +197,7 @@ test('handlePutGlobalBlock returns 400 when props fails schema validation (SCEN-
       'header',
       putReq('header', { props: {} }), // missing required title
       {},
-      REGISTRY
+      REGISTRY,
     );
     assert.equal(response.status, 400);
     const body = await response.json();
@@ -209,7 +216,7 @@ test('handlePutGlobalBlock returns 200 and persists props for registered slug (S
       'header',
       putReq('header', { props }),
       {},
-      REGISTRY
+      REGISTRY,
     );
     assert.equal(response.status, 200);
 
@@ -236,7 +243,7 @@ test('handlePutGlobalBlock merges per-locale scalars into LocalizedValueMap pres
       'header',
       putReq('header', { props: { title: 'Hola' }, locale: 'es' }),
       {},
-      REGISTRY
+      REGISTRY,
     );
     assert.equal(res.status, 200);
 
@@ -245,7 +252,7 @@ test('handlePutGlobalBlock merges per-locale scalars into LocalizedValueMap pres
       'header',
       putReq('header', { props: { title: 'Hello' }, locale: 'en' }),
       {},
-      REGISTRY
+      REGISTRY,
     );
     assert.equal(res.status, 200);
 
