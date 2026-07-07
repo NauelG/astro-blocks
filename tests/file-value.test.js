@@ -24,6 +24,7 @@ import {
   mediaEntryToFileValue,
   fileDownloadUrl,
 } from '../dist/utils/file-value.js';
+import { escapeAttr } from '../dist/utils/html-escape.js';
 
 // ─── toFileValue ──────────────────────────────────────────────────────────────
 
@@ -153,6 +154,21 @@ test('serializeFileValueAttr — encodes &, <, >, \', "', () => {
   assert.ok(!serialized.includes('&b'), 'raw & must be encoded');
   assert.ok(!serialized.includes('<c>'), 'raw < > must be encoded');
   assert.ok(!serialized.includes('"e'), 'raw " must be encoded');
+});
+
+// ─── byte-identity guard vs canonical escapeAttr (consolidation, issue #39) ────
+// Locks that serializeFileValueAttr delegates to the exact same escaping as the
+// canonical escapeAttr(JSON.stringify(value)) — must stay green before AND after
+// the internal implementation is collapsed onto the canonical helper.
+
+test('serializeFileValueAttr — byte-identical to escapeAttr(JSON.stringify(value)) (special chars)', () => {
+  const value = { url: '/uploads/doc.pdf', filename: 'my "report".pdf' };
+  assert.equal(serializeFileValueAttr(value), escapeAttr(JSON.stringify(value)));
+});
+
+test('serializeFileValueAttr — byte-identical to escapeAttr(JSON.stringify(value)) (safe value)', () => {
+  const value = { url: '/uploads/doc.pdf', filename: 'report.pdf' };
+  assert.equal(serializeFileValueAttr(value), escapeAttr(JSON.stringify(value)));
 });
 
 // ─── isEmptyFileValue ─────────────────────────────────────────────────────────
