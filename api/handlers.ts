@@ -7,15 +7,9 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { APIContext } from 'astro';
 import { SignJWT, jwtVerify } from 'jose';
 import { imageSize } from 'image-size';
-import {
-  getGlobalCachePaths,
-  getGlobalCacheTags,
-  getPageCachePath,
-  getPageCacheTags,
-} from '../utils/cache.js';
+import { getGlobalCachePaths, getGlobalCacheTags } from '../utils/cache.js';
 import { validateBlocks } from '../utils/blocks.js';
 import {
   getDefaultLanguageCode,
@@ -65,7 +59,6 @@ import type {
   RedirectRule,
   SchemaMap,
   SeoData,
-  Site,
   User,
 } from '../types/index.js';
 import * as data from './data.js';
@@ -73,33 +66,21 @@ import { buildExportStream, runImportPipeline } from './backup.js';
 import { UNIT_TO_DATA_FILES } from './manifest.js';
 import type { ExportUnit } from './manifest.js';
 import { readCeilingEnvVars } from './import-utils.js';
-import { resolveUiLocale } from '../routes/admin/i18n/resolve.js';
 import { catalogs } from '../routes/admin/i18n/catalogs.js';
 import { t as translateFn } from '../routes/admin/i18n/t.js';
-
-/** Resolve the UI locale from the incoming API request (cookie > Accept-Language > 'en'). */
-function resolveRequestUiLocale(
-  request: Request,
-): import('../routes/admin/i18n/types.js').UiLocale {
-  return resolveUiLocale({
-    cookie: request.headers.get('cookie'),
-    acceptLanguage: request.headers.get('accept-language'),
-  });
-}
-
-/** Return a localized JSON error response. The wire shape { error: string } is preserved. */
-export function localizedJsonError(
-  request: Request,
-  key: string,
-  status = 400,
-  params?: Record<string, string | number>,
-  extra?: Record<string, unknown>,
-): Response {
-  const locale = resolveRequestUiLocale(request);
-  const catalog = catalogs[locale];
-  const message = translateFn(catalog, key, params);
-  return jsonError(message, status, extra);
-}
+import {
+  jsonError,
+  localizedJsonError,
+  parseJsonBody,
+  resolveRequestUiLocale,
+} from './handlers/shared.js';
+import type { HandlerContext } from './handlers/shared.js';
+import {
+  invalidateGlobalContentCache,
+  invalidatePageContentCache,
+} from './handlers/cache-invalidation.js';
+export { localizedJsonError } from './handlers/shared.js';
+export { handleGetSite, handlePutSite } from './handlers/site.js';
 
 // SECURITY: this constant signs and verifies admin session tokens. When no secret is
 // configured we fall back to a well-known string ONLY to keep local development frictionless.
@@ -180,8 +161,6 @@ if (JWT_SECRET_STATUS === 'insecure-production') {
 function jwtSecretMisconfigured(): boolean {
   return JWT_SECRET_STATUS === 'insecure-production';
 }
-type AstroCache = APIContext['cache'];
-type HandlerContext = { cache?: AstroCache | null };
 const CONFIG_KEY_REGEX = /^[A-Za-z][A-Za-z0-9_.-]*$/;
 
 // Media upload constants
@@ -245,13 +224,6 @@ const MAX_UPLOAD_BYTES = (() => {
   }
   return 5 * 1024 * 1024; // 5 MB default
 })();
-
-function jsonError(message: string, status = 400, extra?: Record<string, unknown>): Response {
-  return new Response(JSON.stringify({ error: message, ...extra }), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
 
 function normalizeSlugInput(rawSlug: unknown): string | string[] {
   if (Array.isArray(rawSlug)) {
@@ -336,76 +308,6 @@ function ensureEnabledDefaultLanguage(
     ...language,
     isDefault: defaultCode ? normalizeLanguageCode(language.code) === defaultCode : false,
   }));
-}
-
-async function invalidateCachePath(
-  cache: AstroCache | null | undefined,
-  pathname: string,
-): Promise<boolean> {
-  if (!cache?.enabled) return false;
-
-  try {
-    await cache.invalidate({ path: pathname });
-    return true;
-  } catch (error) {
-    console.warn(`[astro-blocks] Failed to invalidate cache path "${pathname}":`, error);
-    return false;
-  }
-}
-
-async function invalidateCacheTags(
-  cache: AstroCache | null | undefined,
-  tags: string[],
-): Promise<boolean> {
-  if (!cache?.enabled || tags.length === 0) return false;
-
-  try {
-    await cache.invalidate({ tags });
-    return true;
-  } catch (error) {
-    console.warn('[astro-blocks] Failed to invalidate cache tags:', tags, error);
-    return false;
-  }
-}
-
-async function invalidateGlobalContentCache(cache: AstroCache | null | undefined): Promise<void> {
-  await invalidateCacheTags(cache, getGlobalCacheTags());
-  for (const pathname of getGlobalCachePaths()) {
-    await invalidateCachePath(cache, pathname);
-  }
-}
-
-async function invalidatePageContentCache(
-  cache: AstroCache | null | undefined,
-  locale: string,
-  defaultLocale: string,
-  currentPage?: Pick<Page, 'id' | 'slug'> | null,
-  previousPage?: Pick<Page, 'id' | 'slug'> | null,
-): Promise<void> {
-  const tags = new Set<string>(getGlobalCacheTags());
-  const paths = new Set<string>(getGlobalCachePaths());
-
-  for (const page of [currentPage, previousPage]) {
-    if (!page) continue;
-    paths.add(getPageCachePath(page, locale, defaultLocale));
-    for (const tag of getPageCacheTags(page, locale, defaultLocale)) tags.add(tag);
-  }
-
-  for (const pathname of paths) {
-    await invalidateCachePath(cache, pathname);
-  }
-
-  await invalidateCacheTags(cache, Array.from(tags));
-}
-
-async function parseJsonBody<T>(
-  request: Request,
-): Promise<{ data: T | null; error: Response | null }> {
-  try {
-    return { data: (await request.json()) as T, error: null };
-  } catch {
-    return { data: null, error: localizedJsonError(request, 'errors.invalidBody') };
-  }
 }
 
 function scryptAsync(password: string, salt: crypto.BinaryLike, keylen: number): Promise<Buffer> {
@@ -1297,24 +1199,6 @@ export async function handleDeletePage(
   await data.savePages(pagesData);
   await invalidatePageContentCache(context.cache, locale, defaultLocale, null, deletedPage);
   return new Response(null, { status: 204 });
-}
-
-export async function handleGetSite(): Promise<Response> {
-  return Response.json(await data.loadSite());
-}
-
-export async function handlePutSite(
-  request: Request,
-  context: HandlerContext = {},
-): Promise<Response> {
-  const { data: body, error } = await parseJsonBody<Partial<Site>>(request);
-  if (error || !body) return error as Response;
-
-  const existing = await data.loadSite();
-  const site = { ...existing, ...body };
-  await data.saveSite(site);
-  await invalidateGlobalContentCache(context.cache);
-  return Response.json(site);
 }
 
 export async function handleGetMenus(request: Request): Promise<Response> {
