@@ -188,7 +188,7 @@ let _allowedFileTypesCache: Set<string> | null = null;
 function getAllowedFileTypes(): Set<string> {
   if (_allowedFileTypesCache !== null) return _allowedFileTypesCache;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // biome-ignore lint/suspicious/noExplicitAny: import.meta.env is untyped at this call site; narrowed immediately below
   const raw: string = ((import.meta as any).env as Record<string, unknown> | undefined)?.ASTRO_BLOCKS_ALLOWED_FILE_TYPES as string ?? '';
   let parsed: string[] | null = null;
   if (typeof raw === 'string' && raw.trim().length > 0) {
