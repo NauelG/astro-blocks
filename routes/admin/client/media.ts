@@ -10,6 +10,7 @@ Licensed under the Business Source License 1.1
  */
 
 import { getCmsToken, getCmsWindow } from './common.js';
+import { escapeHtml, escapeAttr } from '../../../utils/html-escape.js';
 import {
   fetchMedia,
   formatBytes,
@@ -43,19 +44,6 @@ let reqSeq = 0;
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ─── Grid rendering ───────────────────────────────────────────────────────────
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function escapeAttr(s: string): string {
-  return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
 
 // Document SVG icon — rendered inside accessible document tiles (aria-hidden).
 const docIconSvg =
