@@ -22,6 +22,7 @@ import {
   serializeImageValueAttr,
   getCaption,
 } from '../dist/utils/image-value.js';
+import { escapeAttr } from '../dist/utils/html-escape.js';
 
 // ─── toImageValue ─────────────────────────────────────────────────────────────
 
@@ -404,6 +405,21 @@ test('FIX-3: serializeImageValueAttr — quote-blind escaper would FAIL (proves 
     !serialized.includes('"'),
     'regression guard: if this fails, the call site was reverted to a quote-blind escaper',
   );
+});
+
+// ─── byte-identity guard vs canonical escapeAttr (consolidation, issue #39) ────
+// Locks that serializeImageValueAttr delegates to the exact same escaping as the
+// canonical escapeAttr(JSON.stringify(value)) — must stay green before AND after
+// the internal implementation is collapsed onto the canonical helper.
+
+test('serializeImageValueAttr — byte-identical to escapeAttr(JSON.stringify(value)) (special chars)', () => {
+  const value = { url: '/img.jpg', alt: 'say "hi" <b>&\'x' };
+  assert.equal(serializeImageValueAttr(value), escapeAttr(JSON.stringify(value)));
+});
+
+test('serializeImageValueAttr — byte-identical to escapeAttr(JSON.stringify(value)) (safe value)', () => {
+  const value = { url: '/a.jpg', alt: 'Cat' };
+  assert.equal(serializeImageValueAttr(value), escapeAttr(JSON.stringify(value)));
 });
 
 // ─── caption pass-through (P1-T5) ─────────────────────────────────────────────
