@@ -1341,7 +1341,9 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
   }
 
   function render(): void {
-    sortables.forEach((s) => s.destroy());
+    sortables.forEach((s) => {
+      s.destroy();
+    });
     sortables.length = 0;
 
     let html = '<div class="cms-stack cms-block-item-fields">';
@@ -1642,7 +1644,9 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
 
   return {
     destroy(): void {
-      sortables.forEach((s) => s.destroy());
+      sortables.forEach((s) => {
+        s.destroy();
+      });
       sortables.length = 0;
       window.removeEventListener('cms:content-locale-change', localeChangeHandler);
       container.innerHTML = '';

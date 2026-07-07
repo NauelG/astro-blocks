@@ -42,7 +42,7 @@ const HTML_SIGNIFICANT = /[&<>"']/g;
  * Shared single-pass escaper. Coerces to string first so it is a safe drop-in
  * for the legacy escapers (escapePickerHtml wrapped its input in String()).
  */
-function escape(value: string): string {
+function escapeString(value: string): string {
   return String(value).replace(HTML_SIGNIFICANT, (char) => HTML_ENTITIES[char] ?? char);
 }
 
@@ -51,7 +51,7 @@ function escape(value: string): string {
  * Encodes & < > " '.
  */
 export function escapeHtml(text: string): string {
-  return escape(text);
+  return escapeString(text);
 }
 
 /**
@@ -60,5 +60,5 @@ export function escapeHtml(text: string): string {
  * characters that prevent attribute breakout.
  */
 export function escapeAttr(value: string): string {
-  return escape(value);
+  return escapeString(value);
 }

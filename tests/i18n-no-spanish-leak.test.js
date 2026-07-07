@@ -168,6 +168,7 @@ function extractStringLiterals(line) {
   const stringRe = /(['"])((?:[^\\]|\\.)*?)\1/g;
 
   let match;
+  // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic regex.exec() iteration loop
   while ((match = stringRe.exec(noComment)) !== null) {
     const startIndex = match.index;
     const content = match[2];
