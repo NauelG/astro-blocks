@@ -85,7 +85,9 @@ export function initMenusEditor(): void {
   function destroySortables(): void {
     sortableMain?.destroy();
     sortableMain = null;
-    sortableChildren.forEach((sortable) => sortable.destroy());
+    sortableChildren.forEach((sortable) => {
+      sortable.destroy();
+    });
     sortableChildren.length = 0;
   }
 

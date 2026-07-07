@@ -40,5 +40,8 @@
     "rules": {
       "recommended": true
     }
+  },
+  "assist": {
+    "enabled": false
   }
 }

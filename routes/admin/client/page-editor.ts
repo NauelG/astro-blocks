@@ -176,7 +176,9 @@ export function initPageEditor(): void {
   }
 
   function destroyBlockFormHandles(): void {
-    blockFormHandles.forEach((handle) => handle.destroy());
+    blockFormHandles.forEach((handle) => {
+      handle.destroy();
+    });
     blockFormHandles.clear();
   }
 
@@ -449,7 +451,9 @@ export function initPageEditor(): void {
     }
 
     openArrayItemByKey.clear();
-    next.forEach((value, key) => openArrayItemByKey.set(key, value));
+    next.forEach((value, key) => {
+      openArrayItemByKey.set(key, value);
+    });
   }
 
   function adjustOpenBlockIndexAfterMove(oldIndex: number, newIndex: number): void {
@@ -688,7 +692,9 @@ export function initPageEditor(): void {
           nextMap.set(arrayStateKey(nextIndex, propName), openRow);
         }
         openArrayItemByKey.clear();
-        nextMap.forEach((value, key) => openArrayItemByKey.set(key, value));
+        nextMap.forEach((value, key) => {
+          openArrayItemByKey.set(key, value);
+        });
 
         inlineErrors.clear();
         renderBlocksList();

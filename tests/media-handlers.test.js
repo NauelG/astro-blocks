@@ -1445,6 +1445,7 @@ test('T-CSRF-03: non-ASCII filename round-trip — decodes correctly, no 500', a
       'entry.filename must be the decoded original filename',
     );
     // url must not contain raw non-ASCII bytes
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: \x00-\x7F is the intended ASCII range guard
     assert.doesNotMatch(body.url, /[^\x00-\x7F]/, 'url must not contain raw non-ASCII characters');
   });
 });

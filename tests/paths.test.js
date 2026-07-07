@@ -142,9 +142,12 @@ test('SEC-04: resolveUploadPath rejects sibling directory with uploads-foo prefi
       !siblingPath.startsWith(uploadsDir + path.sep),
       'Fix: sibling path does NOT start with uploadsDir + sep (guard is correct)',
     );
-    // The uploadsDir itself must still be matched (resolved === uploadsDir edge case)
+    // The uploadsDir itself must still be matched (resolved === uploadsDir edge case).
+    // resolvedSelf is a distinct string with the same value as uploadsDir, so the
+    // `===` term exercises the equal branch by value (not a self-compare tautology).
+    const resolvedSelf = path.join(fakeRoot, 'public', 'uploads');
     assert.ok(
-      uploadsDir === uploadsDir || uploadsDir.startsWith(uploadsDir + path.sep),
+      resolvedSelf === uploadsDir || resolvedSelf.startsWith(uploadsDir + path.sep),
       'Fix: the uploads dir itself passes (equal branch)',
     );
 

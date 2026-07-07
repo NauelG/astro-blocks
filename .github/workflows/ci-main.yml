@@ -36,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint & format (Biome)
+        run: npm run check
+
       - name: Validate features catalog
         run: npm run features:validate
 
