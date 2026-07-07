@@ -18,6 +18,7 @@ Licensed under the Business Source License 1.1
  */
 
 import type { ImageFieldValue, MediaEntry, MediaVariant } from '../types/index.js';
+import { escapeAttr } from './html-escape.js';
 
 /** Sentinel returned for null / undefined / malformed input. */
 const EMPTY: ImageFieldValue = { url: '', alt: '' };
@@ -175,13 +176,7 @@ export function isEmptyImageValue(value: unknown): boolean {
  * no explicit decoding step is needed on read.
  */
 export function serializeImageValueAttr(value: ImageFieldValue): string {
-  const json = JSON.stringify(value);
-  return json
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+  return escapeAttr(JSON.stringify(value));
 }
 
 /**

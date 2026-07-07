@@ -22,6 +22,7 @@ Licensed under the Business Source License 1.1
  */
 
 import type { FileFieldValue, MediaEntry } from '../types/index.js';
+import { escapeAttr } from './html-escape.js';
 
 /** Sentinel returned for null / undefined / malformed input. */
 const EMPTY: FileFieldValue = { url: '' };
@@ -109,13 +110,7 @@ export function parseFileValue(raw: string): FileFieldValue {
  * parseFileValue(input.value) receives clean JSON — no explicit decoding needed.
  */
 export function serializeFileValueAttr(value: FileFieldValue): string {
-  const json = JSON.stringify(value);
-  return json
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+  return escapeAttr(JSON.stringify(value));
 }
 
 /**
