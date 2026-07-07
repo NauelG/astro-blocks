@@ -39,8 +39,12 @@ export function toImageValue(value: unknown): ImageFieldValue {
         url: obj.url,
         ...(typeof obj.alt === 'string' && { alt: obj.alt }),
         ...(typeof obj.caption === 'string' && { caption: obj.caption }),
-        ...(typeof obj.width === 'number' && Number.isFinite(obj.width) && obj.width > 0 && { width: obj.width }),
-        ...(typeof obj.height === 'number' && Number.isFinite(obj.height) && obj.height > 0 && { height: obj.height }),
+        ...(typeof obj.width === 'number' &&
+          Number.isFinite(obj.width) &&
+          obj.width > 0 && { width: obj.width }),
+        ...(typeof obj.height === 'number' &&
+          Number.isFinite(obj.height) &&
+          obj.height > 0 && { height: obj.height }),
       };
     }
     return { ...EMPTY };
@@ -85,8 +89,12 @@ export function parseImageValue(raw: string): ImageFieldValue {
           ...(typeof obj.alt === 'string' && { alt: obj.alt }),
           ...(typeof obj.caption === 'string' && { caption: obj.caption }),
           // Coerce width/height to positive finite numbers or drop them (0 and negatives are invalid)
-          ...(typeof obj.width === 'number' && Number.isFinite(obj.width) && obj.width > 0 && { width: obj.width }),
-          ...(typeof obj.height === 'number' && Number.isFinite(obj.height) && obj.height > 0 && { height: obj.height }),
+          ...(typeof obj.width === 'number' &&
+            Number.isFinite(obj.width) &&
+            obj.width > 0 && { width: obj.width }),
+          ...(typeof obj.height === 'number' &&
+            Number.isFinite(obj.height) &&
+            obj.height > 0 && { height: obj.height }),
         };
       }
     } catch {
@@ -182,9 +190,7 @@ export function serializeImageValueAttr(value: ImageFieldValue): string {
  * Returns an empty string when no matching variants exist.
  */
 export function buildSrcset(variants: MediaVariant[], format: string): string {
-  const filtered = variants
-    .filter((v) => v.format === format)
-    .sort((a, b) => a.width - b.width);
+  const filtered = variants.filter((v) => v.format === format).sort((a, b) => a.width - b.width);
   if (filtered.length === 0) return '';
   return filtered.map((v) => `${v.url} ${v.width}w`).join(', ');
 }
@@ -202,8 +208,12 @@ export function mediaEntryToImageValue(entry: MediaEntry): ImageFieldValue {
   return {
     url: entry.url,
     alt: entry.alt ?? '',
-    ...(typeof entry.width === 'number' && Number.isFinite(entry.width) && entry.width > 0 && { width: entry.width }),
-    ...(typeof entry.height === 'number' && Number.isFinite(entry.height) && entry.height > 0 && { height: entry.height }),
+    ...(typeof entry.width === 'number' &&
+      Number.isFinite(entry.width) &&
+      entry.width > 0 && { width: entry.width }),
+    ...(typeof entry.height === 'number' &&
+      Number.isFinite(entry.height) &&
+      entry.height > 0 && { height: entry.height }),
   };
 }
 

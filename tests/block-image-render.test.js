@@ -64,12 +64,19 @@ const IMAGE_WITH_DIMS = { url: '/u/img.jpg', alt: 'A cat', width: 960, height: 5
 // ─── caption + ready/variants → figure=true, picture=true, full attrs ─────────
 
 test('P1-A: caption + ready/variants → figure + picture, both srcsets non-empty, alt + dims present', () => {
-  const r = decideBranch(IMAGE_WITH_DIMS, { status: 'ready', variants: READY_VARIANTS }, 'My caption');
+  const r = decideBranch(
+    IMAGE_WITH_DIMS,
+    { status: 'ready', variants: READY_VARIANTS },
+    'My caption',
+  );
   assert.equal(r.figure, true, 'caption present → <figure>');
   assert.equal(r.picture, true, 'ready + variants → <picture>');
   assert.notEqual(r.avifSrcset, '', 'avif srcset must be non-empty');
   assert.notEqual(r.webpSrcset, '', 'webp srcset must be non-empty');
-  assert.ok(r.avifSrcset.includes('480w') && r.avifSrcset.includes('960w'), 'avif srcset has both widths');
+  assert.ok(
+    r.avifSrcset.includes('480w') && r.avifSrcset.includes('960w'),
+    'avif srcset has both widths',
+  );
   assert.equal(r.attrs.alt, 'A cat', 'alt present on img');
   assert.equal(r.attrs.width, 960, 'width dim present');
   assert.equal(r.attrs.height, 540, 'height dim present');

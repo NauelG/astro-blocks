@@ -52,7 +52,7 @@ test('validateGlobalBlocks throws on duplicate slug with slug name in message', 
       assert.ok(err instanceof Error);
       assert.ok(err.message.includes('header'), `expected "header" in: ${err.message}`);
       return true;
-    }
+    },
   );
 });
 
@@ -67,7 +67,7 @@ test('validateGlobalBlocks throws on slug failing regex', () => {
         assert.ok(err.message.includes(slug), `expected "${slug}" in: ${err.message}`);
         return true;
       },
-      `expected throw for invalid slug: "${slug}"`
+      `expected throw for invalid slug: "${slug}"`,
     );
   }
 });
@@ -82,11 +82,13 @@ test('validateGlobalBlocks throws when schema is missing __componentPath (SCEN-3
     (err) => {
       assert.ok(err instanceof Error);
       assert.ok(
-        err.message.includes('__componentPath') || err.message.includes('componentPath') || err.message.includes('defineBlockSchema'),
-        `expected componentPath reference in: ${err.message}`
+        err.message.includes('__componentPath') ||
+          err.message.includes('componentPath') ||
+          err.message.includes('defineBlockSchema'),
+        `expected componentPath reference in: ${err.message}`,
       );
       return true;
-    }
+    },
   );
 });
 
@@ -109,7 +111,11 @@ test('generateRuntime emits globalBlocksRegistry with schemaName and componentPa
     const options = {
       blocks: [],
       globalBlocks: [
-        { slug: 'site-header', schema: makeSchema('GlobalHeader', '/fake/GlobalHeader.astro'), label: 'Header' },
+        {
+          slug: 'site-header',
+          schema: makeSchema('GlobalHeader', '/fake/GlobalHeader.astro'),
+          label: 'Header',
+        },
         { slug: 'site-footer', schema: makeSchema('GlobalFooter', '/fake/GlobalFooter.astro') },
       ],
     };
@@ -121,11 +127,14 @@ test('generateRuntime emits globalBlocksRegistry with schemaName and componentPa
 
     assert.ok(
       content.includes('export const globalBlocksRegistry'),
-      `runtime.mjs should export globalBlocksRegistry, got:\n${content}`
+      `runtime.mjs should export globalBlocksRegistry, got:\n${content}`,
     );
     assert.ok(content.includes('"site-header"'), 'registry should include site-header slug');
     assert.ok(content.includes('"site-footer"'), 'registry should include site-footer slug');
-    assert.ok(content.includes('"GlobalHeader"') || content.includes('schemaName'), 'registry should include schemaName');
+    assert.ok(
+      content.includes('"GlobalHeader"') || content.includes('schemaName'),
+      'registry should include schemaName',
+    );
     assert.ok(content.includes('"Header"'), 'registry should include label for Header');
   });
 });
@@ -135,7 +144,11 @@ test('generateRuntime includes global block schemas in schemaMap and componentMa
     const options = {
       blocks: [],
       globalBlocks: [
-        { slug: 'site-header', schema: makeSchema('GlobalHeader', '/fake/GlobalHeader.astro'), label: 'Header' },
+        {
+          slug: 'site-header',
+          schema: makeSchema('GlobalHeader', '/fake/GlobalHeader.astro'),
+          label: 'Header',
+        },
       ],
     };
 
@@ -145,7 +158,10 @@ test('generateRuntime includes global block schemas in schemaMap and componentMa
     const content = await fs.readFile(runtimePath, 'utf-8');
 
     // schemaMap should contain GlobalHeader
-    assert.ok(content.includes('"GlobalHeader"'), 'schemaMap should contain GlobalHeader schema key');
+    assert.ok(
+      content.includes('"GlobalHeader"'),
+      'schemaMap should contain GlobalHeader schema key',
+    );
     // componentMap should reference GlobalHeader
     assert.ok(content.includes('GlobalHeader'), 'componentMap should include GlobalHeader');
   });
@@ -162,7 +178,7 @@ test('generateRuntime writes empty globalBlocksRegistry when no globalBlocks dec
 
     assert.ok(
       content.includes('export const globalBlocksRegistry = []'),
-      `runtime.mjs should export empty globalBlocksRegistry, got:\n${content}`
+      `runtime.mjs should export empty globalBlocksRegistry, got:\n${content}`,
     );
   });
 });

@@ -71,7 +71,11 @@ test('production without a JWT secret: handleLogin returns 503 and getAuth retur
     process.exit(0);
   `;
   // Neither env var set — a non-zero child exit surfaces as a thrown error here.
-  runInChildProcess(source, { NODE_ENV: 'production', ASTRO_BLOCKS_JWT_SECRET: '', CMS_JWT_SECRET: '' });
+  runInChildProcess(source, {
+    NODE_ENV: 'production',
+    ASTRO_BLOCKS_JWT_SECRET: '',
+    CMS_JWT_SECRET: '',
+  });
 });
 
 test('production WITH ASTRO_BLOCKS_JWT_SECRET: first login bootstraps the owner (200)', () => {

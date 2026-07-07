@@ -147,8 +147,5 @@ test('A-5: unitValidators has all 5 ExportUnit keys', () => {
 
 test('A-5: unitValidators.users delegates to validateUsersUnit', () => {
   assert.equal(unitValidators['users']({ users: [] }).ok, true);
-  assert.equal(
-    unitValidators['users']({ users: [{ role: 'superadmin' }] }).ok,
-    false,
-  );
+  assert.equal(unitValidators['users']({ users: [{ role: 'superadmin' }] }).ok, false);
 });

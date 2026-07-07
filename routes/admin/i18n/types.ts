@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 export const SUPPORTED_UI_LOCALES = ['en', 'es'] as const;
 
-export type UiLocale = typeof SUPPORTED_UI_LOCALES[number];
+export type UiLocale = (typeof SUPPORTED_UI_LOCALES)[number];
 
 /** Flat dot-namespaced key → string value. */
 export type Catalog = Record<string, string>;

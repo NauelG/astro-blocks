@@ -52,7 +52,10 @@ function toAbsoluteUrl(baseUrl: string, path: string): string {
  * Builds SEO i18n metadata (lang + hreflang + OG locale tags) for consumer layouts.
  * AstroBlocks provides the `i18n` prop in CMS-rendered pages; pass it directly here.
  */
-export function getI18nMeta(i18n: I18nLayoutContext | undefined, options: GetI18nMetaOptions = {}): I18nMetaResult | null {
+export function getI18nMeta(
+  i18n: I18nLayoutContext | undefined,
+  options: GetI18nMetaOptions = {},
+): I18nMetaResult | null {
   if (!i18n) return null;
 
   const locale = normalizeLocaleCode(i18n.locale);

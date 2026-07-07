@@ -52,7 +52,10 @@ test('B-2: handleExport returns 200 with Content-Type application/zip for valid 
 
     assert.equal(res.status, 200, `expected 200, got ${res.status}`);
     const ct = res.headers.get('content-type') ?? '';
-    assert.ok(ct.includes('application/zip'), `Content-Type must include application/zip, got "${ct}"`);
+    assert.ok(
+      ct.includes('application/zip'),
+      `Content-Type must include application/zip, got "${ct}"`,
+    );
   });
 });
 
@@ -64,7 +67,10 @@ test('B-2: handleExport response has Content-Disposition attachment header with 
     const res = await handleExport(req, OWNER_USER);
 
     const cd = res.headers.get('content-disposition') ?? '';
-    assert.ok(cd.includes('attachment'), `Content-Disposition must include "attachment", got "${cd}"`);
+    assert.ok(
+      cd.includes('attachment'),
+      `Content-Disposition must include "attachment", got "${cd}"`,
+    );
     assert.ok(cd.includes('.zip'), `Content-Disposition filename must end with .zip, got "${cd}"`);
   });
 });

@@ -22,7 +22,10 @@ test('A-1: fflate Unzip is a function (constructor)', () => {
 });
 
 // A-7: fflate <-> ReadableStream bridge tests
-import { fflateZipToReadableStream, readableStreamToFflateUnzip } from '../dist/api/backup-stream.js';
+import {
+  fflateZipToReadableStream,
+  readableStreamToFflateUnzip,
+} from '../dist/api/backup-stream.js';
 import { ZipDeflate } from 'fflate';
 
 test('A-7: fflateZipToReadableStream is a function', () => {
@@ -116,10 +119,7 @@ test('A-7: controller.error mid-stream aborts cleanly', async () => {
   });
 
   // readableStreamToFflateUnzip should reject (propagate the error) rather than hang
-  await assert.rejects(
-    async () => {
-      await readableStreamToFflateUnzip(errorStream, async () => {});
-    },
-    /simulated mid-stream abort/,
-  );
+  await assert.rejects(async () => {
+    await readableStreamToFflateUnzip(errorStream, async () => {});
+  }, /simulated mid-stream abort/);
 });

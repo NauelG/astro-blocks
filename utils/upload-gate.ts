@@ -83,9 +83,7 @@ export interface EvaluateUploadInput {
 }
 
 /** Result of evaluateUpload. */
-export type EvaluateUploadResult =
-  | { ok: true }
-  | { ok: false; reason: 'denied' | 'unsupported' };
+export type EvaluateUploadResult = { ok: true } | { ok: false; reason: 'denied' | 'unsupported' };
 
 /**
  * Evaluate whether a file upload should be accepted, denied, or rejected as unsupported.

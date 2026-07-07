@@ -90,7 +90,7 @@ test('W-08: S-F seo localized string map — match in es locale, 1 result', () =
   // shape should be seoLocalizedMap or localizedMap
   assert.ok(
     matches[0].shape === 'seoLocalizedMap' || matches[0].shape === 'localizedMap',
-    `Expected seoLocalizedMap or localizedMap, got ${matches[0].shape}`
+    `Expected seoLocalizedMap or localizedMap, got ${matches[0].shape}`,
   );
 });
 

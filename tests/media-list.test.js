@@ -9,7 +9,13 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ensureDefaultFiles, loadMedia, saveMedia, appendMediaEntry, generateId } from '../dist/api/data.js';
+import {
+  ensureDefaultFiles,
+  loadMedia,
+  saveMedia,
+  appendMediaEntry,
+  generateId,
+} from '../dist/api/data.js';
 import { handleGetMedia } from '../dist/api/handlers.js';
 
 // Minimal JWT creation for auth — tests use getAuth which reads from Authorization header
@@ -83,9 +89,30 @@ test('T14-07: GET /cms/api/media prunes registry entries whose files are missing
     const now = new Date().toISOString();
     const existingMedia = {
       uploads: [
-        { id: 'entry-a', url: '/uploads/2026/06/a.jpg', filename: 'a.jpg', size: 12, mimeType: 'image/jpeg', createdAt: now },
-        { id: 'entry-b', url: '/uploads/2026/06/b.jpg', filename: 'b.jpg', size: 12, mimeType: 'image/jpeg', createdAt: now },
-        { id: 'entry-c', url: '/uploads/2026/06/c.jpg', filename: 'c.jpg', size: 12, mimeType: 'image/jpeg', createdAt: now },
+        {
+          id: 'entry-a',
+          url: '/uploads/2026/06/a.jpg',
+          filename: 'a.jpg',
+          size: 12,
+          mimeType: 'image/jpeg',
+          createdAt: now,
+        },
+        {
+          id: 'entry-b',
+          url: '/uploads/2026/06/b.jpg',
+          filename: 'b.jpg',
+          size: 12,
+          mimeType: 'image/jpeg',
+          createdAt: now,
+        },
+        {
+          id: 'entry-c',
+          url: '/uploads/2026/06/c.jpg',
+          filename: 'c.jpg',
+          size: 12,
+          mimeType: 'image/jpeg',
+          createdAt: now,
+        },
       ],
     };
     await saveMedia(existingMedia);
@@ -147,10 +174,46 @@ test('FIX-C: loadMedia drops a stored width:0 / height:0 (must match projection 
     // Write malformed-but-tolerated entries directly to disk
     await saveMedia({
       uploads: [
-        { id: 'zero-w', url: '/uploads/2026/06/zw.jpg', filename: 'zw.jpg', size: 100, mimeType: 'image/jpeg', createdAt: now, width: 0, height: 600 },
-        { id: 'zero-h', url: '/uploads/2026/06/zh.jpg', filename: 'zh.jpg', size: 100, mimeType: 'image/jpeg', createdAt: now, width: 800, height: 0 },
-        { id: 'zero-both', url: '/uploads/2026/06/zb.jpg', filename: 'zb.jpg', size: 100, mimeType: 'image/jpeg', createdAt: now, width: 0, height: 0 },
-        { id: 'pos', url: '/uploads/2026/06/p.jpg', filename: 'p.jpg', size: 100, mimeType: 'image/jpeg', createdAt: now, width: 800, height: 600 },
+        {
+          id: 'zero-w',
+          url: '/uploads/2026/06/zw.jpg',
+          filename: 'zw.jpg',
+          size: 100,
+          mimeType: 'image/jpeg',
+          createdAt: now,
+          width: 0,
+          height: 600,
+        },
+        {
+          id: 'zero-h',
+          url: '/uploads/2026/06/zh.jpg',
+          filename: 'zh.jpg',
+          size: 100,
+          mimeType: 'image/jpeg',
+          createdAt: now,
+          width: 800,
+          height: 0,
+        },
+        {
+          id: 'zero-both',
+          url: '/uploads/2026/06/zb.jpg',
+          filename: 'zb.jpg',
+          size: 100,
+          mimeType: 'image/jpeg',
+          createdAt: now,
+          width: 0,
+          height: 0,
+        },
+        {
+          id: 'pos',
+          url: '/uploads/2026/06/p.jpg',
+          filename: 'p.jpg',
+          size: 100,
+          mimeType: 'image/jpeg',
+          createdAt: now,
+          width: 800,
+          height: 600,
+        },
       ],
     });
 
@@ -197,7 +260,13 @@ test('T-16: loadMedia — new entry with alt/width/height loads cleanly (SC-3.2)
 
 // ─── Helper to create real upload files for reconcile tests ──────────────────
 
-async function createRealEntry(tempRoot, subdir, filename, mimeType = 'image/jpeg', createdAt = new Date().toISOString()) {
+async function createRealEntry(
+  tempRoot,
+  subdir,
+  filename,
+  mimeType = 'image/jpeg',
+  createdAt = new Date().toISOString(),
+) {
   const dir = path.join(tempRoot, 'public', 'uploads', subdir.replace(/\//g, path.sep));
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, filename), 'fake-image-content');
@@ -440,9 +509,30 @@ test('ML-R2-pipeline-order: orphan entries excluded before filter+count', async 
     }
     // Add 3 orphan entries with 'photo' in filename (no real files on disk)
     const orphanEntries = [
-      { id: generateId(), url: '/uploads/2026/06/photo-orphan-a.jpg', filename: 'photo-orphan-a.jpg', size: 100, mimeType: 'image/jpeg', createdAt: new Date().toISOString() },
-      { id: generateId(), url: '/uploads/2026/06/photo-orphan-b.jpg', filename: 'photo-orphan-b.jpg', size: 100, mimeType: 'image/jpeg', createdAt: new Date().toISOString() },
-      { id: generateId(), url: '/uploads/2026/06/photo-orphan-c.jpg', filename: 'photo-orphan-c.jpg', size: 100, mimeType: 'image/jpeg', createdAt: new Date().toISOString() },
+      {
+        id: generateId(),
+        url: '/uploads/2026/06/photo-orphan-a.jpg',
+        filename: 'photo-orphan-a.jpg',
+        size: 100,
+        mimeType: 'image/jpeg',
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: generateId(),
+        url: '/uploads/2026/06/photo-orphan-b.jpg',
+        filename: 'photo-orphan-b.jpg',
+        size: 100,
+        mimeType: 'image/jpeg',
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: generateId(),
+        url: '/uploads/2026/06/photo-orphan-c.jpg',
+        filename: 'photo-orphan-c.jpg',
+        size: 100,
+        mimeType: 'image/jpeg',
+        createdAt: new Date().toISOString(),
+      },
     ];
     // Add a non-matching real entry
     const nonMatchEntry = await createRealEntry(tempRoot, subdir, 'landscape.jpg');
@@ -461,7 +551,10 @@ test('ML-R2-pipeline-order: orphan entries excluded before filter+count', async 
     const filenames = body.uploads.map((u) => u.filename);
     // No orphan entries should appear
     for (const orphan of orphanEntries) {
-      assert.ok(!filenames.includes(orphan.filename), `orphan ${orphan.filename} should not appear`);
+      assert.ok(
+        !filenames.includes(orphan.filename),
+        `orphan ${orphan.filename} should not appear`,
+      );
     }
   });
 });
@@ -477,7 +570,13 @@ test('P4-reconcile-count-slice: missing-file entry excluded from total AND from 
     const base = Date.parse('2026-06-01T00:00:00.000Z');
     const real = [];
     for (let i = 0; i < 3; i++) {
-      const e = await createRealEntry(tempRoot, subdir, `real-${i}.jpg`, 'image/jpeg', new Date(base + i * 1000).toISOString());
+      const e = await createRealEntry(
+        tempRoot,
+        subdir,
+        `real-${i}.jpg`,
+        'image/jpeg',
+        new Date(base + i * 1000).toISOString(),
+      );
       real.push(e);
     }
     const orphan = {
@@ -538,7 +637,10 @@ test('P4-q-filters-reconciled-set: q filters AFTER reconcile (orphan match exclu
     assert.equal(body.total, 2, 'q must match only the reconciled "logo" entries, not the orphan');
     const filenames = body.uploads.map((u) => u.filename);
     assert.ok(filenames.includes('logo-a.png') && filenames.includes('logo-b.png'));
-    assert.ok(!filenames.includes('logo-orphan.png'), 'orphan logo excluded by reconcile-before-filter');
+    assert.ok(
+      !filenames.includes('logo-orphan.png'),
+      'orphan logo excluded by reconcile-before-filter',
+    );
     assert.ok(!filenames.includes('banner.jpg'), 'non-matching entry excluded by q');
   });
 });

@@ -38,7 +38,7 @@ test('loadPages preserves legacy scalar fields as localized values', async () =>
           },
         ],
       }),
-      'utf-8'
+      'utf-8',
     );
 
     await fs.writeFile(
@@ -49,7 +49,7 @@ test('loadPages preserves legacy scalar fields as localized values', async () =>
           { code: 'en', label: 'English', enabled: true, isDefault: false },
         ],
       }),
-      'utf-8'
+      'utf-8',
     );
 
     process.env.ASTRO_BLOCKS_PROJECT_ROOT = tempRoot;
@@ -57,7 +57,9 @@ test('loadPages preserves legacy scalar fields as localized values', async () =>
     const pagesData = await loadPages();
     const languagesData = await loadLanguages();
     const defaultLocale = getDefaultLocale(languagesData);
-    const views = pagesData.pages.map((page) => getPageLocaleView(page, defaultLocale, defaultLocale));
+    const views = pagesData.pages.map((page) =>
+      getPageLocaleView(page, defaultLocale, defaultLocale),
+    );
 
     assert.equal(views[0].title, 'Home');
     assert.equal(views[0].slug, '/');
@@ -75,4 +77,3 @@ test('loadPages preserves legacy scalar fields as localized values', async () =>
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
 });
-

@@ -15,7 +15,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { SignJWT } from 'jose';
 
-import { ensureDefaultFiles, findMediaUsages, appendMediaEntry, generateId } from '../dist/api/data.js';
+import {
+  ensureDefaultFiles,
+  findMediaUsages,
+  appendMediaEntry,
+  generateId,
+} from '../dist/api/data.js';
 import { handleGetMediaUsage } from '../dist/api/handlers.js';
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
@@ -77,9 +82,7 @@ test('FMU-01: one page block ref → count:1, source:page', async () => {
           title: { en: 'Home' },
           slug: { en: '/' },
           status: { en: 'published' },
-          blocks: [
-            { type: 'Hero', props: { hero: { url: TARGET, alt: '' } } },
-          ],
+          blocks: [{ type: 'Hero', props: { hero: { url: TARGET, alt: '' } } }],
         },
       ],
     });
@@ -370,7 +373,9 @@ test('P6: count === usages.length invariant across mixed sources', async () => {
       ],
     });
     await writeJson(tempRoot, 'global-blocks.json', {
-      globalBlocks: { footer: { props: { logo: { url: TARGET } }, updatedAt: new Date().toISOString() } },
+      globalBlocks: {
+        footer: { props: { logo: { url: TARGET } }, updatedAt: new Date().toISOString() },
+      },
     });
 
     const result = await findMediaUsages(TARGET);

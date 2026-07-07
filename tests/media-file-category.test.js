@@ -65,7 +65,10 @@ test('R6.2-A: legacy entry with mimeType image/jpeg and no fileCategory derives 
 
     // Verify the file on disk was NOT mutated
     const raw = JSON.parse(await fs.readFile(mediaPath, 'utf-8'));
-    assert.ok(!('fileCategory' in raw.uploads[0]), 'raw file on disk should not have fileCategory added');
+    assert.ok(
+      !('fileCategory' in raw.uploads[0]),
+      'raw file on disk should not have fileCategory added',
+    );
   });
 });
 
@@ -87,11 +90,18 @@ test('R6.2-B: legacy entry with mimeType application/pdf and no fileCategory der
 
     const result = await loadMedia();
     const entry = result.uploads[0];
-    assert.equal(entry.fileCategory, 'document', 'application/pdf → fileCategory should be document');
+    assert.equal(
+      entry.fileCategory,
+      'document',
+      'application/pdf → fileCategory should be document',
+    );
 
     // Disk unchanged
     const raw = JSON.parse(await fs.readFile(mediaPath, 'utf-8'));
-    assert.ok(!('fileCategory' in raw.uploads[0]), 'raw file on disk should not have fileCategory added');
+    assert.ok(
+      !('fileCategory' in raw.uploads[0]),
+      'raw file on disk should not have fileCategory added',
+    );
   });
 });
 

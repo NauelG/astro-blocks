@@ -53,6 +53,9 @@ test('AGENTS.consumer.md — structural coverage', async (t) => {
 
   await t.test('frames admin routes as plugin-managed (not customizable)', () => {
     assert.match(consumerMd, /INJECTED|injected/);
-    assert.ok(!/how to modify admin routes/i.test(consumerMd), 'Should NOT document how to modify admin routes');
+    assert.ok(
+      !/how to modify admin routes/i.test(consumerMd),
+      'Should NOT document how to modify admin routes',
+    );
   });
 });

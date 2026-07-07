@@ -63,7 +63,7 @@ test('menu handlers support full CRUD lifecycle', async () => {
           selector: 'main-nav',
           items: [{ name: 'Home', path: '/', children: [] }],
         }),
-      })
+      }),
     );
 
     assert.equal(postResponse.status, 200);
@@ -95,7 +95,7 @@ test('menu handlers support full CRUD lifecycle', async () => {
             { name: 'About', path: '/about', children: [] },
           ],
         }),
-      })
+      }),
     );
 
     assert.equal(putResponse.status, 200);
@@ -129,7 +129,7 @@ test('handlePostMenus rejects missing selector', async () => {
           name: 'Bad Menu',
           items: [{ name: 'Home', path: '/', children: [] }],
         }),
-      })
+      }),
     );
 
     assert.equal(response.status, 400);
@@ -149,14 +149,14 @@ test('handlePostMenus rejects invalid selector characters', async () => {
           selector: 'invalid selector!',
           items: [{ name: 'Home', path: '/', children: [] }],
         }),
-      })
+      }),
     );
 
     assert.equal(response.status, 400);
     const body = await response.json();
     assert.equal(
       body.error,
-      'The selector can only contain letters, numbers, dashes, and underscores (no spaces).'
+      'The selector can only contain letters, numbers, dashes, and underscores (no spaces).',
     );
   });
 });
@@ -172,7 +172,7 @@ test('handlePostMenus rejects duplicate selector', async () => {
           selector: 'main-nav',
           items: [{ name: 'Home', path: '/', children: [] }],
         }),
-      })
+      }),
     );
     assert.equal(first.status, 200);
 
@@ -185,7 +185,7 @@ test('handlePostMenus rejects duplicate selector', async () => {
           selector: 'main-nav',
           items: [{ name: 'About', path: '/about', children: [] }],
         }),
-      })
+      }),
     );
 
     assert.equal(duplicate.status, 400);
@@ -205,7 +205,7 @@ test('handlePostMenus rejects items without path', async () => {
           selector: 'bad-items',
           items: [{ name: 'No Path Item', path: '', children: [] }],
         }),
-      })
+      }),
     );
 
     assert.equal(response.status, 400);
@@ -228,7 +228,7 @@ test('handlePostMenus rejects non-array items', async () => {
           selector: 'my-menu',
           items: null,
         }),
-      })
+      }),
     );
 
     // normalizeMenuPayload coerces null → [], empty array passes path validation → 200
@@ -259,7 +259,7 @@ test('handlePutMenu returns 404 for unknown id', async () => {
           selector: 'ghost',
           items: [],
         }),
-      })
+      }),
     );
 
     assert.equal(response.status, 404);
@@ -279,7 +279,7 @@ test('handlePutMenu prevents changing selector to one already taken by another m
           selector: 'first-nav',
           items: [{ name: 'Home', path: '/', children: [] }],
         }),
-      })
+      }),
     );
     assert.equal(first.status, 200);
 
@@ -292,7 +292,7 @@ test('handlePutMenu prevents changing selector to one already taken by another m
           selector: 'second-nav',
           items: [{ name: 'About', path: '/about', children: [] }],
         }),
-      })
+      }),
     );
     assert.equal(second.status, 200);
     const secondJson = await second.json();
@@ -308,7 +308,7 @@ test('handlePutMenu prevents changing selector to one already taken by another m
           selector: 'first-nav',
           items: [{ name: 'About', path: '/about', children: [] }],
         }),
-      })
+      }),
     );
 
     assert.equal(conflict.status, 400);
@@ -328,7 +328,7 @@ test('handlePutMenu allows keeping the same selector on its own menu', async () 
           selector: 'main-nav',
           items: [{ name: 'Home', path: '/', children: [] }],
         }),
-      })
+      }),
     );
     assert.equal(created.status, 200);
     const createdJson = await created.json();
@@ -344,7 +344,7 @@ test('handlePutMenu allows keeping the same selector on its own menu', async () 
           selector: 'main-nav',
           items: [{ name: 'Home', path: '/', children: [] }],
         }),
-      })
+      }),
     );
 
     assert.equal(updated.status, 200);
@@ -367,13 +367,11 @@ test('handlePostMenus validates nested children paths recursively', async () => 
             {
               name: 'Parent',
               path: '/parent',
-              children: [
-                { name: 'Child Missing Path', path: '', children: [] },
-              ],
+              children: [{ name: 'Child Missing Path', path: '', children: [] }],
             },
           ],
         }),
-      })
+      }),
     );
 
     assert.equal(response.status, 400);
@@ -394,7 +392,7 @@ test('handleGetMenus returns locale-resolved items view', async () => {
           selector: 'footer-nav',
           items: [{ name: 'Contact', path: '/contact', children: [] }],
         }),
-      })
+      }),
     );
     assert.equal(post.status, 200);
 

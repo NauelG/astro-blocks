@@ -57,12 +57,12 @@ for (const relPath of FILES) {
     assert.ok(
       !ATTR_DOUBLE_QUOTE.test(src),
       `Found escapeHtml() inside a double-quoted attribute value (="\${escapeHtml() in ${relPath}. ` +
-        'Use escapeAttr() for attribute contexts — it also encodes double-quotes.'
+        'Use escapeAttr() for attribute contexts — it also encodes double-quotes.',
     );
     assert.ok(
       !ATTR_SINGLE_QUOTE.test(src),
       `Found escapeHtml() inside a single-quoted attribute value ='\${escapeHtml() in ${relPath}. ` +
-        'Use escapeAttr() for attribute contexts — it also encodes double-quotes.'
+        'Use escapeAttr() for attribute contexts — it also encodes double-quotes.',
     );
   });
 }

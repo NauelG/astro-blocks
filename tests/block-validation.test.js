@@ -7,7 +7,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { defineBlockSchema } from '../dist/contract/index.js';
-import { validateSchemaItemsDefinition, validateBlockPropsAgainstSchema } from '../dist/utils/block-validation.js';
+import {
+  validateSchemaItemsDefinition,
+  validateBlockPropsAgainstSchema,
+} from '../dist/utils/block-validation.js';
 import { buildSchemaMap, resolveBlockEntries, validateBlocks } from '../dist/utils/blocks.js';
 
 test('validateSchemaItemsDefinition rejects invalid array object summaryField', () => {
@@ -26,7 +29,7 @@ test('validateSchemaItemsDefinition rejects invalid array object summaryField', 
         },
       },
     },
-    'Hero'
+    'Hero',
   );
 
   assert.match(message || '', /summaryField/);
@@ -57,7 +60,7 @@ test('resolveBlockEntries fails fast on unsupported nested array schema', () => 
             },
           },
         },
-        'file:///tmp/project/src/Hero.astro'
+        'file:///tmp/project/src/Hero.astro',
       ),
     ]);
   }, /does not support nested fields/);
@@ -80,14 +83,23 @@ test('validateBlocks supports array primitive limits', () => {
             },
           },
         },
-        'file:///tmp/project/src/Hero.astro'
+        'file:///tmp/project/src/Hero.astro',
       ),
-    ])
+    ]),
   );
 
-  assert.equal(validateBlocks(schemaMap, [{ type: 'Hero', props: { tags: ['alpha', 'beta'] } }]), null);
-  assert.match(validateBlocks(schemaMap, [{ type: 'Hero', props: { tags: [] } }])?.message || '', /is required|requires at least 1 item/);
-  assert.match(validateBlocks(schemaMap, [{ type: 'Hero', props: { tags: ['a', '', 'c'] } }])?.message || '', /element 2/);
+  assert.equal(
+    validateBlocks(schemaMap, [{ type: 'Hero', props: { tags: ['alpha', 'beta'] } }]),
+    null,
+  );
+  assert.match(
+    validateBlocks(schemaMap, [{ type: 'Hero', props: { tags: [] } }])?.message || '',
+    /is required|requires at least 1 item/,
+  );
+  assert.match(
+    validateBlocks(schemaMap, [{ type: 'Hero', props: { tags: ['a', '', 'c'] } }])?.message || '',
+    /element 2/,
+  );
 });
 
 test('validateBlocks validates required fields inside array<object>', () => {
@@ -112,9 +124,9 @@ test('validateBlocks validates required fields inside array<object>', () => {
             },
           },
         },
-        'file:///tmp/project/src/FAQ.astro'
+        'file:///tmp/project/src/FAQ.astro',
       ),
-    ])
+    ]),
   );
 
   assert.equal(
@@ -126,12 +138,13 @@ test('validateBlocks validates required fields inside array<object>', () => {
         },
       },
     ]),
-    null
+    null,
   );
 
   assert.match(
-    validateBlocks(schemaMap, [{ type: 'FAQ', props: { faqs: [{ question: 'Sin respuesta' }] } }])?.message || '',
-    /Respuesta|is required|required/
+    validateBlocks(schemaMap, [{ type: 'FAQ', props: { faqs: [{ question: 'Sin respuesta' }] } }])
+      ?.message || '',
+    /Respuesta|is required|required/,
   );
 });
 
@@ -215,9 +228,14 @@ test('validator rejects non-string caption (number)', () => {
 // ─── T1.1: messageKey presence and bilingual rendering ───────────────────────
 
 test('T1.1: validateBlockPropsAgainstSchema issue has messageKey + params', () => {
-  const issue = validateBlockPropsAgainstSchema('Hero', 0, {
-    title: { type: 'string', label: 'Title', required: true },
-  }, {});
+  const issue = validateBlockPropsAgainstSchema(
+    'Hero',
+    0,
+    {
+      title: { type: 'string', label: 'Title', required: true },
+    },
+    {},
+  );
   assert.ok(issue !== null, 'missing required field must produce a validation error');
   assert.ok(typeof issue.messageKey === 'string', 'issue must have a messageKey');
   assert.ok(typeof issue.params === 'object', 'issue must have params');
@@ -227,9 +245,14 @@ test('T1.1: validateBlockPropsAgainstSchema issue has messageKey + params', () =
 });
 
 test('T1.1: issue.message is English (backward compat)', () => {
-  const issue = validateBlockPropsAgainstSchema('Hero', 0, {
-    title: { type: 'string', label: 'Title', required: true },
-  }, {});
+  const issue = validateBlockPropsAgainstSchema(
+    'Hero',
+    0,
+    {
+      title: { type: 'string', label: 'Title', required: true },
+    },
+    {},
+  );
   assert.ok(issue !== null);
   assert.match(issue.message, /field "Title" is required/);
   // Must NOT be Spanish
@@ -253,7 +276,7 @@ test('C1-piece1: isPrimitivePropType accepts "file" (schema validates without er
   // validateSchemaItemsDefinition calls isPrimitivePropType — if 'file' is absent it returns an error
   const msg = validateSchemaItemsDefinition(
     { brochure: { type: 'file', label: 'PDF' } },
-    'Download'
+    'Download',
   );
   assert.equal(msg, null, `expected null but got: ${msg}`);
 });
@@ -267,7 +290,12 @@ test('C1-piece3: valid file value with url passes validation', () => {
 
 test('C1-piece3: file value with all optional fields passes validation', () => {
   const issue = validateBlockPropsAgainstSchema('Download', 0, FILE_SCHEMA, {
-    brochure: { url: '/uploads/doc.pdf', filename: 'report.pdf', mimeType: 'application/pdf', download: true },
+    brochure: {
+      url: '/uploads/doc.pdf',
+      filename: 'report.pdf',
+      mimeType: 'application/pdf',
+      download: true,
+    },
   });
   assert.equal(issue, null, 'full file value must pass');
 });

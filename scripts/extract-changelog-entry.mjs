@@ -24,13 +24,13 @@ function stripTagPrefix(versionOrTag) {
 function extractVersionInput() {
   const tagInput = getArgValue('--tag');
   const versionInput = getArgValue('--version');
-  const positionalInput = process.argv
-    .slice(2)
-    .find((value) => !value.startsWith('--'));
+  const positionalInput = process.argv.slice(2).find((value) => !value.startsWith('--'));
 
   const rawInput = tagInput ?? versionInput ?? positionalInput;
   if (!rawInput) {
-    throw new Error('Missing version input. Use --tag vX.Y.Z[-alpha.N] or --version X.Y.Z[-alpha.N].');
+    throw new Error(
+      'Missing version input. Use --tag vX.Y.Z[-alpha.N] or --version X.Y.Z[-alpha.N].',
+    );
   }
 
   return stripTagPrefix(rawInput.trim());
@@ -39,7 +39,7 @@ function extractVersionInput() {
 function getSectionRange(changelogContent, version) {
   const headingRegex = new RegExp(
     `^## \\[${escapeRegExp(version)}\\] - \\d{4}-\\d{2}-\\d{2}\\s*$`,
-    'm'
+    'm',
   );
   const headingMatch = headingRegex.exec(changelogContent);
   if (!headingMatch || headingMatch.index === undefined) {
@@ -55,7 +55,9 @@ function getSectionRange(changelogContent, version) {
   }
   const remaining = changelogContent.slice(sectionStart);
   const nextHeadingMatch = /^## \[/m.exec(remaining);
-  const sectionEnd = nextHeadingMatch ? sectionStart + nextHeadingMatch.index : changelogContent.length;
+  const sectionEnd = nextHeadingMatch
+    ? sectionStart + nextHeadingMatch.index
+    : changelogContent.length;
 
   return {
     start: sectionStart,
@@ -88,10 +90,7 @@ function extractTitleAndBody(sectionContent, version) {
     titleEnd += 1;
   }
 
-  const titleText = lines
-    .slice(titleStart, titleEnd)
-    .join(' ')
-    .trim();
+  const titleText = lines.slice(titleStart, titleEnd).join(' ').trim();
 
   if (!titleText) {
     throw new Error(`CHANGELOG entry ${version} has '### Title' but no title content.`);
@@ -106,7 +105,9 @@ function extractTitleAndBody(sectionContent, version) {
 function writeGitHubOutput(key, value) {
   const outputPath = process.env.GITHUB_OUTPUT;
   if (!outputPath) {
-    throw new Error('GITHUB_OUTPUT is not available. Remove --github-output or run inside GitHub Actions.');
+    throw new Error(
+      'GITHUB_OUTPUT is not available. Remove --github-output or run inside GitHub Actions.',
+    );
   }
 
   return fs.appendFile(outputPath, `${key}<<EOF\n${value}\nEOF\n`);
@@ -136,8 +137,8 @@ async function main() {
         releaseBody,
       },
       null,
-      2
-    )
+      2,
+    ),
   );
 }
 

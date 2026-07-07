@@ -21,7 +21,10 @@ const PNG_1x1 = Buffer.from(
   'base64',
 );
 // Minimal PDF byte stream — the server gates on the application/pdf MIME, not structure.
-const PDF_MIN = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF', 'utf-8');
+const PDF_MIN = Buffer.from(
+  '%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF',
+  'utf-8',
+);
 
 // Helper: log in through the CMS login screen.
 // Waits for the authenticated panel (#admin-content) to become visible.
@@ -117,7 +120,9 @@ test.describe('Admin panel', () => {
     await expect(page.locator('nav.cms-nav')).toBeVisible();
 
     // The "Dashboard" link must be present in the sidebar
-    await expect(page.locator('nav.cms-nav').getByRole('link', { name: 'Dashboard' })).toBeVisible();
+    await expect(
+      page.locator('nav.cms-nav').getByRole('link', { name: 'Dashboard' }),
+    ).toBeVisible();
   });
 
   test('Test B: create a page with a block and it persists', async ({ page }) => {
@@ -163,7 +168,7 @@ test.describe('Admin panel', () => {
 
     // Prefer "Media Showcase" (no required fields); fall back to the first block
     const mediaShowcase = blockSelectModal.getByText('Media Showcase', { exact: true });
-    if (await mediaShowcase.count() > 0) {
+    if ((await mediaShowcase.count()) > 0) {
       await mediaShowcase.click();
     } else {
       await blockItems.first().click();
@@ -184,9 +189,9 @@ test.describe('Admin panel', () => {
     await modal.waitFor({ state: 'hidden', timeout: 15_000 });
 
     // Verify the newly created page appears in the table
-    await expect(
-      page.locator('#cms-pages-tbody').getByText(uniqueTitle)
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('#cms-pages-tbody').getByText(uniqueTitle)).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   // Regression: the block editor's image/file pickers must upload through the same

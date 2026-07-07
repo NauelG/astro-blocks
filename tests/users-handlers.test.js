@@ -48,7 +48,7 @@ async function seedOwner(email = 'owner@example.com', password = 'secret123') {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
-    })
+    }),
   );
   const { user } = await loginResponse.json();
   return user; // { id, email, role }
@@ -104,7 +104,7 @@ test('handlePostUsers: owner can create a new user', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'editor@example.com', password: 'pass456', role: 'user' }),
       }),
-      owner
+      owner,
     );
 
     assert.equal(response.status, 200);
@@ -127,7 +127,7 @@ test('handlePostUsers: unauthenticated returns 403', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'editor@example.com', password: 'pass456' }),
       }),
-      null
+      null,
     );
 
     assert.equal(response.status, 403);
@@ -147,7 +147,7 @@ test('handlePostUsers: duplicate email returns 400', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'editor@example.com', password: 'pass456' }),
       }),
-      owner
+      owner,
     );
 
     // Try to create another with the same email.
@@ -157,7 +157,7 @@ test('handlePostUsers: duplicate email returns 400', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'editor@example.com', password: 'pass789' }),
       }),
-      owner
+      owner,
     );
 
     assert.equal(response.status, 400);
@@ -176,7 +176,7 @@ test('handlePostUsers: missing email/password returns 400', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: '', password: '' }),
       }),
-      owner
+      owner,
     );
 
     assert.equal(response.status, 400);
@@ -195,7 +195,7 @@ test('handlePostUsers: unknown role defaults to "user"', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'guest@example.com', password: 'pass456', role: 'admin' }),
       }),
-      owner
+      owner,
     );
 
     assert.equal(response.status, 200);
@@ -218,7 +218,7 @@ test('handlePutUser: owner can change another user role', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'editor@example.com', password: 'pass456', role: 'user' }),
       }),
-      owner
+      owner,
     );
     const created = await createResponse.json();
 
@@ -230,7 +230,7 @@ test('handlePutUser: owner can change another user role', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'owner' }),
       }),
-      owner
+      owner,
     );
 
     assert.equal(putResponse.status, 200);
@@ -250,7 +250,7 @@ test('handlePutUser: unauthenticated returns 403', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'editor@example.com', password: 'pass456' }),
       }),
-      owner
+      owner,
     );
     const created = await createResponse.json();
 
@@ -261,7 +261,7 @@ test('handlePutUser: unauthenticated returns 403', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'owner' }),
       }),
-      null
+      null,
     );
 
     assert.equal(response.status, 403);
@@ -281,7 +281,7 @@ test('handlePutUser: returns 404 for unknown user id', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'user' }),
       }),
-      owner
+      owner,
     );
 
     assert.equal(response.status, 404);
@@ -302,7 +302,7 @@ test('handlePutUser: cannot demote the sole owner', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'user' }),
       }),
-      owner
+      owner,
     );
 
     assert.equal(response.status, 400);
@@ -322,7 +322,7 @@ test('handlePutUser: owner can change a user password', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'editor@example.com', password: 'oldpass' }),
       }),
-      owner
+      owner,
     );
     const created = await createResponse.json();
 
@@ -333,7 +333,7 @@ test('handlePutUser: owner can change a user password', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: 'newpass456' }),
       }),
-      owner
+      owner,
     );
 
     assert.equal(putResponse.status, 200);
@@ -344,7 +344,7 @@ test('handlePutUser: owner can change a user password', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'editor@example.com', password: 'newpass456' }),
-      })
+      }),
     );
     assert.equal(loginResponse.status, 200);
   });
@@ -363,7 +363,7 @@ test('handleDeleteUser: owner can delete another user', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'editor@example.com', password: 'pass456' }),
       }),
-      owner
+      owner,
     );
     const created = await createResponse.json();
 
@@ -387,7 +387,7 @@ test('handleDeleteUser: unauthenticated returns 403', async () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'editor@example.com', password: 'pass456' }),
       }),
-      owner
+      owner,
     );
     const created = await createResponse.json();
 
@@ -434,7 +434,7 @@ test('handleDeleteUser: can delete an owner when another owner exists', async ()
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'owner2@example.com', password: 'pass456', role: 'owner' }),
       }),
-      owner
+      owner,
     );
     const secondOwner = await createResponse.json();
 

@@ -3,7 +3,14 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-import { getDefaultLocale, getPageLocaleViewStrict, getPublishedPagesStrict, loadLanguages, loadPages, loadSite } from '../api/data.js';
+import {
+  getDefaultLocale,
+  getPageLocaleViewStrict,
+  getPublishedPagesStrict,
+  loadLanguages,
+  loadPages,
+  loadSite,
+} from '../api/data.js';
 import { getCacheConfig, getRobotsCacheTags } from '../utils/cache.js';
 import { buildLocalizedPath, slugToPath } from '../utils/slug.js';
 import { normalizeLocaleCode } from '../utils/localization.js';
@@ -20,9 +27,15 @@ export async function GET(Astro: import('astro').APIContext): Promise<Response> 
     });
   }
 
-  const [site, pagesData, languagesData] = await Promise.all([loadSite(), loadPages(), loadLanguages()]);
+  const [site, pagesData, languagesData] = await Promise.all([
+    loadSite(),
+    loadPages(),
+    loadLanguages(),
+  ]);
   const defaultLocale = getDefaultLocale(languagesData);
-  const enabledLocales = languagesData.languages.filter((language) => language.enabled !== false).map((language) => normalizeLocaleCode(language.code));
+  const enabledLocales = languagesData.languages
+    .filter((language) => language.enabled !== false)
+    .map((language) => normalizeLocaleCode(language.code));
   const baseUrl = site.baseUrl?.replace(/\/$/, '') || '';
 
   const noIndexPaths = new Set<string>();
@@ -37,7 +50,10 @@ export async function GET(Astro: import('astro').APIContext): Promise<Response> 
     }
   }
 
-  const disallowLines = ['Disallow: /cms', ...Array.from(noIndexPaths).map((pagePath) => `Disallow: ${pagePath}`)].join('\n');
+  const disallowLines = [
+    'Disallow: /cms',
+    ...Array.from(noIndexPaths).map((pagePath) => `Disallow: ${pagePath}`),
+  ].join('\n');
   const txt = `User-agent: *
 ${disallowLines}
 Sitemap: ${baseUrl}/sitemap-index.xml

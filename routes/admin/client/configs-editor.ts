@@ -4,7 +4,17 @@ Licensed under the Business Source License 1.1
 */
 
 import type { ConfigEntry, ConfigsData } from '../../../types/index.js';
-import { authHeaders, closeDialog, escapeHtml, fetchJson, fetchOk, openDialog, showAlert, showConfirm, showToast } from './common.js';
+import {
+  authHeaders,
+  closeDialog,
+  escapeHtml,
+  fetchJson,
+  fetchOk,
+  openDialog,
+  showAlert,
+  showConfirm,
+  showToast,
+} from './common.js';
 import { ct } from '../i18n/client.js';
 import { escapeAttr } from '../../../utils/html-escape.js';
 
@@ -25,7 +35,9 @@ export function initConfigsEditor(): void {
   const idInput = document.getElementById('config-detail-id') as HTMLInputElement | null;
   const keyInput = document.getElementById('config-detail-key') as HTMLInputElement | null;
   const valueInput = document.getElementById('config-detail-value') as HTMLTextAreaElement | null;
-  const descriptionInput = document.getElementById('config-detail-description') as HTMLTextAreaElement | null;
+  const descriptionInput = document.getElementById(
+    'config-detail-description',
+  ) as HTMLTextAreaElement | null;
   const submitBtn = document.getElementById('config-detail-submit') as HTMLButtonElement | null;
   const errorEl = document.getElementById('config-detail-error') as HTMLElement | null;
   const tableBody = document.getElementById('cms-configs-tbody') as HTMLTableSectionElement | null;
@@ -35,7 +47,8 @@ export function initConfigsEditor(): void {
   const newBtn = document.getElementById('cms-config-new-btn');
   const newEmptyBtn = document.querySelector('[data-open-config-new]');
 
-  if (!dialog || !form || !idInput || !keyInput || !valueInput || !descriptionInput || !tableBody) return;
+  if (!dialog || !form || !idInput || !keyInput || !valueInput || !descriptionInput || !tableBody)
+    return;
 
   const idField = idInput;
   const keyField = keyInput;
@@ -113,7 +126,9 @@ export function initConfigsEditor(): void {
       button.addEventListener('click', () => {
         const id = button.dataset.id || '';
         if (!id) return;
-        openEdit(id).catch((error) => showAlert(error instanceof Error ? error.message : String(error)));
+        openEdit(id).catch((error) =>
+          showAlert(error instanceof Error ? error.message : String(error)),
+        );
       });
     });
 
@@ -123,7 +138,10 @@ export function initConfigsEditor(): void {
         if (!id) return;
 
         const entry = configsState.find((item) => item.id === id);
-        const confirmed = await showConfirm(ct('configs.deleteConfirm', { key: entry?.key || '' }), ct('common.delete'));
+        const confirmed = await showConfirm(
+          ct('configs.deleteConfirm', { key: entry?.key || '' }),
+          ct('common.delete'),
+        );
         if (!confirmed) return;
 
         try {
@@ -143,15 +161,16 @@ export function initConfigsEditor(): void {
   function renderTable(): void {
     const list = filteredConfigs();
     configsTableBody.innerHTML = list
-      .map((entry) => (
-        `<tr data-id="${escapeAttr(entry.id)}">` +
-        `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-config-edit" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
-        `<td class="cms-table-cell-monospace">${escapeHtml(entry.key)}</td>` +
-        `<td class="cms-table-cell-monospace cms-configs-value-cell">${escapeHtml(maskConfigValue(entry.value || ''))}</td>` +
-        `<td class="cms-configs-description-cell" title="${escapeAttr(entry.description || '')}">${escapeHtml(entry.description || '—')}</td>` +
-        `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-config-delete" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
-        '</tr>'
-      ))
+      .map(
+        (entry) =>
+          `<tr data-id="${escapeAttr(entry.id)}">` +
+          `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-config-edit" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
+          `<td class="cms-table-cell-monospace">${escapeHtml(entry.key)}</td>` +
+          `<td class="cms-table-cell-monospace cms-configs-value-cell">${escapeHtml(maskConfigValue(entry.value || ''))}</td>` +
+          `<td class="cms-configs-description-cell" title="${escapeAttr(entry.description || '')}">${escapeHtml(entry.description || '—')}</td>` +
+          `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-config-delete" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
+          '</tr>',
+      )
       .join('');
 
     if (countEl) countEl.textContent = ct('configs.count', { count: list.length });
@@ -165,7 +184,9 @@ export function initConfigsEditor(): void {
     });
 
     configsState = Array.isArray(data.configs)
-      ? [...data.configs].sort((a, b) => a.key.localeCompare(b.key, undefined, { sensitivity: 'base' }))
+      ? [...data.configs].sort((a, b) =>
+          a.key.localeCompare(b.key, undefined, { sensitivity: 'base' }),
+        )
       : [];
 
     renderTable();

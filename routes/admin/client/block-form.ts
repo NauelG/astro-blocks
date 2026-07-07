@@ -32,17 +32,38 @@ Licensed under the Business Source License 1.1
  */
 
 import Sortable, { type SortableEvent } from 'sortablejs';
-import type { ArrayPropDef, FileFieldValue, ImageFieldValue, ObjectArrayItemDef, PrimitivePropDef, PropDef } from '../../../types/index.js';
-import {
-  isObjectArrayItemDef,
-  isPrimitivePropDef,
-} from '../../../utils/block-validation.js';
+import type {
+  ArrayPropDef,
+  FileFieldValue,
+  ImageFieldValue,
+  ObjectArrayItemDef,
+  PrimitivePropDef,
+  PropDef,
+} from '../../../types/index.js';
+import { isObjectArrayItemDef, isPrimitivePropDef } from '../../../utils/block-validation.js';
 import { isSchemaPropLocalizable } from '../../../utils/localization.js';
 import { escapeHtml, getActiveContentLocale, showToast } from './common.js';
 import { ct } from '../i18n/client.js';
-import { toImageValue, parseImageValue, mediaEntryToImageValue, serializeImageValueAttr } from '../../../utils/image-value.js';
-import { toFileValue, parseFileValue, mediaEntryToFileValue, serializeFileValueAttr, isEmptyFileValue } from '../../../utils/file-value.js';
-import { fetchMedia, formatBytes, formatDimensions, formatMediaDate, uploadMedia } from './media-fetch.js';
+import {
+  toImageValue,
+  parseImageValue,
+  mediaEntryToImageValue,
+  serializeImageValueAttr,
+} from '../../../utils/image-value.js';
+import {
+  toFileValue,
+  parseFileValue,
+  mediaEntryToFileValue,
+  serializeFileValueAttr,
+  isEmptyFileValue,
+} from '../../../utils/file-value.js';
+import {
+  fetchMedia,
+  formatBytes,
+  formatDimensions,
+  formatMediaDate,
+  uploadMedia,
+} from './media-fetch.js';
 import type { MediaEntry as MediaFetchEntry } from './media-fetch.js';
 import { DEFAULT_ALLOWED_FILE_TYPES, intersectAccept } from '../../../utils/file-types.js';
 
@@ -71,7 +92,12 @@ let activePickerAccept: string[] = [];
 type MediaEntry = MediaFetchEntry;
 
 function escapePickerHtml(s: string): string {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function mountPickerDialog(): void {
@@ -279,8 +305,11 @@ function closePickerDialog(): void {
   pickerDialog.close();
   // Return focus to trigger button
   if (activePickerInputId) {
-    const container = document.getElementById(activePickerInputId)?.closest('[data-block-form]') ?? document.body;
-    const triggerBtn = container.querySelector<HTMLButtonElement>(`[data-picker-for="${CSS.escape(activePickerInputId)}"]`);
+    const container =
+      document.getElementById(activePickerInputId)?.closest('[data-block-form]') ?? document.body;
+    const triggerBtn = container.querySelector<HTMLButtonElement>(
+      `[data-picker-for="${CSS.escape(activePickerInputId)}"]`,
+    );
     triggerBtn?.focus();
   }
   activePickerInputId = null;
@@ -432,11 +461,16 @@ let pickerSearchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 function renderPickerItem(entry: MediaEntry): string {
   const dims = formatDimensions(entry.width, entry.height);
-  const metaDims = dims !== '—' ? `<span class="cms-media-picker-meta-dim">${escapePickerHtml(dims)}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span>` : '';
+  const metaDims =
+    dims !== '—'
+      ? `<span class="cms-media-picker-meta-dim">${escapePickerHtml(dims)}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span>`
+      : '';
   const metaRow = `<span class="cms-media-picker-meta cms-muted">${metaDims}<span class="cms-media-picker-meta-size">${escapePickerHtml(formatBytes(entry.size))}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span><span class="cms-media-picker-meta-type">${escapePickerHtml(entry.mimeType)}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span><span class="cms-media-picker-meta-date">${escapePickerHtml(formatMediaDate(entry.createdAt))}</span></span>`;
 
   // For image entries: show <img> thumbnail. For document entries: show accessible doc tile.
-  const isDocEntry = !(entry as MediaEntry & { fileCategory?: string }).mimeType.startsWith('image/');
+  const isDocEntry = !(entry as MediaEntry & { fileCategory?: string }).mimeType.startsWith(
+    'image/',
+  );
   const thumbHtml = isDocEntry
     ? `<div class="cms-media-picker-img cms-media-picker-doc-thumb" role="img" aria-label="${escapePickerHtml(entry.filename)}" aria-hidden="false"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>`
     : `<img src="${escapePickerHtml(entry.url)}" alt="${escapePickerHtml(entry.filename)}" class="cms-media-picker-img" loading="lazy" />`;
@@ -470,14 +504,16 @@ function renderPickerGrid(gridContainer: HTMLElement, uploadSection: string): vo
 
   // Filter entries for file-mode picks: only show entries whose mimeType is in effectiveAccept.
   // Image-mode shows all entries (existing behavior unchanged).
-  const visibleItems = activePickerMode === 'file' && activePickerAccept.length > 0
-    ? items.filter((e) => activePickerAccept.includes(e.mimeType.toLowerCase()))
-    : items;
+  const visibleItems =
+    activePickerMode === 'file' && activePickerAccept.length > 0
+      ? items.filter((e) => activePickerAccept.includes(e.mimeType.toLowerCase()))
+      : items;
 
   const allLoaded = items.length >= total;
-  const countText = total > 0
-    ? ct('blockForm.pickerCountOf', { shown: String(visibleItems.length), total: String(total) })
-    : ct('blockForm.pickerCount0');
+  const countText =
+    total > 0
+      ? ct('blockForm.pickerCountOf', { shown: String(visibleItems.length), total: String(total) })
+      : ct('blockForm.pickerCount0');
 
   const countRegion = `<p role="status" aria-live="polite" class="cms-media-picker-count cms-muted">${escapePickerHtml(countText)}</p>`;
 
@@ -507,15 +543,25 @@ function renderPickerGrid(gridContainer: HTMLElement, uploadSection: string): vo
         // into the def at render time. We preserve whatever download flag was in
         // the hidden input (set from def.download when the field was rendered);
         // just pick the file metadata without overriding the download flag.
-        const fileValue: FileFieldValue = { url, mimeType: mimeType || undefined, filename: filename || undefined };
+        const fileValue: FileFieldValue = {
+          url,
+          mimeType: mimeType || undefined,
+          filename: filename || undefined,
+        };
         selectPickerFile(fileValue);
         return;
       }
 
       // Image pick (unchanged behavior):
       const alt = item.dataset.pickerAlt ?? '';
-      const w = item.dataset.pickerWidth !== undefined ? Math.floor(Number(item.dataset.pickerWidth)) : undefined;
-      const h = item.dataset.pickerHeight !== undefined ? Math.floor(Number(item.dataset.pickerHeight)) : undefined;
+      const w =
+        item.dataset.pickerWidth !== undefined
+          ? Math.floor(Number(item.dataset.pickerWidth))
+          : undefined;
+      const h =
+        item.dataset.pickerHeight !== undefined
+          ? Math.floor(Number(item.dataset.pickerHeight))
+          : undefined;
       const value: ImageFieldValue = {
         url,
         alt,
@@ -531,12 +577,18 @@ function renderPickerGrid(gridContainer: HTMLElement, uploadSection: string): vo
   if (loadMoreEl) {
     loadMoreEl.addEventListener('click', () => {
       pickerState.page++;
-      pickerLoadPage(gridContainer, uploadSection, true /* append */).catch(() => { /* handled */ });
+      pickerLoadPage(gridContainer, uploadSection, true /* append */).catch(() => {
+        /* handled */
+      });
     });
   }
 }
 
-async function pickerLoadPage(gridContainer: HTMLElement, uploadSection: string, append: boolean): Promise<void> {
+async function pickerLoadPage(
+  gridContainer: HTMLElement,
+  uploadSection: string,
+  append: boolean,
+): Promise<void> {
   const seq = ++pickerReqSeq;
   const envelope = await fetchMedia({
     q: pickerState.q || undefined,
@@ -606,9 +658,8 @@ async function openPickerDialog(
   // Determine the accept attribute for the upload input inside the picker.
   // Image mode: restrict to image/* (existing behavior).
   // File mode: use the effectiveAccept for this field (joined MIME list) or fall back to '*/*'.
-  const pickerUploadAccept = mode === 'file'
-    ? (effectiveAccept.length > 0 ? effectiveAccept.join(',') : '*/*')
-    : 'image/*';
+  const pickerUploadAccept =
+    mode === 'file' ? (effectiveAccept.length > 0 ? effectiveAccept.join(',') : '*/*') : 'image/*';
 
   // Render upload section into its stable zone
   uploadContainer.innerHTML = `
@@ -641,7 +692,9 @@ async function openPickerDialog(
           pickerState.page = 1;
           pickerState.items = [];
           pickerState.total = 0;
-          pickerLoadPage(gridContainer, uploadSection, false /* replace */).catch(() => { /* handled */ });
+          pickerLoadPage(gridContainer, uploadSection, false /* replace */).catch(() => {
+            /* handled */
+          });
         }, 250);
       });
     }
@@ -655,11 +708,14 @@ async function openPickerDialog(
     const chooseBtn = uploadContainer.querySelector<HTMLButtonElement>('#cms-picker-choose-btn');
     const filenameLabel = uploadContainer.querySelector<HTMLElement>('#cms-picker-filename');
 
-    chooseBtn?.addEventListener('click', () => { fileInput?.click(); });
+    chooseBtn?.addEventListener('click', () => {
+      fileInput?.click();
+    });
 
     fileInput?.addEventListener('change', () => {
       const selected = fileInput.files?.[0];
-      if (filenameLabel) filenameLabel.textContent = selected ? selected.name : ct('blockForm.pickerNoFileSelected');
+      if (filenameLabel)
+        filenameLabel.textContent = selected ? selected.name : ct('blockForm.pickerNoFileSelected');
       if (uploadBtn) uploadBtn.disabled = !selected;
     });
 
@@ -670,7 +726,7 @@ async function openPickerDialog(
       try {
         const uploadRes = await uploadMedia(file);
         if (uploadRes.ok) {
-          const uploadBody = await uploadRes.json() as { url?: string; entry?: MediaEntry };
+          const uploadBody = (await uploadRes.json()) as { url?: string; entry?: MediaEntry };
           if (uploadBody.url) {
             const entry = uploadBody.entry;
             if (activePickerMode === 'file') {
@@ -688,7 +744,7 @@ async function openPickerDialog(
             }
           }
         } else {
-          const errBody = await uploadRes.json().catch(() => ({})) as { error?: string };
+          const errBody = (await uploadRes.json().catch(() => ({}))) as { error?: string };
           showToast(errBody.error || ct('media.uploadFailed'), 'error', ct('media.uploadError'));
         }
       } catch {
@@ -705,7 +761,9 @@ async function openPickerDialog(
 // Mount the singleton picker dialog once at module load time
 if (typeof document !== 'undefined') {
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => { mountPickerDialog(); });
+    document.addEventListener('DOMContentLoaded', () => {
+      mountPickerDialog();
+    });
   } else {
     mountPickerDialog();
   }
@@ -744,7 +802,7 @@ export interface ArrayLimitInfo {
  */
 export function checkArrayLimitReached(
   currentLength: number,
-  def: { maxItems?: number; minItems?: number }
+  def: { maxItems?: number; minItems?: number },
 ): { limit: 'min' | 'max'; value: number } | null {
   const maxItems = typeof def.maxItems === 'number' ? def.maxItems : null;
   const minItems = typeof def.minItems === 'number' ? def.minItems : null;
@@ -786,9 +844,12 @@ function withLocaleHint(label: string, localizable = true): string {
   return `${escapeHtml(label)} <span class="cms-locale-hint">(${escapeHtml(getActiveContentLocale('es'))})</span>`;
 }
 
-function parseFieldValue(input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement): unknown {
+function parseFieldValue(
+  input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+): unknown {
   if (input instanceof HTMLInputElement && input.type === 'checkbox') return input.checked;
-  if (input instanceof HTMLInputElement && input.type === 'number') return input.value === '' ? '' : Number(input.value);
+  if (input instanceof HTMLInputElement && input.type === 'number')
+    return input.value === '' ? '' : Number(input.value);
   // Image field: hidden input carries JSON ImageFieldValue (marked with data-image-value)
   if (input instanceof HTMLInputElement && input.dataset.imageValue !== undefined) {
     return parseImageValue(input.value);
@@ -803,7 +864,8 @@ function parseFieldValue(input: HTMLInputElement | HTMLTextAreaElement | HTMLSel
 function defaultPrimitiveValue(def: PrimitivePropDef): unknown {
   if (def.type === 'boolean') return false;
   if (def.type === 'number') return '';
-  if (def.type === 'select') return Array.isArray(def.options) && def.options.length > 0 ? def.options[0] : '';
+  if (def.type === 'select')
+    return Array.isArray(def.options) && def.options.length > 0 ? def.options[0] : '';
   if (def.type === 'file') return { url: '' };
   if (def.type === 'image') return { url: '', alt: '' };
   return '';
@@ -847,7 +909,7 @@ function imageFieldHtml(
   id: string,
   attrs: string,
   value: ImageFieldValue,
-  localizable = false
+  localizable = false,
 ): string {
   const urlValue = value.url;
   const altValue = value.alt ?? '';
@@ -918,7 +980,9 @@ function getGlobalAllowlist(): string[] {
         _globalAllowlist = parsed as string[];
         return _globalAllowlist;
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   _globalAllowlist = DEFAULT_ALLOWED_FILE_TYPES;
   return _globalAllowlist;
@@ -981,7 +1045,13 @@ function fileFieldHtml(
   );
 }
 
-function primitiveInputHtml(def: PrimitivePropDef, value: unknown, id: string, attrs: string, rows = 2): string {
+function primitiveInputHtml(
+  def: PrimitivePropDef,
+  value: unknown,
+  id: string,
+  attrs: string,
+  rows = 2,
+): string {
   if (def.type === 'text') {
     return `<textarea id="${id}" ${attrs} class="cms-input" rows="${rows}">${escapeHtml(String(value ?? ''))}</textarea>`;
   }
@@ -992,7 +1062,10 @@ function primitiveInputHtml(def: PrimitivePropDef, value: unknown, id: string, a
   if (def.type === 'select') {
     const selectedValue = typeof value === 'string' ? value : '';
     const options = (def.options || [])
-      .map((option) => `<option value="${escapePickerHtml(option)}"${selectedValue === option ? ' selected' : ''}>${escapeHtml(option)}</option>`)
+      .map(
+        (option) =>
+          `<option value="${escapePickerHtml(option)}"${selectedValue === option ? ' selected' : ''}>${escapeHtml(option)}</option>`,
+      )
       .join('');
     return `<select id="${id}" ${attrs} class="cms-input">${options}</select>`;
   }
@@ -1020,7 +1093,7 @@ function renderPrimitiveField(
   def: PrimitivePropDef,
   value: unknown,
   prefix: string,
-  errorMsg: string
+  errorMsg: string,
 ): string {
   const fieldId = `${prefix}-${propName}`;
   const label = withLocaleHint(def.label, isSchemaPropLocalizable(def));
@@ -1029,7 +1102,7 @@ function renderPrimitiveField(
   if (def.type === 'boolean') {
     return (
       `<div class="cms-field cms-field-checkbox" data-error-key="${escapePickerHtml(errorKey(propName))}">` +
-      `<input type="checkbox" id="${fieldId}" data-prop="${escapePickerHtml(propName)}" ${(value === true || value === 'true') ? 'checked' : ''}>` +
+      `<input type="checkbox" id="${fieldId}" data-prop="${escapePickerHtml(propName)}" ${value === true || value === 'true' ? 'checked' : ''}>` +
       `<label for="${fieldId}" class="cms-label-tight">${label}</label>` +
       errorHtml +
       '</div>'
@@ -1052,14 +1125,21 @@ function renderArrayPrimitiveItem(
   itemValue: unknown,
   itemIndex: number,
   prefix: string,
-  errorMsg: string
+  errorMsg: string,
 ): string {
   const inputId = `${prefix}-${propName}-${itemIndex}`;
   const attrs = `data-array-primitive="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}"`;
   const errorHtml = errorMsg ? `<p class="cms-field-error">${escapeHtml(errorMsg)}</p>` : '';
-  const inputControl = itemDef.type === 'boolean'
-    ? `<label class="cms-array-item-checkbox"><input type="checkbox" id="${inputId}" ${attrs} ${(itemValue === true || itemValue === 'true') ? 'checked' : ''}><span>${escapeHtml(itemDef.label || arrayDef.label)}</span></label>`
-    : primitiveInputHtml(itemDef, itemValue, inputId, `${attrs} placeholder="${escapePickerHtml(itemDef.label || arrayDef.label)}"`, 2);
+  const inputControl =
+    itemDef.type === 'boolean'
+      ? `<label class="cms-array-item-checkbox"><input type="checkbox" id="${inputId}" ${attrs} ${itemValue === true || itemValue === 'true' ? 'checked' : ''}><span>${escapeHtml(itemDef.label || arrayDef.label)}</span></label>`
+      : primitiveInputHtml(
+          itemDef,
+          itemValue,
+          inputId,
+          `${attrs} placeholder="${escapePickerHtml(itemDef.label || arrayDef.label)}"`,
+          2,
+        );
 
   return (
     `<li class="cms-array-item cms-array-item--primitive" data-array-item-row="${itemIndex}" data-error-key="${escapePickerHtml(errorKey(propName, itemIndex))}">` +
@@ -1080,9 +1160,12 @@ function renderArrayObjectItem(
   itemIndex: number,
   prefix: string,
   openItemIndex: number | null | undefined,
-  getError: (propName: string, itemIndex?: number, fieldName?: string) => string
+  getError: (propName: string, itemIndex?: number, fieldName?: string) => string,
 ): string {
-  const item = rawItem && typeof rawItem === 'object' && !Array.isArray(rawItem) ? rawItem as Record<string, unknown> : {};
+  const item =
+    rawItem && typeof rawItem === 'object' && !Array.isArray(rawItem)
+      ? (rawItem as Record<string, unknown>)
+      : {};
   const rowError = getError(propName, itemIndex);
   const rowErrorHtml = rowError ? `<p class="cms-field-error">${escapeHtml(rowError)}</p>` : '';
   const isOpen = openItemIndex === itemIndex;
@@ -1091,12 +1174,16 @@ function renderArrayObjectItem(
   let summary = defaultSummary;
   if (objectDef.summaryField) {
     const fromSummaryField = item[objectDef.summaryField];
-    if (typeof fromSummaryField === 'string' && fromSummaryField.trim()) summary = fromSummaryField.trim();
+    if (typeof fromSummaryField === 'string' && fromSummaryField.trim())
+      summary = fromSummaryField.trim();
   }
   if (summary === defaultSummary) {
     for (const fieldName of Object.keys(objectDef.fields || {})) {
       const v = item[fieldName];
-      if (typeof v === 'string' && v.trim()) { summary = v.trim(); break; }
+      if (typeof v === 'string' && v.trim()) {
+        summary = v.trim();
+        break;
+      }
     }
   }
 
@@ -1106,11 +1193,13 @@ function renderArrayObjectItem(
       const fieldId = `${prefix}-${propName}-${itemIndex}-${fieldName}`;
       const inputAttrs = `data-array-primitive="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}" data-array-field="${escapePickerHtml(fieldName)}"`;
       const fieldError = getError(propName, itemIndex, fieldName);
-      const fieldErrorHtml = fieldError ? `<p class="cms-field-error">${escapeHtml(fieldError)}</p>` : '';
+      const fieldErrorHtml = fieldError
+        ? `<p class="cms-field-error">${escapeHtml(fieldError)}</p>`
+        : '';
       if (fieldDef.type === 'boolean') {
         return (
           `<div class="cms-field cms-field-checkbox" data-error-key="${escapePickerHtml(errorKey(propName, itemIndex, fieldName))}">` +
-          `<input type="checkbox" id="${fieldId}" ${inputAttrs} ${(value === true || value === 'true') ? 'checked' : ''}>` +
+          `<input type="checkbox" id="${fieldId}" ${inputAttrs} ${value === true || value === 'true' ? 'checked' : ''}>` +
           `<label for="${fieldId}" class="cms-label-tight">${escapeHtml(fieldDef.label)}</label>` +
           fieldErrorHtml +
           '</div>'
@@ -1148,22 +1237,47 @@ function renderArrayField(
   rawValue: unknown,
   prefix: string,
   openItemIndex: number | null | undefined,
-  getError: (propName: string, itemIndex?: number, fieldName?: string) => string
+  getError: (propName: string, itemIndex?: number, fieldName?: string) => string,
 ): string {
   const items = Array.isArray(rawValue) ? rawValue : [];
   const minItems = typeof def.minItems === 'number' ? def.minItems : null;
   const maxItems = typeof def.maxItems === 'number' ? def.maxItems : null;
   const maxReached = maxItems !== null && items.length >= maxItems;
-  const limits = [minItems !== null ? `Min ${minItems}` : '', maxItems !== null ? `Max ${maxItems}` : ''].filter(Boolean).join(' · ');
+  const limits = [
+    minItems !== null ? `Min ${minItems}` : '',
+    maxItems !== null ? `Max ${maxItems}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const arrayError = getError(propName);
-  const arrayErrorHtml = arrayError ? `<p class="cms-field-error cms-array-field-error">${escapeHtml(arrayError)}</p>` : '';
+  const arrayErrorHtml = arrayError
+    ? `<p class="cms-field-error cms-array-field-error">${escapeHtml(arrayError)}</p>`
+    : '';
 
-  const rowsHtml = items.map((itemValue, itemIndex) => {
-    if (isPrimitivePropDef(def.item)) {
-      return renderArrayPrimitiveItem(propName, def, def.item, itemValue, itemIndex, prefix, getError(propName, itemIndex));
-    }
-    return renderArrayObjectItem(propName, def.item, itemValue, itemIndex, prefix, openItemIndex, getError);
-  }).join('');
+  const rowsHtml = items
+    .map((itemValue, itemIndex) => {
+      if (isPrimitivePropDef(def.item)) {
+        return renderArrayPrimitiveItem(
+          propName,
+          def,
+          def.item,
+          itemValue,
+          itemIndex,
+          prefix,
+          getError(propName, itemIndex),
+        );
+      }
+      return renderArrayObjectItem(
+        propName,
+        def.item,
+        itemValue,
+        itemIndex,
+        prefix,
+        openItemIndex,
+        getError,
+      );
+    })
+    .join('');
 
   const sortableEnabled = def.sortable !== false;
   return (
@@ -1177,7 +1291,9 @@ function renderArrayField(
     '</div>' +
     '</div>' +
     `<ul class="cms-array-list" data-array-list="true" data-array-prop="${escapePickerHtml(propName)}" data-array-sortable="${sortableEnabled ? 'true' : 'false'}">${rowsHtml}</ul>` +
-    (maxReached ? `<p class="cms-muted cms-array-field-hint">${ct('blockForm.maxReached', { max: maxItems })}</p>` : '') +
+    (maxReached
+      ? `<p class="cms-muted cms-array-field-hint">${ct('blockForm.maxReached', { max: maxItems })}</p>`
+      : '') +
     arrayErrorHtml +
     '</div>'
   );
@@ -1232,9 +1348,22 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
     for (const [propName, def] of Object.entries(schemaItems)) {
       const value = values[propName];
       if (def.type === 'array') {
-        html += renderArrayField(propName, def, value, fieldPrefix, openArrayItemByKey.get(propName) ?? null, getError);
+        html += renderArrayField(
+          propName,
+          def,
+          value,
+          fieldPrefix,
+          openArrayItemByKey.get(propName) ?? null,
+          getError,
+        );
       } else {
-        html += renderPrimitiveField(propName, def as PrimitivePropDef, value ?? '', fieldPrefix, getError(propName));
+        html += renderPrimitiveField(
+          propName,
+          def as PrimitivePropDef,
+          value ?? '',
+          fieldPrefix,
+          getError(propName),
+        );
       }
     }
     html += '</div>';
@@ -1245,39 +1374,50 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
 
   function bindEvents(): void {
     // Primitive field inputs (not inside arrays)
-    container.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('[data-prop]:not([data-array-primitive])').forEach((input) => {
-      const sync = (): void => {
-        const propName = input.dataset.prop;
-        if (!propName) return;
-        values[propName] = parseFieldValue(input);
-        onChange(values, { propName });
-      };
-      input.addEventListener('input', sync);
-      input.addEventListener('change', sync);
-    });
+    container
+      .querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+        '[data-prop]:not([data-array-primitive])',
+      )
+      .forEach((input) => {
+        const sync = (): void => {
+          const propName = input.dataset.prop;
+          if (!propName) return;
+          values[propName] = parseFieldValue(input);
+          onChange(values, { propName });
+        };
+        input.addEventListener('input', sync);
+        input.addEventListener('change', sync);
+      });
 
     // Array primitive / object field inputs
-    container.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('[data-array-primitive="true"]').forEach((input) => {
-      const sync = (): void => {
-        const propName = input.dataset.arrayProp;
-        const itemIndex = Number.parseInt(input.dataset.arrayItem || '', 10);
-        const fieldName = input.dataset.arrayField;
-        if (!propName || Number.isNaN(itemIndex)) return;
-        const arr = getArrayValue(propName);
-        while (arr.length <= itemIndex) arr.push('');
-        if (fieldName) {
-          const current = arr[itemIndex];
-          const obj = current && typeof current === 'object' && !Array.isArray(current) ? { ...(current as Record<string, unknown>) } : {};
-          obj[fieldName] = parseFieldValue(input);
-          arr[itemIndex] = obj;
-        } else {
-          arr[itemIndex] = parseFieldValue(input);
-        }
-        onChange(values, { propName, itemIndex, fieldName: fieldName || undefined });
-      };
-      input.addEventListener('input', sync);
-      input.addEventListener('change', sync);
-    });
+    container
+      .querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+        '[data-array-primitive="true"]',
+      )
+      .forEach((input) => {
+        const sync = (): void => {
+          const propName = input.dataset.arrayProp;
+          const itemIndex = Number.parseInt(input.dataset.arrayItem || '', 10);
+          const fieldName = input.dataset.arrayField;
+          if (!propName || Number.isNaN(itemIndex)) return;
+          const arr = getArrayValue(propName);
+          while (arr.length <= itemIndex) arr.push('');
+          if (fieldName) {
+            const current = arr[itemIndex];
+            const obj =
+              current && typeof current === 'object' && !Array.isArray(current)
+                ? { ...(current as Record<string, unknown>) }
+                : {};
+            obj[fieldName] = parseFieldValue(input);
+            arr[itemIndex] = obj;
+          } else {
+            arr[itemIndex] = parseFieldValue(input);
+          }
+          onChange(values, { propName, itemIndex, fieldName: fieldName || undefined });
+        };
+        input.addEventListener('input', sync);
+        input.addEventListener('change', sync);
+      });
 
     // Array add buttons
     container.querySelectorAll<HTMLButtonElement>('[data-array-add="true"]').forEach((btn) => {
@@ -1356,28 +1496,32 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
 
     // Image field — caption input: wires changes to update only the caption
     // field in the hidden JSON, leaving url/alt/width/height unchanged.
-    container.querySelectorAll<HTMLInputElement>('[data-image-caption-for]').forEach((captionInput) => {
-      const sync = (): void => {
-        const inputId = captionInput.dataset.imageCaptionFor;
-        if (!inputId) return;
-        const hiddenInput = container.querySelector<HTMLInputElement>(`#${CSS.escape(inputId)}`);
-        if (!hiddenInput) return;
-        const current = parseImageValue(hiddenInput.value);
-        current.caption = captionInput.value;
-        hiddenInput.value = JSON.stringify(current);
-        hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
-        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
-      };
-      captionInput.addEventListener('input', sync);
-      captionInput.addEventListener('change', sync);
-    });
+    container
+      .querySelectorAll<HTMLInputElement>('[data-image-caption-for]')
+      .forEach((captionInput) => {
+        const sync = (): void => {
+          const inputId = captionInput.dataset.imageCaptionFor;
+          if (!inputId) return;
+          const hiddenInput = container.querySelector<HTMLInputElement>(`#${CSS.escape(inputId)}`);
+          if (!hiddenInput) return;
+          const current = parseImageValue(hiddenInput.value);
+          current.caption = captionInput.value;
+          hiddenInput.value = JSON.stringify(current);
+          hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+          hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        captionInput.addEventListener('input', sync);
+        captionInput.addEventListener('change', sync);
+      });
 
     // Image field — "Choose image" button opens the picker dialog
     container.querySelectorAll<HTMLButtonElement>('[data-picker-for]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const inputId = btn.dataset.pickerFor;
         if (!inputId) return;
-        openPickerDialog(btn, inputId, 'image', []).catch(() => { /* no-op */ });
+        openPickerDialog(btn, inputId, 'image', []).catch(() => {
+          /* no-op */
+        });
       });
     });
 
@@ -1410,8 +1554,12 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
           const raw = btn.dataset.fileAccept ?? '[]';
           const parsed = JSON.parse(raw) as unknown;
           if (Array.isArray(parsed)) effectiveAccept = parsed as string[];
-        } catch { /* ignore */ }
-        openPickerDialog(btn, inputId, 'file', effectiveAccept).catch(() => { /* no-op */ });
+        } catch {
+          /* ignore */
+        }
+        openPickerDialog(btn, inputId, 'file', effectiveAccept).catch(() => {
+          /* no-op */
+        });
       });
     });
 
@@ -1445,7 +1593,7 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
         if (!wrap) return;
         wrap.innerHTML = `<span class="cms-image-field-placeholder cms-image-field-placeholder--missing" role="img" aria-label="File missing">${imageMissingIconSvg}</span>`;
       },
-      true
+      true,
     );
 
     // Array sortable for reordering items within each array field
@@ -1459,15 +1607,22 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
         handle: '.cms-array-item-drag',
         ghostClass: 'cms-dragging',
         onEnd(event: SortableEvent) {
-          if (event.oldIndex === undefined || event.newIndex === undefined || event.oldIndex === event.newIndex) return;
+          if (
+            event.oldIndex === undefined ||
+            event.newIndex === undefined ||
+            event.oldIndex === event.newIndex
+          )
+            return;
           const row = arr[event.oldIndex];
           arr.splice(event.oldIndex, 1);
           arr.splice(event.newIndex, 0, row);
           const openRow = openArrayItemByKey.get(propName);
           if (openRow !== undefined && openRow !== null) {
             if (openRow === event.oldIndex) openArrayItemByKey.set(propName, event.newIndex);
-            else if (event.oldIndex < openRow && event.newIndex >= openRow) openArrayItemByKey.set(propName, openRow - 1);
-            else if (event.oldIndex > openRow && event.newIndex <= openRow) openArrayItemByKey.set(propName, openRow + 1);
+            else if (event.oldIndex < openRow && event.newIndex >= openRow)
+              openArrayItemByKey.set(propName, openRow - 1);
+            else if (event.oldIndex > openRow && event.newIndex <= openRow)
+              openArrayItemByKey.set(propName, openRow + 1);
           }
           onChange(values, { propName });
           render();
@@ -1478,7 +1633,9 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
   }
 
   // Re-render on locale change (updates locale hints in labels)
-  const localeChangeHandler = (): void => { render(); };
+  const localeChangeHandler = (): void => {
+    render();
+  };
   window.addEventListener('cms:content-locale-change', localeChangeHandler);
 
   render();

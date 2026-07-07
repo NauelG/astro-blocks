@@ -129,9 +129,10 @@ export function ct(key: string, params?: Record<string, string | number>): strin
 }
 
 /** Minimal window extension for the UI locale bridge. */
-type CmsI18nWindow = Window & typeof globalThis & {
-  /** Set by the layout via define:vars — returns the SSR-resolved locale. */
-  getCmsUiLocale?: () => UiLocale;
-  /** Called by setUiLocale to propagate changes to the window bridge. */
-  setCmsUiLocale?: (locale: UiLocale) => void;
-};
+type CmsI18nWindow = Window &
+  typeof globalThis & {
+    /** Set by the layout via define:vars — returns the SSR-resolved locale. */
+    getCmsUiLocale?: () => UiLocale;
+    /** Called by setUiLocale to propagate changes to the window bridge. */
+    setCmsUiLocale?: (locale: UiLocale) => void;
+  };

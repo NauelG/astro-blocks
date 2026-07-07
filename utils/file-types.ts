@@ -40,11 +40,7 @@ export const DEFAULT_ALLOWED_FILE_TYPES: string[] = [
  * Binding decision D4: raster-only positive check.
  * Any MIME not in this set skips sharp entirely (SVG, GIF, PDF, all documents).
  */
-export const RASTER_MIME: Set<string> = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-]);
+export const RASTER_MIME: Set<string> = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 /**
  * Extension map for document (non-image) file types.
@@ -91,12 +87,7 @@ export const MIME_TO_EXT: Record<string, string> = {
  * @param accept    - MIME types from the schema prop definition (may be mixed-case)
  * @param allowlist - Global allowed MIME types (expected to be lowercase)
  */
-export function intersectAccept(
-  accept: string[] | undefined,
-  allowlist: string[],
-): string[] {
+export function intersectAccept(accept: string[] | undefined, allowlist: string[]): string[] {
   if (!accept || accept.length === 0) return allowlist;
-  return accept
-    .map((m) => m.toLowerCase())
-    .filter((m) => allowlist.includes(m));
+  return accept.map((m) => m.toLowerCase()).filter((m) => allowlist.includes(m));
 }

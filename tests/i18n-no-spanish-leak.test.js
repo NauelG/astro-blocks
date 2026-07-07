@@ -306,10 +306,7 @@ test('self-test: guard detects planted Spanish accent', () => {
 const label = 'Guardar cambios';
 `;
   const violations = scanContent(fakeSource, '/fake/file.ts');
-  assert.ok(
-    violations.length > 0,
-    'guard must detect Spanish wordlist hit in a planted literal'
-  );
+  assert.ok(violations.length > 0, 'guard must detect Spanish wordlist hit in a planted literal');
   assert.match(violations[0].text, /Guardar/);
 });
 
@@ -370,7 +367,7 @@ test('self-test: guard catches Spanish literal on same line as block-comment ope
   const violations = scanContent(fakeSource, '/fake/file.ts');
   assert.ok(
     violations.length > 0,
-    'guard must detect Spanish literal that appears before /* on the same line'
+    'guard must detect Spanish literal that appears before /* on the same line',
   );
   assert.match(violations[0].text, /guardar cambios/i);
 });
@@ -381,7 +378,7 @@ test('self-test: guard catches lowercase Spanish literal (case-insensitive wordl
   const violations = scanContent(fakeSource, '/fake/file.ts');
   assert.ok(
     violations.length > 0,
-    'guard must detect lowercase Spanish wordlist match (case-insensitive)'
+    'guard must detect lowercase Spanish wordlist match (case-insensitive)',
   );
   assert.match(violations[0].text, /guardar/i);
 });
@@ -411,17 +408,17 @@ test('admin source files contain no hardcoded Spanish string literals (REQ-5.1)'
       .join('\n');
     assert.fail(
       `Spanish leak guard: found ${allViolations.length} hardcoded Spanish string(s):\n${report}\n\n` +
-      `Fix: move the string(s) into routes/admin/i18n/en.ts and es.ts, ` +
-      `then reference via t() or ct() in the source file.\n` +
-      `If a string is legitimately Spanish (e.g. a new language endonym), ` +
-      `add it to the EXCLUDED_FILES or "Español" strip list in this test file ` +
-      `with a justification comment.`
+        `Fix: move the string(s) into routes/admin/i18n/en.ts and es.ts, ` +
+        `then reference via t() or ct() in the source file.\n` +
+        `If a string is legitimately Spanish (e.g. a new language endonym), ` +
+        `add it to the EXCLUDED_FILES or "Español" strip list in this test file ` +
+        `with a justification comment.`,
     );
   }
 
   // Report file count for visibility
   assert.ok(
     true,
-    `Scanned ${allFiles.length} admin source files — no Spanish string literals found.`
+    `Scanned ${allFiles.length} admin source files — no Spanish string literals found.`,
   );
 });

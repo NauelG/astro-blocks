@@ -4,7 +4,13 @@ Licensed under the Business Source License 1.1
 */
 
 import Sortable, { type SortableEvent } from 'sortablejs';
-import type { ArrayPropDef, BlockInstance, ObjectArrayItemDef, SchemaMap, SeoData } from '../../../types/index.js';
+import type {
+  ArrayPropDef,
+  BlockInstance,
+  ObjectArrayItemDef,
+  SchemaMap,
+  SeoData,
+} from '../../../types/index.js';
 import {
   isPrimitivePropDef,
   validateBlockPropsAgainstSchema,
@@ -59,14 +65,13 @@ interface PagesResponse {
 }
 
 function isInputElement(
-  element: Element | null
+  element: Element | null,
 ): element is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement {
   return Boolean(
-    element && (
-      element instanceof HTMLInputElement ||
-      element instanceof HTMLTextAreaElement ||
-      element instanceof HTMLSelectElement
-    )
+    element &&
+      (element instanceof HTMLInputElement ||
+        element instanceof HTMLTextAreaElement ||
+        element instanceof HTMLSelectElement),
   );
 }
 
@@ -84,31 +89,57 @@ export function initPageEditor(): void {
   const pagesCount = document.getElementById('cms-pages-count');
   const pagesEmpty = document.getElementById('cms-pages-empty');
   const pagesSearch = document.getElementById('cms-pages-search') as HTMLInputElement | null;
-  const pagesStatusFilter = document.getElementById('cms-pages-status-filter') as HTMLSelectElement | null;
-  const indexableInput = document.getElementById('page-detail-indexable') as HTMLInputElement | null;
+  const pagesStatusFilter = document.getElementById(
+    'cms-pages-status-filter',
+  ) as HTMLSelectElement | null;
+  const indexableInput = document.getElementById(
+    'page-detail-indexable',
+  ) as HTMLInputElement | null;
   const seoTitleInput = document.getElementById('page-detail-seo-title') as HTMLInputElement | null;
-  const seoDescriptionInput = document.getElementById('page-detail-seo-description') as HTMLTextAreaElement | null;
-  const seoCanonicalInput = document.getElementById('page-detail-seo-canonical') as HTMLInputElement | null;
-  const seoNofollowInput = document.getElementById('page-detail-seo-nofollow') as HTMLInputElement | null;
+  const seoDescriptionInput = document.getElementById(
+    'page-detail-seo-description',
+  ) as HTMLTextAreaElement | null;
+  const seoCanonicalInput = document.getElementById(
+    'page-detail-seo-canonical',
+  ) as HTMLInputElement | null;
+  const seoNofollowInput = document.getElementById(
+    'page-detail-seo-nofollow',
+  ) as HTMLInputElement | null;
   const seoImageInput = document.getElementById('page-detail-seo-image') as HTMLInputElement | null;
-  const imageThumb = document.getElementById('page-detail-seo-image-thumb') as HTMLImageElement | null;
+  const imageThumb = document.getElementById(
+    'page-detail-seo-image-thumb',
+  ) as HTMLImageElement | null;
   const imageEmpty = document.getElementById('page-detail-seo-image-empty') as HTMLElement | null;
-  const imageUploadBtn = document.getElementById('page-detail-seo-image-upload') as HTMLButtonElement | null;
-  const imageFileInput = document.getElementById('page-detail-seo-image-file') as HTMLInputElement | null;
-  const imageRemoveBtn = document.getElementById('page-detail-seo-image-remove') as HTMLButtonElement | null;
+  const imageUploadBtn = document.getElementById(
+    'page-detail-seo-image-upload',
+  ) as HTMLButtonElement | null;
+  const imageFileInput = document.getElementById(
+    'page-detail-seo-image-file',
+  ) as HTMLInputElement | null;
+  const imageRemoveBtn = document.getElementById(
+    'page-detail-seo-image-remove',
+  ) as HTMLButtonElement | null;
   const publishBtn = document.getElementById('page-detail-publish-btn') as HTMLButtonElement | null;
-  const unpublishBtn = document.getElementById('page-detail-unpublish-btn') as HTMLButtonElement | null;
+  const unpublishBtn = document.getElementById(
+    'page-detail-unpublish-btn',
+  ) as HTMLButtonElement | null;
   const seoFields = document.getElementById('page-detail-seo-fields');
   const seoHiddenHint = document.getElementById('page-detail-seo-hidden-hint');
   const tabInfo = document.getElementById('page-detail-tab-info') as HTMLButtonElement | null;
   const tabSeo = document.getElementById('page-detail-tab-seo') as HTMLButtonElement | null;
   const panelInfo = document.getElementById('page-detail-panel-info');
   const panelSeo = document.getElementById('page-detail-panel-seo');
-  const blocksListEl = document.getElementById('page-detail-blocks-list') as HTMLUListElement | null;
+  const blocksListEl = document.getElementById(
+    'page-detail-blocks-list',
+  ) as HTMLUListElement | null;
   const blocksEmptyEl = document.getElementById('page-detail-blocks-empty');
   const addBlockBtn = document.getElementById('page-detail-blocks-add') as HTMLButtonElement | null;
-  const blockSelectModal = document.getElementById('page-detail-block-select-modal') as HTMLDialogElement | null;
-  const blockSelectList = document.getElementById('page-detail-block-select-list') as HTMLUListElement | null;
+  const blockSelectModal = document.getElementById(
+    'page-detail-block-select-modal',
+  ) as HTMLDialogElement | null;
+  const blockSelectList = document.getElementById(
+    'page-detail-block-select-list',
+  ) as HTMLUListElement | null;
 
   if (!dialog || !form || !blocksListEl) return;
   const blockList = blocksListEl;
@@ -129,8 +160,18 @@ export function initPageEditor(): void {
     return `${blockIndex}::${propName}`;
   }
 
-  function errorKey(blockIndex: number, propName: string, itemIndex?: number, fieldName?: string): string {
-    const parts = [String(blockIndex), propName, itemIndex === undefined ? '' : String(itemIndex), fieldName || ''];
+  function errorKey(
+    blockIndex: number,
+    propName: string,
+    itemIndex?: number,
+    fieldName?: string,
+  ): string {
+    const parts = [
+      String(blockIndex),
+      propName,
+      itemIndex === undefined ? '' : String(itemIndex),
+      fieldName || '',
+    ];
     return parts.join('::');
   }
 
@@ -156,15 +197,20 @@ export function initPageEditor(): void {
     ];
 
     localizedForIds.forEach((forId) => {
-      const label = document.querySelector<HTMLLabelElement>(`#page-detail-form label[for="${forId}"]`);
+      const label = document.querySelector<HTMLLabelElement>(
+        `#page-detail-form label[for="${forId}"]`,
+      );
       if (!label) return;
       if (!label.dataset.baseLabel) label.dataset.baseLabel = (label.textContent || '').trim();
       label.innerHTML = withLocaleHint(label.dataset.baseLabel || '', true);
     });
 
-    const imageLabel = document.querySelector<HTMLLabelElement>('#page-detail-seo-fields .cms-field label:not([for])');
+    const imageLabel = document.querySelector<HTMLLabelElement>(
+      '#page-detail-seo-fields .cms-field label:not([for])',
+    );
     if (imageLabel) {
-      if (!imageLabel.dataset.baseLabel) imageLabel.dataset.baseLabel = (imageLabel.textContent || '').trim();
+      if (!imageLabel.dataset.baseLabel)
+        imageLabel.dataset.baseLabel = (imageLabel.textContent || '').trim();
       imageLabel.innerHTML = withLocaleHint(imageLabel.dataset.baseLabel || '', true);
     }
   }
@@ -217,7 +263,10 @@ export function initPageEditor(): void {
 
     imageEmpty?.classList.toggle('cms-hidden', hasImage);
     imageRemoveBtn?.classList.toggle('cms-hidden', !hasImage);
-    if (imageUploadBtn) imageUploadBtn.textContent = hasImage ? ct('pageEditor.changeImage') : ct('pageEditor.uploadImage');
+    if (imageUploadBtn)
+      imageUploadBtn.textContent = hasImage
+        ? ct('pageEditor.changeImage')
+        : ct('pageEditor.uploadImage');
   }
 
   function summaryValue(value: unknown): string {
@@ -227,8 +276,13 @@ export function initPageEditor(): void {
     return '';
   }
 
-  function objectArrayItemSummary(def: ObjectArrayItemDef, rawItem: unknown, itemIndex: number): string {
-    if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem)) return ct('pageEditor.blockElement', { n: itemIndex + 1 });
+  function objectArrayItemSummary(
+    def: ObjectArrayItemDef,
+    rawItem: unknown,
+    itemIndex: number,
+  ): string {
+    if (!rawItem || typeof rawItem !== 'object' || Array.isArray(rawItem))
+      return ct('pageEditor.blockElement', { n: itemIndex + 1 });
 
     const item = rawItem as Record<string, unknown>;
 
@@ -267,7 +321,8 @@ export function initPageEditor(): void {
 
     for (const [propName, rawValue] of Object.entries(block.props || {})) {
       const def = schema?.items?.[propName];
-      const candidate = def?.type === 'array' ? arraySummary(def, rawValue) : summaryValue(rawValue);
+      const candidate =
+        def?.type === 'array' ? arraySummary(def, rawValue) : summaryValue(rawValue);
       if (candidate) values.push(candidate);
       if (values.length >= 2) break;
     }
@@ -337,7 +392,8 @@ export function initPageEditor(): void {
       .join('');
 
     const publishedCount = pagesState.filter((page) => page.status === 'published').length;
-    if (pagesCount) pagesCount.textContent = ct('pages.count', { count: list.length, published: publishedCount });
+    if (pagesCount)
+      pagesCount.textContent = ct('pages.count', { count: list.length, published: publishedCount });
     pagesEmpty?.classList.toggle('cms-hidden', list.length > 0);
     bindPageRowEvents();
   }
@@ -350,7 +406,12 @@ export function initPageEditor(): void {
     renderPagesTable();
   }
 
-  function clearInlineError(blockIndex: number, propName: string, itemIndex?: number, fieldName?: string): boolean {
+  function clearInlineError(
+    blockIndex: number,
+    propName: string,
+    itemIndex?: number,
+    fieldName?: string,
+  ): boolean {
     let changed = false;
 
     const exact = errorKey(blockIndex, propName, itemIndex, fieldName);
@@ -410,7 +471,9 @@ export function initPageEditor(): void {
   }
 
   function updateBlockSummary(blockIndex: number): void {
-    const summaryEl = blockList.querySelector<HTMLElement>(`.cms-block-item[data-index="${blockIndex}"] .cms-block-item-summary`);
+    const summaryEl = blockList.querySelector<HTMLElement>(
+      `.cms-block-item[data-index="${blockIndex}"] .cms-block-item-summary`,
+    );
     if (!summaryEl || !blocksList[blockIndex]) return;
     summaryEl.textContent = blockSummary(blocksList[blockIndex]);
   }
@@ -419,7 +482,9 @@ export function initPageEditor(): void {
     if (issue.blockIndex === undefined) return;
 
     // Block body scoped to the affected block — block-form renders fields inside it
-    const blockEl = blockList.querySelector<HTMLElement>(`.cms-block-item[data-index="${issue.blockIndex}"]`);
+    const blockEl = blockList.querySelector<HTMLElement>(
+      `.cms-block-item[data-index="${issue.blockIndex}"]`,
+    );
     if (!blockEl) return;
 
     let target: Element | null = null;
@@ -429,18 +494,22 @@ export function initPageEditor(): void {
       if (body) {
         if (issue.itemIndex !== undefined) {
           // Array item: find input with data-array-prop + data-array-item (+ optional data-array-field)
-          const candidates = Array.from(body.querySelectorAll<HTMLElement>('[data-array-prop][data-array-item]'));
-          target = candidates.find((element) => {
-            const parsedItem = Number.parseInt(element.dataset.arrayItem || '', 10);
-            if (element.dataset.arrayProp !== issue.propName) return false;
-            if (parsedItem !== issue.itemIndex) return false;
-            if (issue.fieldName) return element.dataset.arrayField === issue.fieldName;
-            return true;
-          }) || null;
+          const candidates = Array.from(
+            body.querySelectorAll<HTMLElement>('[data-array-prop][data-array-item]'),
+          );
+          target =
+            candidates.find((element) => {
+              const parsedItem = Number.parseInt(element.dataset.arrayItem || '', 10);
+              if (element.dataset.arrayProp !== issue.propName) return false;
+              if (parsedItem !== issue.itemIndex) return false;
+              if (issue.fieldName) return element.dataset.arrayField === issue.fieldName;
+              return true;
+            }) || null;
         } else {
           // Primitive field: block-form uses data-prop (without data-idx)
           const primitiveCandidates = Array.from(body.querySelectorAll<HTMLElement>('[data-prop]'));
-          target = primitiveCandidates.find((el) => el.dataset.prop === issue.propName) ||
+          target =
+            primitiveCandidates.find((el) => el.dataset.prop === issue.propName) ||
             body.querySelector(`[data-array-field="true"][data-array-prop="${issue.propName}"]`);
         }
       }
@@ -459,7 +528,10 @@ export function initPageEditor(): void {
     if (issue.blockIndex !== undefined && issue.propName) {
       // Use ct() for localized inline error; fall back to .message (English) if no messageKey
       const localizedMsg = issue.messageKey ? ct(issue.messageKey, issue.params) : issue.message;
-      inlineErrors.set(errorKey(issue.blockIndex, issue.propName, issue.itemIndex, issue.fieldName), localizedMsg);
+      inlineErrors.set(
+        errorKey(issue.blockIndex, issue.propName, issue.itemIndex, issue.fieldName),
+        localizedMsg,
+      );
       openBlockIndex = issue.blockIndex;
 
       if (issue.itemIndex !== undefined) {
@@ -555,9 +627,10 @@ export function initPageEditor(): void {
           updateBlockSummary(index);
         },
         onArrayLimitReached(info: ArrayLimitInfo) {
-          const limitLabel = info.limit === 'max'
-            ? ct('pageEditor.arrayMaxReached', { value: info.value })
-            : ct('pageEditor.arrayMinRequired', { value: info.value });
+          const limitLabel =
+            info.limit === 'max'
+              ? ct('pageEditor.arrayMaxReached', { value: info.value })
+              : ct('pageEditor.arrayMinRequired', { value: info.value });
           void showAlert(limitLabel, ct('pageEditor.fieldLimit'));
         },
         inlineErrors: blockErrors,
@@ -628,7 +701,12 @@ export function initPageEditor(): void {
       handle: '.cms-drag-handle',
       ghostClass: 'cms-dragging',
       onEnd(event: SortableEvent) {
-        if (event.oldIndex === undefined || event.newIndex === undefined || event.oldIndex === event.newIndex) return;
+        if (
+          event.oldIndex === undefined ||
+          event.newIndex === undefined ||
+          event.oldIndex === event.newIndex
+        )
+          return;
 
         const block = blocksList[event.oldIndex];
         blocksList.splice(event.oldIndex, 1);
@@ -741,7 +819,7 @@ export function initPageEditor(): void {
   async function uploadSeoImage(file: File): Promise<void> {
     try {
       const response = await uploadMedia(file);
-      const data = await response.json().catch(() => ({})) as { url?: string; error?: string };
+      const data = (await response.json().catch(() => ({}))) as { url?: string; error?: string };
       if (!response.ok) {
         showToast(data.error || ct('media.uploadFailed'), 'error', ct('media.uploadError'));
         return;
@@ -792,11 +870,17 @@ export function initPageEditor(): void {
         };
       }
 
-      const props = block.props && typeof block.props === 'object' && !Array.isArray(block.props)
-        ? block.props as Record<string, unknown>
-        : {};
+      const props =
+        block.props && typeof block.props === 'object' && !Array.isArray(block.props)
+          ? (block.props as Record<string, unknown>)
+          : {};
 
-      const issue = validateBlockPropsAgainstSchema(schema.name || block.type, index, schema.items, props);
+      const issue = validateBlockPropsAgainstSchema(
+        schema.name || block.type,
+        index,
+        schema.items,
+        props,
+      );
       if (issue) return issue;
     }
 
@@ -818,7 +902,9 @@ export function initPageEditor(): void {
     if (validationIssue) {
       applyValidationIssue(validationIssue);
       // Use ct() for localized alert message; fall back to English .message if no messageKey
-      const alertMsg = validationIssue.messageKey ? ct(validationIssue.messageKey, validationIssue.params) : validationIssue.message;
+      const alertMsg = validationIssue.messageKey
+        ? ct(validationIssue.messageKey, validationIssue.params)
+        : validationIssue.message;
       await showAlert(alertMsg, ct('pageEditor.cannotSave'));
       return;
     }
@@ -845,14 +931,20 @@ export function initPageEditor(): void {
 
       closeDialog(dialog);
       await refreshPages();
-      showToast(id ? ct('pageEditor.pageUpdated') : ct('pageEditor.pageCreated'), 'success', ct('nav.pages'));
+      showToast(
+        id ? ct('pageEditor.pageUpdated') : ct('pageEditor.pageCreated'),
+        'success',
+        ct('nav.pages'),
+      );
     } catch {
       await showAlert(ct('pageEditor.saveError'), ct('dialog.defaultErrorTitle'));
     }
   }
 
   newBtn?.addEventListener('click', () => void openNew());
-  document.querySelector<HTMLElement>('[data-open-page-new]')?.addEventListener('click', () => void openNew());
+  document
+    .querySelector<HTMLElement>('[data-open-page-new]')
+    ?.addEventListener('click', () => void openNew());
   bindPageRowEvents();
   pagesSearch?.addEventListener('input', renderPagesTable);
   pagesStatusFilter?.addEventListener('change', renderPagesTable);
@@ -912,7 +1004,10 @@ export function initPageEditor(): void {
 
   blockSelectModal?.addEventListener('click', (event) => {
     const target = event.target as HTMLElement;
-    if (target.getAttribute('data-close-modal') === 'page-detail-block-select-modal' || target === blockSelectModal) {
+    if (
+      target.getAttribute('data-close-modal') === 'page-detail-block-select-modal' ||
+      target === blockSelectModal
+    ) {
       closeDialog(blockSelectModal);
     }
   });
@@ -920,7 +1015,8 @@ export function initPageEditor(): void {
 
   dialog.addEventListener('click', (event) => {
     const target = event.target as HTMLElement;
-    if (target.getAttribute('data-close-modal') === 'page-detail-modal' || target === dialog) closeDialog(dialog);
+    if (target.getAttribute('data-close-modal') === 'page-detail-modal' || target === dialog)
+      closeDialog(dialog);
   });
   dialog.addEventListener('cancel', () => closeDialog(dialog));
 

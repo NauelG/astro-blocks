@@ -89,7 +89,8 @@ export const en = {
   'dashboard.title': 'Dashboard',
   'dashboard.lead': 'Overview of content, navigation, and project status for fast, clean work.',
   'dashboard.operativeSummary': 'CMS operative summary',
-  'dashboard.summaryText': 'All content, navigation, and project branding from a compact, easy-to-scan panel.',
+  'dashboard.summaryText':
+    'All content, navigation, and project branding from a compact, easy-to-scan panel.',
   'dashboard.lastEdit': 'Last edit: {title}',
   'dashboard.noRecentActivity': 'No recent activity',
   'dashboard.published': 'Published',
@@ -100,7 +101,8 @@ export const en = {
   'dashboard.recentActivity': 'Recent activity',
   'dashboard.goToPages': 'Go to pages',
   'dashboard.noPages.title': 'No pages created yet',
-  'dashboard.noPages.text': 'Create the first page to start populating the site and activate the CMS editorial workflow.',
+  'dashboard.noPages.text':
+    'Create the first page to start populating the site and activate the CMS editorial workflow.',
   'dashboard.createFirstPage': 'Create first page',
   'dashboard.noTitle': '(no title)',
   'dashboard.quickActions': 'Quick actions',
@@ -122,7 +124,8 @@ export const en = {
   // ─── Pages ────────────────────────────────────────────────────────────────
   'pages.eyebrow': 'Content',
   'pages.title': 'Editorial library',
-  'pages.lead': 'Manage drafts, published pages, and indexability from a single view. The editor keeps focus on content, SEO, and blocks.',
+  'pages.lead':
+    'Manage drafts, published pages, and indexability from a single view. The editor keeps focus on content, SEO, and blocks.',
   'pages.newPage': 'New page',
   'pages.searchPlaceholder': 'Search by title or slug',
   'pages.filterByStatus': 'Filter by status',
@@ -146,7 +149,8 @@ export const en = {
   'pageEditor.labelTitle': 'Title',
   'pageEditor.labelSlug': 'Slug',
   'pageEditor.labelIndexable': 'Indexable',
-  'pageEditor.seoHiddenHint': 'Non-indexable pages do not appear in the sitemap and carry the noindex meta tag. SEO fields are not used.',
+  'pageEditor.seoHiddenHint':
+    'Non-indexable pages do not appear in the sitemap and carry the noindex meta tag. SEO fields are not used.',
   'pageEditor.labelSeoTitle': 'SEO title',
   'pageEditor.labelDescription': 'Description',
   'pageEditor.labelCanonical': 'Canonical URL',
@@ -161,7 +165,7 @@ export const en = {
   'pageEditor.blockSelectTitle': 'Select block type',
   'pageEditor.fieldsConfigurable': '{count} configurable field',
   'pageEditor.fieldsConfigurablePlural': '{count} configurable fields',
-  'pageEditor.configureBlock': 'Configure this block\'s properties',
+  'pageEditor.configureBlock': "Configure this block's properties",
   'pageEditor.blockElement': 'Element {n}',
   'pageEditor.arrayCount': '{count} items',
   'pageEditor.blockDuplicated': 'Block duplicated.',
@@ -188,8 +192,10 @@ export const en = {
   // ─── Redirects ────────────────────────────────────────────────────────────
   'redirects.eyebrow': 'Content',
   'redirects.title': 'Redirects',
-  'redirects.lead': 'Manage old routes and URL changes without breaking existing links. In this MVP, redirects are exact, internal, and applied in SSR.',
-  'redirects.info': 'Use real public paths. For the default language without prefix (e.g. /old) and for non-default locales with prefix (e.g. /en/old).',
+  'redirects.lead':
+    'Manage old routes and URL changes without breaking existing links. In this MVP, redirects are exact, internal, and applied in SSR.',
+  'redirects.info':
+    'Use real public paths. For the default language without prefix (e.g. /old) and for non-default locales with prefix (e.g. /en/old).',
   'redirects.newRedirect': 'New redirect',
   'redirects.searchPlaceholder': 'Search by source or destination',
   'redirects.count': '{count} redirects',
@@ -198,7 +204,8 @@ export const en = {
   'redirects.colCode': 'Code',
   'redirects.colStatus': 'Status',
   'redirects.empty.title': 'No redirects configured',
-  'redirects.empty.text': 'Add the first redirect to preserve traffic when you change a published URL.',
+  'redirects.empty.text':
+    'Add the first redirect to preserve traffic when you change a published URL.',
   'redirects.createRedirect': 'Create redirect',
   'redirects.modalTitle': 'Redirect',
   'redirects.labelFrom': 'Source path',
@@ -224,8 +231,10 @@ export const en = {
   // ─── Configs / Parameters ─────────────────────────────────────────────────
   'configs.eyebrow': 'Configuration',
   'configs.title': 'Parameters',
-  'configs.lead': 'Define global keys to use in components and layouts. These are editable string values from the CMS without touching code.',
-  'configs.info': 'Use it for cases like GOOGLE_MAPS_API_KEY or FORM_RECIPIENT. How to use: import getConfig from @astroblocks/astro-blocks/getConfig and call, e.g., await getConfig(\'GOOGLE_MAPS_API_KEY\'). In SSR, changes apply after saving and invalidating cache; in static mode they are reflected after rebuild.',
+  'configs.lead':
+    'Define global keys to use in components and layouts. These are editable string values from the CMS without touching code.',
+  'configs.info':
+    "Use it for cases like GOOGLE_MAPS_API_KEY or FORM_RECIPIENT. How to use: import getConfig from @astroblocks/astro-blocks/getConfig and call, e.g., await getConfig('GOOGLE_MAPS_API_KEY'). In SSR, changes apply after saving and invalidating cache; in static mode they are reflected after rebuild.",
   'configs.newParam': 'New parameter',
   'configs.searchPlaceholder': 'Search by key, value or description',
   'configs.count': '{count} parameters',
@@ -233,14 +242,16 @@ export const en = {
   'configs.colValue': 'Value',
   'configs.colDescription': 'Description',
   'configs.empty.title': 'No parameters configured',
-  'configs.empty.text': 'Create the first one to centralize keys and values consumable from your components.',
+  'configs.empty.text':
+    'Create the first one to centralize keys and values consumable from your components.',
   'configs.createParam': 'Create parameter',
   'configs.modalTitle': 'Parameter',
   'configs.labelKey': 'Key',
   'configs.labelValue': 'Value (string)',
   'configs.labelDescription': 'Description (optional)',
   'configs.descriptionPlaceholder': 'Internal use of the parameter',
-  'configs.hint': 'Key is required. Only letters, numbers, dot (.), dash (-) and underscore (_) are allowed.',
+  'configs.hint':
+    'Key is required. Only letters, numbers, dot (.), dash (-) and underscore (_) are allowed.',
   'configs.deleted': 'Parameter deleted.',
   'configs.updated': 'Parameter updated.',
   'configs.created': 'Parameter created.',
@@ -251,7 +262,8 @@ export const en = {
   // ─── Settings ─────────────────────────────────────────────────────────────
   'settings.eyebrow': 'White-label',
   'settings.title': 'Visual system and site data',
-  'settings.lead': 'Adjust branding, base URL, and panel color scheme without leaving the CMS. The preview helps validate the theme before saving.',
+  'settings.lead':
+    'Adjust branding, base URL, and panel color scheme without leaving the CMS. The preview helps validate the theme before saving.',
   'settings.siteInfoTitle': 'Site information',
   'settings.labelSiteName': 'Site name',
   'settings.labelBaseUrl': 'Base URL',
@@ -265,7 +277,8 @@ export const en = {
   'settings.primary': 'Primary',
   'settings.secondary': 'Secondary',
   'settings.designNotes': 'Design notes',
-  'settings.designNotesCopy': 'The primary color acts as the interaction accent. The panel maintains neutral surfaces to remain usable with any visual identity.',
+  'settings.designNotesCopy':
+    'The primary color acts as the interaction accent. The panel maintains neutral surfaces to remain usable with any visual identity.',
   'settings.save': 'Save settings',
   'settings.saved': 'Changes saved successfully.',
   'settings.saveTitle': 'Settings',
@@ -274,11 +287,13 @@ export const en = {
   // ─── Cache ────────────────────────────────────────────────────────────────
   'cache.eyebrow': 'Operations',
   'cache.title': 'Public cache management',
-  'cache.lead': 'Invalidate the site\'s SSR cache when you need to force fresh content without waiting for the runtime\'s natural expiration.',
+  'cache.lead':
+    "Invalidate the site's SSR cache when you need to force fresh content without waiting for the runtime's natural expiration.",
   'cache.cardKicker': 'SSR cache',
   'cache.cardTitle': 'Manual cache invalidation',
-  'cache.cardText': 'Purge the public site\'s SSR cache to force a new render with fresh content.',
-  'cache.cardNote': 'Use only when you have published important changes and need to see them reflected immediately.',
+  'cache.cardText': "Purge the public site's SSR cache to force a new render with fresh content.",
+  'cache.cardNote':
+    'Use only when you have published important changes and need to see them reflected immediately.',
   'cache.invalidateBtn': 'Invalidate all cache',
   'cache.invalidateTitle': 'Invalidate cache',
   'cache.invalidatedSuccess': 'Cache invalidated successfully.',
@@ -291,8 +306,10 @@ export const en = {
   'importExport.importTitle': 'Import',
   'importExport.selectUnits': 'Select content to include',
   'importExport.confirmReplace': 'Replace all selected data with the imported backup?',
-  'importExport.confirmReplaceWarning': 'This action replaces existing content permanently. A backup snapshot will be created before proceeding.',
-  'importExport.usersSessionWarning': 'Importing the Users unit will replace all user accounts. Your current session will end immediately after the import completes.',
+  'importExport.confirmReplaceWarning':
+    'This action replaces existing content permanently. A backup snapshot will be created before proceeding.',
+  'importExport.usersSessionWarning':
+    'Importing the Users unit will replace all user accounts. Your current session will end immediately after the import completes.',
   'importExport.download': 'Download backup',
   'importExport.upload': 'Import backup',
   'importExport.unitPages': 'Pages',
@@ -316,9 +333,11 @@ export const en = {
   'importExport.importNetworkError': 'Network error. Please try again.',
   'importExport.exportNetworkError': 'Export failed. Please try again.',
   'importExport.sectionExportTitle': 'Export a backup',
-  'importExport.sectionExportLead': 'Download a .zip archive of the selected content units. The archive includes a manifest with checksums for integrity verification.',
+  'importExport.sectionExportLead':
+    'Download a .zip archive of the selected content units. The archive includes a manifest with checksums for integrity verification.',
   'importExport.sectionImportTitle': 'Restore a backup',
-  'importExport.sectionImportLead': 'Upload a backup .zip to replace the selected content units. The current data will be snapshotted before the import runs.',
+  'importExport.sectionImportLead':
+    'Upload a backup .zip to replace the selected content units. The current data will be snapshotted before the import runs.',
   'importExport.filePickerLabel': 'Backup file (.zip)',
   'importExport.filePickerSelectFile': 'Select file',
   'importExport.filePickerNoFile': 'No file selected',
@@ -329,15 +348,17 @@ export const en = {
   // ─── Menus ────────────────────────────────────────────────────────────────
   'menus.eyebrow': 'Navigation',
   'menus.title': 'Menu architecture',
-  'menus.lead': 'Organize site navigation as a clear, reusable structure. Each menu has a unique selector and can contain sub-levels without losing readability.',
-  'menus.info': 'Each menu is identified by its selector (e.g. main, footer). In the site code, its items are obtained with getMenu(\'selector\') from astro-blocks/getMenu; the result is an array of links (name, path) you can use in the layout or components to render navigation. Items can have nested submenus (children) for dropdowns or nested lists.',
+  'menus.lead':
+    'Organize site navigation as a clear, reusable structure. Each menu has a unique selector and can contain sub-levels without losing readability.',
+  'menus.info':
+    "Each menu is identified by its selector (e.g. main, footer). In the site code, its items are obtained with getMenu('selector') from astro-blocks/getMenu; the result is an array of links (name, path) you can use in the layout or components to render navigation. Items can have nested submenus (children) for dropdowns or nested lists.",
   'menus.newMenu': 'New menu',
   'menus.searchPlaceholder': 'Search by name or selector',
   'menus.count': '{count} menus',
   'menus.colName': 'Name',
   'menus.colSelector': 'Selector',
   'menus.empty.title': 'No menus available',
-  'menus.empty.text': 'Create a menu to start controlling the site\'s navigation from the panel.',
+  'menus.empty.text': "Create a menu to start controlling the site's navigation from the panel.",
   'menus.createMenu': 'Create menu',
   'menus.modalTitle': 'Menu',
   'menus.labelName': 'Name',
@@ -366,8 +387,10 @@ export const en = {
   // ─── Languages ────────────────────────────────────────────────────────────
   'languages.eyebrow': 'Localization',
   'languages.title': 'Content languages',
-  'languages.lead': 'Define the languages available for the site\'s public content. The panel interface language is configured separately and is not editable here.',
-  'languages.info': 'Use getLanguages() from astro-blocks/getLanguages to read content languages in your Astro project and build a language selector or menu on the frontend. The helper returns languages and defaultLocale; by default it includes only enabled languages.',
+  'languages.lead':
+    "Define the languages available for the site's public content. The panel interface language is configured separately and is not editable here.",
+  'languages.info':
+    'Use getLanguages() from astro-blocks/getLanguages to read content languages in your Astro project and build a language selector or menu on the frontend. The helper returns languages and defaultLocale; by default it includes only enabled languages.',
   'languages.newLanguage': 'New language',
   'languages.colCode': 'Code',
   'languages.colLabel': 'Label',
@@ -382,14 +405,16 @@ export const en = {
   'languages.labelPlaceholder': 'Spanish',
   'languages.labelEnabled': 'Enabled',
   'languages.labelDefault': 'Default',
-  'languages.hint': 'The default language is served without URL prefix. Others use a prefix (e.g. /en/...).',
+  'languages.hint':
+    'The default language is served without URL prefix. Others use a prefix (e.g. /en/...).',
   'languages.statusActive': 'Active',
   'languages.statusDisabled': 'Disabled',
   'languages.isDefaultYes': 'Yes',
   'languages.newForm': 'New language',
   'languages.editForm': 'Edit language',
   'languages.createBtn': 'Create',
-  'languages.deleteConfirm': 'Deleting language "{code}" will cascade-delete its associated content.\n\n- Affected pages: {pages}\n- Affected menus: {menus}\n\nThis action cannot be undone. Continue?',
+  'languages.deleteConfirm':
+    'Deleting language "{code}" will cascade-delete its associated content.\n\n- Affected pages: {pages}\n- Affected menus: {menus}\n\nThis action cannot be undone. Continue?',
   'languages.deleteLabel': 'Delete language',
   'languages.deleted': 'Language deleted successfully.',
   'languages.created': 'Language created.',
@@ -403,7 +428,8 @@ export const en = {
   // ─── Users ────────────────────────────────────────────────────────────────
   'users.eyebrow': 'Team',
   'users.title': 'Panel access and roles',
-  'users.lead': 'Manage CMS users, control who can edit content, and keep project access under a clear hierarchy.',
+  'users.lead':
+    'Manage CMS users, control who can edit content, and keep project access under a clear hierarchy.',
   'users.addUser': 'Add user',
   'users.searchPlaceholder': 'Search by email',
   'users.filterByRole': 'Filter by role',
@@ -443,13 +469,16 @@ export const en = {
   // ─── Global Blocks ────────────────────────────────────────────────────────
   'globalBlocks.eyebrow': 'Content',
   'globalBlocks.title': 'Global blocks',
-  'globalBlocks.lead': 'Edit reusable elements like headers, footers, and shared sections. Changes apply to all sites that reference them.',
-  'globalBlocks.info': 'Slugs are declared in astro.config.mjs via the globalBlocks option. To add or remove slugs, modify the project configuration and rebuild.',
+  'globalBlocks.lead':
+    'Edit reusable elements like headers, footers, and shared sections. Changes apply to all sites that reference them.',
+  'globalBlocks.info':
+    'Slugs are declared in astro.config.mjs via the globalBlocks option. To add or remove slugs, modify the project configuration and rebuild.',
   'globalBlocks.colSlug': 'Slug',
   'globalBlocks.colLabel': 'Label',
   'globalBlocks.editTitle': 'Edit: {label}',
   'globalBlocks.empty.title': 'No global blocks declared',
-  'globalBlocks.empty.text': 'Declare slugs in globalBlocks inside your astro.config.mjs and rebuild to start.',
+  'globalBlocks.empty.text':
+    'Declare slugs in globalBlocks inside your astro.config.mjs and rebuild to start.',
   'globalBlocks.schemaNotFound': 'Schema not found for "{name}". Check the configuration.',
   'globalBlocks.saved': 'Global block saved successfully.',
   'globalBlocks.savedTitle': 'Global blocks',
@@ -458,7 +487,8 @@ export const en = {
   // ─── Media ────────────────────────────────────────────────────────────────────
   'media.eyebrow': 'Content',
   'media.title': 'Media',
-  'media.lead': 'Upload and manage images for your site. Accepted formats: JPG, PNG, WebP, SVG, GIF.',
+  'media.lead':
+    'Upload and manage images for your site. Accepted formats: JPG, PNG, WebP, SVG, GIF.',
   'media.dropzoneLabel': 'Drag & drop images here',
   'media.dropzoneHint': 'or use the button below',
   'media.chooseImage': 'Choose image',
@@ -550,23 +580,40 @@ export const en = {
   'dialog.defaultErrorTitle': 'Error',
 
   // ─── Block validation (user-facing, localized via messageKey + params) ────────
-  'blockValidation.fieldRequired': 'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
-  'blockValidation.fieldMustBeImage': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be an image object.',
-  'blockValidation.fieldImageNeedsUrl': 'Block "{blockName}" (index {blockIndex}): field "{label}" requires a valid URL.',
-  'blockValidation.fieldCannotBeEmpty': 'Block "{blockName}" (index {blockIndex}): field "{label}" cannot be empty.',
-  'blockValidation.fieldAltMustBeText': 'Block "{blockName}" (index {blockIndex}): field "{label}" — alt must be text.',
-  'blockValidation.fieldCaptionMustBeText': 'Block "{blockName}" (index {blockIndex}): field "{label}" — caption must be text.',
-  'blockValidation.fieldDimInvalid': 'Block "{blockName}" (index {blockIndex}): field "{label}" — {dim} must be a positive integer (> 0).',
-  'blockValidation.fieldMustBeText': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be text.',
-  'blockValidation.fieldInvalidOption': 'Block "{blockName}" (index {blockIndex}): field "{label}" has an invalid option.',
-  'blockValidation.fieldMustBeNumber': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be a valid number.',
-  'blockValidation.fieldMustBeBoolean': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be a boolean.',
-  'blockValidation.arrayMustContainObjects': 'Block "{blockName}" (index {blockIndex}): "{label}" must contain valid objects.',
-  'blockValidation.arrayRequired': 'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
-  'blockValidation.arrayMustBeArray': 'Block "{blockName}" (index {blockIndex}): field "{label}" must be an array.',
-  'blockValidation.arrayMinItems': 'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
-  'blockValidation.arrayMaxItems': 'Block "{blockName}" (index {blockIndex}): field "{label}" allows at most {max} item(s).',
-  'blockValidation.arrayIsRequired': 'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
+  'blockValidation.fieldRequired':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
+  'blockValidation.fieldMustBeImage':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" must be an image object.',
+  'blockValidation.fieldImageNeedsUrl':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" requires a valid URL.',
+  'blockValidation.fieldCannotBeEmpty':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" cannot be empty.',
+  'blockValidation.fieldAltMustBeText':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" — alt must be text.',
+  'blockValidation.fieldCaptionMustBeText':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" — caption must be text.',
+  'blockValidation.fieldDimInvalid':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" — {dim} must be a positive integer (> 0).',
+  'blockValidation.fieldMustBeText':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" must be text.',
+  'blockValidation.fieldInvalidOption':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" has an invalid option.',
+  'blockValidation.fieldMustBeNumber':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" must be a valid number.',
+  'blockValidation.fieldMustBeBoolean':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" must be a boolean.',
+  'blockValidation.arrayMustContainObjects':
+    'Block "{blockName}" (index {blockIndex}): "{label}" must contain valid objects.',
+  'blockValidation.arrayRequired':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
+  'blockValidation.arrayMustBeArray':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" must be an array.',
+  'blockValidation.arrayMinItems':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
+  'blockValidation.arrayMaxItems':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" allows at most {max} item(s).',
+  'blockValidation.arrayIsRequired':
+    'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
 
   // ─── API Errors ───────────────────────────────────────────────────────────
   'errors.invalidBody': 'Invalid request body.',
@@ -584,15 +631,18 @@ export const en = {
   'errors.mustHaveEnabledLanguage': 'At least one enabled language must exist.',
   'errors.cannotDeleteLastLanguage': 'Cannot delete the last language.',
   'errors.duplicateSlug': 'A page with that slug already exists for this language.',
-  'errors.slugLocaleConflict': 'The slug cannot start with "{locale}" because it is reserved for language prefixes.',
+  'errors.slugLocaleConflict':
+    'The slug cannot start with "{locale}" because it is reserved for language prefixes.',
   'errors.menuSelectorRequired': 'Selector is required.',
-  'errors.invalidMenuSelector': 'The selector can only contain letters, numbers, dashes, and underscores (no spaces).',
+  'errors.invalidMenuSelector':
+    'The selector can only contain letters, numbers, dashes, and underscores (no spaces).',
   'errors.menuSelectorExists': 'A menu with that selector already exists.',
   'errors.menuItemsArray': 'Menu items must be an array.',
   'errors.invalidMenuItem': 'Invalid menu item.',
   'errors.menuPathRequired': 'Path is required in all menu items.',
   'errors.configKeyRequired': 'Key is required.',
-  'errors.invalidConfigKey': 'The key must start with a letter and can only contain letters, numbers, dot, dash, and underscore.',
+  'errors.invalidConfigKey':
+    'The key must start with a letter and can only contain letters, numbers, dot, dash, and underscore.',
   'errors.configKeyExists': 'A parameter with that key already exists.',
   'errors.redirectSameFromTo': 'The source and destination paths cannot be the same.',
   'errors.redirectFromExists': 'A redirect with that source path already exists.',

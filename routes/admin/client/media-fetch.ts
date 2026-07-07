@@ -37,7 +37,11 @@ export interface MediaEntry {
  * Only supplied (non-undefined, non-empty) params are added to the query string.
  * Auth header is always included. Returns a safe default envelope on any error.
  */
-export async function fetchMedia(params?: { q?: string; page?: number; limit?: number }): Promise<MediaListEnvelope> {
+export async function fetchMedia(params?: {
+  q?: string;
+  page?: number;
+  limit?: number;
+}): Promise<MediaListEnvelope> {
   const safeDefault: MediaListEnvelope = { uploads: [], total: 0, page: 1, limit: 24 };
 
   try {
@@ -56,7 +60,7 @@ export async function fetchMedia(params?: { q?: string; page?: number; limit?: n
 
     if (!res.ok) return safeDefault;
 
-    const body = await res.json() as Partial<MediaListEnvelope>;
+    const body = (await res.json()) as Partial<MediaListEnvelope>;
     return {
       uploads: Array.isArray(body.uploads) ? body.uploads : [],
       total: typeof body.total === 'number' ? body.total : 0,

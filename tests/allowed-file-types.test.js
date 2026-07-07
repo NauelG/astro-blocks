@@ -16,7 +16,13 @@ Licensed under the Business Source License 1.1
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DEFAULT_ALLOWED_FILE_TYPES, RASTER_MIME, DOCUMENT_MIME_TO_EXT, MIME_TO_EXT, intersectAccept } from '../dist/utils/file-types.js';
+import {
+  DEFAULT_ALLOWED_FILE_TYPES,
+  RASTER_MIME,
+  DOCUMENT_MIME_TO_EXT,
+  MIME_TO_EXT,
+  intersectAccept,
+} from '../dist/utils/file-types.js';
 
 // ─── R1.1-A: DEFAULT_ALLOWED_FILE_TYPES export is correct ────────────────────
 
@@ -122,7 +128,12 @@ async function importFreshHandlers(allowedFileTypesJson) {
 
 test('R1.3-A: getAllowedFileTypes deduplicates and lowercases the allowlist from env', async () => {
   // Supply duplicates + mixed case
-  const customList = JSON.stringify(['Image/JPEG', 'image/jpeg', 'Application/PDF', 'APPLICATION/PDF']);
+  const customList = JSON.stringify([
+    'Image/JPEG',
+    'image/jpeg',
+    'Application/PDF',
+    'APPLICATION/PDF',
+  ]);
   const { resetAllowedFileTypesCache, getAllowedFileTypes } = await importFreshHandlers(customList);
 
   // The fresh module read the env on import; reset cache is a no-op here
@@ -134,7 +145,10 @@ test('R1.3-A: getAllowedFileTypes deduplicates and lowercases the allowlist from
   // Direct unit test: import the fresh module and invoke resetAllowedFileTypesCache to re-read env,
   // but since we used a cache-busted URL the env was already read at module load.
   // The simplest observable: the module loaded without error and exports are intact.
-  assert.ok(typeof resetAllowedFileTypesCache === 'function', 'resetAllowedFileTypesCache should be exported');
+  assert.ok(
+    typeof resetAllowedFileTypesCache === 'function',
+    'resetAllowedFileTypesCache should be exported',
+  );
 });
 
 test('R1.5-A: getAllowedFileTypes falls back to DEFAULT_ALLOWED_FILE_TYPES when env is absent', async () => {

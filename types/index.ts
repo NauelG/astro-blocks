@@ -3,7 +3,15 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-export type PrimitivePropType = 'string' | 'text' | 'number' | 'boolean' | 'image' | 'link' | 'select' | 'file';
+export type PrimitivePropType =
+  | 'string'
+  | 'text'
+  | 'number'
+  | 'boolean'
+  | 'image'
+  | 'link'
+  | 'select'
+  | 'file';
 export type PropType = PrimitivePropType | 'array';
 
 export interface PrimitivePropDef {

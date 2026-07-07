@@ -38,7 +38,11 @@ export function getDataPath(filename: string): string {
  *
  * Example: buildVariantFilename('ab12-photo.jpg', 800, 'webp') → 'ab12-photo-800.webp'
  */
-export function buildVariantFilename(originalFilename: string, width: number, format: string): string {
+export function buildVariantFilename(
+  originalFilename: string,
+  width: number,
+  format: string,
+): string {
   const ext = path.extname(originalFilename);
   const base = ext ? originalFilename.slice(0, -ext.length) : originalFilename;
   return `${base}-${width}.${format}`;

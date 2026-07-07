@@ -84,7 +84,7 @@ test('handlePostPages creates a page with no blocks (happy path)', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Home', slug: '/', status: 'published', blocks: [] }),
-      })
+      }),
     );
 
     assert.equal(response.status, 200);
@@ -103,7 +103,7 @@ test('handlePostPages persists the page to data store', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'About', slug: '/about', status: 'draft', blocks: [] }),
-      })
+      }),
     );
 
     const pagesData = await loadPages();
@@ -121,7 +121,7 @@ test('handlePostPages returns 400 on duplicate slug', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Home', slug: '/', blocks: [] }),
-      })
+      }),
     );
 
     // Attempt duplicate slug
@@ -130,11 +130,14 @@ test('handlePostPages returns 400 on duplicate slug', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Home2', slug: '/', blocks: [] }),
-      })
+      }),
     );
 
     assert.equal(duplicate.status, 400);
-    assert.equal((await duplicate.json()).error, 'A page with that slug already exists for this language.');
+    assert.equal(
+      (await duplicate.json()).error,
+      'A page with that slug already exists for this language.',
+    );
   });
 });
 
@@ -152,7 +155,7 @@ test('handlePostPages returns 400 when blocks contain an unknown block type', as
           slug: '/test',
           blocks: [{ type: 'Hero', props: { title: 'Hello' } }],
         }),
-      })
+      }),
     );
 
     assert.equal(response.status, 400);
@@ -180,7 +183,7 @@ test('handlePostPages returns 400 when blocks fail schema prop validation', asyn
           slug: '/test',
           blocks: [{ type: 'Hero', props: {} }], // missing required title
         }),
-      })
+      }),
     );
 
     assert.equal(response.status, 400);
@@ -203,7 +206,7 @@ test('handlePostPages returns 500 when blocks are provided but schema-map.mjs is
           slug: '/test',
           blocks: [{ type: 'Hero', props: {} }],
         }),
-      })
+      }),
     );
 
     assert.equal(response.status, 500);
@@ -222,7 +225,7 @@ test('handlePutPage updates title and slug and persists changes', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Original', slug: '/original', status: 'draft', blocks: [] }),
-      })
+      }),
     );
     const created = await createRes.json();
 
@@ -233,7 +236,7 @@ test('handlePutPage updates title and slug and persists changes', async () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Updated', slug: '/updated', status: 'published' }),
-      })
+      }),
     );
 
     assert.equal(putRes.status, 200);
@@ -254,7 +257,7 @@ test('handlePutPage returns 404 for non-existent page id', async () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Whatever' }),
-      })
+      }),
     );
 
     assert.equal(response.status, 404);
@@ -271,7 +274,7 @@ test('handlePutPage returns 400 on duplicate slug during update', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Page One', slug: '/page-one', blocks: [] }),
-      })
+      }),
     );
     const page1 = await res1.json();
 
@@ -280,7 +283,7 @@ test('handlePutPage returns 400 on duplicate slug during update', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Page Two', slug: '/page-two', blocks: [] }),
-      })
+      }),
     );
     const page2 = await res2.json();
 
@@ -291,11 +294,14 @@ test('handlePutPage returns 400 on duplicate slug during update', async () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug: '/page-one' }),
-      })
+      }),
     );
 
     assert.equal(conflict.status, 400);
-    assert.equal((await conflict.json()).error, 'A page with that slug already exists for this language.');
+    assert.equal(
+      (await conflict.json()).error,
+      'A page with that slug already exists for this language.',
+    );
   });
 });
 
@@ -309,14 +315,14 @@ test('handleDeletePage removes the page and returns 204', async () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'To Delete', slug: '/to-delete', blocks: [] }),
-      })
+      }),
     );
     const created = await createRes.json();
 
     // Delete it
     const deleteRes = await handleDeletePage(
       created.id,
-      new Request(`http://localhost/cms/api/pages/${created.id}`, { method: 'DELETE' })
+      new Request(`http://localhost/cms/api/pages/${created.id}`, { method: 'DELETE' }),
     );
 
     assert.equal(deleteRes.status, 204);
@@ -331,7 +337,7 @@ test('handleDeletePage returns 404 for a non-existent page id', async () => {
   await withTempProject(async () => {
     const response = await handleDeletePage(
       'does-not-exist',
-      new Request('http://localhost/cms/api/pages/does-not-exist', { method: 'DELETE' })
+      new Request('http://localhost/cms/api/pages/does-not-exist', { method: 'DELETE' }),
     );
 
     assert.equal(response.status, 404);

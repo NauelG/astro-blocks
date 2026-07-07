@@ -53,8 +53,13 @@ test('redirect handlers support CRUD and canonical path normalization', async ()
       new Request('http://localhost/cms/api/redirects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: '/old-path/', to: '//new-path//', statusCode: 301, enabled: true }),
-      })
+        body: JSON.stringify({
+          from: '/old-path/',
+          to: '//new-path//',
+          statusCode: 301,
+          enabled: true,
+        }),
+      }),
     );
 
     assert.equal(postResponse.status, 200);
@@ -76,7 +81,7 @@ test('redirect handlers support CRUD and canonical path normalization', async ()
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statusCode: 302, enabled: false }),
-      })
+      }),
     );
 
     assert.equal(putResponse.status, 200);
@@ -99,7 +104,7 @@ test('redirect handlers validate input and avoid duplicate origins', async () =>
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from: '/old', to: '/new' }),
-      })
+      }),
     );
 
     assert.equal(first.status, 200);
@@ -109,7 +114,7 @@ test('redirect handlers validate input and avoid duplicate origins', async () =>
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from: '/old', to: '/another' }),
-      })
+      }),
     );
 
     assert.equal(duplicate.status, 400);
@@ -120,7 +125,7 @@ test('redirect handlers validate input and avoid duplicate origins', async () =>
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from: 'https://example.com/old', to: '/new' }),
-      })
+      }),
     );
 
     assert.equal(external.status, 400);
@@ -131,7 +136,7 @@ test('redirect handlers validate input and avoid duplicate origins', async () =>
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from: '/same/', to: '/same' }),
-      })
+      }),
     );
 
     assert.equal(samePath.status, 400);
@@ -142,7 +147,7 @@ test('redirect handlers validate input and avoid duplicate origins', async () =>
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from: '/old?ref=1', to: '/new' }),
-      })
+      }),
     );
 
     assert.equal(withQuery.status, 400);
