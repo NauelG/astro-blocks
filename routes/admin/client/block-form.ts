@@ -25,9 +25,10 @@ Licensed under the Business Source License 1.1
  *   - Dialog open/close
  *   - Fetch / save operations
  *
- * Security note: user-controlled string values use TWO escapers depending on context:
- *   - escapeHtml()       — element TEXT CONTENT only (encodes & < >; safe between > and <)
- *   - escapePickerHtml() — HTML ATTRIBUTE VALUES (encodes & < > " '; safe inside ="...")
+ * Security note: user-controlled string values use TWO escapers depending on context,
+ * both imported from the canonical utils/html-escape.ts module:
+ *   - escapeHtml() — element TEXT CONTENT only (encodes & < > " '; safe between > and <)
+ *   - escapeAttr() — HTML ATTRIBUTE VALUES (encodes & < > " '; safe inside ="...")
  * Using escapeHtml() inside an attribute is wrong: a " in the value terminates the attribute.
  */
 
@@ -42,8 +43,9 @@ import type {
 } from '../../../types/index.js';
 import { isObjectArrayItemDef, isPrimitivePropDef } from '../../../utils/block-validation.js';
 import { isSchemaPropLocalizable } from '../../../utils/localization.js';
-import { escapeHtml, getActiveContentLocale, showToast } from './common.js';
+import { getActiveContentLocale, showToast } from './common.js';
 import { ct } from '../i18n/client.js';
+import { escapeHtml, escapeAttr } from '../../../utils/html-escape.js';
 import {
   toImageValue,
   parseImageValue,
@@ -91,15 +93,6 @@ let activePickerAccept: string[] = [];
 // Re-alias the imported type so existing picker code can use 'MediaEntry' name unchanged
 type MediaEntry = MediaFetchEntry;
 
-function escapePickerHtml(s: string): string {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
 function mountPickerDialog(): void {
   if (pickerDialog || typeof document === 'undefined') return;
   pickerDialog = document.createElement('dialog');
@@ -109,11 +102,11 @@ function mountPickerDialog(): void {
   pickerDialog.innerHTML = `
     <div class="cms-media-picker-panel">
       <div class="cms-media-picker-header">
-        <h2 class="cms-media-picker-title">${escapePickerHtml(ct('blockForm.pickerTitle'))}</h2>
-        <button type="button" class="cms-media-picker-close" id="cms-media-picker-close" aria-label="${escapePickerHtml(ct('blockForm.pickerClose'))}">${xIconSvg}</button>
+        <h2 class="cms-media-picker-title">${escapeHtml(ct('blockForm.pickerTitle'))}</h2>
+        <button type="button" class="cms-media-picker-close" id="cms-media-picker-close" aria-label="${escapeAttr(ct('blockForm.pickerClose'))}">${xIconSvg}</button>
       </div>
       <div class="cms-media-picker-body" id="cms-media-picker-body">
-        <p class="cms-muted">${escapePickerHtml(ct('blockForm.pickerLoading'))}</p>
+        <p class="cms-muted">${escapeHtml(ct('blockForm.pickerLoading'))}</p>
       </div>
     </div>
     <style>
@@ -333,7 +326,7 @@ function updateImageFieldDom(hiddenInput: HTMLInputElement, url: string): void {
   const previewWrap = field.querySelector<HTMLElement>('[data-image-preview]');
   if (previewWrap) {
     previewWrap.innerHTML = hasValue
-      ? `<img src="${escapePickerHtml(url)}" alt="${escapePickerHtml(filename)}" class="cms-image-field-thumb" data-image-thumb>`
+      ? `<img src="${escapeAttr(url)}" alt="${escapeAttr(filename)}" class="cms-image-field-thumb" data-image-thumb>`
       : `<span class="cms-image-field-placeholder" aria-hidden="true">${imagePickerIconSvg}</span>`;
   }
 
@@ -463,28 +456,28 @@ function renderPickerItem(entry: MediaEntry): string {
   const dims = formatDimensions(entry.width, entry.height);
   const metaDims =
     dims !== '—'
-      ? `<span class="cms-media-picker-meta-dim">${escapePickerHtml(dims)}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span>`
+      ? `<span class="cms-media-picker-meta-dim">${escapeHtml(dims)}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span>`
       : '';
-  const metaRow = `<span class="cms-media-picker-meta cms-muted">${metaDims}<span class="cms-media-picker-meta-size">${escapePickerHtml(formatBytes(entry.size))}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span><span class="cms-media-picker-meta-type">${escapePickerHtml(entry.mimeType)}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span><span class="cms-media-picker-meta-date">${escapePickerHtml(formatMediaDate(entry.createdAt))}</span></span>`;
+  const metaRow = `<span class="cms-media-picker-meta cms-muted">${metaDims}<span class="cms-media-picker-meta-size">${escapeHtml(formatBytes(entry.size))}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span><span class="cms-media-picker-meta-type">${escapeHtml(entry.mimeType)}</span><span class="cms-media-picker-meta-sep" aria-hidden="true">·</span><span class="cms-media-picker-meta-date">${escapeHtml(formatMediaDate(entry.createdAt))}</span></span>`;
 
   // For image entries: show <img> thumbnail. For document entries: show accessible doc tile.
   const isDocEntry = !(entry as MediaEntry & { fileCategory?: string }).mimeType.startsWith(
     'image/',
   );
   const thumbHtml = isDocEntry
-    ? `<div class="cms-media-picker-img cms-media-picker-doc-thumb" role="img" aria-label="${escapePickerHtml(entry.filename)}" aria-hidden="false"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>`
-    : `<img src="${escapePickerHtml(entry.url)}" alt="${escapePickerHtml(entry.filename)}" class="cms-media-picker-img" loading="lazy" />`;
+    ? `<div class="cms-media-picker-img cms-media-picker-doc-thumb" role="img" aria-label="${escapeAttr(entry.filename)}" aria-hidden="false"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>`
+    : `<img src="${escapeAttr(entry.url)}" alt="${escapeAttr(entry.filename)}" class="cms-media-picker-img" loading="lazy" />`;
 
   return `<button type="button" class="cms-media-picker-item"
-    data-picker-url="${escapePickerHtml(entry.url)}"
-    data-picker-alt="${escapePickerHtml(entry.alt ?? '')}"
-    data-picker-mime="${escapePickerHtml(entry.mimeType)}"
-    data-picker-filename="${escapePickerHtml(entry.filename)}"
+    data-picker-url="${escapeAttr(entry.url)}"
+    data-picker-alt="${escapeAttr(entry.alt ?? '')}"
+    data-picker-mime="${escapeAttr(entry.mimeType)}"
+    data-picker-filename="${escapeAttr(entry.filename)}"
     ${entry.width !== undefined ? `data-picker-width="${entry.width}"` : ''}
     ${entry.height !== undefined ? `data-picker-height="${entry.height}"` : ''}
-    aria-label="${escapePickerHtml(ct('blockForm.pickerSelectAriaLabel', { filename: entry.filename }))}">
+    aria-label="${escapeAttr(ct('blockForm.pickerSelectAriaLabel', { filename: entry.filename }))}">
     ${thumbHtml}
-    <span class="cms-media-picker-name">${escapePickerHtml(entry.filename)}</span>
+    <span class="cms-media-picker-name">${escapeHtml(entry.filename)}</span>
     ${metaRow}
   </button>`;
 }
@@ -515,17 +508,17 @@ function renderPickerGrid(gridContainer: HTMLElement, uploadSection: string): vo
       ? ct('blockForm.pickerCountOf', { shown: String(visibleItems.length), total: String(total) })
       : ct('blockForm.pickerCount0');
 
-  const countRegion = `<p role="status" aria-live="polite" class="cms-media-picker-count cms-muted">${escapePickerHtml(countText)}</p>`;
+  const countRegion = `<p role="status" aria-live="polite" class="cms-media-picker-count cms-muted">${escapeHtml(countText)}</p>`;
 
   if (visibleItems.length === 0) {
-    gridContainer.innerHTML = `${countRegion}<p class="cms-muted cms-media-picker-empty">${escapePickerHtml(ct('blockForm.pickerEmpty'))}</p>`;
+    gridContainer.innerHTML = `${countRegion}<p class="cms-muted cms-media-picker-empty">${escapeHtml(ct('blockForm.pickerEmpty'))}</p>`;
     return;
   }
 
   const gridItems = visibleItems.map(renderPickerItem).join('');
   const loadMoreBtn = allLoaded
     ? ''
-    : `<button type="button" id="cms-picker-load-more" class="cms-btn cms-btn-secondary cms-media-picker-load-more">${escapePickerHtml(ct('blockForm.pickerLoadMore'))}</button>`;
+    : `<button type="button" id="cms-picker-load-more" class="cms-btn cms-btn-secondary cms-media-picker-load-more">${escapeHtml(ct('blockForm.pickerLoadMore'))}</button>`;
 
   gridContainer.innerHTML = `${countRegion}<div class="cms-media-picker-grid">${gridItems}</div>${loadMoreBtn}`;
 
@@ -639,7 +632,7 @@ async function openPickerDialog(
   // replacement destroyed the already-bound input event listener.
   body.innerHTML = `
     <div id="cms-picker-search-zone"></div>
-    <div id="cms-picker-grid-zone"><p class="cms-muted">${escapePickerHtml(ct('blockForm.pickerLoading'))}</p></div>
+    <div id="cms-picker-grid-zone"><p class="cms-muted">${escapeHtml(ct('blockForm.pickerLoading'))}</p></div>
     <div id="cms-picker-upload-zone"></div>
   `;
 
@@ -650,8 +643,8 @@ async function openPickerDialog(
   // Render search input into its stable zone
   searchContainer.innerHTML = `
     <div class="cms-media-picker-search-row">
-      <label for="cms-picker-search" class="cms-visually-hidden">${escapePickerHtml(ct('blockForm.pickerSearchLabel'))}</label>
-      <input type="search" id="cms-picker-search" class="cms-input cms-media-picker-search" placeholder="${escapePickerHtml(ct('blockForm.pickerSearchPlaceholder'))}" autocomplete="off" aria-label="${escapePickerHtml(ct('blockForm.pickerSearchAriaLabel'))}" />
+      <label for="cms-picker-search" class="cms-visually-hidden">${escapeHtml(ct('blockForm.pickerSearchLabel'))}</label>
+      <input type="search" id="cms-picker-search" class="cms-input cms-media-picker-search" placeholder="${escapeAttr(ct('blockForm.pickerSearchPlaceholder'))}" autocomplete="off" aria-label="${escapeAttr(ct('blockForm.pickerSearchAriaLabel'))}" />
     </div>
   `;
 
@@ -664,12 +657,12 @@ async function openPickerDialog(
   // Render upload section into its stable zone
   uploadContainer.innerHTML = `
     <div class="cms-media-picker-upload">
-      <span class="cms-media-picker-upload-label" id="cms-picker-upload-label">${escapePickerHtml(ct('blockForm.pickerUploadLabel'))}</span>
+      <span class="cms-media-picker-upload-label" id="cms-picker-upload-label">${escapeHtml(ct('blockForm.pickerUploadLabel'))}</span>
       <div class="cms-media-picker-upload-row">
-        <input type="file" id="cms-picker-file-input" accept="${escapePickerHtml(pickerUploadAccept)}" class="cms-media-picker-file-input" aria-labelledby="cms-picker-upload-label" />
-        <button type="button" id="cms-picker-choose-btn" class="cms-btn cms-btn-secondary" aria-controls="cms-picker-file-input">${escapePickerHtml(ct('blockForm.pickerChooseFile'))}</button>
-        <span class="cms-media-picker-filename" id="cms-picker-filename" aria-live="polite">${escapePickerHtml(ct('blockForm.pickerNoFileSelected'))}</span>
-        <button type="button" id="cms-picker-upload-btn" class="cms-btn cms-btn-primary" disabled>${escapePickerHtml(ct('blockForm.pickerUpload'))}</button>
+        <input type="file" id="cms-picker-file-input" accept="${escapeAttr(pickerUploadAccept)}" class="cms-media-picker-file-input" aria-labelledby="cms-picker-upload-label" />
+        <button type="button" id="cms-picker-choose-btn" class="cms-btn cms-btn-secondary" aria-controls="cms-picker-file-input">${escapeHtml(ct('blockForm.pickerChooseFile'))}</button>
+        <span class="cms-media-picker-filename" id="cms-picker-filename" aria-live="polite">${escapeHtml(ct('blockForm.pickerNoFileSelected'))}</span>
+        <button type="button" id="cms-picker-upload-btn" class="cms-btn cms-btn-primary" disabled>${escapeHtml(ct('blockForm.pickerUpload'))}</button>
       </div>
     </div>
   `;
@@ -754,7 +747,7 @@ async function openPickerDialog(
       }
     });
   } catch {
-    gridContainer.innerHTML = `<p class="cms-muted">${escapePickerHtml(ct('blockForm.imageLoadError'))}</p>`;
+    gridContainer.innerHTML = `<p class="cms-muted">${escapeHtml(ct('blockForm.imageLoadError'))}</p>`;
   }
 }
 
@@ -921,11 +914,11 @@ function imageFieldHtml(
   // data-image-preview marks the slot so the delegated error listener can swap
   // a failed <img> to the "file missing" state without inline JS in attributes.
   const previewInner = hasValue
-    ? `<img src="${escapePickerHtml(urlValue)}" alt="${escapePickerHtml(filename)}" class="cms-image-field-thumb" data-image-thumb>`
+    ? `<img src="${escapeAttr(urlValue)}" alt="${escapeAttr(filename)}" class="cms-image-field-thumb" data-image-thumb>`
     : `<span class="cms-image-field-placeholder" aria-hidden="true">${imagePickerIconSvg}</span>`;
   // "Selected: <filename>" vs "No image selected" — perceivable without color.
   const nameHtml = hasValue
-    ? `<span class="cms-image-field-name" title="${escapePickerHtml(filename)}">${escapeHtml(filename)}</span>`
+    ? `<span class="cms-image-field-name" title="${escapeAttr(filename)}">${escapeHtml(filename)}</span>`
     : `<span class="cms-image-field-name cms-image-field-name--empty">${escapeHtml(ct('blockForm.noImageSelected'))}</span>`;
   const chooseLabel = hasValue ? ct('blockForm.replaceImage') : ct('blockForm.chooseImage');
   const altInputId = `${id}-alt`;
@@ -936,25 +929,25 @@ function imageFieldHtml(
   // Clear button is always present in the DOM; visibility is toggled via the
   // root modifier class so the in-place update never has to insert/remove nodes.
   // The hidden input now carries the full JSON ImageFieldValue.
-  // escapePickerHtml is used for all HTML attribute value contexts (encodes " too);
+  // escapeAttr is used for all HTML attribute value contexts (encodes " too);
   // escapeHtml is sufficient for element content (text nodes cannot break attributes).
   return (
-    `<div class="cms-image-field${stateClass}" data-image-field="${escapePickerHtml(id)}">` +
+    `<div class="cms-image-field${stateClass}" data-image-field="${escapeAttr(id)}">` +
     `<input type="text" id="${id}" ${attrs} class="cms-media-value cms-hidden" value="${serializeImageValueAttr(value)}" tabindex="-1" aria-hidden="true" data-image-value="1">` +
     `<div class="cms-image-field-preview-wrap" data-image-preview>${previewInner}</div>` +
     `<div class="cms-image-field-detail">` +
     nameHtml +
     `<div class="cms-image-field-actions">` +
-    `<button type="button" class="cms-btn cms-btn-secondary cms-image-field-choose" data-picker-for="${escapePickerHtml(id)}" aria-label="${escapePickerHtml(ct('blockForm.chooseImage'))}">${imagePickerIconSvg}<span data-choose-label>${escapeHtml(chooseLabel)}</span></button>` +
-    `<button type="button" class="cms-btn cms-btn-secondary cms-image-field-clear" data-picker-clear="${escapePickerHtml(id)}" aria-label="${escapePickerHtml(ct('blockForm.clearImage'))}">${escapeHtml(ct('blockForm.clearImage'))}</button>` +
+    `<button type="button" class="cms-btn cms-btn-secondary cms-image-field-choose" data-picker-for="${escapeAttr(id)}" aria-label="${escapeAttr(ct('blockForm.chooseImage'))}">${imagePickerIconSvg}<span data-choose-label>${escapeHtml(chooseLabel)}</span></button>` +
+    `<button type="button" class="cms-btn cms-btn-secondary cms-image-field-clear" data-picker-clear="${escapeAttr(id)}" aria-label="${escapeAttr(ct('blockForm.clearImage'))}">${escapeHtml(ct('blockForm.clearImage'))}</button>` +
     `</div>` +
     `<div class="cms-image-field-alt-row">` +
     `<label for="${altInputId}" class="cms-image-field-alt-label">${altLabel}</label>` +
-    `<input type="text" id="${altInputId}" class="cms-input cms-image-field-alt-input" data-image-alt-for="${escapePickerHtml(id)}" value="${escapePickerHtml(altValue)}" placeholder="${escapePickerHtml(ct('blockForm.altPlaceholder'))}" autocomplete="off">` +
+    `<input type="text" id="${altInputId}" class="cms-input cms-image-field-alt-input" data-image-alt-for="${escapeAttr(id)}" value="${escapeAttr(altValue)}" placeholder="${escapeAttr(ct('blockForm.altPlaceholder'))}" autocomplete="off">` +
     `</div>` +
     `<div class="cms-image-field-caption-row">` +
     `<label for="${captionInputId}" class="cms-image-field-caption-label">${escapeHtml(ct('blockForm.captionLabel'))}</label>` +
-    `<input type="text" id="${captionInputId}" class="cms-input cms-image-field-caption-input" data-image-caption-for="${escapePickerHtml(id)}" value="${escapePickerHtml(captionValue)}" placeholder="${escapePickerHtml(ct('blockForm.captionPlaceholder'))}" autocomplete="off">` +
+    `<input type="text" id="${captionInputId}" class="cms-input cms-image-field-caption-input" data-image-caption-for="${escapeAttr(id)}" value="${escapeAttr(captionValue)}" placeholder="${escapeAttr(ct('blockForm.captionPlaceholder'))}" autocomplete="off">` +
     `</div>` +
     `</div>` +
     `</div>`
@@ -1024,21 +1017,21 @@ function fileFieldHtml(
   const displayName = hasValue ? (value.filename ?? imageFilenameFromUrl(value.url)) : '';
   const stateClass = hasValue ? ' cms-file-field--has-value' : '';
   const nameHtml = hasValue
-    ? `<span class="cms-file-field-name" title="${escapePickerHtml(displayName)}">${escapeHtml(displayName)}</span>`
+    ? `<span class="cms-file-field-name" title="${escapeAttr(displayName)}">${escapeHtml(displayName)}</span>`
     : `<span class="cms-file-field-name cms-file-field-name--empty">No file selected</span>`;
   const chooseLabel = hasValue ? 'Replace' : 'Choose file';
   // Serialize effectiveAccept as a JSON string in a data attribute so the picker
   // click handler can recover it without keeping additional module-level state per field.
-  const acceptAttr = escapePickerHtml(JSON.stringify(effectiveAccept));
+  const acceptAttr = escapeAttr(JSON.stringify(effectiveAccept));
 
   return (
-    `<div class="cms-file-field${stateClass}" data-file-field="${escapePickerHtml(id)}">` +
+    `<div class="cms-file-field${stateClass}" data-file-field="${escapeAttr(id)}">` +
     `<input type="text" id="${id}" ${attrs} class="cms-media-value cms-hidden" value="${serializeFileValueAttr(value)}" tabindex="-1" aria-hidden="true" data-file-value="1">` +
     `<div class="cms-file-field-detail">` +
     nameHtml +
     `<div class="cms-file-field-actions">` +
-    `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-choose" data-file-picker-for="${escapePickerHtml(id)}" data-file-accept="${acceptAttr}" aria-label="Choose file">${filePickerIconSvg}<span data-file-choose-label>${escapeHtml(chooseLabel)}</span></button>` +
-    `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-clear" data-file-picker-clear="${escapePickerHtml(id)}" aria-label="Clear file">Clear</button>` +
+    `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-choose" data-file-picker-for="${escapeAttr(id)}" data-file-accept="${acceptAttr}" aria-label="Choose file">${filePickerIconSvg}<span data-file-choose-label>${escapeHtml(chooseLabel)}</span></button>` +
+    `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-clear" data-file-picker-clear="${escapeAttr(id)}" aria-label="Clear file">Clear</button>` +
     `</div>` +
     `</div>` +
     `</div>`
@@ -1064,7 +1057,7 @@ function primitiveInputHtml(
     const options = (def.options || [])
       .map(
         (option) =>
-          `<option value="${escapePickerHtml(option)}"${selectedValue === option ? ' selected' : ''}>${escapeHtml(option)}</option>`,
+          `<option value="${escapeAttr(option)}"${selectedValue === option ? ' selected' : ''}>${escapeHtml(option)}</option>`,
       )
       .join('');
     return `<select id="${id}" ${attrs} class="cms-input">${options}</select>`;
@@ -1085,7 +1078,7 @@ function primitiveInputHtml(
     return fileFieldHtml(id, attrs, fileValue, effectiveAccept);
   }
   const textValue = typeof value === 'string' ? value : String(value ?? '');
-  return `<input type="text" id="${id}" ${attrs} class="cms-input" value="${escapePickerHtml(textValue)}">`;
+  return `<input type="text" id="${id}" ${attrs} class="cms-input" value="${escapeAttr(textValue)}">`;
 }
 
 function renderPrimitiveField(
@@ -1101,8 +1094,8 @@ function renderPrimitiveField(
 
   if (def.type === 'boolean') {
     return (
-      `<div class="cms-field cms-field-checkbox" data-error-key="${escapePickerHtml(errorKey(propName))}">` +
-      `<input type="checkbox" id="${fieldId}" data-prop="${escapePickerHtml(propName)}" ${value === true || value === 'true' ? 'checked' : ''}>` +
+      `<div class="cms-field cms-field-checkbox" data-error-key="${escapeAttr(errorKey(propName))}">` +
+      `<input type="checkbox" id="${fieldId}" data-prop="${escapeAttr(propName)}" ${value === true || value === 'true' ? 'checked' : ''}>` +
       `<label for="${fieldId}" class="cms-label-tight">${label}</label>` +
       errorHtml +
       '</div>'
@@ -1110,9 +1103,9 @@ function renderPrimitiveField(
   }
 
   return (
-    `<div class="cms-field" data-error-key="${escapePickerHtml(errorKey(propName))}">` +
+    `<div class="cms-field" data-error-key="${escapeAttr(errorKey(propName))}">` +
     `<label for="${fieldId}">${label}</label>` +
-    primitiveInputHtml(def, value, fieldId, `data-prop="${escapePickerHtml(propName)}"`) +
+    primitiveInputHtml(def, value, fieldId, `data-prop="${escapeAttr(propName)}"`) +
     errorHtml +
     '</div>'
   );
@@ -1128,7 +1121,7 @@ function renderArrayPrimitiveItem(
   errorMsg: string,
 ): string {
   const inputId = `${prefix}-${propName}-${itemIndex}`;
-  const attrs = `data-array-primitive="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}"`;
+  const attrs = `data-array-primitive="true" data-array-prop="${escapeAttr(propName)}" data-array-item="${itemIndex}"`;
   const errorHtml = errorMsg ? `<p class="cms-field-error">${escapeHtml(errorMsg)}</p>` : '';
   const inputControl =
     itemDef.type === 'boolean'
@@ -1137,16 +1130,16 @@ function renderArrayPrimitiveItem(
           itemDef,
           itemValue,
           inputId,
-          `${attrs} placeholder="${escapePickerHtml(itemDef.label || arrayDef.label)}"`,
+          `${attrs} placeholder="${escapeAttr(itemDef.label || arrayDef.label)}"`,
           2,
         );
 
   return (
-    `<li class="cms-array-item cms-array-item--primitive" data-array-item-row="${itemIndex}" data-error-key="${escapePickerHtml(errorKey(propName, itemIndex))}">` +
+    `<li class="cms-array-item cms-array-item--primitive" data-array-item-row="${itemIndex}" data-error-key="${escapeAttr(errorKey(propName, itemIndex))}">` +
     '<div class="cms-array-item-inline">' +
     `<span class="cms-drag-handle cms-array-item-drag" aria-label="${ct('common.drag')}">${dragHandleSvg}</span>` +
     `<div class="cms-array-item-input">${inputControl}</div>` +
-    `<button type="button" class="cms-array-item-delete" data-array-delete="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}" aria-label="${ct('common.delete')}">${trashIconSvg}</button>` +
+    `<button type="button" class="cms-array-item-delete" data-array-delete="true" data-array-prop="${escapeAttr(propName)}" data-array-item="${itemIndex}" aria-label="${ct('common.delete')}">${trashIconSvg}</button>` +
     '</div>' +
     errorHtml +
     '</li>'
@@ -1191,14 +1184,14 @@ function renderArrayObjectItem(
     .map(([fieldName, fieldDef]) => {
       const value = item[fieldName];
       const fieldId = `${prefix}-${propName}-${itemIndex}-${fieldName}`;
-      const inputAttrs = `data-array-primitive="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}" data-array-field="${escapePickerHtml(fieldName)}"`;
+      const inputAttrs = `data-array-primitive="true" data-array-prop="${escapeAttr(propName)}" data-array-item="${itemIndex}" data-array-field="${escapeAttr(fieldName)}"`;
       const fieldError = getError(propName, itemIndex, fieldName);
       const fieldErrorHtml = fieldError
         ? `<p class="cms-field-error">${escapeHtml(fieldError)}</p>`
         : '';
       if (fieldDef.type === 'boolean') {
         return (
-          `<div class="cms-field cms-field-checkbox" data-error-key="${escapePickerHtml(errorKey(propName, itemIndex, fieldName))}">` +
+          `<div class="cms-field cms-field-checkbox" data-error-key="${escapeAttr(errorKey(propName, itemIndex, fieldName))}">` +
           `<input type="checkbox" id="${fieldId}" ${inputAttrs} ${value === true || value === 'true' ? 'checked' : ''}>` +
           `<label for="${fieldId}" class="cms-label-tight">${escapeHtml(fieldDef.label)}</label>` +
           fieldErrorHtml +
@@ -1206,7 +1199,7 @@ function renderArrayObjectItem(
         );
       }
       return (
-        `<div class="cms-field" data-error-key="${escapePickerHtml(errorKey(propName, itemIndex, fieldName))}">` +
+        `<div class="cms-field" data-error-key="${escapeAttr(errorKey(propName, itemIndex, fieldName))}">` +
         `<label for="${fieldId}">${escapeHtml(fieldDef.label)}</label>` +
         primitiveInputHtml(fieldDef, value, fieldId, inputAttrs, 2) +
         fieldErrorHtml +
@@ -1216,13 +1209,13 @@ function renderArrayObjectItem(
     .join('');
 
   return (
-    `<li class="cms-array-item cms-array-item--object" data-array-item-row="${itemIndex}" data-error-key="${escapePickerHtml(errorKey(propName, itemIndex))}">` +
+    `<li class="cms-array-item cms-array-item--object" data-array-item-row="${itemIndex}" data-error-key="${escapeAttr(errorKey(propName, itemIndex))}">` +
     '<div class="cms-array-item-inline">' +
     `<span class="cms-drag-handle cms-array-item-drag" aria-label="${ct('common.drag')}">${dragHandleSvg}</span>` +
     `<span class="cms-array-item-summary">${escapeHtml(summary)}</span>` +
     '<div class="cms-array-item-actions">' +
-    `<button type="button" class="cms-array-item-toggle" data-array-toggle="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}" aria-expanded="${isOpen ? 'true' : 'false'}" aria-label="${isOpen ? ct('common.collapse') : ct('common.expand')}">${isOpen ? chevronUpSvg : chevronDownSvg}</button>` +
-    `<button type="button" class="cms-array-item-delete" data-array-delete="true" data-array-prop="${escapePickerHtml(propName)}" data-array-item="${itemIndex}" aria-label="${ct('common.delete')}">${trashIconSvg}</button>` +
+    `<button type="button" class="cms-array-item-toggle" data-array-toggle="true" data-array-prop="${escapeAttr(propName)}" data-array-item="${itemIndex}" aria-expanded="${isOpen ? 'true' : 'false'}" aria-label="${isOpen ? ct('common.collapse') : ct('common.expand')}">${isOpen ? chevronUpSvg : chevronDownSvg}</button>` +
+    `<button type="button" class="cms-array-item-delete" data-array-delete="true" data-array-prop="${escapeAttr(propName)}" data-array-item="${itemIndex}" aria-label="${ct('common.delete')}">${trashIconSvg}</button>` +
     '</div>' +
     '</div>' +
     `<div class="cms-array-item-body${isOpen ? '' : ' cms-hidden'}">${fieldsHtml}</div>` +
@@ -1281,16 +1274,16 @@ function renderArrayField(
 
   const sortableEnabled = def.sortable !== false;
   return (
-    `<div class="cms-array-field" data-array-field="true" data-array-prop="${escapePickerHtml(propName)}" data-error-key="${escapePickerHtml(errorKey(propName))}">` +
+    `<div class="cms-array-field" data-array-field="true" data-array-prop="${escapeAttr(propName)}" data-error-key="${escapeAttr(errorKey(propName))}">` +
     '<div class="cms-array-field-head">' +
     `<label class="cms-array-field-label">${withLocaleHint(def.label, isSchemaPropLocalizable(def))}</label>` +
     '<div class="cms-array-field-meta">' +
     `<span class="cms-array-field-counter">${items.length} elemento${items.length === 1 ? '' : 's'}</span>` +
     (limits ? `<span class="cms-array-field-hint">${escapeHtml(limits)}</span>` : '') +
-    `<button type="button" class="cms-btn cms-btn-secondary cms-array-field-add" data-array-add="true" data-array-prop="${escapePickerHtml(propName)}" ${maxReached ? 'disabled' : ''}>${ct('blockForm.addItem')}</button>` +
+    `<button type="button" class="cms-btn cms-btn-secondary cms-array-field-add" data-array-add="true" data-array-prop="${escapeAttr(propName)}" ${maxReached ? 'disabled' : ''}>${ct('blockForm.addItem')}</button>` +
     '</div>' +
     '</div>' +
-    `<ul class="cms-array-list" data-array-list="true" data-array-prop="${escapePickerHtml(propName)}" data-array-sortable="${sortableEnabled ? 'true' : 'false'}">${rowsHtml}</ul>` +
+    `<ul class="cms-array-list" data-array-list="true" data-array-prop="${escapeAttr(propName)}" data-array-sortable="${sortableEnabled ? 'true' : 'false'}">${rowsHtml}</ul>` +
     (maxReached
       ? `<p class="cms-muted cms-array-field-hint">${ct('blockForm.maxReached', { max: maxItems })}</p>`
       : '') +
@@ -1369,7 +1362,8 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
       }
     }
     html += '</div>';
-    // All values passed to escapeHtml() before insertion — consistent with admin UI pattern
+    // All values passed to escapeHtml() (text content) or escapeAttr() (attribute values)
+    // before insertion — consistent with admin UI pattern
     container.innerHTML = html;
     bindEvents();
   }
