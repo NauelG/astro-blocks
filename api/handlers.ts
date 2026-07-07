@@ -8,14 +8,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { imageSize } from 'image-size';
 import { getGlobalCachePaths, getGlobalCacheTags } from '../utils/cache.js';
-import {
-  getDefaultLanguageCode,
-  getLocalizedValue,
-  isSchemaPropLocalizable,
-  normalizeLocaleCode,
-  setLocalizedValue,
-} from '../utils/localization.js';
-import { joinSlugSegments, slugToPath, splitSlugSegments } from '../utils/slug.js';
+import { getDefaultLanguageCode } from '../utils/localization.js';
 import { getUploadsDir, resolveUploadPath } from '../utils/paths.js';
 import { generateAndPersistVariants } from '../utils/variant-generator.js';
 import {
@@ -30,29 +23,15 @@ import {
   normalizeRedirectStatusCode,
   validateRedirectPathInput,
 } from '../utils/redirects.js';
-import { validateBlockPropsAgainstSchema } from '../utils/block-validation.js';
-import { getLanguageLocaleKeys } from '../utils/language-locales.js';
-import {
-  mergeBlockPropsForLocale,
-  projectBlockProps,
-  removeLocaleFromLocalizedMap,
-} from '../utils/locale-projection.js';
+import { removeLocaleFromLocalizedMap } from '../utils/locale-projection.js';
 import type {
   AuthUser,
-  BlockInstance,
   ConfigEntry,
-  GlobalBlockRuntimeEntry,
-  LanguagesData,
   MediaEntry,
   Menu,
   MenuItem,
-  Page,
-  PageLocaleView,
-  PageStatus,
   PagesData,
   RedirectRule,
-  SchemaMap,
-  SeoData,
 } from '../types/index.js';
 import * as data from './data.js';
 import { buildExportStream, runImportPipeline } from './backup.js';
@@ -68,13 +47,9 @@ import {
   resolveRequestUiLocale,
 } from './handlers/shared.js';
 import type { HandlerContext } from './handlers/shared.js';
-import {
-  invalidateGlobalContentCache,
-  invalidatePageContentCache,
-} from './handlers/cache-invalidation.js';
+import { invalidateGlobalContentCache } from './handlers/cache-invalidation.js';
 import { getAuth, requireOwner } from './handlers/auth-core.js';
 import { normalizeLocaleFromRequest, resolveLocaleFromBody } from './handlers/locale-resolution.js';
-import { ensureValidBlocks, loadSchemaMap } from './handlers/schema-loading.js';
 export { localizedJsonError } from './handlers/shared.js';
 export { handleGetSite, handlePutSite } from './handlers/site.js';
 export {
@@ -98,6 +73,18 @@ export {
   handlePutLanguage,
   handleDeleteLanguage,
 } from './handlers/languages.js';
+export {
+  handleGetPages,
+  handleGetBlockSchemas,
+  handlePostPages,
+  handlePutPage,
+  handleDeletePage,
+} from './handlers/pages.js';
+export {
+  handleGetGlobalBlocks,
+  handleGetGlobalBlock,
+  handlePutGlobalBlock,
+} from './handlers/global-blocks.js';
 
 const CONFIG_KEY_REGEX = /^[A-Za-z][A-Za-z0-9_.-]*$/;
 
@@ -162,42 +149,6 @@ const MAX_UPLOAD_BYTES = (() => {
   }
   return 5 * 1024 * 1024; // 5 MB default
 })();
-
-function normalizeSlugInput(rawSlug: unknown): string | string[] {
-  if (Array.isArray(rawSlug)) {
-    const parts = rawSlug
-      .map(String)
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-    return joinSlugSegments(parts);
-  }
-
-  const raw = String(rawSlug ?? '/').trim();
-  if (!raw || raw === '/') return '/';
-
-  const parts = splitSlugSegments(raw);
-  return joinSlugSegments(parts);
-}
-
-function normalizeStatus(value: unknown): PageStatus {
-  return value === 'published' || value === 'archived' || value === 'draft' ? value : 'draft';
-}
-
-function normalizePageSeo(input: unknown): SeoData {
-  if (!input || typeof input !== 'object') return {};
-  const seo = input as Partial<SeoData>;
-  return {
-    ...(typeof seo.title === 'string' && seo.title.trim() ? { title: seo.title.trim() } : {}),
-    ...(typeof seo.description === 'string' && seo.description.trim()
-      ? { description: seo.description.trim() }
-      : {}),
-    ...(typeof seo.canonical === 'string' && seo.canonical.trim()
-      ? { canonical: seo.canonical.trim() }
-      : {}),
-    ...(typeof seo.image === 'string' && seo.image.trim() ? { image: seo.image.trim() } : {}),
-    ...(seo.nofollow !== undefined ? { nofollow: Boolean(seo.nofollow) } : {}),
-  };
-}
 
 /** Returns a catalog error key (not a user-facing string) or null. */
 function validateMenuItemsPaths(items: unknown): string | null {
@@ -320,290 +271,6 @@ function normalizeRedirectPayload(
     createdAt: current?.createdAt,
     updatedAt: current?.updatedAt,
   };
-}
-
-function validateLocalePrefixConflict(
-  slug: string | string[],
-  locale: string,
-  defaultLocale: string,
-  languagesData: LanguagesData,
-): { errorKey: string; params: Record<string, string> } | null {
-  if (locale !== defaultLocale) return null;
-
-  const segments = splitSlugSegments(slug);
-  if (segments.length === 0) return null;
-
-  const first = normalizeLocaleCode(segments[0]);
-  if (!first) return null;
-
-  const enabledLocales = languagesData.languages
-    .filter((language) => language.enabled !== false)
-    .map((language) => normalizeLocaleCode(language.code))
-    .filter(Boolean);
-
-  if (enabledLocales.includes(first) && first !== defaultLocale) {
-    return { errorKey: 'errors.slugLocaleConflict', params: { locale: first } };
-  }
-
-  return null;
-}
-
-function hasDuplicateSlug(
-  pages: Page[],
-  id: string | null,
-  locale: string,
-  defaultLocale: string,
-  slug: string | string[],
-): boolean {
-  const nextPath = slugToPath(slug);
-
-  return pages.some((entry) => {
-    if (id && entry.id === id) return false;
-    const currentPath = slugToPath(data.getPageSlug(entry, locale, defaultLocale));
-    return currentPath === nextPath;
-  });
-}
-
-function localizeSeoPayload(
-  current: Page['seo'] | undefined,
-  locale: string,
-  payloadSeo: SeoData,
-): Page['seo'] {
-  const next = { ...(current || {}) };
-
-  if (payloadSeo.title !== undefined)
-    next.title = setLocalizedValue(next.title, locale, payloadSeo.title);
-  if (payloadSeo.description !== undefined)
-    next.description = setLocalizedValue(next.description, locale, payloadSeo.description);
-  if (payloadSeo.canonical !== undefined)
-    next.canonical = setLocalizedValue(next.canonical, locale, payloadSeo.canonical);
-  if (payloadSeo.image !== undefined)
-    next.image = setLocalizedValue(next.image, locale, payloadSeo.image);
-  if (payloadSeo.nofollow !== undefined)
-    next.nofollow = setLocalizedValue(next.nofollow, locale, Boolean(payloadSeo.nofollow));
-
-  return next;
-}
-
-function projectPageForLocale(
-  page: Page,
-  locale: string,
-  defaultLocale: string,
-  schemaMap: SchemaMap | null,
-  localeKeys: Set<string>,
-): PageLocaleView {
-  const view = data.getPageLocaleView(page, locale, defaultLocale);
-  return {
-    ...view,
-    blocks: (page.blocks || []).map((block) => ({
-      type: block.type,
-      props: projectBlockProps(block, schemaMap, locale, localeKeys),
-    })),
-  };
-}
-
-export async function handleGetPages(request: Request): Promise<Response> {
-  const [pagesData, languagesData, schemaResult] = await Promise.all([
-    data.loadPages(),
-    data.loadLanguages(),
-    loadSchemaMap(),
-  ]);
-
-  const defaultLocale = getDefaultLanguageCode(languagesData);
-  const locale = normalizeLocaleFromRequest(request, languagesData);
-  const localeKeys = getLanguageLocaleKeys(languagesData);
-
-  const pages = pagesData.pages.map((page) =>
-    projectPageForLocale(page, locale, defaultLocale, schemaResult.schemaMap || null, localeKeys),
-  );
-  return Response.json({ pages, locale, defaultLocale });
-}
-
-export async function handleGetBlockSchemas(): Promise<Response> {
-  const result = await loadSchemaMap();
-  if (result.error) return jsonError(result.error, 500, { missing: result.missing || [] });
-
-  return Response.json(result.schemaMap || {});
-}
-
-export async function handlePostPages(
-  request: Request,
-  context: HandlerContext = {},
-): Promise<Response> {
-  const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
-  if (error || !body) return error as Response;
-
-  const blocksError = await ensureValidBlocks(body.blocks, request);
-  if (blocksError) return blocksError;
-
-  const [pagesData, languagesData, schemaResult] = await Promise.all([
-    data.loadPages(),
-    data.loadLanguages(),
-    loadSchemaMap(),
-  ]);
-
-  const defaultLocale = getDefaultLanguageCode(languagesData);
-  const locale = resolveLocaleFromBody(body, request, languagesData);
-
-  const title =
-    typeof body.title === 'string' && body.title.trim() ? body.title.trim() : 'Untitled';
-  const slug = normalizeSlugInput(body.slug);
-  const status = normalizeStatus(body.status);
-  const indexable = body.indexable !== undefined ? Boolean(body.indexable) : true;
-  const seo = normalizePageSeo(body.seo);
-  const blocks = Array.isArray(body.blocks) ? (body.blocks as BlockInstance[]) : [];
-
-  if (hasDuplicateSlug(pagesData.pages, null, locale, defaultLocale, slug)) {
-    return localizedJsonError(request, 'errors.duplicateSlug');
-  }
-
-  const conflictError = validateLocalePrefixConflict(slug, locale, defaultLocale, languagesData);
-  if (conflictError)
-    return localizedJsonError(request, conflictError.errorKey, 400, conflictError.params);
-
-  const localeKeys = getLanguageLocaleKeys(languagesData);
-  const now = new Date().toISOString();
-
-  const page: Page = {
-    id: data.generateId(),
-    title: setLocalizedValue({}, locale, title),
-    slug: setLocalizedValue({}, locale, slug),
-    status: setLocalizedValue({}, locale, status),
-    indexable: setLocalizedValue({}, locale, indexable),
-    seo: localizeSeoPayload(undefined, locale, seo),
-    blocks: blocks.map((block) =>
-      mergeBlockPropsForLocale(
-        undefined,
-        block,
-        schemaResult.schemaMap || null,
-        locale,
-        localeKeys,
-      ),
-    ),
-    publishedAt: setLocalizedValue({}, locale, status === 'published' ? now : null),
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  pagesData.pages.push(page);
-  await data.savePages(pagesData);
-  await invalidatePageContentCache(context.cache, locale, defaultLocale, page);
-
-  return Response.json(
-    projectPageForLocale(page, locale, defaultLocale, schemaResult.schemaMap || null, localeKeys),
-  );
-}
-
-export async function handlePutPage(
-  id: string,
-  request: Request,
-  context: HandlerContext = {},
-): Promise<Response> {
-  const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
-  if (error || !body) return error as Response;
-
-  const blocksError = await ensureValidBlocks(body.blocks, request);
-  if (blocksError) return blocksError;
-
-  const [pagesData, languagesData, schemaResult] = await Promise.all([
-    data.loadPages(),
-    data.loadLanguages(),
-    loadSchemaMap(),
-  ]);
-
-  const index = pagesData.pages.findIndex((page) => page.id === id);
-  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
-
-  const defaultLocale = getDefaultLanguageCode(languagesData);
-  const locale = resolveLocaleFromBody(body, request, languagesData);
-
-  const existing = pagesData.pages[index];
-  const existingView = data.getPageLocaleView(existing, locale, defaultLocale);
-
-  const title =
-    typeof body.title === 'string' && body.title.trim()
-      ? body.title.trim()
-      : existingView.title || 'Untitled';
-  const slug = body.slug !== undefined ? normalizeSlugInput(body.slug) : existingView.slug;
-  const status = body.status !== undefined ? normalizeStatus(body.status) : existingView.status;
-  const indexable =
-    body.indexable !== undefined ? Boolean(body.indexable) : existingView.indexable !== false;
-  const seo = body.seo !== undefined ? normalizePageSeo(body.seo) : existingView.seo || {};
-
-  if (hasDuplicateSlug(pagesData.pages, id, locale, defaultLocale, slug)) {
-    return localizedJsonError(request, 'errors.duplicateSlug');
-  }
-
-  const conflictError = validateLocalePrefixConflict(slug, locale, defaultLocale, languagesData);
-  if (conflictError)
-    return localizedJsonError(request, conflictError.errorKey, 400, conflictError.params);
-
-  const localeKeys = getLanguageLocaleKeys(languagesData);
-  const now = new Date().toISOString();
-
-  const nextBlocks = Array.isArray(body.blocks)
-    ? (body.blocks as BlockInstance[]).map((block, blockIndex) =>
-        mergeBlockPropsForLocale(
-          existing.blocks?.[blockIndex],
-          block,
-          schemaResult.schemaMap || null,
-          locale,
-          localeKeys,
-        ),
-      )
-    : existing.blocks;
-
-  const nextPage: Page = {
-    ...existing,
-    title: setLocalizedValue(existing.title, locale, title),
-    slug: setLocalizedValue(existing.slug, locale, slug),
-    status: setLocalizedValue(existing.status, locale, status),
-    indexable: setLocalizedValue(existing.indexable, locale, indexable),
-    seo: localizeSeoPayload(existing.seo, locale, seo),
-    blocks: nextBlocks,
-    publishedAt: setLocalizedValue(
-      existing.publishedAt,
-      locale,
-      status === 'published'
-        ? getLocalizedValue(existing.publishedAt, locale, defaultLocale) || now
-        : getLocalizedValue(existing.publishedAt, locale, defaultLocale) || null,
-    ),
-    updatedAt: now,
-  };
-
-  pagesData.pages[index] = nextPage;
-  await data.savePages(pagesData);
-  await invalidatePageContentCache(context.cache, locale, defaultLocale, nextPage, existing);
-
-  return Response.json(
-    projectPageForLocale(
-      nextPage,
-      locale,
-      defaultLocale,
-      schemaResult.schemaMap || null,
-      localeKeys,
-    ),
-  );
-}
-
-export async function handleDeletePage(
-  id: string,
-  request: Request,
-  context: HandlerContext = {},
-): Promise<Response> {
-  const [pagesData, languagesData] = await Promise.all([data.loadPages(), data.loadLanguages()]);
-
-  const index = pagesData.pages.findIndex((page) => page.id === id);
-  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
-
-  const locale = normalizeLocaleFromRequest(request, languagesData);
-  const defaultLocale = getDefaultLanguageCode(languagesData);
-
-  const deletedPage = pagesData.pages[index];
-  pagesData.pages.splice(index, 1);
-  await data.savePages(pagesData);
-  await invalidatePageContentCache(context.cache, locale, defaultLocale, null, deletedPage);
-  return new Response(null, { status: 204 });
 }
 
 export async function handleGetMenus(request: Request): Promise<Response> {
@@ -1257,178 +924,6 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   const res = Response.json({ entry: updated });
   void generateAndPersistVariants(updated).catch(() => {});
   return res;
-}
-
-export async function handleGetGlobalBlocks(
-  registry: GlobalBlockRuntimeEntry[],
-  request: Request,
-): Promise<Response> {
-  const [globalBlocksData, languagesData, schemaResult] = await Promise.all([
-    data.loadGlobalBlocks(),
-    data.loadLanguages(),
-    loadSchemaMap(),
-  ]);
-
-  const defaultLocale = getDefaultLanguageCode(languagesData);
-  const locale = normalizeLocaleFromRequest(request, languagesData);
-  const localeKeys = getLanguageLocaleKeys(languagesData);
-  const schemaMap = schemaResult.schemaMap || null;
-
-  const result: Record<string, { props: Record<string, unknown>; updatedAt?: string }> = {};
-  for (const decl of registry) {
-    const entry = globalBlocksData.globalBlocks[decl.slug];
-    const rawProps = entry?.props ?? {};
-    const projected = projectBlockProps(
-      { type: decl.schemaName, props: rawProps } as BlockInstance,
-      schemaMap,
-      locale,
-      localeKeys,
-    );
-    result[decl.slug] = {
-      props: projected,
-      ...(entry?.updatedAt !== undefined ? { updatedAt: entry.updatedAt } : {}),
-    };
-  }
-
-  return Response.json({ globalBlocks: result, locale, defaultLocale });
-}
-
-export async function handleGetGlobalBlock(
-  slug: string,
-  registry: GlobalBlockRuntimeEntry[],
-  request: Request,
-): Promise<Response> {
-  const decl = registry.find((entry) => entry.slug === slug);
-  if (!decl) return jsonError(`Global block slug "${slug}" not found`, 404);
-
-  const [globalBlocksData, languagesData, schemaResult] = await Promise.all([
-    data.loadGlobalBlocks(),
-    data.loadLanguages(),
-    loadSchemaMap(),
-  ]);
-
-  const defaultLocale = getDefaultLanguageCode(languagesData);
-  const locale = normalizeLocaleFromRequest(request, languagesData);
-  const localeKeys = getLanguageLocaleKeys(languagesData);
-  const schemaMap = schemaResult.schemaMap || null;
-
-  const entry = globalBlocksData.globalBlocks[slug];
-  const rawProps = entry?.props ?? {};
-  const projected = projectBlockProps(
-    { type: decl.schemaName, props: rawProps } as BlockInstance,
-    schemaMap,
-    locale,
-    localeKeys,
-  );
-
-  return Response.json({
-    globalBlocks: {
-      [slug]: {
-        props: projected,
-        ...(entry?.updatedAt !== undefined ? { updatedAt: entry.updatedAt } : {}),
-      },
-    },
-    locale,
-    defaultLocale,
-  });
-}
-
-export async function handlePutGlobalBlock(
-  slug: string,
-  request: Request,
-  context: HandlerContext = {},
-  registry: GlobalBlockRuntimeEntry[],
-): Promise<Response> {
-  const decl = registry.find((entry) => entry.slug === slug);
-  if (!decl) return localizedJsonError(request, 'errors.globalBlockNotFound', 404, { slug });
-
-  const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
-  if (error || !body) return error as Response;
-
-  if (!Object.prototype.hasOwnProperty.call(body, 'props'))
-    return localizedJsonError(request, 'errors.propsRequired');
-  if (typeof body.props !== 'object' || body.props === null || Array.isArray(body.props)) {
-    return localizedJsonError(request, 'errors.propsMustBePlainObject');
-  }
-
-  const incomingProps = body.props as Record<string, unknown>;
-
-  const [globalBlocksData, languagesData, schemaResult] = await Promise.all([
-    data.loadGlobalBlocks(),
-    data.loadLanguages(),
-    loadSchemaMap(),
-  ]);
-  if (schemaResult.error) return localizedJsonError(request, 'errors.schemaLoadFailed', 500);
-
-  const locale = resolveLocaleFromBody(body, request, languagesData);
-  const localeKeys = getLanguageLocaleKeys(languagesData);
-  const schemaMap = schemaResult.schemaMap || null;
-  const schema = schemaMap?.[decl.schemaName];
-
-  // Validate incoming scalar props against the schema.
-  if (schema) {
-    const schemaItems = schema.items ?? {};
-    const propsForValidation: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(incomingProps)) {
-      const def = schemaItems[key];
-      // Guard against legacy clients still posting LocalizedValueMap shape directly.
-      if (
-        def &&
-        isSchemaPropLocalizable(def) &&
-        value !== null &&
-        typeof value === 'object' &&
-        !Array.isArray(value)
-      ) {
-        const localeValues = Object.values(value as Record<string, unknown>);
-        propsForValidation[key] = localeValues.length > 0 ? localeValues[0] : '';
-      } else {
-        propsForValidation[key] = value;
-      }
-    }
-    const issue = validateBlockPropsAgainstSchema(
-      schema.name || decl.schemaName,
-      0,
-      schemaItems,
-      propsForValidation,
-    );
-    if (issue) return localizedJsonError(request, issue.messageKey, 400, issue.params);
-  }
-
-  // Merge incoming (scalar-per-locale) props into existing props so other locales are preserved.
-  const existingEntry = globalBlocksData.globalBlocks[slug];
-  const merged = mergeBlockPropsForLocale(
-    existingEntry
-      ? ({ type: decl.schemaName, props: existingEntry.props ?? {} } as BlockInstance)
-      : undefined,
-    { type: decl.schemaName, props: incomingProps } as BlockInstance,
-    schemaMap,
-    locale,
-    localeKeys,
-  );
-
-  await data.saveGlobalBlock(slug, merged.props);
-  await invalidateGlobalContentCache(context.cache);
-
-  const updated = await data.loadGlobalBlocks();
-  const entry = updated.globalBlocks[slug];
-  const defaultLocale = getDefaultLanguageCode(languagesData);
-  const projected = projectBlockProps(
-    { type: decl.schemaName, props: entry?.props ?? {} } as BlockInstance,
-    schemaMap,
-    locale,
-    localeKeys,
-  );
-
-  return Response.json({
-    globalBlocks: {
-      [slug]: {
-        props: projected,
-        ...(entry?.updatedAt !== undefined ? { updatedAt: entry.updatedAt } : {}),
-      },
-    },
-    locale,
-    defaultLocale,
-  });
 }
 
 export async function handleInvalidateCache(
