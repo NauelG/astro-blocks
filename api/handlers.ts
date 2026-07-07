@@ -897,17 +897,37 @@ export async function handleLogin(request: Request): Promise<Response> {
   if (!email || !password) return localizedJsonError(request, 'errors.emailPasswordRequired');
 
   const usersData = await data.loadUsers();
-  const users = usersData.users || [];
+  let users = usersData.users || [];
 
   if (users.length === 0) {
-    const id = data.generateId();
-    const createdAt = new Date().toISOString();
-    const passwordHash = await hashPassword(password);
-    const newUser: User = { id, email, passwordHash, role: 'owner', createdAt };
-    users.push(newUser);
-    await data.saveUsers({ users });
-    const token = await createToken(newUser);
-    return Response.json({ token, user: { id, email, role: 'owner' } });
+    // First-user creation races against a concurrent bootstrap import
+    // (GitHub #25): serialize via withUsersLock and re-check INSIDE the
+    // lock (check-and-write atomic) so neither path silently overwrites
+    // the owner the other one just created/applied.
+    const result = await data.withUsersLock(async () => {
+      const fresh = await data.loadUsers();
+      if ((fresh.users?.length ?? 0) !== 0) {
+        return { kind: 'raced' as const, users: fresh.users || [] };
+      }
+      const id = data.generateId();
+      const createdAt = new Date().toISOString();
+      const passwordHash = await hashPassword(password);
+      const newUser: User = { id, email, passwordHash, role: 'owner', createdAt };
+      await data.saveUsers({ users: [newUser] });
+      return { kind: 'created' as const, user: newUser };
+    });
+
+    if (result.kind === 'created') {
+      const token = await createToken(result.user);
+      return Response.json({
+        token,
+        user: { id: result.user.id, email: result.user.email, role: 'owner' },
+      });
+    }
+
+    // Raced: a concurrent bootstrap import created the owner first. Fall
+    // through to the shared find/verify path using the fresh users list.
+    users = result.users;
   }
 
   const user = users.find((entry) => entry.email === email);
