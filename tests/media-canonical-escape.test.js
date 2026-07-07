@@ -40,7 +40,9 @@ test(`${relPath} — must not declare local escapeHtml/escapeAttr functions`, as
 test(`${relPath} — must import escapeHtml and escapeAttr from the canonical html-escape module`, async () => {
   const src = await readFile(join(root, relPath), 'utf-8');
 
-  const importLineMatch = src.match(/^import\s*\{[^}]*\}\s*from\s*['"]\.\.\/\.\.\/\.\.\/utils\/html-escape\.js['"];?$/m);
+  const importLineMatch = src.match(
+    /^import\s*\{[^}]*\}\s*from\s*['"]\.\.\/\.\.\/\.\.\/utils\/html-escape\.js['"];?$/m,
+  );
 
   assert.ok(
     importLineMatch,
