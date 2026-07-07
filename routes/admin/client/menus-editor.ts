@@ -8,7 +8,6 @@ import type { Menu, MenuItem, MenusData } from '../../../types/index.js';
 import {
   authHeaders,
   closeDialog,
-  escapeHtml,
   fetchJson,
   fetchOk,
   getActiveContentLocale,
@@ -18,7 +17,7 @@ import {
   showToast,
 } from './common.js';
 import { ct } from '../i18n/client.js';
-import { escapeAttr } from '../../../utils/html-escape.js';
+import { escapeAttr, escapeHtml } from '../../../utils/html-escape.js';
 
 const SELECTOR_REGEX = /^[a-zA-Z0-9_-]+$/;
 const dragHandleSvg =
