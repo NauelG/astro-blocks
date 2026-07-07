@@ -313,6 +313,18 @@ function withFileLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
   return next;
 }
 
+// Narrow, exported seam over withFileLock: serializes all mutating access to
+// users.json across call sites (handleLogin's first-user creation and the
+// bootstrap import pipeline's users existence-check-through-apply span).
+// The generic withFileLock stays private — callers must use this wrapper
+// (or a future users.json-specific wrapper) rather than acquiring an
+// arbitrary key. Non-reentrant: a path that already holds this lock MUST
+// NOT call withUsersLock again (see saveUsers, which stays unlocked so it
+// can be called from inside an already-held lock without deadlocking).
+export function withUsersLock<T>(fn: () => Promise<T>): Promise<T> {
+  return withFileLock(getDataPath('users.json'), fn);
+}
+
 export async function loadPages(): Promise<PagesData> {
   const data = await readJson(getDataPath('pages.json'), DEFAULT_PAGES);
   const pages = Array.isArray(data.pages)

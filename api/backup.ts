@@ -574,8 +574,16 @@ export interface ApplyImportResult {
 
 /**
  * Replace live data from staging using the existing atomic savers.
- * - Uses per-unit data savers (savePages/saveSite/etc.) which run under withFileLock.
- * - For the media unit: replaces public/uploads tree, then calls reconcileMedia.
+ * - Per-unit savers (savePages/saveSite/etc.) write atomically via writeJson
+ *   (temp file + rename); they are NOT individually mutex-guarded.
+ * - The users unit is the exception: bootstrap import callers hold
+ *   withUsersLock across the whole pipeline run (see
+ *   `_runImportPipelineCore`'s bootstrapMode branch), and handleLogin's
+ *   first-user path acquires the same lock — so users.json IS
+ *   lock-protected, via withUsersLock rather than withFileLock directly.
+ * - For the media unit: replaces public/uploads tree, then calls
+ *   reconcileMedia (media writes go through withFileLock(mediaLockKey())
+ *   inside data.ts — a separate mutex from withUsersLock).
  * - Calls handleInvalidateCache equivalent (invalidates global cache via context.cache).
  * - Returns { usersReplaced } based on whether users unit was in selectedUnits.
  *
@@ -728,17 +736,19 @@ export interface ImportPipelineOptions {
   selectedUnits?: ExportUnit[];
   context: { cache?: unknown };
   /**
-   * When true the pipeline re-checks users.length === 0 INSIDE the lock
-   * (after lock acquisition, before extraction) to close the TOCTOU window
-   * between the outer gate in handleBootstrapImport and the pipeline start.
+   * When true the pipeline re-checks users.length === 0 INSIDE the users
+   * lock (after lock acquisition, before extraction) to close the TOCTOU
+   * window between the outer gate in handleBootstrapImport and the
+   * pipeline start.
    *
-   * Residual narrow window: if handleLogin's saveUsers completes DURING
-   * extractToStaging (i.e. after this re-check but before applyImport),
-   * the pipeline will still apply the import on a no-longer-empty instance.
-   * Fully eliminating this residual would require wrapping handleLogin's
-   * saveUsers in the same _importLock, which is a larger cross-cutting
-   * refactor deferred to a future hardening pass. The in-lock re-check
-   * covers the concurrent-bootstrap-POST race fully.
+   * The held lock (withUsersLock) now spans the ENTIRE run — from this
+   * in-lock re-check through applyImport's users write — so a concurrent
+   * handleLogin first-user creation cannot interleave with any part of the
+   * bootstrap pipeline while it holds the lock. No residual window remains
+   * for the login-vs-bootstrap race (GitHub #25, closed via withUsersLock
+   * shared between this pipeline and handleLogin). Concurrent bootstrap
+   * imports racing each other still fall through to this same re-check
+   * (see the B1 tests).
    */
   bootstrapMode?: boolean;
 }
@@ -794,89 +804,110 @@ async function _runImportPipelineCore(
 ): Promise<ImportPipelineResult> {
   const { projectRoot, ceilings, context } = opts;
 
-  // B1 — in-lock bootstrap re-check (TOCTOU hardening).
-  // This runs AFTER the lock is acquired, closing the race window between
-  // the outer gate in handleBootstrapImport and this pipeline execution.
-  // Two concurrent bootstrap POSTs cannot both pass: the second one will
-  // observe users written by the first inside this serialized check.
-  if (opts.bootstrapMode) {
-    const currentUsers = await data.loadUsers();
-    if (currentUsers.users.length !== 0) {
-      return {
-        ok: false,
-        errorCode: 'bootstrap-users-exist',
-        reason: 'instance already has users (in-lock check)',
-      };
+  const run = async (): Promise<ImportPipelineResult> => {
+    // B1 — in-lock bootstrap re-check (TOCTOU hardening).
+    // This runs AFTER the users lock is acquired, closing the race window
+    // between the outer gate in handleBootstrapImport and this pipeline
+    // execution. Two concurrent bootstrap POSTs cannot both pass: the
+    // second one will observe users written by the first inside this
+    // serialized check. It also closes the race against a concurrent
+    // handleLogin first-user creation (GitHub #25), since both paths now
+    // share the same withUsersLock.
+    if (opts.bootstrapMode) {
+      const currentUsers = await data.loadUsers();
+      if (currentUsers.users.length !== 0) {
+        return {
+          ok: false,
+          errorCode: 'bootstrap-users-exist',
+          reason: 'instance already has users (in-lock check)',
+        };
+      }
     }
-  }
 
-  if (!body || body.length === 0) {
-    return { ok: false, errorCode: 'empty', reason: 'request body is empty' };
-  }
+    if (!body || body.length === 0) {
+      return { ok: false, errorCode: 'empty', reason: 'request body is empty' };
+    }
 
-  // Create a temp staging dir under os.tmpdir() (not inside the project to avoid
-  // polluting data/_backups before validation is complete)
-  const stagingDir = path.join(
-    (await import('node:os')).default.tmpdir(),
-    `astro-import-${crypto.randomBytes(6).toString('hex')}`,
-  );
+    // Create a temp staging dir under os.tmpdir() (not inside the project to avoid
+    // polluting data/_backups before validation is complete)
+    const stagingDir = path.join(
+      (await import('node:os')).default.tmpdir(),
+      `astro-import-${crypto.randomBytes(6).toString('hex')}`,
+    );
 
-  try {
-    // Step 1: Extract with guards
     try {
-      await extractToStaging(body, stagingDir, ceilings, projectRoot);
-    } catch (err) {
-      if (err instanceof CeilingExceededError) {
-        return { ok: false, errorCode: 'ceiling', reason: (err as Error).message };
-      }
-      return { ok: false, errorCode: 'corrupt', reason: (err as Error).message };
-    }
-
-    // Determine which units to import: all units declared in the manifest
-    let selectedUnits: ExportUnit[];
-    if (opts.selectedUnits) {
-      selectedUnits = opts.selectedUnits;
-    } else {
-      // Read manifest to discover available units
+      // Step 1: Extract with guards
       try {
-        const manifestRaw = await fs.readFile(path.join(stagingDir, 'manifest.json'), 'utf-8');
-        const manifest = JSON.parse(manifestRaw) as BackupManifest;
-        selectedUnits = manifest.units as ExportUnit[];
-      } catch {
-        return { ok: false, errorCode: 'corrupt', reason: 'could not read manifest from staging' };
+        await extractToStaging(body, stagingDir, ceilings, projectRoot);
+      } catch (err) {
+        if (err instanceof CeilingExceededError) {
+          return { ok: false, errorCode: 'ceiling', reason: (err as Error).message };
+        }
+        return { ok: false, errorCode: 'corrupt', reason: (err as Error).message };
       }
-    }
 
-    // Step 2: Validate (manifest + checksums + structural)
-    const validationResult = await validateStagedImport(stagingDir, selectedUnits, projectRoot);
-    if (!validationResult.ok) {
-      return { ok: false, errorCode: 'validation', reason: validationResult.reason };
-    }
+      // Determine which units to import: all units declared in the manifest
+      let selectedUnits: ExportUnit[];
+      if (opts.selectedUnits) {
+        selectedUnits = opts.selectedUnits;
+      } else {
+        // Read manifest to discover available units
+        try {
+          const manifestRaw = await fs.readFile(path.join(stagingDir, 'manifest.json'), 'utf-8');
+          const manifest = JSON.parse(manifestRaw) as BackupManifest;
+          selectedUnits = manifest.units as ExportUnit[];
+        } catch {
+          return {
+            ok: false,
+            errorCode: 'corrupt',
+            reason: 'could not read manifest from staging',
+          };
+        }
+      }
 
-    // Step 3: Backup snapshot BEFORE any live writes (FIX 5b: used for rollback on apply failure)
-    const snapshotDir = await createBackupSnapshot(projectRoot, selectedUnits);
+      // Step 2: Validate (manifest + checksums + structural)
+      const validationResult = await validateStagedImport(stagingDir, selectedUnits, projectRoot);
+      if (!validationResult.ok) {
+        return { ok: false, errorCode: 'validation', reason: validationResult.reason };
+      }
 
-    // Step 4: Atomic replace per unit — with rollback on failure
-    try {
-      const applyResult = await applyImport(stagingDir, projectRoot, selectedUnits, context);
-      return { ok: true, usersReplaced: applyResult.usersReplaced };
-    } catch (applyErr) {
-      // Attempt rollback from the snapshot just created
+      // Step 3: Backup snapshot BEFORE any live writes (FIX 5b: used for rollback on apply failure)
+      const snapshotDir = await createBackupSnapshot(projectRoot, selectedUnits);
+
+      // Step 4: Atomic replace per unit — with rollback on failure
       try {
-        await _rollbackFromSnapshot(snapshotDir, projectRoot, selectedUnits);
-      } catch {
-        // Rollback failure is non-fatal here — return the original apply error
+        const applyResult = await applyImport(stagingDir, projectRoot, selectedUnits, context);
+        return { ok: true, usersReplaced: applyResult.usersReplaced };
+      } catch (applyErr) {
+        // Attempt rollback from the snapshot just created
+        try {
+          await _rollbackFromSnapshot(snapshotDir, projectRoot, selectedUnits);
+        } catch {
+          // Rollback failure is non-fatal here — return the original apply error
+        }
+        return {
+          ok: false,
+          errorCode: 'apply-failed',
+          reason: `apply failed: ${(applyErr as Error).message}`,
+        };
       }
-      return {
-        ok: false,
-        errorCode: 'apply-failed',
-        reason: `apply failed: ${(applyErr as Error).message}`,
-      };
+    } finally {
+      // Always cleanup staging dir (success AND failure paths)
+      await fs.rm(stagingDir, { recursive: true, force: true });
     }
-  } finally {
-    // Always cleanup staging dir (success AND failure paths)
-    await fs.rm(stagingDir, { recursive: true, force: true });
-  }
+  };
+
+  // SAME-MICROTASK INVARIANT (GitHub #25 — do not break on refactor): this
+  // call MUST happen with ZERO awaits between _runImportPipelineCore's
+  // entry and here, so withUsersLock's key (getDataPath('users.json'),
+  // read from the ambient ASTRO_BLOCKS_PROJECT_ROOT) is captured against
+  // the SAME ambient root that opts.projectRoot was resolved from,
+  // synchronously, at handleBootstrapImport's call site. Verified in the
+  // apply phase's T0 risk check — see design doc D1/D3.
+  //
+  // Non-bootstrap imports (bootstrapMode falsy) never acquire the users
+  // lock, so authenticated imports keep their existing latency profile.
+  return opts.bootstrapMode ? data.withUsersLock(run) : run();
 }
 
 /**
