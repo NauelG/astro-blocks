@@ -54,7 +54,7 @@ async function dispatch(method: HttpMethod, context: APIContext): Promise<Respon
   const auth = await handlers.getAuth(request);
 
   if (!match) {
-    if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    if (!auth) return localizedJsonError(request, 'errors.unauthorized', 401);
     return localizedJsonError(request, 'errors.notFound', 404);
   }
 
@@ -64,7 +64,7 @@ async function dispatch(method: HttpMethod, context: APIContext): Promise<Respon
     return descriptor.handler({ request, cache, params, user: auth?.user ?? null });
   }
 
-  if (!auth) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  if (!auth) return localizedJsonError(request, 'errors.unauthorized', 401);
 
   if (descriptor.auth === 'owner') {
     const forbidden = handlers.requireOwner(auth.user, request);
