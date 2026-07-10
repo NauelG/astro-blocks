@@ -63,3 +63,14 @@ PLAN.md
 # Playwright
 test-results/
 playwright-report/
+
+# Agent skills — only the project-curated set is tracked (real content under
+# .agents/skills/, mirrored as symlinks in .claude/skills/). Locally-installed
+# personal/global skill packs are ignored so they don't leak into the repo.
+# Already-tracked skills stay tracked regardless; to add a NEW project skill, force it:
+#   git add -f .agents/skills/<name> .claude/skills/<name>
+.agents/skills/
+.claude/skills/
+
+# Agent persistent memory store (local, not project source).
+.engram/
