@@ -42,7 +42,13 @@ export default defineConfig({
         'image/gif',
         'application/pdf',
         'video/mp4',
+        'application/zip',
       ],
+      // The escape hatch. A registered type is ALWAYS served as application/octet-stream with
+      // Content-Disposition: attachment — the consumer cannot ask for inline, which is what makes
+      // registration incapable of reintroducing stored XSS. That property only exists for real once
+      // the config survives the vite.define bridge, so the playground carries it and e2e asserts it.
+      customFileTypes: [{ mime: 'application/zip', ext: '.zip', category: 'document' }],
       globalBlocks: [
         { slug: 'header-cta', schema: globalHeaderSchema, label: 'Header CTA' },
         { slug: 'footer-extra', schema: globalFooterSchema, label: 'Footer content' },

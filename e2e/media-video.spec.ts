@@ -96,3 +96,49 @@ test.describe('Video uploads', () => {
     expect((await seek.body()).length).toBe(100);
   });
 });
+
+test.describe('The customFileTypes escape hatch', () => {
+  test('a registered type uploads, and is ALWAYS served as a download', async ({ page }) => {
+    // S15. The load-bearing security property of the escape hatch: a format AstroBlocks has
+    // never audited must not be renderable in the CMS's own origin. The consumer supplies the
+    // MIME, the extension and the category — and cannot ask for `inline`.
+    //
+    // This is only testable end-to-end: the registered types reach the runtime through a
+    // vite.define bridge, and node --test running against dist/ cannot influence it. That is
+    // precisely how the allowlist bridge stayed silently broken for its entire life, so the
+    // NEW bridge gets exercised for real rather than trusted.
+    await login(page);
+    await page.goto('/cms/media');
+    await page.locator('#cms-media-dropzone').waitFor({ state: 'visible', timeout: 15_000 });
+
+    const uploadResponse = page.waitForResponse(
+      (r) => r.url().includes('/cms/api/upload') && r.request().method() === 'POST',
+    );
+
+    await page.locator('#cms-media-file-input').setInputFiles({
+      name: 'e2e-bundle.zip',
+      mimeType: 'application/zip',
+      buffer: Buffer.from('504b0506000000000000000000000000000000000000', 'hex'), // empty zip EOCD
+    });
+
+    const res = await uploadResponse;
+    expect(res.status(), 'application/zip is registered and allowed — it must upload').toBe(200);
+
+    const body = (await res.json()) as { url: string; entry: { fileCategory?: string } };
+    expect(body.url, 'the extension comes from the registration, not the filename').toMatch(
+      /\.zip$/,
+    );
+    expect(body.entry.fileCategory).toBe('document');
+
+    const served = await page.request.get(body.url);
+    expect(served.status()).toBe(200);
+    expect(
+      served.headers()['content-type'],
+      'a registered type is served as octet-stream, never as its own MIME',
+    ).toBe('application/octet-stream');
+    expect(
+      served.headers()['content-disposition'],
+      'a registered type must download, never render in our origin — this is what keeps the escape hatch from being a stored-XSS vector',
+    ).toMatch(/attachment/);
+  });
+});
