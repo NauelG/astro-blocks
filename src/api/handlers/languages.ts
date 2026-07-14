@@ -172,9 +172,7 @@ export async function handleDeleteLanguage(
   }).length;
 
   pagesData.pages = pagesData.pages
-    .map((page) =>
-      removeLocaleFromPage(page, normalizedCode, schemaResult.schemaMap, localeKeys),
-    )
+    .map((page) => removeLocaleFromPage(page, normalizedCode, schemaResult.schemaMap, localeKeys))
     .filter(Boolean) as Page[];
 
   menusData.menus = menusData.menus

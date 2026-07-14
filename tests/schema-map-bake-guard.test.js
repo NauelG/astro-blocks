@@ -83,4 +83,3 @@ for (const name of BAKED_REGISTRIES) {
  * block schemas with no `.astro-blocks/` beside it, which is possible only if the baked value
  * is the primary path. See ADR-0025 and #81.
  */
-
