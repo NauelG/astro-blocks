@@ -103,11 +103,12 @@ Todos los commits siguen [Conventional Commits](https://www.conventionalcommits.
 
 ### Versionado y release
 
-- **Prerelease interna** mientras AstroBlocks no esté estabilizado ni en npm. Formato: **`0.x.y-alpha.N`**
-  (`patch` para fixes/refinos/docs; `minor` para nuevas capacidades o cambios amplios de UX/flujo).
+- **SemVer estable** (`X.Y.Z`, publicado en npm): `patch` para fixes/refinos/docs; `minor` para nuevas
+  capacidades o cambios amplios de UX/flujo; `major` para breaking changes. AstroBlocks ya salió de la
+  fase `0.x.y-alpha.N`.
 - **Cuándo:** **no** hagas bump ni toques `CHANGELOG` durante el desarrollo. Solo cuando el humano pida
   **cerrar/commit**: (1) incrementa `version` en `package.json`, (2) añade entrada en `CHANGELOG.md`,
-  (3) commit, (4) tag `vX.Y.Z-alpha.N` (justo después del commit de release).
+  (3) commit, (4) tag `vX.Y.Z` (justo después del commit de release).
 - **Checklist de cierre:** alcance terminado · actualizar `src/meta/features.json` · `npm run features:validate` ·
   `npm run typecheck` · `npm test` · si toca UI/README visual, `npm run screenshots:readme` · sin cambios
   incidentales en playgrounds/datos · actualizar el **badge de versión** del `README.md`.

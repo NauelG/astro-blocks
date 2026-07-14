@@ -18,6 +18,12 @@ Licensed under the Business Source License 1.1
 > guard test (`tests/html-escape-attr-guard.test.js:44-51`) only covers `client/*.ts`, and `biome.json`
 > excludes `**/*.astro`. Note also that `src/utils/html-escape.ts:9` claims to be canonical "for the
 > whole codebase" — a claim the code does not currently earn. Tracked in **#99**.
+>
+> **Resolved (2026-07-14, #99).** The two admin pages were migrated to `client/languages-editor.ts` /
+> `client/users-editor.ts` and three further sinks in `layout.astro` were escaped. Enforcement moved to
+> a repo-wide source guard (`tests/html-escape-guard.test.js`) that walks every admin `.ts` and `.astro`,
+> so the "whole codebase" claim is now mechanically earned. The *how it is enforced* decision is
+> **ADR-0022**; this ADR still owns *which escaper exists*.
 
 ## Context
 

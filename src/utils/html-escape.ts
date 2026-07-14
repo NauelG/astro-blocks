@@ -11,6 +11,11 @@ Licensed under the Business Source License 1.1
  * controllers, server handlers (api/handlers.ts) and Astro frontmatter
  * (same cross-boundary contract as utils/image-value.ts).
  *
+ * This "whole codebase" claim is enforced, not aspirational: every admin *.ts
+ * and *.astro is checked by tests/html-escape-guard.test.js, which fails CI if a
+ * dynamic HTML sink (innerHTML/outerHTML/insertAdjacentHTML) is built without this
+ * pair. See ADR-0011 (which escaper) and ADR-0022 (how it is enforced).
+ *
  *   - escapeHtml(text)  — value destined for element TEXT CONTENT
  *   - escapeAttr(value) — value destined for an HTML ATTRIBUTE VALUE
  *
