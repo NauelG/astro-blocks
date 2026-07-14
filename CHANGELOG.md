@@ -9,6 +9,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.5.4] - 2026-07-14
+
+### Title
+
+Enforce the canonical HTML escaper across every admin page
+
+### Security
+
+- **Fixed a stored cross-site-scripting vulnerability in the Languages and Users admin pages, and
+  three more sinks in the admin layout.** Both pages built table rows by concatenating API data —
+  language codes and labels, user emails and ids — straight into `innerHTML` with no escaping, in
+  both text and attribute positions. The audit found three further unescaped sinks in the shared
+  layout: the pre-login site name, the toast title, and — widest of all — the content-language
+  selector, which renders language data on *every* admin page. A malicious value (plantable by an
+  owner, or restored from an import archive) executed the next time an owner opened the panel. Every
+  sink now passes API data through the canonical `escapeHtml` / `escapeAttr` pair before it reaches
+  the DOM.
+
+### Changed
+
+- **Admin HTML-escaping is now enforced across the whole admin, not just `client/*.ts`.** The two
+  offending pages kept their logic in inline `define:vars` scripts, which Astro forces `is:inline` —
+  cutting them off from the canonical escaper and from Biome's linting. They were migrated to
+  `client/languages-editor.ts` and `client/users-editor.ts` (the documented two-script i18n bridge),
+  and a new repo-wide source guard (`tests/html-escape-guard.test.js`) walks every admin `.ts` and
+  `.astro` file, failing CI if any dynamic HTML sink is built without the canonical escaper. The
+  decision and its rationale are recorded in ADR-0022.
+
 ## [3.5.3] - 2026-07-07
 
 ### Title
