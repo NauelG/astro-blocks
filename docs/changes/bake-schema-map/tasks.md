@@ -112,11 +112,11 @@ is what proves no call site can read the map without facing the failure.
 
 ## Slice 4 — The last swallowing catch
 
-- [ ] **4.1** `src/api/route-table.ts:66-69` — `catch { return [] }` silently defaults to an empty
+- [x] **4.1** `src/api/route-table.ts:66-69` — `catch { return [] }` silently defaults to an empty
   registry, which reads downstream as *"this project declares no global blocks"*. That is the original
   ADR-0009 symptom, still alive in the fallback. Log with the artifact name and the remedy; do not
   fabricate an empty registry.
-- [ ] **4.2** A unit test for it: bake absent, disk artifact absent → the failure is visible, not an
+- [x] **4.2** A unit test for it: bake absent, disk artifact absent → the failure is visible, not an
   empty array.
 
 **Verify:** `npm test` green.
@@ -125,7 +125,7 @@ is what proves no call site can read the map without facing the failure.
 
 ## Slice 5 — Guard the bake against silent removal
 
-- [ ] **5.1** `tests/schema-map-bake-guard.test.js` (new) — in the idiom of
+- [x] **5.1** `tests/schema-map-bake-guard.test.js` (new) — in the idiom of
   `tests/admin-define-vars-bridge.test.js` (a source-grep structural guard): assert `src/plugin/index.ts`
   bakes `import.meta.env.ASTRO_BLOCKS_SCHEMA_MAP` **with the double-encode**.
 
