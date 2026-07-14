@@ -120,19 +120,24 @@ export async function GET({ request }: { request: Request }): Promise<Response> 
     });
   }
 
+  // An empty file has no body to stream. Any Range against it is already unsatisfiable (416,
+  // above), so this is necessarily the no-Range case. Returning early also means we never
+  // construct a read stream we would not use.
+  if (size === 0) {
+    return new Response(null, { status: 200, headers: { ...headers, 'Content-Length': '0' } });
+  }
+
   // The body is STREAMED from disk, not read into memory. This route is public and
   // unauthenticated: a 100 MB video read with fs.readFile() would cost 100 MB of resident
   // memory per concurrent viewer. Images and PDFs get the same fix — they were simply too
   // small for anyone to notice.
-  const { start, end } =
-    range === null ? { start: 0, end: Math.max(0, size - 1) } : (range as ByteRange);
-
+  const { start, end } = range ?? { start: 0, end: size - 1 };
   const stream = Readable.toWeb(
     createReadStream(filePath, { start, end }),
   ) as ReadableStream<Uint8Array>;
 
   if (range === null) {
-    return new Response(size === 0 ? null : stream, {
+    return new Response(stream, {
       status: 200,
       headers: { ...headers, 'Content-Length': String(size) },
     });

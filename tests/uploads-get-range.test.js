@@ -21,7 +21,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { GET } from '../dist/routes/uploads-get.js';
+import { GET, parseRange } from '../dist/routes/uploads-get.js';
 
 /** 1 KB of recognisable bytes: byte i has value i % 256, so a range's content is checkable. */
 const BODY = new Uint8Array(1024).map((_, i) => i % 256);
@@ -149,4 +149,72 @@ test('a missing file is still a 404, Range or not', async () => {
     const res = await get('/uploads/2026/07/nope.mp4', 'bytes=0-1');
     assert.equal(res.status, 404);
   });
+});
+
+// ─── parseRange, directly ────────────────────────────────────────────────────
+//
+// Range parsing is a small, sharp piece of HTTP that is easy to get subtly wrong: the `end` is
+// INCLUSIVE, suffix ranges count backwards, and a 206 that lies about which bytes it carries is
+// worse than a 200 that carries all of them — the client splices it into the wrong offset and
+// the media is silently corrupt. Exercised here directly, where the edges are reachable.
+
+test('parseRange: no header means no range, not an error', () => {
+  assert.equal(parseRange(null, 1024), null);
+  assert.equal(parseRange('', 1024), null);
+});
+
+test('parseRange: the end is INCLUSIVE', () => {
+  assert.deepEqual(parseRange('bytes=0-0', 1024), { start: 0, end: 0 }); // one byte
+  assert.deepEqual(parseRange('bytes=0-1023', 1024), { start: 0, end: 1023 }); // the whole file
+});
+
+test('parseRange: the last byte is addressable, and one past it is not', () => {
+  assert.deepEqual(parseRange('bytes=1023-1023', 1024), { start: 1023, end: 1023 });
+  assert.equal(parseRange('bytes=1024-1024', 1024), 'unsatisfiable');
+});
+
+test('parseRange: an end past the last byte is clamped, not refused', () => {
+  // RFC 9110: a client may ask for more than exists; it gets what exists.
+  assert.deepEqual(parseRange('bytes=1000-99999', 1024), { start: 1000, end: 1023 });
+});
+
+test('parseRange: an open-ended range runs to the last byte', () => {
+  assert.deepEqual(parseRange('bytes=0-', 1024), { start: 0, end: 1023 });
+  assert.deepEqual(parseRange('bytes=1023-', 1024), { start: 1023, end: 1023 });
+});
+
+test('parseRange: a suffix range counts backwards from the end', () => {
+  assert.deepEqual(parseRange('bytes=-1', 1024), { start: 1023, end: 1023 });
+  assert.deepEqual(parseRange('bytes=-1024', 1024), { start: 0, end: 1023 });
+});
+
+test('parseRange: a suffix larger than the file yields the whole file, not a negative start', () => {
+  assert.deepEqual(parseRange('bytes=-99999', 1024), { start: 0, end: 1023 });
+});
+
+test('parseRange: a zero-length suffix is meaningless — fall back, do not emit an empty 206', () => {
+  assert.equal(parseRange('bytes=-0', 1024), null);
+});
+
+test('parseRange: an empty file makes every range unsatisfiable', () => {
+  assert.equal(parseRange('bytes=0-0', 0), 'unsatisfiable');
+  assert.equal(parseRange('bytes=-1', 0), 'unsatisfiable');
+});
+
+test('parseRange: an inverted range is unsatisfiable, never a negative-length 206', () => {
+  assert.equal(parseRange('bytes=500-100', 1024), 'unsatisfiable');
+});
+
+test('parseRange: anything it does not understand returns null, so the route serves a full 200', () => {
+  for (const bad of [
+    'bytes=0-99,200-299', // multi-range: legal to ignore (RFC 9110), no media element sends it
+    'items=0-1',
+    'bytes=abc-def',
+    'bytes=',
+    'bytes=-',
+    'byte=0-1',
+    '0-1',
+  ]) {
+    assert.equal(parseRange(bad, 1024), null, `"${bad}" must fall back, not guess`);
+  }
 });

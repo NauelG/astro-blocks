@@ -132,11 +132,6 @@ function getCategoryPolicy(): Partial<Record<FileCategory, number>> {
   return parsed;
 }
 
-/** Test hook: clears the memoised per-category policy. */
-export function resetMaxUploadBytesCache(): void {
-  _maxUploadBytesCache = null;
-}
-
 /**
  * ASTRO_BLOCKS_MAX_UPLOAD_BYTES — the RUNTIME global limit. Read from process.env on every
  * call, so it takes effect without a rebuild (`maxUploadBytes` is baked in by vite.define).

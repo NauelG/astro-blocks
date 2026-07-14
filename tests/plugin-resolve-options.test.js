@@ -87,7 +87,6 @@ test('C5: DEFAULT_ALLOWED_FILE_TYPES is importable from package root', async () 
   );
 });
 
-
 // ─── Modelling what vite.define actually does ────────────────────────────────
 //
 // vite.define splices its value into the bundle as raw SOURCE. So a define value of
@@ -128,7 +127,11 @@ test('C3 R1.1-A: resolveOptions defaults allowedFileTypes to DEFAULT_ALLOWED_FIL
     const raw = vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'];
     assert.ok(raw !== undefined, 'vite.define must have ASTRO_BLOCKS_ALLOWED_FILE_TYPES');
     const runtimeValue = runtimeValueOf(raw);
-    assert.equal(typeof runtimeValue, 'string', 'the bridge must arrive at the runtime as a string');
+    assert.equal(
+      typeof runtimeValue,
+      'string',
+      'the bridge must arrive at the runtime as a string',
+    );
     assert.deepEqual(
       [...JSON.parse(runtimeValue)].sort(),
       [...DEFAULT_ALLOWED_FILE_TYPES].sort(),
@@ -325,7 +328,6 @@ test('C4: non-file props are ignored by validateFileProps', async () => {
     console.warn = origWarn;
   }
 });
-
 
 // ─── The bridge class ────────────────────────────────────────────────────────
 

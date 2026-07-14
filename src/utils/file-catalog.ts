@@ -273,16 +273,6 @@ export function resolveCatalog(): FileTypeRow[] {
   return _catalogCache;
 }
 
-/** Test hook: clears the memoised catalog. Mirrors resetAllowedFileTypesCache(). */
-export function resetFileCatalogCache(): void {
-  _catalogCache = null;
-}
-
-/** Test hook: seed the effective catalog directly. Pass null to restore normal resolution. */
-export function __setCatalogForTest(rows: FileTypeRow[] | null): void {
-  _catalogCache = rows;
-}
-
 /** The row for a MIME type, or null if the system cannot handle it. */
 export function lookupByMime(
   mime: string,
