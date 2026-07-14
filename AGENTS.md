@@ -136,6 +136,25 @@ build, playground, `npm pack` o mantenimiento van a `docs/DEVELOPING.md` / `docs
 
 ---
 
+## Agent skills
+
+### Issue tracker
+
+Los issues viven en GitHub Issues (`NauelG/astro-blocks`, vía CLI `gh`); los PRs externos
+**no** son superficie de triage. Ver `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Vocabulario canónico sin mapeo: `needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, `wontfix`. Ver `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context; el `CONTEXT.md` vive en `docs/CONTEXT.md` (no en la raíz) y los ADRs en
+`docs/adr/`. Ver `docs/agents/domain.md`.
+
+---
+
 ## Punteros
 
-`docs/CONTEXT.md` · `docs/DESIGN.md` · `docs/DECISIONS.md` · `docs/adr/` · `docs/DEVELOPING.md` · `docs/LOCAL_PACKAGE_TESTING.md` · `README.md`
+`docs/CONTEXT.md` · `docs/DESIGN.md` · `docs/DECISIONS.md` · `docs/adr/` · `docs/agents/` · `docs/DEVELOPING.md` · `docs/LOCAL_PACKAGE_TESTING.md` · `README.md`
