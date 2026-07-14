@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 # 0021 — `src/` is the publish root: `dist/` mirrors `src/`
 
-- **Status:** Proposed
+- **Status:** Accepted — implemented in PR #97
 - **Date:** 2026-07-14
 - **Decisores:** Nauel Gómez
 
