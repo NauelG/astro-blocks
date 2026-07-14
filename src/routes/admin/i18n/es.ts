@@ -674,7 +674,6 @@ export const es = {
   'errors.globalBlockNotFound': 'Bloque global "{slug}" no encontrado.',
   'errors.propsRequired': 'Se requiere props.',
   'errors.propsMustBePlainObject': 'props debe ser un objeto plano.',
-  'errors.schemaLoadFailed': 'Error al cargar el esquema de bloques.',
   'errors.blockTypeMissing': 'Bloque en el índice {n}: tipo faltante o inválido.',
   'errors.blockTypeUnknown': 'Bloque en el índice {n}: tipo desconocido "{type}".',
   'pageEditor.defaultTitle': 'Sin título',

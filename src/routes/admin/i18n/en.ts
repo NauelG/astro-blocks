@@ -662,7 +662,6 @@ export const en = {
   'errors.globalBlockNotFound': 'Global block "{slug}" not found.',
   'errors.propsRequired': 'props is required.',
   'errors.propsMustBePlainObject': 'props must be a plain object.',
-  'errors.schemaLoadFailed': 'Failed to load block schema.',
   'errors.blockTypeMissing': 'Block at index {n}: missing or invalid type.',
   'errors.blockTypeUnknown': 'Block at index {n}: unknown type "{type}".',
   'pageEditor.defaultTitle': 'Untitled',

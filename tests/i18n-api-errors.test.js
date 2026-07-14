@@ -39,12 +39,25 @@ import {
   requireOwner,
 } from '../dist/api/handlers.js';
 
+/**
+ * These tests are about localized error payloads, not schema resolution — so the temp project
+ * must be a WORKING one. Since ADR-0025 that means its block schema map resolves: under
+ * `node --test` there is no `import.meta.env` bake, so it resolves from disk and the file must
+ * exist. Without it the handlers 500 on the schema map before reaching the error under test.
+ */
+async function seedSchemaMap(tempRoot) {
+  const dir = path.join(tempRoot, '.astro-blocks');
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(path.join(dir, 'schema-map.mjs'), 'export const schemaMap = {};\n', 'utf-8');
+}
+
 async function withTempProject(fn) {
   const previousRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-blocks-i18n-api-'));
 
   process.env.ASTRO_BLOCKS_PROJECT_ROOT = tempRoot;
   await ensureDefaultFiles();
+  await seedSchemaMap(tempRoot);
 
   try {
     await fn(tempRoot);

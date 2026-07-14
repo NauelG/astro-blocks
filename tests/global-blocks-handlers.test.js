@@ -76,8 +76,36 @@ async function seedSchemaMap(tempRoot, schemaMap) {
   await fs.writeFile(path.join(dir, 'schema-map.mjs'), lines.join('\n'), 'utf-8');
 }
 
-test('handleGetGlobalBlocks returns all registered slugs with empty props on fresh project', async () => {
+// A schema map every registered slug resolves against. Seeded by the GET tests below:
+// without it the schema map is unresolvable, which is a hard failure (ADR-0025), not a
+// projection with `schemaMap: null`.
+const SEEDED = {
+  Header: { name: 'Header', items: { title: { type: 'string', label: 'Title' } } },
+  Footer: { name: 'Footer', items: { title: { type: 'string', label: 'Title' } } },
+};
+
+// --- an unresolvable schema map is a hard failure on reads too (ADR-0025) ---
+
+test('handleGetGlobalBlocks returns 500 when the schema map cannot be resolved', async () => {
   await withTempProject(async () => {
+    // No schema-map.mjs seeded. Without a schema the projector cannot tell an image prop
+    // from a string, so it would serve silently mis-shaped props. It must refuse instead.
+    const response = await handleGetGlobalBlocks(REGISTRY, getReq());
+    assert.equal(response.status, 500);
+  });
+});
+
+test('handleGetGlobalBlock returns 500 when the schema map cannot be resolved', async () => {
+  await withTempProject(async () => {
+    const response = await handleGetGlobalBlock('header', REGISTRY, getReq('header'));
+    assert.equal(response.status, 500);
+  });
+});
+
+test('handleGetGlobalBlocks returns all registered slugs with empty props on fresh project', async () => {
+  await withTempProject(async (tempRoot) => {
+    await seedSchemaMap(tempRoot, SEEDED);
+
     const response = await handleGetGlobalBlocks(REGISTRY, getReq());
     assert.equal(response.status, 200);
     const body = await response.json();
@@ -89,7 +117,8 @@ test('handleGetGlobalBlocks returns all registered slugs with empty props on fre
 });
 
 test('handleGetGlobalBlocks silently ignores orphan slugs in data file', async () => {
-  await withTempProject(async () => {
+  await withTempProject(async (tempRoot) => {
+    await seedSchemaMap(tempRoot, SEEDED);
     await saveGlobalBlock('orphan', { old: 'data' });
 
     const response = await handleGetGlobalBlocks(REGISTRY, getReq());
@@ -106,7 +135,9 @@ test('handleGetGlobalBlocks silently ignores orphan slugs in data file', async (
 });
 
 test('handleGetGlobalBlock returns 200 with props for registered slug', async () => {
-  await withTempProject(async () => {
+  await withTempProject(async (tempRoot) => {
+    await seedSchemaMap(tempRoot, SEEDED);
+
     // Stored as non-locale-map shape; single-language project means keys do not match
     // localeKeys, so projection returns the raw value unchanged.
     const props = { title: { en: 'Welcome' } };

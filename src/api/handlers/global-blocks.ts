@@ -11,7 +11,7 @@ import type { BlockInstance, GlobalBlockRuntimeEntry } from '../../types/index.j
 import * as data from '../data.js';
 import { invalidateGlobalContentCache } from './cache-invalidation.js';
 import { normalizeLocaleFromRequest, resolveLocaleFromBody } from './locale-resolution.js';
-import { loadSchemaMap } from './schema-loading.js';
+import { loadSchemaMap, schemaMapFailureResponse } from './schema-loading.js';
 import { jsonError, localizedJsonError, parseJsonBody } from './shared.js';
 import type { HandlerContext } from './shared.js';
 
@@ -25,10 +25,12 @@ export async function handleGetGlobalBlocks(
     loadSchemaMap(),
   ]);
 
+  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
+
   const defaultLocale = getDefaultLanguageCode(languagesData);
   const locale = normalizeLocaleFromRequest(request, languagesData);
   const localeKeys = getLanguageLocaleKeys(languagesData);
-  const schemaMap = schemaResult.schemaMap || null;
+  const schemaMap = schemaResult.schemaMap;
 
   const result: Record<string, { props: Record<string, unknown>; updatedAt?: string }> = {};
   for (const decl of registry) {
@@ -63,10 +65,12 @@ export async function handleGetGlobalBlock(
     loadSchemaMap(),
   ]);
 
+  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
+
   const defaultLocale = getDefaultLanguageCode(languagesData);
   const locale = normalizeLocaleFromRequest(request, languagesData);
   const localeKeys = getLanguageLocaleKeys(languagesData);
-  const schemaMap = schemaResult.schemaMap || null;
+  const schemaMap = schemaResult.schemaMap;
 
   const entry = globalBlocksData.globalBlocks[slug];
   const rawProps = entry?.props ?? {};
@@ -113,12 +117,12 @@ export async function handlePutGlobalBlock(
     data.loadLanguages(),
     loadSchemaMap(),
   ]);
-  if (schemaResult.error) return localizedJsonError(request, 'errors.schemaLoadFailed', 500);
+  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
 
   const locale = resolveLocaleFromBody(body, request, languagesData);
   const localeKeys = getLanguageLocaleKeys(languagesData);
-  const schemaMap = schemaResult.schemaMap || null;
-  const schema = schemaMap?.[decl.schemaName];
+  const schemaMap = schemaResult.schemaMap;
+  const schema = schemaMap[decl.schemaName];
 
   // Validate incoming scalar props against the schema.
   if (schema) {

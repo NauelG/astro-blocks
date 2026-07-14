@@ -24,8 +24,8 @@ import type {
 import * as data from '../data.js';
 import { invalidatePageContentCache } from './cache-invalidation.js';
 import { normalizeLocaleFromRequest, resolveLocaleFromBody } from './locale-resolution.js';
-import { ensureValidBlocks, loadSchemaMap } from './schema-loading.js';
-import { jsonError, localizedJsonError, parseJsonBody } from './shared.js';
+import { ensureValidBlocks, loadSchemaMap, schemaMapFailureResponse } from './schema-loading.js';
+import { localizedJsonError, parseJsonBody } from './shared.js';
 import type { HandlerContext } from './shared.js';
 
 function normalizeSlugInput(rawSlug: unknown): string | string[] {
@@ -151,21 +151,23 @@ export async function handleGetPages(request: Request): Promise<Response> {
     loadSchemaMap(),
   ]);
 
+  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
+
   const defaultLocale = getDefaultLanguageCode(languagesData);
   const locale = normalizeLocaleFromRequest(request, languagesData);
   const localeKeys = getLanguageLocaleKeys(languagesData);
 
   const pages = pagesData.pages.map((page) =>
-    projectPageForLocale(page, locale, defaultLocale, schemaResult.schemaMap || null, localeKeys),
+    projectPageForLocale(page, locale, defaultLocale, schemaResult.schemaMap, localeKeys),
   );
   return Response.json({ pages, locale, defaultLocale });
 }
 
 export async function handleGetBlockSchemas(): Promise<Response> {
   const result = await loadSchemaMap();
-  if (result.error) return jsonError(result.error, 500, { missing: result.missing || [] });
+  if (!result.ok) return schemaMapFailureResponse(result);
 
-  return Response.json(result.schemaMap || {});
+  return Response.json(result.schemaMap);
 }
 
 export async function handlePostPages(
@@ -183,6 +185,11 @@ export async function handlePostPages(
     data.loadLanguages(),
     loadSchemaMap(),
   ]);
+
+  // ensureValidBlocks above already fails on an unresolvable map, but only when the payload
+  // carries blocks. This guard is what makes the merge below unreachable without a schema —
+  // mergeBlockPropsForLocale with a null map would flatten a LocalizedValueMap into a scalar.
+  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
 
   const defaultLocale = getDefaultLanguageCode(languagesData);
   const locale = resolveLocaleFromBody(body, request, languagesData);
@@ -214,13 +221,7 @@ export async function handlePostPages(
     indexable: setLocalizedValue({}, locale, indexable),
     seo: localizeSeoPayload(undefined, locale, seo),
     blocks: blocks.map((block) =>
-      mergeBlockPropsForLocale(
-        undefined,
-        block,
-        schemaResult.schemaMap || null,
-        locale,
-        localeKeys,
-      ),
+      mergeBlockPropsForLocale(undefined, block, schemaResult.schemaMap, locale, localeKeys),
     ),
     publishedAt: setLocalizedValue({}, locale, status === 'published' ? now : null),
     createdAt: now,
@@ -232,7 +233,7 @@ export async function handlePostPages(
   await invalidatePageContentCache(context.cache, locale, defaultLocale, page);
 
   return Response.json(
-    projectPageForLocale(page, locale, defaultLocale, schemaResult.schemaMap || null, localeKeys),
+    projectPageForLocale(page, locale, defaultLocale, schemaResult.schemaMap, localeKeys),
   );
 }
 
@@ -252,6 +253,8 @@ export async function handlePutPage(
     data.loadLanguages(),
     loadSchemaMap(),
   ]);
+
+  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
 
   const index = pagesData.pages.findIndex((page) => page.id === id);
   if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
@@ -288,7 +291,7 @@ export async function handlePutPage(
         mergeBlockPropsForLocale(
           existing.blocks?.[blockIndex],
           block,
-          schemaResult.schemaMap || null,
+          schemaResult.schemaMap,
           locale,
           localeKeys,
         ),
@@ -318,13 +321,7 @@ export async function handlePutPage(
   await invalidatePageContentCache(context.cache, locale, defaultLocale, nextPage, existing);
 
   return Response.json(
-    projectPageForLocale(
-      nextPage,
-      locale,
-      defaultLocale,
-      schemaResult.schemaMap || null,
-      localeKeys,
-    ),
+    projectPageForLocale(nextPage, locale, defaultLocale, schemaResult.schemaMap, localeKeys),
   );
 }
 

@@ -73,11 +73,11 @@ bundle. `npm test` still green (unit tests take the disk path — untouched).
 
 ### RED
 
-- [ ] **3.1** `tests/pages-handlers.test.js` — no artifact seeded, assert **`handleGetPages` returns
+- [x] **3.1** `tests/pages-handlers.test.js` — no artifact seeded, assert **`handleGetPages` returns
   500**. Currently returns 200. *(S-4)*
-- [ ] **3.2** `tests/global-blocks-handlers.test.js` — same for **`handleGetGlobalBlocks`** and
+- [x] **3.2** `tests/global-blocks-handlers.test.js` — same for **`handleGetGlobalBlocks`** and
   **`handleGetGlobalBlock`**. Currently 200.
-- [ ] **3.3** `tests/get-languages.test.js` (or the file covering `handleDeleteLanguage`) — no artifact
+- [x] **3.3** `tests/get-languages.test.js` (or the file covering `handleDeleteLanguage`) — no artifact
   seeded, `DELETE` a language → assert **500 and that `pages.json` / `menus.json` / `languages.json`
   are byte-identical afterwards**. Today it proceeds and deletes. *(S-7 — assert the **absence of the
   write**, not just the status. The status is the easy half.)*
@@ -86,7 +86,7 @@ bundle. `npm test` still green (unit tests take the disk path — untouched).
 
 ### GREEN
 
-- [ ] **3.4** `src/api/handlers/schema-loading.ts` — introduce the union and stop swallowing:
+- [x] **3.4** `src/api/handlers/schema-loading.ts` — introduce the union and stop swallowing:
   ```ts
   export type SchemaMapResult =
     | { ok: true; schemaMap: SchemaMap }
@@ -95,15 +95,15 @@ bundle. `npm test` still green (unit tests take the disk path — untouched).
   The disk `catch` logs via `console.error('[astro-blocks] …', err)` with the artifact name **and the
   remedy** (see `design.md` §2). `'Failed to load block schemas'` told nobody anything.
   `ensureValidBlocks` consumes the union; its `blocks === undefined | []` skip is retained.
-- [ ] **3.5** Branch all **8** call sites. Four are mechanical (`pages.ts:165`, `:184`, `:253`;
+- [x] **3.5** Branch all **8** call sites. Four are mechanical (`pages.ts:165`, `:184`, `:253`;
   `global-blocks.ts:114`) — same behaviour, new shape. Four change behaviour, all returning 500 with
   the **existing** `errors.schemaLoadFailed` key (no new i18n key, no parity churn):
   `pages.ts:151`, `global-blocks.ts:25`, `global-blocks.ts:63`, `languages.ts:142`.
-- [ ] **3.6** `tests/pages-handlers.test.js:54` — the test *"returns 500 when schema-map.mjs is
+- [x] **3.6** `tests/pages-handlers.test.js:54` — the test *"returns 500 when schema-map.mjs is
   missing"* keeps passing untouched. Add a comment: it describes the **`node --test` environment**,
   where there is no bake, and is **no longer a description of production**. Left uncommented, the next
   reader re-learns the bug from it.
-- [ ] **3.7** `tests/handlers-export-baseline.test.js` — update if the exported surface moved.
+- [x] **3.7** `tests/handlers-export-baseline.test.js` — update if the exported surface moved.
 
 **Verify:** `npm test` green · `npm run typecheck` green — and typecheck is the real assertion here: it
 is what proves no call site can read the map without facing the failure.
