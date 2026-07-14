@@ -141,6 +141,104 @@ i18n?: {
 }
 ```
 
+### `allowedFileTypes`
+
+Which file types the media upload endpoint accepts.
+
+```ts
+allowedFileTypes?: string[]
+// default: ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif', 'application/pdf']
+```
+
+**This SELECTS from a catalog; it does not invent types.** AstroBlocks derives the stored file
+extension from the validated MIME type (a security requirement — an SVG uploaded as `foo.jpg` and
+served inline is stored XSS), so it can only accept types it has a catalog row for.
+
+The catalog:
+
+| MIME | Stored as | Category | Enabled by default |
+|---|---|---|---|
+| `image/jpeg` | `.jpg` | image | ✅ |
+| `image/png` | `.png` | image | ✅ |
+| `image/webp` | `.webp` | image | ✅ |
+| `image/gif` | `.gif` | image | ✅ |
+| `image/svg+xml` | `.svg` | image | ✅ (served as a download) |
+| `image/avif` | `.avif` | image | — |
+| `application/pdf` | `.pdf` | document | ✅ |
+| `video/mp4` | `.mp4` | video | — |
+| `video/webm` | `.webm` | video | — |
+| `audio/mpeg` | `.mp3` | audio | — |
+
+**A MIME type with no catalog row fails the build**, naming it and listing what is supported. It is
+never silently ignored.
+
+Video and audio are in the catalog and **off by default**. To enable video:
+
+```ts
+allowedFileTypes: [
+  'image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif',
+  'application/pdf',
+  'video/mp4',
+]
+```
+
+Once enabled, video and audio uploads are streamed to disk rather than buffered, and served with
+HTTP Range support so the browser can seek (Safari refuses to play a media source that does not
+answer a ranged request). They are **passthrough**: no dimensions, duration, poster frame or
+transcoding.
+
+A hard security denylist (HTML, JavaScript, executables, shell scripts) is **always enforced** and
+cannot be re-enabled by any setting.
+
+### `customFileTypes`
+
+Registers a file type the catalog does not cover.
+
+```ts
+customFileTypes?: Array<{ mime: string; ext: string; category: 'image' | 'video' | 'audio' | 'document' }>
+// default: []
+```
+
+```ts
+astroBlocks({
+  customFileTypes: [{ mime: 'application/zip', ext: '.zip', category: 'document' }],
+  allowedFileTypes: [...defaults, 'application/zip'],
+})
+```
+
+You supply the MIME, the extension and the category — **and nothing else**. Every registered type is
+served as `application/octet-stream` with `Content-Disposition: attachment`, always. You cannot make
+one render inline, and that is deliberate: a format AstroBlocks has never audited must not be able to
+execute in the CMS's own origin.
+
+The build fails if a registration is on the security denylist, shadows a builtin's MIME, or **borrows
+a builtin's extension** (files are served by extension, so it would be served under the builtin's
+rules).
+
+### `maxUploadBytes`
+
+Per-category upload ceiling, in bytes.
+
+```ts
+maxUploadBytes?: Partial<Record<'image' | 'video' | 'audio' | 'document', number>>
+// defaults: image 5 MB, document 10 MB, audio 20 MB, video 200 MB
+```
+
+There is also an `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` **environment variable**: a single global limit
+applied to every category, read at runtime, so it takes effect **without a rebuild** — the only
+upload knob that does.
+
+**Most specific wins:**
+
+```
+limit(category) = maxUploadBytes[category]          // build-time, per category
+               ?? ASTRO_BLOCKS_MAX_UPLOAD_BYTES     // runtime, global
+               ?? the built-in default for that category
+```
+
+Set neither and images stay at 5 MB while video gets 200 MB. Set only the environment variable and
+that one number applies to everything.
+
 ---
 
 ## Block Development
@@ -203,7 +301,7 @@ Field types available in `items`:
 | `image` | Image with upload | Returns an `ImageFieldValue` object (`{ url, alt?, caption?, width?, height? }`); legacy bare strings are coerced. Render with `<BlockImage>` |
 | `link` | URL or path | Text input for href values |
 | `select` | Dropdown selection | Requires `options: string[]` |
-| `file` | Non-image file upload (PDF, etc.) | Returns a `FileFieldValue` object (`{ url, filename?, mimeType?, download? }`). Optional `accept?: string[]` (MIME subset) and `download?: boolean` meta. Use `fileDownloadUrl(value)` for server-enforced download. Import helpers from `./getFileValue` |
+| `file` | Non-image file upload (PDF, video, audio, …) | Returns a `FileFieldValue` object (`{ url, filename?, mimeType?, download? }`). Optional `accept?: string[]` (MIME subset of `allowedFileTypes`) and `download?: boolean` meta. Use `fileDownloadUrl(value)` for server-enforced download — **omit it for video/audio**, or the browser downloads the file instead of playing it. Import helpers from `./getFileValue` |
 | `array` | List of items | Requires `item` definition; supports sortable, minItems, maxItems |
 
 **Array field example:**

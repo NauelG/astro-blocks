@@ -9,6 +9,60 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.6.0] - 2026-07-14
+
+### Title
+
+Video and audio uploads, on a supported-file-type catalog
+
+### Fixed
+
+- **`allowedFileTypes` never reached the server.** The plugin passed the allowlist to the runtime
+  through a `vite.define` bridge that emitted an array literal, while the server guarded with
+  `typeof raw === 'string'` before parsing — so the guard rejected it and silently fell back to the
+  shipped defaults. **Any `allowedFileTypes` configuration was ignored, in every released version.**
+  This is what caused `type: 'file'` to reject an MP4 with `415 Unsupported Media Type` even with
+  `video/mp4` in the allowlist: the upload was refused by the allowlist gate, which never saw your
+  config.
+- **AVIF variants were served as `application/octet-stream`.** The responsive-image pipeline writes
+  `.avif` variants, and the serving route had no `.avif` entry in its extension map. They are now
+  served as `image/avif`.
+- **Uploads are authorised before the request body is read.** The size limit used to be checked
+  *after* the whole file had been buffered into memory, so a `413` rejected what the server had
+  already swallowed.
+
+### Added
+
+- **Video and audio uploads.** `video/mp4`, `video/webm` and `audio/mpeg` are supported file types.
+  They are **not enabled by default** — add them to `allowedFileTypes` to opt in.
+- **HTTP Range support on `/uploads/*`.** Responses advertise `Accept-Ranges`, answer a satisfiable
+  `Range` with `206 Partial Content`, and an unsatisfiable one with `416`. Without this, Safari
+  refuses to play a video at all — it requests the first two bytes of a media source and discards any
+  source that does not answer. Files are now streamed from disk rather than read whole into memory,
+  for every file type.
+- **`customFileTypes`** — register a file type the catalog does not cover:
+  `customFileTypes: [{ mime: 'application/zip', ext: '.zip', category: 'document' }]`. You supply the
+  MIME, the extension and the category and nothing else: every registered type is served as
+  `application/octet-stream` with `Content-Disposition: attachment`, always. The security denylist
+  still applies, and a registration may not borrow a builtin's extension.
+- **`maxUploadBytes`** — per-category upload ceilings (image 5 MB, document 10 MB, audio 20 MB, video
+  200 MB by default). `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` remains a global runtime limit; the most
+  specific setting wins.
+
+### Changed
+
+- **`allowedFileTypes` now selects from a catalog of supported types.** The extension a file is stored
+  under is derived from its validated MIME type — a security requirement — so AstroBlocks can only
+  accept types it has an extension for. **A MIME type with no catalog row now fails the build**,
+  naming it and listing what is supported, instead of being silently ignored and rejecting every
+  upload of that type at runtime with a `415`.
+- Video, audio and document uploads are **streamed to disk** instead of buffered in memory. Images
+  still buffer, because the image pipeline needs the bytes resident.
+- `fileCategory` on a media entry widens to `'image' | 'video' | 'audio' | 'document'`, and the media
+  library and block picker render a category icon for each. Existing entries are unaffected.
+- Video and audio are **passthrough**: no dimensions, duration, poster frame or transcoding, and no
+  new native dependency.
+
 ## [3.5.4] - 2026-07-14
 
 ### Title
