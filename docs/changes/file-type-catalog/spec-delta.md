@@ -45,6 +45,16 @@ differs from today's behaviour, the difference is called out.
   time**. No configuration path can register a denied type. (ADR-0018's core invariant, preserved and
   now structural.)
 
+- **R6b — `ext` is a primary key, across the whole effective catalog.** A `customFileTypes` row whose
+  `ext` collides with a builtin's — or with another registered row's — is **rejected at config time**.
+
+  Uploads resolve a row by `mime`, but the SERVING route can only resolve one by the file's on-disk
+  **extension**: it has no memory of the MIME the bytes arrived with. So two rows sharing an `ext` make
+  the serving lookup ambiguous, and the builtin wins it. Registering `{ mime: 'application/x-my-doc',
+  ext: '.pdf' }` would store the file under the custom row (attachment, octet-stream) and **serve it
+  under the builtin PDF row — inline**, defeating R5 entirely. Without this rule, R5's "structurally
+  incapable" is false.
+
 - **R7 — Config validation throws.** At `astro:config:setup`, a MIME in `allowedFileTypes` that
   appears in neither the builtin catalog nor `customFileTypes` **throws**, naming the MIME, listing the
   supported types, and pointing at `customFileTypes`. A build fails rather than a runtime upload
@@ -85,15 +95,25 @@ differs from today's behaviour, the difference is called out.
   MIME, then denylist on the derived extension, then allowlist membership — and keeps receiving
   `derivedExtension: row?.ext ?? null`. (ADR-0018.)
 
-- **R11 — Per-category size limits.** `maxUploadBytes?: Partial<Record<FileCategory, number>>` is a
-  plugin option. Defaults: image 5 MB *(today's value, unchanged)*, document 10 MB, audio 20 MB,
-  video 200 MB. The effective limit is
-  `min(maxUploadBytes[category] ?? default, ASTRO_BLOCKS_MAX_UPLOAD_BYTES ?? Infinity)`.
+- **R11 — Per-category size limits, most specific wins.** `maxUploadBytes?: Partial<Record<FileCategory,
+  number>>` is a plugin option. Defaults: image 5 MB *(today's value, unchanged)*, document 10 MB,
+  audio 20 MB, video 200 MB. The effective limit is:
 
-- **R12 — `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` is a runtime ops ceiling, and is not deprecated.** It is read
-  from `process.env` at server boot and clamps every category. It is the only knob that can cap uploads
-  **without a rebuild** — `maxUploadBytes` is baked in at build time via `vite.define`. Set, it caps;
-  unset, the per-category defaults apply.
+  ```
+  limit(category) = maxUploadBytes[category]          // build-time, per category
+                 ?? ASTRO_BLOCKS_MAX_UPLOAD_BYTES     // runtime, global
+                 ?? DEFAULT_MAX_BYTES[category]
+  ```
+
+- **R12 — `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` is the runtime global limit, and is not deprecated.** It is
+  read from `process.env` per request, so it takes effect **without a rebuild** — the only upload knob
+  that does (`maxUploadBytes` is baked in at build time via `vite.define`).
+
+  It **replaces** the per-category defaults; it does **not** clamp them. This is the semantics it has
+  always had: `docs/media.md` documents it as "Maximum accepted upload size", and consumers **raise** it
+  to allow bigger images as readily as they lower it. A hard ceiling would silently cut anyone running
+  above 5 MB back to the image default, and they would find out when an editor failed to upload a photo
+  in production.
 
 - **R13 — Early rejection, then authoritative counting.** A `Content-Length` above the effective limit
   returns **413 before the body is touched**. `Content-Length` is client-supplied and advisory: the
@@ -121,7 +141,10 @@ differs from today's behaviour, the difference is called out.
 - **S8.** A body that lies about its `Content-Length` and overruns mid-stream → **413**, and **no file
   remains on disk**.
 - **S9.** `ASTRO_BLOCKS_MAX_UPLOAD_BYTES=5242880` with `maxUploadBytes: { video: 200MB }` → the video
-  limit is **5 MB**. The ops ceiling wins.
+  limit is **200 MB**: the explicit per-category setting is more specific than the global one. Categories
+  the consumer did *not* name (image, document, audio) get **5 MB** from the environment variable.
+- **S9b.** `ASTRO_BLOCKS_MAX_UPLOAD_BYTES=8388608` with no `maxUploadBytes` → a 6 MB **image uploads**,
+  above the 5 MB default. Consumers raise this variable for bigger images; it must not act as a ceiling.
 - **S10.** Upload a 150 MB MP4 with default limits → **200**, and the server's resident memory does not
   grow by 150 MB.
 
@@ -164,6 +187,8 @@ differs from today's behaviour, the difference is called out.
   the row.)*
 - **S15.** `GET` a `.zip` registered via `customFileTypes` → `application/octet-stream` +
   `Content-Disposition: attachment`, regardless of what the consumer configured.
+- **S15b.** `customFileTypes: [{ mime: 'application/x-my-doc', ext: '.pdf', … }]` → **the build throws**.
+  Sharing a builtin's extension would have the file stored as an attachment and served as an inline PDF.
 
 ---
 

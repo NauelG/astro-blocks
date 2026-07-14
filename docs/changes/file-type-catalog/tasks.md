@@ -126,7 +126,7 @@ src/` returns **nothing**.
   below a larger `maxUploadBytes.video`; per-category defaults (image 5 MB unchanged, document 10, audio
   20, video 200).
 - [x] **5.2** `src/api/handlers/media.ts` — resolve `limit(row.category)` =
-  `min(maxUploadBytes[cat] ?? default, envCeiling ?? Infinity)`. Reject on `Content-Length` **before**
+  `maxUploadBytes[cat] ?? env ?? default` (most specific wins). Reject on `Content-Length` **before**
   touching the body.
 - [x] **5.3** `src/api/handlers/media.ts#handleUpload` — branch on `row.category`:
   `image` → `arrayBuffer()` as today; everything else → stream `request.body` to

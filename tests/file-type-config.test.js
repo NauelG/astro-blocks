@@ -170,3 +170,55 @@ test('a malformed mime throws', () => {
     /invalid mime/,
   );
 });
+
+// ─── V3b: `ext` is a primary key too, and the escape hatch must respect it ────
+//
+// The upload path resolves the row by MIME. The SERVING path can only resolve it by the file's
+// on-disk EXTENSION — it has no memory of the MIME the bytes arrived with. So two rows sharing
+// an extension are not a cosmetic clash: they make the serving lookup ambiguous, and
+// Array.find() hands the win to the builtin.
+//
+// Concretely: register { mime: 'application/x-my-doc', ext: '.pdf' } and the file is STORED
+// under the custom row (attachment, octet-stream) but SERVED under the builtin PDF row —
+// inline, as application/pdf. The registered type renders in our own origin, which is exactly
+// what ADR-0023 promises is "structurally impossible".
+//
+// The catalog test already asserted ext uniqueness across the builtins. It simply was never
+// extended to the rows a consumer can add.
+
+test('V3: registering a builtin extension throws, even under a different MIME', () => {
+  for (const ext of ['.pdf', '.png', '.jpg', '.svg', '.mp4']) {
+    assert.throws(
+      () =>
+        validateFileTypeConfig(
+          ['application/x-my-doc'],
+          [{ mime: 'application/x-my-doc', ext, category: 'document' }],
+        ),
+      /extension/i,
+      `ext "${ext}" belongs to a builtin: a registered type must not be servable under it`,
+    );
+  }
+});
+
+test('V3: two registered types cannot share an extension', () => {
+  assert.throws(
+    () =>
+      validateFileTypeConfig(
+        [],
+        [
+          { mime: 'application/zip', ext: '.zip', category: 'document' },
+          { mime: 'application/x-zip', ext: '.zip', category: 'document' },
+        ],
+      ),
+    /extension/i,
+  );
+});
+
+test('V3: a registration with its own extension is still fine', () => {
+  assert.doesNotThrow(() =>
+    validateFileTypeConfig(
+      ['application/zip'],
+      [{ mime: 'application/zip', ext: '.zip', category: 'document' }],
+    ),
+  );
+});

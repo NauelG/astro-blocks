@@ -369,3 +369,28 @@ test('every JSON vite.define bridge arrives at the runtime as a string', async (
     }
   });
 });
+
+test('maxUploadBytes crosses the vite.define bridge intact, per category', async () => {
+  // limitFor() is `maxUploadBytes[cat] ?? ASTRO_BLOCKS_MAX_UPLOAD_BYTES ?? DEFAULT[cat]` — most
+  // specific wins. The `??` chain itself is one line; what can actually break is the bridge, and
+  // the bridge is where the allowlist silently died for its whole life. So assert the bridge.
+  //
+  // (The env-var half of the chain is exercised for real in tests/media-upload-limits.test.js.)
+  await withTempProject(async (tempRoot) => {
+    const vite = await runSetupHook({ maxUploadBytes: { video: 123, image: 456 } }, tempRoot);
+    const source = vite.define['import.meta.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES_BY_CATEGORY'];
+    assertJsonBridge(
+      source,
+      { video: 123, image: 456 },
+      'ASTRO_BLOCKS_MAX_UPLOAD_BYTES_BY_CATEGORY',
+    );
+  });
+});
+
+test('an omitted maxUploadBytes crosses as an empty object, not undefined', async () => {
+  await withTempProject(async (tempRoot) => {
+    const vite = await runSetupHook({}, tempRoot);
+    const source = vite.define['import.meta.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES_BY_CATEGORY'];
+    assertJsonBridge(source, {}, 'ASTRO_BLOCKS_MAX_UPLOAD_BYTES_BY_CATEGORY');
+  });
+});

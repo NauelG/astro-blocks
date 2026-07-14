@@ -59,13 +59,17 @@ whole file in memory unless something downstream genuinely needs it.**
 - **Size limits are per category**, derived from the catalog: `maxUploadBytes?: Partial<Record<FileCategory,
   number>>` as a plugin option, defaulting to image 5 MB *(today's value)*, document 10 MB, audio 20 MB,
   video 200 MB.
-- **`ASTRO_BLOCKS_MAX_UPLOAD_BYTES` is kept and is not deprecated.** It becomes an explicit **runtime ops
-  ceiling** that clamps every category. It is not redundant with `maxUploadBytes`: the plugin option is
-  baked in at build time by `vite.define`, while the env var is read from `process.env` at server boot, so
-  **it is the only knob that can cap uploads without a rebuild**. This is the layering PHP has had for
-  twenty years — `upload_max_filesize` in `php.ini` caps what the application may accept, no matter what
-  the application asked for. Build-time policy, runtime ceiling, and the effective limit is the minimum of
-  the two.
+- **`ASTRO_BLOCKS_MAX_UPLOAD_BYTES` is kept and is not deprecated.** It is the **runtime global limit**, and
+  it **replaces** the per-category defaults rather than clamping them. The effective limit is
+  `maxUploadBytes[category] ?? ASTRO_BLOCKS_MAX_UPLOAD_BYTES ?? DEFAULT[category]` — most specific wins.
+
+  A hard ceiling (`min(policy, env)`) was the first design and it is **wrong**. `docs/media.md` documents the
+  variable as "Maximum accepted upload size", and consumers **raise** it to allow bigger images as readily as
+  they lower it — the existing `P3` tests exercise exactly that. Under `min()`, a deployment running with
+  `ASTRO_BLOCKS_MAX_UPLOAD_BYTES=50MB` would have silently dropped to the 5 MB image default and found out
+  when an editor failed to upload a photo in production. The variable is not redundant with `maxUploadBytes`:
+  the plugin option is baked in at build time by `vite.define`, while the env var is read from `process.env`
+  per request, so **it is the only knob that works without a rebuild**.
 
 ### Serving
 

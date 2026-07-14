@@ -390,12 +390,20 @@ export interface AstroBlocksOptions {
   customFileTypes?: CustomFileTypeSpec[];
 
   /**
-   * Per-category upload ceiling, in bytes. Omitted categories use the built-in default
+   * Per-category upload ceiling, in bytes. Omitted categories fall back to
+   * `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` if it is set, and otherwise to the built-in default
    * (image 5 MB — today's value — document 10 MB, audio 20 MB, video 200 MB).
    *
-   * This is BUILD-TIME policy. The `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` environment variable is a
-   * separate, RUNTIME ops ceiling that clamps every category and is the only knob that works
-   * without a rebuild. The effective limit is the minimum of the two.
+   * **Most specific wins:**
+   *
+   *     limit(category) = maxUploadBytes[category]          // build-time, per category
+   *                    ?? ASTRO_BLOCKS_MAX_UPLOAD_BYTES     // runtime, global
+   *                    ?? the built-in default for that category
+   *
+   * This is BUILD-TIME policy (baked in by `vite.define`). `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` is a
+   * RUNTIME global limit read from the environment, so it is the only upload knob that takes
+   * effect without a rebuild. It does NOT clamp a per-category setting — it is the fallback for
+   * categories you did not name.
    */
   maxUploadBytes?: Partial<Record<FileCategory, number>>;
 }

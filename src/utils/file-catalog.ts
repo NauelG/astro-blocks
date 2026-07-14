@@ -57,6 +57,14 @@ export interface FileTypeRow {
    * catalog unavoidable: the moment the extension comes from the MIME, an open allowlist has
    * no answer to "what extension does this unknown MIME get?". Strapi and Directus answer it
    * with the literal string ".false"; we answer it by refusing to admit the type at all.
+   *
+   * A SECOND PRIMARY KEY. Uploads resolve a row by `mime`, but the serving route can only
+   * resolve one by the file's on-disk extension — it has no memory of the MIME the bytes
+   * arrived with. So two rows sharing an `ext` do not merely look untidy: they make the serving
+   * lookup ambiguous, and `Array.find` hands the win to whichever row comes first. A registered
+   * type that borrowed `.pdf` would be stored as an attachment and SERVED as an inline PDF.
+   * Enforced across the effective catalog by `validateFileTypeConfig` (V3), and across the
+   * builtins by a test.
    */
   ext: string;
   /** The Content-Type used when SERVING. Equal to `mime` for every builtin row. */

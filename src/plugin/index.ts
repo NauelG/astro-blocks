@@ -105,6 +105,7 @@ export function validateFileTypeConfig(
   customFileTypes: CustomFileTypeSpec[] = [],
 ): void {
   const seen = new Set<string>();
+  const seenExts = new Set<string>();
 
   for (const raw of customFileTypes) {
     const mime = String(raw?.mime ?? '')
@@ -144,17 +145,43 @@ export function validateFileTypeConfig(
         `[astro-blocks] customFileTypes["${mime}"]: extension "${ext}" is on the hard security denylist and cannot be registered.`,
       );
     }
-    // V3 — cannot shadow a builtin row.
+    // V3 — cannot shadow a builtin row, by MIME...
     if (BUILTIN_FILE_TYPES.some((r) => r.mime === mime)) {
       throw new Error(
         `[astro-blocks] customFileTypes: "${mime}" is already a builtin file type and cannot be redefined. ` +
           `Remove it from customFileTypes; it is available through allowedFileTypes.`,
       );
     }
+
+    // ...nor by EXTENSION, and the extension is the load-bearing half.
+    //
+    // Uploads resolve the row by MIME, but the SERVING route can only resolve it by the file's
+    // on-disk extension — it has no memory of the MIME the bytes arrived with. Two rows sharing
+    // an extension therefore make the serving lookup ambiguous, and the builtin wins it.
+    //
+    // Register { mime: 'application/x-my-doc', ext: '.pdf' } and the file is STORED under the
+    // custom row (attachment, octet-stream) but SERVED under the builtin PDF row: inline, as
+    // application/pdf. The registered type renders in our own origin — precisely the thing
+    // ADR-0023 claims registration is structurally incapable of. `ext` is a primary key too.
+    if (BUILTIN_FILE_TYPES.some((r) => r.ext === ext)) {
+      throw new Error(
+        `[astro-blocks] customFileTypes["${mime}"]: extension "${ext}" already belongs to a builtin file type. ` +
+          `Files are served by extension, so a registered type sharing one would be served under the builtin's ` +
+          `rules — inline, instead of as a download. Choose a different extension.`,
+      );
+    }
+
     if (seen.has(mime)) {
       throw new Error(`[astro-blocks] customFileTypes: duplicate mime "${mime}".`);
     }
+    if (seenExts.has(ext)) {
+      throw new Error(
+        `[astro-blocks] customFileTypes: duplicate extension "${ext}". Files are served by extension, ` +
+          `so two types cannot share one.`,
+      );
+    }
     seen.add(mime);
+    seenExts.add(ext);
   }
 
   // V4 — every allowed MIME must be one the system can actually handle.
