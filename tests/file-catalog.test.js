@@ -1,0 +1,173 @@
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+/**
+ * The catalog's invariants (ADR-0023).
+ *
+ * These are the rules that used to live nowhere — which is why five hardcoded maps drifted
+ * apart and two of them ended up disagreeing about AVIF.
+ */
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import {
+  BUILTIN_FILE_TYPES,
+  DEFAULT_ALLOWED_FILE_TYPES,
+  lookupByMime,
+  lookupByExt,
+  isRaster,
+  toCatalogRow,
+  intersectAccept,
+} from '../dist/utils/file-catalog.js';
+
+const CATALOG = BUILTIN_FILE_TYPES;
+
+// ─── The rows are a well-formed table ────────────────────────────────────────
+
+test('every row has a lowercase mime and a dotted lowercase ext', () => {
+  for (const row of CATALOG) {
+    assert.equal(row.mime, row.mime.toLowerCase(), `${row.mime} must be lowercase`);
+    assert.match(row.ext, /^\.[a-z0-9+]+$/, `${row.mime}: ext "${row.ext}" is malformed`);
+  }
+});
+
+test('mime is a primary key — no two rows share one', () => {
+  const mimes = CATALOG.map((r) => r.mime);
+  assert.equal(new Set(mimes).size, mimes.length, 'duplicate mime in the catalog');
+});
+
+test('ext is unique — two MIMEs storing under the same extension would make lookupByExt ambiguous', () => {
+  const exts = CATALOG.map((r) => r.ext);
+  assert.equal(new Set(exts).size, exts.length, 'duplicate ext in the catalog');
+});
+
+test('every row has a valid category', () => {
+  const valid = new Set(['image', 'video', 'audio', 'document']);
+  for (const row of CATALOG) {
+    assert.ok(valid.has(row.category), `${row.mime} has category "${row.category}"`);
+  }
+});
+
+// ─── The catalog is NOT the allowlist ────────────────────────────────────────
+
+test('DEFAULT_ALLOWED_FILE_TYPES is a subset of the catalog', () => {
+  const mimes = new Set(CATALOG.map((r) => r.mime));
+  for (const mime of DEFAULT_ALLOWED_FILE_TYPES) {
+    assert.ok(mimes.has(mime), `${mime} is enabled by default but has no catalog row`);
+  }
+});
+
+test('DEFAULT_ALLOWED_FILE_TYPES still has exactly the 6 shipped types', () => {
+  assert.deepEqual([...DEFAULT_ALLOWED_FILE_TYPES].sort(), [
+    'application/pdf',
+    'image/gif',
+    'image/jpeg',
+    'image/png',
+    'image/svg+xml',
+    'image/webp',
+  ]);
+});
+
+test('video and audio are in the catalog and NOT enabled by default', () => {
+  for (const mime of ['video/mp4', 'video/webm', 'audio/mpeg']) {
+    assert.ok(lookupByMime(mime, CATALOG), `${mime} must have a catalog row`);
+    assert.ok(
+      !DEFAULT_ALLOWED_FILE_TYPES.includes(mime),
+      `${mime} must be opt-in — enabling it by default would hand every existing install a new upload and serving surface nobody asked for`,
+    );
+  }
+});
+
+// ─── Lookups round-trip ──────────────────────────────────────────────────────
+
+test('lookupByMime and lookupByExt round-trip every row', () => {
+  for (const row of CATALOG) {
+    assert.equal(lookupByMime(row.mime, CATALOG)?.ext, row.ext);
+    assert.equal(lookupByExt(row.ext, CATALOG)?.mime, row.mime);
+  }
+});
+
+test('lookups are case-insensitive', () => {
+  assert.equal(lookupByMime('IMAGE/JPEG', CATALOG)?.ext, '.jpg');
+  assert.equal(lookupByExt('.MP4', CATALOG)?.mime, 'video/mp4');
+});
+
+test('an uncatalogued mime or ext resolves to null, not undefined-shaped garbage', () => {
+  assert.equal(lookupByMime('application/zip', CATALOG), null);
+  assert.equal(lookupByExt('.zip', CATALOG), null);
+});
+
+// ─── The raster set is unchanged ─────────────────────────────────────────────
+
+test('raster rows are exactly jpeg, png and webp — this change does not alter what sharp touches', () => {
+  const raster = CATALOG.filter((r) => r.raster)
+    .map((r) => r.mime)
+    .sort();
+  assert.deepEqual(raster, ['image/jpeg', 'image/png', 'image/webp']);
+});
+
+test('isRaster answers for catalogued and uncatalogued MIMEs alike', () => {
+  assert.equal(isRaster('image/png', CATALOG), true);
+  assert.equal(isRaster('image/avif', CATALOG), false);
+  assert.equal(isRaster('video/mp4', CATALOG), false);
+  assert.equal(isRaster('application/zip', CATALOG), false);
+});
+
+// ─── Serving policy is data, not an if-statement ─────────────────────────────
+
+test('SVG is attachment — the XSS guard is a column, not a special case in the route', () => {
+  assert.equal(lookupByExt('.svg', CATALOG)?.disposition, 'attachment');
+});
+
+test('AVIF has a serving Content-Type — the bug that motivated the catalog', () => {
+  assert.equal(lookupByExt('.avif', CATALOG)?.contentType, 'image/avif');
+});
+
+test('video and audio are served inline, so a browser can play them', () => {
+  for (const ext of ['.mp4', '.webm', '.mp3']) {
+    assert.equal(lookupByExt(ext, CATALOG)?.disposition, 'inline');
+  }
+});
+
+// ─── The escape hatch cannot render in our origin ────────────────────────────
+
+test('a registered row is forced to attachment + octet-stream, whatever the consumer passed', () => {
+  const row = toCatalogRow({ mime: 'application/zip', ext: '.zip', category: 'document' });
+  assert.equal(row.disposition, 'attachment');
+  assert.equal(row.contentType, 'application/octet-stream');
+  assert.equal(row.raster, false);
+});
+
+test('a registered row cannot smuggle in a disposition or contentType', () => {
+  const row = toCatalogRow({
+    mime: 'application/zip',
+    ext: '.zip',
+    category: 'document',
+    // Not part of the type; a JS consumer could still pass it. It must be ignored.
+    disposition: 'inline',
+    contentType: 'text/html',
+  });
+  assert.equal(
+    row.disposition,
+    'attachment',
+    'the escape hatch must not be able to render in our origin',
+  );
+  assert.equal(row.contentType, 'application/octet-stream');
+});
+
+// ─── intersectAccept: behaviour carried over unchanged ───────────────────────
+
+test('intersectAccept returns the full allowlist when accept is omitted or empty', () => {
+  const allow = ['image/png', 'application/pdf'];
+  assert.deepEqual(intersectAccept(undefined, allow), allow);
+  assert.deepEqual(intersectAccept([], allow), allow);
+});
+
+test('intersectAccept narrows case-insensitively and never widens', () => {
+  const allow = ['image/png', 'application/pdf'];
+  assert.deepEqual(intersectAccept(['Application/PDF'], allow), ['application/pdf']);
+  assert.deepEqual(intersectAccept(['video/mp4'], allow), []);
+});

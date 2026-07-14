@@ -43,11 +43,11 @@ either passes, it is testing nothing — fix the test before writing a line of s
 
 ## Slice 2 — The catalog module
 
-- [ ] **2.1** `tests/file-catalog.test.js` — invariants: no two rows share a `mime` or an `ext`;
+- [x] **2.1** `tests/file-catalog.test.js` — invariants: no two rows share a `mime` or an `ext`;
   `lookupByMime`/`lookupByExt` round-trip every row; **`DEFAULT_ALLOWED_FILE_TYPES ⊆ catalog`**;
   `DEFAULT_ALLOWED_FILE_TYPES` still has exactly the 6 entries (video and audio are **not** in it);
   the `raster: true` rows are exactly `image/jpeg`, `image/png`, `image/webp`.
-- [ ] **2.2** `src/utils/file-catalog.ts` (new) — `FileCategory`, `FileTypeRow`, the 10 `BUILTIN_ROWS`
+- [x] **2.2** `src/utils/file-catalog.ts` (new) — `FileCategory`, `FileTypeRow`, the 10 `BUILTIN_ROWS`
   (`design.md` §1), `DEFAULT_ALLOWED_FILE_TYPES` (unchanged, hand-written — it answers a *different*
   question from the catalog), `lookupByMime`, `lookupByExt`, `isRaster`, `intersectAccept` (moved
   verbatim from `file-types.ts`), plus `resolveCatalog()` + `resetFileCatalogCache()` reading
