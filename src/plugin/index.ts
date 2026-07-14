@@ -17,6 +17,7 @@ import type {
   GlobalBlockDeclaration,
   GlobalBlockRuntimeEntry,
   PrimitivePropDef,
+  SchemaMap,
 } from '../types/index.js';
 import { BUILTIN_FILE_TYPES, DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-catalog.js';
 import {
@@ -231,7 +232,7 @@ export function validateGlobalBlocks(declarations: GlobalBlockDeclaration[]): vo
 export async function generateRuntime(
   projectRoot: string,
   options: AstroBlocksOptions,
-): Promise<GlobalBlockRuntimeEntry[]> {
+): Promise<{ globalBlocksRegistry: GlobalBlockRuntimeEntry[]; schemaMap: SchemaMap }> {
   const layoutPath = options.layoutPath || './src/layouts/Layout.astro';
   const astroBlocksDir = path.join(projectRoot, '.astro-blocks');
 
@@ -321,12 +322,15 @@ export async function generateRuntime(
     'utf-8',
   );
 
-  // Return the registry so the caller can bake it into the bundle (vite.define). The
+  // Return BOTH registries so the caller can bake them into the bundle (vite.define). The
   // precompiled API route (catchall.js) cannot import the 'astro-blocks-runtime' alias
-  // like the .astro render paths do, and reading .astro-blocks/runtime.mjs from disk at
+  // like the .astro render paths do, and reading .astro-blocks/*.mjs from disk at
   // request time is unreliable in deployment (gitignored build artifact). Baking is the
-  // robust source of truth for the admin global-block API.
-  return registryEntries;
+  // robust source of truth for the admin API.
+  //
+  // The schema map is returned, never recomputed: these are the same objects emitted into
+  // runtime.mjs and schema-map.mjs above. Three emissions, one computation — they cannot drift.
+  return { globalBlocksRegistry: registryEntries, schemaMap };
 }
 
 function resolveOptions(options: AstroBlocksOptions): ResolvedPluginOptions {
@@ -513,7 +517,10 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
           resolvedOptions.i18n.routingStrategy = 'path-prefix';
         }
 
-        const globalBlocksRegistry = await generateRuntime(projectRoot, resolvedOptions);
+        const { globalBlocksRegistry, schemaMap } = await generateRuntime(
+          projectRoot,
+          resolvedOptions,
+        );
 
         const resolveCms = (file: string): string => path.join(cmsDir, 'routes', file);
         const vite = config.vite || {};
@@ -597,6 +604,14 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
         // emits a string literal that the route parses back with JSON.parse.
         vite.define['import.meta.env.ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY'] = JSON.stringify(
           JSON.stringify(globalBlocksRegistry),
+        );
+        // The registry's twin. schema-map.mjs was the ONLY registry the precompiled route
+        // resolved from disk alone — the exact ADR-0009 failure mode, one artifact over: the
+        // gitignored file is absent on a deployed server, so block validation and the block
+        // picker died there while rendering worked. Baking it is what makes .astro-blocks/
+        // unnecessary at request time. See ADR-0025. Double-encode, as above.
+        vite.define['import.meta.env.ASTRO_BLOCKS_SCHEMA_MAP'] = JSON.stringify(
+          JSON.stringify(schemaMap),
         );
 
         const existingNoExternal = vite.ssr?.noExternal ?? [];

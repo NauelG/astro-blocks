@@ -12,17 +12,27 @@ import path from 'node:path';
 import { ensureDefaultFiles, loadPages } from '../dist/api/data.js';
 import {
   handleGetBlockSchemas,
+  handleGetPages,
   handlePostPages,
   handlePutPage,
   handleDeletePage,
 } from '../dist/api/handlers.js';
 
-async function withTempProject(fn) {
+/**
+ * A temp project is, by default, a project that WORKS — which since ADR-0025 means one
+ * whose block schema map resolves. Under `node --test` there is no `import.meta.env`, so
+ * the map resolves from disk; a project without `.astro-blocks/schema-map.mjs` is a broken
+ * deployment, and every handler that needs the map returns 500.
+ *
+ * Pass `{ seedSchema: false }` to get that broken project on purpose.
+ */
+async function withTempProject(fn, { seedSchema = true } = {}) {
   const previousRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-blocks-pages-'));
 
   process.env.ASTRO_BLOCKS_PROJECT_ROOT = tempRoot;
   await ensureDefaultFiles();
+  if (seedSchema) await seedSchemaMap(tempRoot, {});
 
   try {
     await fn(tempRoot);
@@ -51,14 +61,39 @@ async function seedSchemaMap(tempRoot, schemaMap) {
 
 // --- handleGetBlockSchemas ---
 
-test('handleGetBlockSchemas returns 500 when schema-map.mjs is missing', async () => {
-  await withTempProject(async () => {
-    // No schema-map.mjs seeded — should return an error
-    const response = await handleGetBlockSchemas();
-    assert.equal(response.status, 500);
-    const body = await response.json();
-    assert.ok(body.error, 'should include error message');
-  });
+/**
+ * This describes the `node --test` environment, where `import.meta.env` does not exist
+ * and the schema map therefore resolves from disk. It is NOT a description of production:
+ * a built server resolves the map from the value baked into the bundle, and works with no
+ * .astro-blocks/ on disk at all (ADR-0025).
+ *
+ * Read the other way round — "a missing schema-map.mjs means a 500" — this test canonises
+ * the bug it was written under (#101). It does not.
+ */
+test('handleGetBlockSchemas returns 500 when the schema map cannot be resolved', async () => {
+  await withTempProject(
+    async () => {
+      const response = await handleGetBlockSchemas();
+      assert.equal(response.status, 500);
+      const body = await response.json();
+      assert.ok(body.error, 'should include error message');
+    },
+    { seedSchema: false },
+  );
+});
+
+// --- handleGetPages: an unresolvable schema map is a hard failure (ADR-0025) ---
+
+test('handleGetPages returns 500 when the schema map cannot be resolved', async () => {
+  await withTempProject(
+    async () => {
+      // Without a schema the projector cannot tell an image prop from a string, so it would
+      // serve silently mis-shaped props. It must refuse instead.
+      const response = await handleGetPages(new Request('http://localhost/cms/api/pages'));
+      assert.equal(response.status, 500);
+    },
+    { seedSchema: false },
+  );
 });
 
 test('handleGetBlockSchemas returns 200 with schema map when file is present', async () => {
@@ -194,25 +229,27 @@ test('handlePostPages returns 400 when blocks fail schema prop validation', asyn
   });
 });
 
-test('handlePostPages returns 500 when blocks are provided but schema-map.mjs is missing', async () => {
-  await withTempProject(async () => {
-    // No schema file seeded — providing blocks triggers schema load, which fails
-    const response = await handlePostPages(
-      new Request('http://localhost/cms/api/pages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: 'Test',
-          slug: '/test',
-          blocks: [{ type: 'Hero', props: {} }],
+test('handlePostPages returns 500 when the schema map cannot be resolved', async () => {
+  await withTempProject(
+    async () => {
+      const response = await handlePostPages(
+        new Request('http://localhost/cms/api/pages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: 'Test',
+            slug: '/test',
+            blocks: [{ type: 'Hero', props: {} }],
+          }),
         }),
-      }),
-    );
+      );
 
-    assert.equal(response.status, 500);
-    const body = await response.json();
-    assert.ok(body.error, 'should include error message');
-  });
+      assert.equal(response.status, 500);
+      const body = await response.json();
+      assert.ok(body.error, 'should include error message');
+    },
+    { seedSchema: false },
+  );
 });
 
 // --- handlePutPage ---

@@ -61,12 +61,15 @@ export function initGlobalBlocksEditor(): void {
     errorEl.classList.toggle('cms-hidden', !msg);
   }
 
-  async function fetchSchemas(): Promise<SchemaMap> {
-    try {
-      return await fetchJson<SchemaMap>('/cms/api/block-schemas', { headers: authHeaders(false) });
-    } catch {
-      return {};
-    }
+  /**
+   * The server's message, which already names the real fault (ADR-0025 made the API fail
+   * loudly with a localized error rather than degrade). Falling back to a generic string only
+   * if something non-Error was thrown.
+   */
+  function failureMessage(error: unknown): string {
+    return error instanceof Error && error.message
+      ? error.message
+      : ct('errors.loadBlockSchemasFailed');
   }
 
   async function openEdit(slug: string, label: string, schemaName: string): Promise<void> {
@@ -81,14 +84,28 @@ export function initGlobalBlocksEditor(): void {
 
     if (modalTitle) modalTitle.textContent = ct('globalBlocks.editTitle', { label });
 
-    // Parallel fetch: stored entry (projected for active locale) + all block schemas
-    const [entryResponse, schemas] = await Promise.all([
-      fetchJson<GlobalBlockResponse>(
-        `/cms/api/global-blocks/${encodeURIComponent(slug)}${localeQuery()}`,
-        { headers: authHeaders(false) },
-      ).catch(() => ({}) as GlobalBlockResponse),
-      fetchSchemas(),
-    ]);
+    // Parallel fetch: stored entry (projected for active locale) + all block schemas.
+    //
+    // Neither is swallowed. Both endpoints now fail hard when a registry cannot be resolved
+    // (ADR-0025), and eating that failure here would put the two lies it exists to prevent
+    // back on the screen: an edit form with no fields, or — worse — "schema not found for X"
+    // below, which sends the owner hunting for a misconfigured schema that is perfectly fine.
+    // The schemas did not fail to CONTAIN this block; they failed to LOAD.
+    let entryResponse: GlobalBlockResponse;
+    let schemas: SchemaMap;
+    try {
+      [entryResponse, schemas] = await Promise.all([
+        fetchJson<GlobalBlockResponse>(
+          `/cms/api/global-blocks/${encodeURIComponent(slug)}${localeQuery()}`,
+          { headers: authHeaders(false) },
+        ),
+        fetchJson<SchemaMap>('/cms/api/block-schemas', { headers: authHeaders(false) }),
+      ]);
+    } catch (error) {
+      setError(failureMessage(error));
+      dlg.showModal();
+      return;
+    }
 
     if (entryResponse?.locale) currentLocale = entryResponse.locale;
 
@@ -97,6 +114,8 @@ export function initGlobalBlocksEditor(): void {
       entry && typeof entry.props === 'object' && entry.props !== null ? entry.props : {};
     values = JSON.parse(JSON.stringify(rawProps));
 
+    // Reachable only when the schemas DID load and genuinely have no row for this block —
+    // a real consumer misconfiguration, which is what this message now exclusively means.
     const schema = schemas[schemaName];
     if (!schema?.items) {
       setError(ct('globalBlocks.schemaNotFound', { name: schemaName }));
@@ -124,8 +143,18 @@ export function initGlobalBlocksEditor(): void {
     inlineErrors.clear();
     setError('');
 
-    // Client-side validation (best-effort; server validates too)
-    const schemas = await fetchSchemas();
+    // Client-side validation is a courtesy preflight — the server validates too. Swallowing a
+    // schema-load failure is safe HERE, and only here, because the write path is loud: the PUT
+    // 500s with the real reason if the schema map cannot be resolved (ADR-0025). Skipping the
+    // preflight defers to that truth instead of inventing a validation verdict without a schema.
+    let schemas: SchemaMap = {};
+    try {
+      schemas = await fetchJson<SchemaMap>('/cms/api/block-schemas', {
+        headers: authHeaders(false),
+      });
+    } catch {
+      // Intentionally silent: submitEdit's own PUT reports it below.
+    }
     const schemaForValidation = schemas[currentSchemaName];
 
     if (schemaForValidation?.items) {

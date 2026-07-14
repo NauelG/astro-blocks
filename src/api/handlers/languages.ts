@@ -8,7 +8,7 @@ import { removeLocaleFromPage } from '../../utils/locale-projection.js';
 import type { ContentLanguage, Menu, Page } from '../../types/index.js';
 import * as data from '../data.js';
 import { invalidateGlobalContentCache } from './cache-invalidation.js';
-import { loadSchemaMap } from './schema-loading.js';
+import { loadSchemaMap, schemaMapFailureResponse } from './schema-loading.js';
 import { jsonError, localizedJsonError, parseJsonBody } from './shared.js';
 import type { HandlerContext } from './shared.js';
 
@@ -142,6 +142,12 @@ export async function handleDeleteLanguage(
     loadSchemaMap(),
   ]);
 
+  // Deleting a language strips the locale from every page's block props — destructive and
+  // irreversible. It must not run against a schema map the system could not resolve
+  // (ADR-0025). Guard BEFORE any of the checks below, so the handler never reports a
+  // reassuring "not found" when the truth is "this server cannot resolve schemas".
+  if (!schemaResult.ok) return schemaMapFailureResponse(request);
+
   const languageIndex = languagesData.languages.findIndex(
     (language) => normalizeLanguageCode(language.code) === normalizedCode,
   );
@@ -166,9 +172,7 @@ export async function handleDeleteLanguage(
   }).length;
 
   pagesData.pages = pagesData.pages
-    .map((page) =>
-      removeLocaleFromPage(page, normalizedCode, schemaResult.schemaMap || null, localeKeys),
-    )
+    .map((page) => removeLocaleFromPage(page, normalizedCode, schemaResult.schemaMap, localeKeys))
     .filter(Boolean) as Page[];
 
   menusData.menus = menusData.menus

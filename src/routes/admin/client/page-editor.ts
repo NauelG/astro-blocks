@@ -361,7 +361,7 @@ export function initPageEditor(): void {
     pagesTbody?.querySelectorAll<HTMLElement>('.cms-page-edit').forEach((button) => {
       button.addEventListener('click', () => {
         const id = button.getAttribute('data-id');
-        if (id) void openEdit(id);
+        if (id) void openEdit(id).catch(reportFailure);
       });
     });
     pagesTbody?.querySelectorAll<HTMLElement>('.cms-page-delete').forEach((button) => {
@@ -405,6 +405,22 @@ export function initPageEditor(): void {
     });
     pagesState = data.pages || [];
     renderPagesTable();
+  }
+
+  /**
+   * For fire-and-forget calls (`void f()`), whose rejection would otherwise be an unhandled
+   * promise rejection — invisible outside devtools.
+   *
+   * GET /cms/api/pages fails hard when the schema map cannot be resolved (ADR-0025), and
+   * `openEdit` refreshes before opening. Dropped, that failure reads as "clicking Edit does
+   * nothing" — the worst kind of bug report, because the user has nothing to report.
+   */
+  function reportFailure(error: unknown): void {
+    showToast(
+      error instanceof Error && error.message ? error.message : ct('errors.loadPagesFailed'),
+      'error',
+      ct('nav.pages'),
+    );
   }
 
   function clearInlineError(
@@ -732,9 +748,22 @@ export function initPageEditor(): void {
       schemaMap = await fetchJson<SchemaMap>('/cms/api/block-schemas', {
         headers: authHeaders(false),
       });
-    } catch {
+    } catch (error) {
+      // Disabling the button is not an explanation. Since ADR-0025 the server fails loudly
+      // here — with a localized message naming the actual fault — and swallowing it left the
+      // owner staring at a dead "add block" control with no idea why. Say what happened.
+      //
+      // `schemaMap = {}` is truthy, so the guard above makes this run once: one toast, not one
+      // per interaction.
       if (addBlockBtn) addBlockBtn.disabled = true;
       schemaMap = {};
+      showToast(
+        error instanceof Error && error.message
+          ? error.message
+          : ct('errors.loadBlockSchemasFailed'),
+        'error',
+        ct('nav.pages'),
+      );
     }
   }
 
@@ -1029,12 +1058,15 @@ export function initPageEditor(): void {
   window.addEventListener('cms:content-locale-change', () => {
     annotateStaticLocalizedLabels();
     renderBlocksList();
-    void refreshPages();
+    void refreshPages().catch(reportFailure);
   });
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     void submitForm();
   });
 
-  void refreshPages();
+  // The table is SSR-rendered by pages.astro, so a failure here does not blank the screen —
+  // it silently leaves the client's pagesState empty, which is what later makes Edit do
+  // nothing. Report it at the point it happens, not three clicks later.
+  void refreshPages().catch(reportFailure);
 }

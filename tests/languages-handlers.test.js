@@ -17,12 +17,17 @@ import {
   handlePutLanguage,
 } from '../dist/api/handlers.js';
 
-async function withTempProject(fn) {
+/**
+ * A temp project is, by default, a project that WORKS — which since ADR-0025 means one whose
+ * block schema map resolves. Pass `{ seedSchema: false }` to get a broken one on purpose.
+ */
+async function withTempProject(fn, { seedSchema = true } = {}) {
   const previousRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
   const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-blocks-languages-'));
 
   process.env.ASTRO_BLOCKS_PROJECT_ROOT = tempRoot;
   await ensureDefaultFiles();
+  if (seedSchema) await seedSchemaMap(tempRoot);
 
   try {
     await fn(tempRoot);
@@ -35,6 +40,20 @@ async function withTempProject(fn) {
 
     await fs.rm(tempRoot, { recursive: true, force: true });
   }
+}
+
+// Seed a minimal schema-map.mjs in the tempRoot .astro-blocks dir. handleDeleteLanguage
+// strips the locale from every page's block props, which needs the schema map — so an
+// unresolvable one is a hard failure (ADR-0025), not a null-schema best effort.
+async function seedSchemaMap(tempRoot, schemaMap = { Hero: { name: 'Hero', items: {} } }) {
+  const dir = path.join(tempRoot, '.astro-blocks');
+  await fs.mkdir(dir, { recursive: true });
+  const lines = [
+    'export const schemaMap = {',
+    ...Object.entries(schemaMap).map(([k, v]) => `  ${JSON.stringify(k)}: ${JSON.stringify(v)},`),
+    '};',
+  ];
+  await fs.writeFile(path.join(dir, 'schema-map.mjs'), lines.join('\n'), 'utf-8');
 }
 
 test('handleGetLanguages returns default language list', async () => {
@@ -108,6 +127,48 @@ test('language handlers support full CRUD lifecycle', async () => {
     assert.equal(afterDelete.languages.length, 1);
     assert.equal(afterDelete.languages[0].code, 'es');
   });
+});
+
+/**
+ * S-7. Deleting a language is destructive and irreversible: it strips the locale from every
+ * page and menu. It must not run on a schema map the system could not resolve.
+ *
+ * Asserting the 500 is the easy half. The half that matters is that NOTHING was written —
+ * before ADR-0025 this handler ignored the resolution failure and deleted anyway.
+ */
+test('handleDeleteLanguage returns 500 and writes nothing when the schema map cannot be resolved', async () => {
+  await withTempProject(
+    async (tempRoot) => {
+      const dataDir = path.join(tempRoot, 'data');
+      const read = async (file) => fs.readFile(path.join(dataDir, file), 'utf-8');
+
+      await handlePostLanguages(
+        new Request('http://localhost/cms/api/languages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: 'en', label: 'English', enabled: true }),
+        }),
+      );
+
+      const before = {
+        languages: await read('languages.json'),
+        pages: await read('pages.json'),
+        menus: await read('menus.json'),
+      };
+
+      const response = await handleDeleteLanguage('en');
+      assert.equal(response.status, 500);
+
+      assert.equal(
+        await read('languages.json'),
+        before.languages,
+        'languages.json must be untouched',
+      );
+      assert.equal(await read('pages.json'), before.pages, 'pages.json must be untouched');
+      assert.equal(await read('menus.json'), before.menus, 'menus.json must be untouched');
+    },
+    { seedSchema: false },
+  );
 });
 
 test('handlePostLanguages rejects missing code', async () => {

@@ -29,6 +29,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import * as handlers from './handlers.js';
 import { defineRoute, type RouteDescriptor } from './route-matcher.js';
+import { localizedJsonError } from './handlers/shared.js';
 import type { GlobalBlockRuntimeEntry } from '../types/index.js';
 
 /**
@@ -42,30 +43,59 @@ import type { GlobalBlockRuntimeEntry } from '../types/index.js';
  * 404'd global-block open/edit even though rendering worked via the bundled
  * alias.
  */
-async function loadGlobalBlocksRegistry(): Promise<GlobalBlockRuntimeEntry[]> {
+type RegistryResult =
+  | { ok: true; entries: GlobalBlockRuntimeEntry[] }
+  | { ok: false; reason: 'unresolved' };
+
+async function loadGlobalBlocksRegistry(): Promise<RegistryResult> {
   const baked = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env
     ?.ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY;
   if (typeof baked === 'string' && baked.length > 0) {
     try {
       const parsed = JSON.parse(baked) as GlobalBlockRuntimeEntry[];
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) return { ok: true, entries: parsed };
     } catch {
       // Malformed bake — fall through to the filesystem read.
     }
   }
 
-  // Fallback: dev/legacy filesystem read of the generated runtime module.
+  // Fallback: dev/test filesystem read of the generated runtime module.
+  const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
+  const runtimePath = path.join(projectRoot, '.astro-blocks', 'runtime.mjs');
+
   try {
-    const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
-    const runtimePath = path.join(projectRoot, '.astro-blocks', 'runtime.mjs');
     const runtimeUrl = pathToFileURL(runtimePath).href;
     const mod = (await import(/* @vite-ignore */ runtimeUrl)) as {
       globalBlocksRegistry?: GlobalBlockRuntimeEntry[];
     };
-    return mod.globalBlocksRegistry ?? [];
-  } catch {
-    return [];
+    return { ok: true, entries: mod.globalBlocksRegistry ?? [] };
+  } catch (error) {
+    // NOT an empty registry. `catch { return [] }` was the original symptom ADR-0009 was
+    // written to kill: downstream, an empty array is indistinguishable from "this project
+    // declares no global blocks", so a resolution failure rendered as a plausible, WRONG
+    // answer — the admin simply showed no global blocks and nobody knew why.
+    //
+    // A project that genuinely declares none bakes "[]" and resolves successfully above.
+    // Reaching here means the registry could not be resolved at all (ADR-0025).
+    console.error(
+      '[astro-blocks] Could not resolve the global-blocks registry. Neither the baked value ' +
+        '(import.meta.env.ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY) nor ' +
+        `${runtimePath} resolved. On a deployed server this means the bundle was not built ` +
+        'with the astro-blocks integration active — .astro-blocks/ is a gitignored build ' +
+        'artifact and is never a resolution strategy. See ADR-0009 and ADR-0025.',
+      error,
+    );
+    return { ok: false, reason: 'unresolved' };
   }
+}
+
+/**
+ * A 500, not a throw: `dispatch()` (routes/api/catchall.ts) has no error boundary, so a
+ * throw here would escape as Astro's HTML error page and break the JSON contract every
+ * admin fetch depends on.
+ */
+function registryFailureResponse(request: Request): Response {
+  return localizedJsonError(request, 'errors.loadGlobalBlocksRegistryFailed', 500);
 }
 
 /**
@@ -157,15 +187,21 @@ export const routes: RouteDescriptor[] = [
     method: 'GET',
     pattern: 'global-blocks',
     auth: 'user',
-    handler: async (ctx) =>
-      handlers.handleGetGlobalBlocks(await loadGlobalBlocksRegistry(), ctx.request),
+    handler: async (ctx) => {
+      const registry = await loadGlobalBlocksRegistry();
+      if (!registry.ok) return registryFailureResponse(ctx.request);
+      return handlers.handleGetGlobalBlocks(registry.entries, ctx.request);
+    },
   }),
   defineRoute({
     method: 'GET',
     pattern: 'global-blocks/:id',
     auth: 'user',
-    handler: async (ctx) =>
-      handlers.handleGetGlobalBlock(ctx.params.id, await loadGlobalBlocksRegistry(), ctx.request),
+    handler: async (ctx) => {
+      const registry = await loadGlobalBlocksRegistry();
+      if (!registry.ok) return registryFailureResponse(ctx.request);
+      return handlers.handleGetGlobalBlock(ctx.params.id, registry.entries, ctx.request);
+    },
   }),
 
   // ─── POST (12) ──────────────────────────────────────────────────────────
@@ -289,13 +325,16 @@ export const routes: RouteDescriptor[] = [
     method: 'PUT',
     pattern: 'global-blocks/:id',
     auth: 'user',
-    handler: async (ctx) =>
-      handlers.handlePutGlobalBlock(
+    handler: async (ctx) => {
+      const registry = await loadGlobalBlocksRegistry();
+      if (!registry.ok) return registryFailureResponse(ctx.request);
+      return handlers.handlePutGlobalBlock(
         ctx.params.id,
         ctx.request,
         { cache: ctx.cache },
-        await loadGlobalBlocksRegistry(),
-      ),
+        registry.entries,
+      );
+    },
   }),
 
   // ─── PATCH (1) ──────────────────────────────────────────────────────────

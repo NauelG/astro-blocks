@@ -30,15 +30,20 @@ consumer      │  astro:config:setup  → validate options.blocks / options.glo
 astro.config  │                        register the `astro-blocks-runtime` Vite alias, bake registries    │
   │           │  astro:config:done   → assertAdapterConfigured() fail-fast SSR guard (build only)         │
   ▼           └──────────────────────────────────────────────────────────────────────────────────────────┘
- blocks[]/globalBlocks[]                         │ generates
+ blocks[]/globalBlocks[]                         │ generates TWO gitignored artifacts
                                                  ▼
-                              .astro-blocks/runtime.mjs   (gitignored build artifact: the block/globalBlock registry)
+       .astro-blocks/runtime.mjs                      .astro-blocks/schema-map.mjs
+       (componentMap + schemaMap + globalBlocks       (the schema map ALONE, as pure data —
+        registry; imports real .astro components,      loadable from plain Node, which is the
+        so it loads ONLY inside a Vite graph)          only reason this second file exists)
                                                  │
         ┌──────────────── consumed two different ways (see ADR-0009) ─────────────────┐
         ▼ Astro pages & components                                                     ▼ precompiled API route
   routes/page.astro, page-static.astro,                                     routes/api/catchall.ts
   components/GlobalBlock.astro, admin *.astro    ── import ──▶ 'astro-blocks-runtime'  reads BAKED import.meta.env
-                                                    (Vite alias)                        (or filesystem fallback in dev)
+                                                    (Vite alias)                        for BOTH registries
+                                                                                        (schema map + globalBlocks);
+                                                                                        disk is the dev/test seam only
         │                                                                                     │
         ▼                                                                                     ▼
   admin UI (routes/admin/**)  ── fetch /cms/api/* ──▶  api/route-table.ts + route-matcher.ts ──▶ api/handlers/*.ts
@@ -94,7 +99,9 @@ astro.config  │                        register the `astro-blocks-runtime` Vit
 |---|---|
 | **Block** | A typed content unit `BlockInstance { type, props }` rendered by a consumer-provided schema + `.astro` component. Two flavors: page-scoped and global. |
 | **Global block** | A reusable block edited once and referenced from pages/layouts (header, footer, CTA). Declared via `globalBlocks: [{ slug, label }]`. (obs #132) |
-| **Registry / runtime.mjs** | The generated `.astro-blocks/runtime.mjs` (gitignored) holding the block & global-block registry the plugin bakes from consumer config. Resolved via the `astro-blocks-runtime` alias (ADR-0009). |
+| **Registry / runtime.mjs** | The generated `.astro-blocks/runtime.mjs` (gitignored): component map, schema map and global-block registry. It **imports the consumer's real `.astro` components**, so it can only be loaded inside a Vite graph — Astro pages reach it through the `astro-blocks-runtime` alias (ADR-0009). Its data twin is the **Schema map**. |
+| **Schema map** | The block schemas, keyed by block type — the answer to *"is this prop localizable? is it an image?"*. Emitted **twice**: inside `runtime.mjs` (for the alias), and alone as pure data in `.astro-blocks/schema-map.mjs`. That second file exists for exactly one reason: it can be `import`ed from plain Node, which `runtime.mjs` cannot. Both are gitignored build artifacts. |
+| **Bake** | Passing a value to the **precompiled API route** by splicing it into the bundle at config time via `vite.define` → `import.meta.env.*`. That route is not part of the consumer's Vite graph, so it cannot use the alias; and `.astro-blocks/` is gitignored, so it is routinely **absent** on a deployed server. Every registry the API route needs is therefore baked — the schema map and the global-block registry both. **The filesystem is a dev/test seam, never a resolution strategy** (ADR-0009, ADR-0025 — its absence is what #101 was). Baked values are **double-encoded** (`JSON.stringify` twice): `vite.define` splices raw *source*, so a single stringify emits a literal that `typeof === 'string'` guards reject. |
 | **`LocalizedValueMap`** | A per-locale value map, e.g. `{ en: 'Hello', es: 'Hola' }`. A value is "localized" **only if every top-level key is a known locale code** (`isLocalizedMapValue`). (obs #813, #147) |
 | **`ImageFieldValue`** | The structured image field value `{ url, alt?, width?, height?, caption? }` — replaced the old bare URL string. Its non-locale keys mean it passes through the localization layer untouched. (ADR-0016, obs #813) |
 | **`MediaEntry`** | A row in `data/media.json` describing an uploaded asset (url, mime, variants, default alt, …). Caption is **not** stored here — it is per-component (ADR-0016). |
@@ -199,6 +206,22 @@ create the component with its `schema` and add it to the `blocks` array. (See AD
 ---
 
 ## 7. Gotchas / known traps
+
+### Runtime artifacts (`.astro-blocks/`)
+- **The filesystem is not a resolution strategy.** `.astro-blocks/` is a **gitignored build artifact**: it exists on
+  your machine and is *absent* on a deployed server. Any value the **precompiled API route** needs must be **baked**
+  into `vite.define` at config time. This is not a style preference — it is the same bug twice: global blocks 404'd in
+  production (ADR-0009), and then block schemas did (#101, ADR-0025). If you find yourself reading `.astro-blocks/*`
+  at request time, you are writing the third one.
+- **Baked values are DOUBLE-encoded.** `vite.define` splices its value in as raw **source**, so
+  `JSON.stringify(value)` becomes an object/array *literal* in the bundle — which every reader's
+  `typeof raw === 'string'` guard then rejects, silently falling back to a default **as if the consumer had never
+  configured anything**. That is what shipped the `video/mp4` 415: `allowedFileTypes` never reached the server in any
+  released version. Always `JSON.stringify(JSON.stringify(value))`, and `JSON.parse` it back.
+- **`runtime.mjs` cannot be imported from plain Node** — it imports the consumer's real `.astro` components. That is
+  why `schema-map.mjs` exists as a pure-data twin, and why unit tests (`node --test`, no `import.meta.env`) seed the
+  latter. A temp project *without* it is a **broken deployment**, and every schema-dependent handler returns 500
+  (ADR-0025). Seed it, or pass `{ seedSchema: false }` deliberately.
 
 ### Localization
 - **`LocalizedValueMap` fails scalar validation**: `validateBlockPropsAgainstSchema` rejects objects for
