@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 # 0017 — Responsive images via sharp on-upload variant generation
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-06-14
 - **Source:** engram observation #827
 

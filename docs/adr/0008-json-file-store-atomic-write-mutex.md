@@ -5,9 +5,16 @@ Licensed under the Business Source License 1.1
 
 # 0008 — JSON file store: atomic write + per-file mutex
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-06-13
 - **Source:** engram observation #805
+
+> **Compliance note (2026-07-14).** Verified against the code. Atomic `writeJson` and the media
+> mutex are implemented — and lock coverage is in fact *wider* than this ADR claims (alt update, byte
+> replace and variant markers are locked too). **One write escapes the seam:** `src/api/backup.ts:651`
+> calls the exported, unlocked `data.saveMedia()` during restore, holding only `withUsersLock` — a
+> different key. That is a lost-update window against a concurrent upload. The comment at
+> `src/api/backup.ts:577-586` asserts the opposite of what line 651 does. Tracked in **#100**.
 
 ## Context
 

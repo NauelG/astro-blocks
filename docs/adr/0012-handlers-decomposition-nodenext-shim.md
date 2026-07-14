@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 # 0012 — Decompose api/handlers.ts behind a NodeNext re-export shim
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-07-07
 - **Source:** engram observation(s) #1996, #2001
 

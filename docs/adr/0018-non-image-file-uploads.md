@@ -5,9 +5,18 @@ Licensed under the Business Source License 1.1
 
 # 0018 — Non-image file uploads: 'file' prop type + server-side denylist
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-06-29
 - **Source:** engram observation(s) #1833, #800
+
+> **Compliance note (2026-07-14).** Verified against the code. Everything load-bearing for security is
+> enforced server-side: the hard denylist runs **before** the allowlist (`src/utils/upload-gate.ts:100-119`,
+> `src/api/handlers/media.ts:110-118`), the stored extension is derived from the MIME map and never from
+> user input, and path containment is separator-safe. **But this ADR describes `intersectAccept()` as
+> computing the "effective allowlist", and that never reaches the server.** Its only call site is
+> `src/routes/admin/client/block-form.ts:996` — the media picker's browser-side filter. The upload
+> endpoint enforces the *global* allowlist only. Per-component `accept` is a UI affordance, not a
+> server-enforced constraint. Tracked in **#102**.
 
 ## Context
 
