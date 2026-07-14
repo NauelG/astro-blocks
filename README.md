@@ -4,7 +4,7 @@ Licensed under the Business Source License 1.1
 -->
 
 <p align="center">
-  <img src="img/blocks_logo.jpg" alt="AstroBlocks" width="160" />
+  <img src="src/img/blocks_logo.jpg" alt="AstroBlocks" width="160" />
 </p>
 
 <h1 align="center">AstroBlocks</h1>
@@ -79,32 +79,32 @@ A snapshot of what AstroBlocks provides, grouped by area. Full behavior for each
 | **i18n** | Content languages and default locale; admin UI in English or Spanish. |
 | **Performance** | Astro experimental cache invalidation from content updates and manual panel actions. |
 
-> **Maturity note.** The feature set is pre-1.0 and tracked as **alpha** in the [features manifest](./meta/features.json) (cache invalidation is marked experimental). The API surface can still change between minor versions. The version badge above reflects the current published npm release channel; see [Versioning & Support](#versioning--support).
+> **Maturity note.** The feature set is pre-1.0 and tracked as **alpha** in the [features manifest](./src/meta/features.json) (cache invalidation is marked experimental). The API surface can still change between minor versions. The version badge above reflects the current published npm release channel; see [Versioning & Support](#versioning--support).
 
 ## Showcase
 
 <p align="center">
-  <img src="img/dashboard.jpg" alt="AstroBlocks dashboard" width="860" style="border-radius:8px" />
+  <img src="src/img/dashboard.jpg" alt="AstroBlocks dashboard" width="860" style="border-radius:8px" />
   <br /><em>The CMS dashboard — project status, quick actions and recent activity.</em>
 </p>
 
 <p align="center">
-  <img src="img/page_editor.jpg" alt="AstroBlocks page editor" width="860" style="border-radius:8px" />
+  <img src="src/img/page_editor.jpg" alt="AstroBlocks page editor" width="860" style="border-radius:8px" />
   <br /><em>The page editor — a compact block builder where content, SEO and structure are managed together.</em>
 </p>
 
 <p align="center">
-  <img src="img/media-library.png" alt="AstroBlocks media library" width="860" style="border-radius:8px" />
+  <img src="src/img/media-library.png" alt="AstroBlocks media library" width="860" style="border-radius:8px" />
   <br /><em>The media library — upload, search, paginate, edit alt text and see per-asset metadata.</em>
 </p>
 
 <p align="center">
-  <img src="img/image-picker.png" alt="AstroBlocks image field picker" width="860" style="border-radius:8px" />
+  <img src="src/img/image-picker.png" alt="AstroBlocks image field picker" width="860" style="border-radius:8px" />
   <br /><em>The image field picker — choose an asset and set a per-usage alt and caption.</em>
 </p>
 
 <p align="center">
-  <img src="img/import-export.jpg" alt="AstroBlocks import/export admin page" width="860" style="border-radius:8px" />
+  <img src="src/img/import-export.jpg" alt="AstroBlocks import/export admin page" width="860" style="border-radius:8px" />
   <br /><em>The import / export page — select units, download a backup, or restore from a .zip file.</em>
 </p>
 
@@ -138,7 +138,7 @@ pnpm add @astroblocks/astro-blocks @astrojs/node
 yarn add @astroblocks/astro-blocks @astrojs/node
 ```
 
-> To validate a locally built package before publishing, use the tarball flow documented in [LOCAL_PACKAGE_TESTING.md](./LOCAL_PACKAGE_TESTING.md).
+> To validate a locally built package before publishing, use the tarball flow documented in [LOCAL_PACKAGE_TESTING.md](./docs/LOCAL_PACKAGE_TESTING.md).
 
 ## Environment Setup
 
@@ -691,7 +691,7 @@ AstroBlocks already converts relative `seo.image` values to absolute URLs before
 
 ### I want to validate a local build before publishing
 
-Use the tarball flow documented in [LOCAL_PACKAGE_TESTING.md](./LOCAL_PACKAGE_TESTING.md).
+Use the tarball flow documented in [LOCAL_PACKAGE_TESTING.md](./docs/LOCAL_PACKAGE_TESTING.md).
 
 ## Versioning & Support
 
@@ -712,7 +712,7 @@ When deploying a site that uses this integration:
 Contributions are welcome under the terms of the [License](#license). Start with:
 
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — contribution guidelines (primary).
-- [DEVELOPING.md](./DEVELOPING.md) — build, workspace, playground and release workflow.
+- [DEVELOPING.md](./docs/DEVELOPING.md) — build, workspace, playground and release workflow.
 - [AGENTS.md](./AGENTS.md) — repository-specific implementation rules.
 
 ## License

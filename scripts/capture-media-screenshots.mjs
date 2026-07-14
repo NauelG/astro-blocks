@@ -7,8 +7,8 @@ Licensed under the Business Source License 1.1
  * capture-media-screenshots.mjs
  *
  * Regenerates the two media-feature screenshots from the VERSIONED playground demo:
- *   img/media-library.png  — /cms/media library page
- *   img/image-picker.png   — image-field picker modal cropped to the panel
+ *   src/img/media-library.png  — /cms/media library page
+ *   src/img/image-picker.png   — image-field picker modal cropped to the panel
  *
  * The MediaShowcase demo (placeholder images + responsive variants + ready media
  * registry + a pages.json page with a MediaShowcase block) is committed to git
@@ -23,7 +23,7 @@ Licensed under the Business Source License 1.1
  *   4. Capture both screenshots with Playwright (1440×900, Chromium, light theme).
  *   5. Tear down the dev server cleanly — even on error.
  *   6. Restore the versioned demo again, so the ONLY working-tree change left by
- *      this script is the regenerated img/*.png (the demo must never show dirty).
+ *      this script is the regenerated src/img/*.png (the demo must never show dirty).
  *
  * Usage:
  *   node scripts/capture-media-screenshots.mjs
@@ -47,7 +47,7 @@ import { chromium } from 'playwright';
 const ROOT = process.cwd();
 const PLAYGROUND_DIR = path.join(ROOT, 'playgrounds', 'basic');
 
-const IMG_DIR = path.join(ROOT, 'img');
+const IMG_DIR = path.join(ROOT, 'src', 'img');
 const MEDIA_LIBRARY_PATH = path.join(IMG_DIR, 'media-library.png');
 const IMAGE_PICKER_PATH = path.join(IMG_DIR, 'image-picker.png');
 
@@ -88,7 +88,7 @@ const SERVER_READY_TIMEOUT_MS = 120_000;
 /**
  * Restore the versioned MediaShowcase demo (pages.json + media.json + uploads) to
  * the committed HEAD state via `git checkout`. Runs before capture (clean baseline)
- * and after capture (so the only working-tree change is img/*.png).
+ * and after capture (so the only working-tree change is src/img/*.png).
  *
  * `git checkout -- <paths>` discards working-tree modifications for tracked files;
  * untracked files inside public/uploads are NOT removed (the demo only ever reads
@@ -427,7 +427,7 @@ async function main() {
   } finally {
     // ── Step 6: Restore the versioned demo — always runs, even on error ───────
     // Guarantees the only working-tree change left behind is the regenerated
-    // img/*.png. The versioned demo (pages.json + media.json + uploads) must
+    // src/img/*.png. The versioned demo (pages.json + media.json + uploads) must
     // never show as modified after this script runs.
     console.log('[media-screenshots] Restoring versioned demo...');
     await restoreVersionedDemo('post-capture');

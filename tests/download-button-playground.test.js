@@ -72,7 +72,7 @@ test('DownloadButton.astro imports or references fileDownloadUrl', () => {
 // ─── R8.1-A — media.astro does NOT contain hardcoded accept="image/*" ────────
 
 test('R8.1-A: routes/admin/media.astro does not contain hardcoded accept="image/*"', () => {
-  const filePath = path.join(ROOT, 'routes', 'admin', 'media.astro');
+  const filePath = path.join(ROOT, 'src', 'routes', 'admin', 'media.astro');
   const content = fs.readFileSync(filePath, 'utf-8');
   assert.ok(
     !content.includes('accept="image/*"'),
@@ -82,8 +82,8 @@ test('R8.1-A: routes/admin/media.astro does not contain hardcoded accept="image/
 
 // ─── R8.2-A — media.ts contains a non-image (document) branch ────────────────
 
-test('R8.2-A: routes/admin/client/media.ts contains non-image (document) card branch', () => {
-  const filePath = path.join(ROOT, 'routes', 'admin', 'client', 'media.ts');
+test('R8.2-A: src/routes/admin/client/media.ts contains non-image (document) card branch', () => {
+  const filePath = path.join(ROOT, 'src', 'routes', 'admin', 'client', 'media.ts');
   const content = fs.readFileSync(filePath, 'utf-8');
   assert.match(
     content,

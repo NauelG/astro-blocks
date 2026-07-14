@@ -6,7 +6,7 @@ Licensed under the Business Source License 1.1
 /**
  * route-matcher.test.js — Phase 1 (PR1) of route-table-auth-gating.
  *
- * Pure unit tests for `api/route-matcher.ts`: `matchRoute` + `defineRoute`.
+ * Pure unit tests for `src/api/route-matcher.ts`: `matchRoute` + `defineRoute`.
  * No handlers, no I/O, no HTTP — fixture route tables only. This is the
  * foundation module other phases (PR2/PR3) build on; it must prove
  * exact-arity matching, `:param` extraction, and declaration-order

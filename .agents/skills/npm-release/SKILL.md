@@ -140,7 +140,7 @@ licensed".
 
 Work through this checklist before running `npm version`. All items must pass.
 
-- [ ] **features.json** — review user-facing scope changes; update `meta/features.json` and run `npm run features:validate`.
+- [ ] **features.json** — review user-facing scope changes; update `src/meta/features.json` and run `npm run features:validate`.
 - [ ] **Changelog entry committed** — add `## [X.Y.Z] - YYYY-MM-DD` block at the top of `CHANGELOG.md`, with a `### Title` sub-heading and at least one content sub-section. Commit this before running `npm version` (npm enforces a clean working tree).
 - [ ] **Clean working tree** — `git status` must show nothing uncommitted. npm version aborts if the tree is dirty.
 - [ ] **Playwright Chromium installed** — the `version` hook runs both screenshot scripts via Playwright. Run `npx playwright install chromium` if not already done.

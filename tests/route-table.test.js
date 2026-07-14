@@ -4,7 +4,7 @@ Licensed under the Business Source License 1.1
 */
 
 /**
- * route-table.test.js — structural guard for api/route-table.ts (Phase 3 of
+ * route-table.test.js — structural guard for src/api/route-table.ts (Phase 3 of
  * route-table-auth-gating, resolves #36 + #37).
  *
  * This is a declaration-level proof, not a behavioral one: it asserts the

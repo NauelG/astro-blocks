@@ -6,7 +6,7 @@
  *   E-2: page declares prerender=false; wraps AdminLayout; has required HTML structure
  *   E-3: client module exists and exports initImportExportEditor; no TypeScript in define:vars
  *   E-4: layout.astro has the nav link with data-cms-owner-only
- *   E-5: plugin/index.ts injects /cms/import-export route
+ *   E-5: src/plugin/index.ts injects /cms/import-export route
  *
  * DOM logic that can only run in a browser (export fetch+blob, import POST, fflate
  * manifest parsing, session close) is validated in playground (Slice G e2e demo).
@@ -19,7 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const ADMIN_DIR = path.join(ROOT, 'routes', 'admin');
+const ADMIN_DIR = path.join(ROOT, 'src', 'routes', 'admin');
 const DIST_DIR = path.join(ROOT, 'dist');
 
 // ─── E-1: i18n parity ────────────────────────────────────────────────────────
@@ -398,7 +398,7 @@ test('E-2c: bootstrap.selectFile and bootstrap.noFileSelected keys exist in both
 
 test('E-3: client/import-export-editor.ts source file exists', () => {
   const src = path.join(ADMIN_DIR, 'client', 'import-export-editor.ts');
-  assert.ok(fs.existsSync(src), 'routes/admin/client/import-export-editor.ts must exist');
+  assert.ok(fs.existsSync(src), 'src/routes/admin/client/import-export-editor.ts must exist');
 });
 
 test('E-3: client module exports initImportExportEditor function', () => {
@@ -494,8 +494,8 @@ test('E-4: /cms/import-export nav link uses nav.importExport i18n key', () => {
 
 // ─── E-5: route injection ─────────────────────────────────────────────────────
 
-test('E-5: plugin/index.ts injects /cms/import-export route', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'plugin', 'index.ts'), 'utf8');
+test('E-5: src/plugin/index.ts injects /cms/import-export route', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'plugin', 'index.ts'), 'utf8');
   assert.match(
     src,
     /injectRoute\(\s*\{\s*pattern\s*:\s*['"]\/cms\/import-export['"]/,
@@ -503,8 +503,8 @@ test('E-5: plugin/index.ts injects /cms/import-export route', () => {
   );
 });
 
-test('E-5: plugin/index.ts resolves import-export.astro entrypoint', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'plugin', 'index.ts'), 'utf8');
+test('E-5: src/plugin/index.ts resolves import-export.astro entrypoint', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'src', 'plugin', 'index.ts'), 'utf8');
   assert.match(
     src,
     /resolveCms\(['"]admin\/import-export\.astro['"]\)/,
@@ -515,7 +515,7 @@ test('E-5: plugin/index.ts resolves import-export.astro entrypoint', () => {
 test('E-5: import-export.astro is now in the set of injected admin routes (prerender guard passes)', () => {
   // Cross-check: the admin-routes-prerender test checks all resolveCms('admin/*.astro') entries.
   // This test verifies import-export.astro would not be excluded from that guard.
-  const pluginSrc = fs.readFileSync(path.join(ROOT, 'plugin', 'index.ts'), 'utf8');
+  const pluginSrc = fs.readFileSync(path.join(ROOT, 'src', 'plugin', 'index.ts'), 'utf8');
   const injected = [...pluginSrc.matchAll(/resolveCms\(['"]admin\/([a-z0-9-]+\.astro)['"]\)/g)].map(
     (m) => m[1],
   );

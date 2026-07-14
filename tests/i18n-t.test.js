@@ -1,5 +1,5 @@
 /**
- * Tests for routes/admin/i18n/t.ts
+ * Tests for src/routes/admin/i18n/t.ts
  * Tests: t(), createT(), interpolation, fallback chain, key-as-sentinel
  */
 import test from 'node:test';

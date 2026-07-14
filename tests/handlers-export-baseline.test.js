@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 import * as handlers from '../dist/api/handlers.js';
 
 /**
- * Locked baseline of the public runtime export surface of api/handlers.ts,
+ * Locked baseline of the public runtime export surface of src/api/handlers.ts,
  * captured before the PR1 slice of the decompose-handlers refactor (P1-1).
  *
- * `api/handlers.ts` is decomposed incrementally across several chained PRs
+ * `src/api/handlers.ts` is decomposed incrementally across several chained PRs
  * into `api/handlers/*` domain modules, always re-exported from a real,
- * on-disk `api/handlers.ts` shim (required under NodeNext module resolution).
+ * on-disk `src/api/handlers.ts` shim (required under NodeNext module resolution).
  * This test guards that every chained PR preserves the exact same runtime-visible
  * named exports — no additions, no removals, no renames — regardless of how the
  * implementation is internally reorganized.

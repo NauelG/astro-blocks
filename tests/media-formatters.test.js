@@ -7,7 +7,7 @@ Licensed under the Business Source License 1.1
  * media-formatters.test.js — FIX B: formatter cohesion.
  *
  * formatBytes / formatDimensions / formatMediaDate are intentionally duplicated
- * between routes/admin/client/media-fetch.ts (client re-render) and the inlined
+ * between src/routes/admin/client/media-fetch.ts (client re-render) and the inlined
  * SSR copy in routes/admin/media.astro (first paint). SSR cannot import the
  * client module, so the copies live separately — but they MUST produce identical
  * output for the same inputs, or a card's server first-paint and client

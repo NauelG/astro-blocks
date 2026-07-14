@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 /**
  * image-value.test.js
- * Unit tests for utils/image-value.ts pure helpers.
+ * Unit tests for src/utils/image-value.ts pure helpers.
  * These run against the compiled dist/ output.
  * RED phase: tests are written before the implementation exists.
  */

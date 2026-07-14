@@ -26,8 +26,8 @@ import { join } from 'node:path';
 
 const root = process.cwd();
 
-const pageEditor = await readFile(join(root, 'routes/admin/client/page-editor.ts'), 'utf-8');
-const blockForm = await readFile(join(root, 'routes/admin/client/block-form.ts'), 'utf-8');
+const pageEditor = await readFile(join(root, 'src/routes/admin/client/page-editor.ts'), 'utf-8');
+const blockForm = await readFile(join(root, 'src/routes/admin/client/block-form.ts'), 'utf-8');
 
 test('page-editor.ts — SEO image upload surfaces failures via showToast', () => {
   const fn = pageEditor.slice(

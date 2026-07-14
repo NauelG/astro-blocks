@@ -4,11 +4,11 @@ Licensed under the Business Source License 1.1
 */
 
 /**
- * Source-level guard: routes/admin/client/common.ts must NOT declare a local
+ * Source-level guard: src/routes/admin/client/common.ts must NOT declare a local
  * DOM-based escapeHtml function (the `div.textContent = v; return
  * div.innerHTML` implementation). It was dead code with zero importers
  * repo-wide once block-form.ts was repointed to the canonical
- * utils/html-escape.ts module (sub-slice 2d, issue #39). This is the final
+ * src/utils/html-escape.ts module (sub-slice 2d, issue #39). This is the final
  * cleanup, sub-slice 2e.
  *
  * A second, repo-wide guard scans every routes/admin/client/*.ts file (via
@@ -22,8 +22,8 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const root = process.cwd();
-const relPath = 'routes/admin/client/common.ts';
-const clientDir = join(root, 'routes/admin/client');
+const relPath = 'src/routes/admin/client/common.ts';
+const clientDir = join(root, 'src/routes/admin/client');
 
 test(`${relPath} — must not declare a local escapeHtml function`, async () => {
   const src = await readFile(join(root, relPath), 'utf-8');

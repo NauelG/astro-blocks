@@ -26,7 +26,7 @@ Closes #
 - [ ] **`AGENTS.consumer.md` synced** — if public API, integration options, admin routes, or env vars changed (see CONTRIBUTING.md for trigger table).
 - [ ] **README version badge** bumped — if this is a release PR (line 17 of README.md).
 - [ ] **Playground sample** added or updated under `playgrounds/` — if this introduces a new feature.
-- [ ] No closed ADR reopened without explicit justification (see `DECISIONS.md`).
+- [ ] No closed ADR reopened without explicit justification (see `docs/DECISIONS.md`).
 - [ ] No real credentials, `.env` files, or `dist/` build artifacts committed.
 
 ## Notes for reviewers

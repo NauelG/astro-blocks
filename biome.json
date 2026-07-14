@@ -7,17 +7,12 @@
   },
   "files": {
     "includes": [
-      "api/**",
-      "plugin/**",
-      "contract/**",
-      "utils/**",
-      "routes/**",
-      "types/**",
-      "components/**",
+      "src/**",
       "scripts/**",
       "tests/**",
       "e2e/**",
       "!**/*.astro",
+      "!src/styles/**",
       "!**/dist"
     ]
   },

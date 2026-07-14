@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 /**
  * file-value.test.js
- * Unit tests for utils/file-value.ts pure helpers.
+ * Unit tests for src/utils/file-value.ts pure helpers.
  * Tests import from ../dist/ after build.
  *
  * RED phase: written before the implementation exists.

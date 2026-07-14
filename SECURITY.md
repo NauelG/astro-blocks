@@ -51,7 +51,7 @@ anonymity.
 **In scope** — vulnerabilities in the integration code itself:
 
 - Authentication and session handling (JWT, admin credentials, cookie settings).
-- API handler logic (`api/handlers.ts`) — input validation, authorization checks.
+- API handler logic (`src/api/handlers.ts`) — input validation, authorization checks.
 - File upload and media handling — path traversal, type validation, size limits.
 - Block validation and output escaping — XSS or injection via block content.
 - SSR rendering issues that could expose sensitive data or allow injection.

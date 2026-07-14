@@ -42,12 +42,12 @@ const ATTR_DOUBLE_QUOTE = /="\$\{escapeHtml\(/;
 const ATTR_SINGLE_QUOTE = /='\$\{escapeHtml\(/;
 
 const FILES = [
-  'routes/admin/client/block-form.ts',
-  'routes/admin/client/configs-editor.ts',
-  'routes/admin/client/menus-editor.ts',
-  'routes/admin/client/redirects-editor.ts',
-  'routes/admin/client/page-editor.ts',
-  'routes/admin/client/media.ts',
+  'src/routes/admin/client/block-form.ts',
+  'src/routes/admin/client/configs-editor.ts',
+  'src/routes/admin/client/menus-editor.ts',
+  'src/routes/admin/client/redirects-editor.ts',
+  'src/routes/admin/client/page-editor.ts',
+  'src/routes/admin/client/media.ts',
 ];
 
 for (const relPath of FILES) {

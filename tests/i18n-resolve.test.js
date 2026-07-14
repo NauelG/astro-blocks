@@ -1,5 +1,5 @@
 /**
- * Tests for routes/admin/i18n/resolve.ts
+ * Tests for src/routes/admin/i18n/resolve.ts
  * Tests: parseAcceptLanguage, readUiLocaleCookie, resolveUiLocale
  */
 import test from 'node:test';

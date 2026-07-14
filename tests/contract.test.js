@@ -5,7 +5,7 @@ import { defineBlockSchema, PROP_TYPES } from '../dist/contract/index.js';
 import { buildSchemaMap, resolveBlockEntries, validateBlocks } from '../dist/utils/blocks.js';
 
 // ─── C1: FileFieldValue must be re-exported from the contract surface ─────────
-// The type-level guard lives in contract/index.ts (compiled by tsc).
+// The type-level guard lives in src/contract/index.ts (compiled by tsc).
 // This runtime check ensures the compiled module loads without errors,
 // proving the export block is intact.
 test('C1: contract/index.js loads without error (FileFieldValue export guard)', async () => {

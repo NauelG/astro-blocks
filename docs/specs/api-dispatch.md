@@ -11,9 +11,9 @@ Licensed under the Business Source License 1.1
 
 ## Capability
 
-All CMS REST traffic enters through one injected catchall (`routes/api/catchall.ts`) whose five
+All CMS REST traffic enters through one injected catchall (`src/routes/api/catchall.ts`) whose five
 per-verb exports (`GET`/`POST`/`PUT`/`PATCH`/`DELETE`) delegate to a single `dispatch()`. Requests
-are matched against the route table (`api/route-table.ts` + `api/route-matcher.ts`); each route
+are matched against the route table (`src/api/route-table.ts` + `src/api/route-matcher.ts`); each route
 declares an auth tier: `public`, `user`, or `owner`.
 
 ## Requirements
