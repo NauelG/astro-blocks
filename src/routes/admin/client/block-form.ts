@@ -67,7 +67,7 @@ import {
   uploadMedia,
 } from './media-fetch.js';
 import type { MediaEntry as MediaFetchEntry } from './media-fetch.js';
-import { DEFAULT_ALLOWED_FILE_TYPES, intersectAccept } from '../../../utils/file-types.js';
+import { DEFAULT_ALLOWED_FILE_TYPES, intersectAccept } from '../../../utils/file-catalog.js';
 
 // SVG icons (same as page-editor.ts and global-blocks-editor.ts)
 const trashIconSvg =

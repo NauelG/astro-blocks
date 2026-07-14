@@ -76,7 +76,7 @@ export function mergeBlockPropsForLocale(
   }
 
   for (const [propName, existingValue] of Object.entries(existingBlock?.props || {})) {
-    if (Object.prototype.hasOwnProperty.call(output, propName)) continue;
+    if (Object.hasOwn(output, propName)) continue;
     output[propName] = existingValue;
   }
 

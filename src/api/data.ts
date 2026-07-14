@@ -6,6 +6,7 @@ Licensed under the Business Source License 1.1
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { lookupByMime } from '../utils/file-catalog.js';
 import { getDataDir, getDataPath, getUploadsDir } from '../utils/paths.js';
 import { findUrlRefsInProps, type UsageRef } from '../utils/image-url-scan.js';
 import {
@@ -578,6 +579,7 @@ export async function loadMedia(): Promise<MediaData> {
         ) {
           const e = entry as Record<string, unknown>;
           const VALID_STATUSES = new Set(['processing', 'ready', 'failed']);
+          const VALID_FILE_CATEGORIES = new Set(['image', 'video', 'audio', 'document']);
           const normalised: MediaEntry = {
             id: e.id as string,
             url: e.url as string,
@@ -597,14 +599,13 @@ export async function loadMedia(): Promise<MediaData> {
             ...(typeof e.height === 'number' &&
               Number.isFinite(e.height) &&
               e.height > 0 && { height: e.height }),
-            // fileCategory: pass-through when explicitly set, otherwise derive from mimeType (backward compat ADR-2).
-            // Never mutates the file on disk — derivation is in-memory only.
-            fileCategory:
-              e.fileCategory === 'image' || e.fileCategory === 'document'
-                ? e.fileCategory
-                : (e.mimeType as string).startsWith('image/')
-                  ? 'image'
-                  : 'document',
+            // fileCategory: pass-through when it is a valid literal, otherwise resolve through the
+            // catalog for entries written before the field existed (ADR-0023). A MIME with no row —
+            // one that was allowed by an older config and is no longer catalogued — falls back to
+            // 'document', which is the conservative tile. Never mutates the file on disk.
+            fileCategory: VALID_FILE_CATEGORIES.has(e.fileCategory as string)
+              ? (e.fileCategory as MediaEntry['fileCategory'])
+              : (lookupByMime(e.mimeType as string)?.category ?? 'document'),
             // Pass-through status only when it is a valid literal
             ...(typeof e.status === 'string' &&
               VALID_STATUSES.has(e.status) && { status: e.status as MediaEntry['status'] }),

@@ -63,21 +63,21 @@ either passes, it is testing nothing — fix the test before writing a line of s
 **This is the slice that turns S1 and S11 green.** It is also the one that deletes the second,
 undeclared allowlist.
 
-- [ ] **3.1** `src/api/handlers/media.ts` — `MIME_TO_EXT[mimeType]` → `lookupByMime(...)`.
+- [x] **3.1** `src/api/handlers/media.ts` — `MIME_TO_EXT[mimeType]` → `lookupByMime(...)`.
   `evaluateUpload` keeps receiving `derivedExtension: row?.ext ?? null` (ADR-0018's locked order is
   **untouched**). `fileCategory` (`:169`) → `row.category`, no longer `startsWith('image/')`.
   The `imageSize` guard (`:151`) → `row.category === 'image'`.
   The `if (!extension) return 415` (`:127-131`) → `throw` (500). A broken server invariant is not the
   client's unsupported file.
-- [ ] **3.2** `src/utils/variant-generator.ts:42` — `RASTER_MIME.has(...)` → `row.raster`.
-- [ ] **3.3** `src/routes/uploads-get.ts` — **delete** `MIME` (`:12`) and `IMAGE_CONTENT_TYPES` (`:24`).
+- [x] **3.2** `src/utils/variant-generator.ts:42` — `RASTER_MIME.has(...)` → `row.raster`.
+- [x] **3.3** `src/routes/uploads-get.ts` — **delete** `MIME` (`:12`) and `IMAGE_CONTENT_TYPES` (`:24`).
   `contentType` and `disposition` come from `lookupByExt`. No row → `application/octet-stream` +
   `attachment`. The `if (ext === '.svg')` special case (`:48`) **disappears**: the `image/svg+xml` row
   carries `disposition: 'attachment'`. `?download` still forces `attachment`.
-- [ ] **3.4** `src/types/index.ts:309` — `fileCategory?: 'image' | 'video' | 'audio' | 'document'`.
-- [ ] **3.5** `src/api/data.ts:600-605` — the legacy-entry fallback resolves through the catalog,
+- [x] **3.4** `src/types/index.ts:309` — `fileCategory?: 'image' | 'video' | 'audio' | 'document'`.
+- [x] **3.5** `src/api/data.ts:600-605` — the legacy-entry fallback resolves through the catalog,
   defaulting to `'document'`.
-- [ ] **3.6** **Delete `src/utils/file-types.ts`.** Repoint `src/plugin/index.ts:19,219` and
+- [x] **3.6** **Delete `src/utils/file-types.ts`.** Repoint `src/plugin/index.ts:19,219` and
   `src/routes/admin/client/block-form.ts:996` (`intersectAccept`) at `file-catalog.ts`.
 
 **Verify:** `npm test` → **S1 (1.2) and S11 (1.3) are now GREEN.** `upload-gate.test.js`,

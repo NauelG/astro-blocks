@@ -16,7 +16,7 @@ import type {
   GlobalBlockRuntimeEntry,
   PrimitivePropDef,
 } from '../types/index.js';
-import { DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-types.js';
+import { DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-catalog.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmsDir = path.resolve(__dirname, '..');
@@ -216,7 +216,7 @@ function resolveOptions(options: AstroBlocksOptions): ResolvedPluginOptions {
 }
 
 export type { AstroBlocksOptions } from '../types/index.js';
-export { DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-types.js';
+export { DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-catalog.js';
 
 /**
  * Advisory validator for 'file' prop accept arrays (ADR-6).

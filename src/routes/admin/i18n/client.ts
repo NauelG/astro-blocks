@@ -60,8 +60,6 @@ export function getUiLocale(): UiLocale {
         if ((SUPPORTED_UI_LOCALES as readonly string[]).includes(candidate)) {
           return candidate as UiLocale;
         }
-        // Unsupported value — continue scanning for a valid duplicate cookie entry
-        continue;
       }
     }
   }

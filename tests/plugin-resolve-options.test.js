@@ -22,7 +22,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { DEFAULT_ALLOWED_FILE_TYPES } from '../dist/utils/file-types.js';
+import { DEFAULT_ALLOWED_FILE_TYPES } from '../dist/utils/file-catalog.js';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 

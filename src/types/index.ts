@@ -3,6 +3,16 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
+/**
+ * What a media file IS, as far as the CMS is concerned. A closed enum: it governs the ingest
+ * strategy (buffer vs stream), the sharp routing, the serving policy and the media-library
+ * tile — every one of which is a finite switch.
+ *
+ * Declared on the catalog row (`utils/file-catalog.ts`), never derived by parsing the MIME
+ * string a client handed us. See ADR-0023.
+ */
+export type FileCategory = 'image' | 'video' | 'audio' | 'document';
+
 export type PrimitivePropType =
   | 'string'
   | 'text'
@@ -301,12 +311,14 @@ export interface MediaEntry {
   /** Processing status of variant generation. */
   status?: 'processing' | 'ready' | 'failed';
   /**
-   * Discriminator for the media entry type.
-   * 'image' → mimeType starts with 'image/'.
-   * 'document' → all other file types (e.g. PDF).
-   * Derived from mimeType on load when absent (backward compat).
+   * What this media entry IS. Declared on the catalog row at upload time (ADR-0023) —
+   * never parsed out of the MIME string. Governs the ingest strategy, the sharp routing,
+   * the serving policy and the media-library tile.
+   *
+   * Entries written before this field existed resolve their category through the catalog
+   * on load, defaulting to 'document'.
    */
-  fileCategory?: 'image' | 'document';
+  fileCategory?: FileCategory;
 }
 
 export interface MediaData {

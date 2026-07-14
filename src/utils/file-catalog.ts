@@ -32,16 +32,18 @@ Licensed under the Business Source License 1.1
  * Pure module — no I/O, no side effects beyond a memoised parse of the injected config.
  */
 
+import type { FileCategory } from '../types/index.js';
+
 /**
- * What a file IS, as far as the CMS is concerned. Governs the ingest strategy (buffer vs
- * stream), the sharp routing, the serving policy and the media-library tile.
+ * Re-exported for callers that reason about the catalog. Defined in types/ because it is a
+ * domain concept, not a detail of this module.
  *
  * Declared on the row — never parsed out of the MIME string. Deriving identity from a string
  * the client handed us is the class of mistake this module retires. Every mature CMS agrees:
  * Strapi validates a closed enum at the schema layer, Sanity picks the asset type by endpoint,
  * WordPress indexes its categories by extension. None of them splits the MIME to decide.
  */
-export type FileCategory = 'image' | 'video' | 'audio' | 'document';
+export type { FileCategory };
 
 /** One supported file type. `mime` is the primary key. */
 export interface FileTypeRow {

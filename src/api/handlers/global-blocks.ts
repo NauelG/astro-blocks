@@ -101,8 +101,7 @@ export async function handlePutGlobalBlock(
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
-  if (!Object.prototype.hasOwnProperty.call(body, 'props'))
-    return localizedJsonError(request, 'errors.propsRequired');
+  if (!Object.hasOwn(body, 'props')) return localizedJsonError(request, 'errors.propsRequired');
   if (typeof body.props !== 'object' || body.props === null || Array.isArray(body.props)) {
     return localizedJsonError(request, 'errors.propsMustBePlainObject');
   }

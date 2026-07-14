@@ -11,7 +11,7 @@ import { Image as ImageIcon } from '@lucide/astro';
 import { loadMedia, loadSite } from '../../api/data.js';
 import { resolveUiLocale } from './i18n/resolve.js';
 import { createT } from './i18n/t.js';
-import { DEFAULT_ALLOWED_FILE_TYPES } from '../../utils/file-types.js';
+import { DEFAULT_ALLOWED_FILE_TYPES } from '../../utils/file-catalog.js';
 
 // Build the dynamic accept attribute for the upload dropzone.
 // Reads the global allowlist injected by vite.define at build time;

@@ -20,7 +20,7 @@ Licensed under the Business Source License 1.1
 import fs from 'node:fs/promises';
 import { resolveUploadPath, buildVariantFilename, variantUrlFor } from './paths.js';
 import * as data from '../api/data.js';
-import { RASTER_MIME } from './file-types.js';
+import { isRaster } from './file-catalog.js';
 import type { MediaEntry, MediaVariant } from '../types/index.js';
 
 /** Breakpoints in pixels for variant generation. */
@@ -30,16 +30,16 @@ const BREAKPOINTS = [480, 800, 1200, 1920] as const;
  * Generate WebP and AVIF variants at each configured breakpoint (no-upscale)
  * for the given MediaEntry, then persist results via data mutations.
  *
- * Only raster MIME types (jpeg/png/webp) trigger sharp processing.
- * All other types — SVG, GIF, PDF, and any future document types — receive
- * status:'ready' with an empty variants array without invoking sharp.
+ * Only rows the catalog marks `raster: true` (jpeg/png/webp) trigger sharp processing.
+ * Everything else — SVG, GIF, AVIF, PDF, video, audio — receives status:'ready' with an
+ * empty variants array without invoking sharp.
  *
  * Fire-and-forget safe: never throws; always resolves.
  */
 export async function generateAndPersistVariants(entry: MediaEntry): Promise<void> {
   // Non-raster types skip processing — mark ready with empty variants.
-  // This covers SVG, GIF, PDF, and any other non-raster file.
-  if (!RASTER_MIME.has(entry.mimeType)) {
+  // The answer comes from the catalog row, not from a set kept in parallel with it.
+  if (!isRaster(entry.mimeType)) {
     await data.markMediaVariantsReady(entry.id, []);
     return;
   }

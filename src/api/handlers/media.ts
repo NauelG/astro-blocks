@@ -9,10 +9,7 @@ import path from 'node:path';
 import { imageSize } from 'image-size';
 import { getUploadsDir, resolveUploadPath } from '../../utils/paths.js';
 import { generateAndPersistVariants } from '../../utils/variant-generator.js';
-import {
-  DEFAULT_ALLOWED_FILE_TYPES,
-  MIME_TO_EXT as FILE_TYPES_MIME_TO_EXT,
-} from '../../utils/file-types.js';
+import { DEFAULT_ALLOWED_FILE_TYPES, lookupByMime } from '../../utils/file-catalog.js';
 import { evaluateUpload } from '../../utils/upload-gate.js';
 import type { MediaEntry } from '../../types/index.js';
 import * as data from '../data.js';
@@ -88,8 +85,6 @@ export function __setAllowedFileTypesForTest(mimes: string[] | null): void {
   _allowedFileTypesCache = mimes === null ? null : new Set(mimes.map((m) => m.toLowerCase()));
 }
 
-/** Single source of truth: extension is always derived from the validated MIME type, never from the user filename. */
-const MIME_TO_EXT: Record<string, string> = FILE_TYPES_MIME_TO_EXT;
 const MAX_UPLOAD_BYTES = (() => {
   const envVal = process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
   if (envVal) {
@@ -125,13 +120,25 @@ export async function handleUpload(request: Request): Promise<Response> {
   if (!mimeType) {
     return localizedJsonError(request, 'errors.unsupportedFileType', 415);
   }
+  const row = lookupByMime(mimeType);
   const gateResult = evaluateUpload({
     mimeType,
-    derivedExtension: MIME_TO_EXT[mimeType] ?? null,
+    derivedExtension: row?.ext ?? null,
     allowed: getAllowedFileTypes(),
   });
   if (!gateResult.ok) {
     return localizedJsonError(request, 'errors.unsupportedFileType', 415);
+  }
+
+  // The gate passed, so the MIME is in the allowlist — and the allowlist is intersected with
+  // the catalog (and validated against it at config time), so its row exists. Reaching this
+  // means our own invariant is broken: a server bug, not an unsupported file. Saying 415 here
+  // is the lie that produced this incident — the gate approved the upload and the caller was
+  // told their file type was unsupported. Fail as what it is.
+  if (!row) {
+    throw new Error(
+      `[astro-blocks] catalog invariant violated: "${mimeType}" passed the allowlist gate but has no catalog row.`,
+    );
   }
 
   // Validate size BEFORE disk write
@@ -142,11 +149,7 @@ export async function handleUpload(request: Request): Promise<Response> {
 
   // Extension is derived from the already-validated MIME type — never from the user-supplied filename.
   // This prevents a stored-XSS bypass where an SVG uploaded as "foo.jpg" would be served inline.
-  const extension = MIME_TO_EXT[mimeType];
-  if (!extension) {
-    // MIME passed the gate but has no extension mapping — refuse rather than store a broken filename.
-    return localizedJsonError(request, 'errors.unsupportedFileType', 415);
-  }
+  const extension = row.ext;
   const subdir = new Date().toISOString().slice(0, 7).replace(/-/g, '/');
   const dir = path.join(getUploadsDir(), subdir);
 
@@ -161,12 +164,11 @@ export async function handleUpload(request: Request): Promise<Response> {
   const url = `/uploads/${subdir}/${filename}`.replace(/\/+/, '/');
 
   // Capture image dimensions from the in-memory buffer (REQ-4).
-  // Skip for non-image MIME types (e.g. application/pdf) — imageSize cannot parse them
-  // and they have no meaningful width/height. image/* types (jpeg/png/webp/svg/gif) are tried.
+  // Only the 'image' category has meaningful pixel dimensions; imageSize cannot parse the rest.
   // Wrapped in try/catch so corrupt headers or unsupported formats never fail the upload.
   let capturedWidth: number | undefined;
   let capturedHeight: number | undefined;
-  if (mimeType.startsWith('image/')) {
+  if (row.category === 'image') {
     try {
       const dim = imageSize(Buffer.from(buffer));
       if (
@@ -183,8 +185,8 @@ export async function handleUpload(request: Request): Promise<Response> {
     }
   }
 
-  // Classify file category: image/* → 'image', everything else → 'document'
-  const fileCategory: 'image' | 'document' = mimeType.startsWith('image/') ? 'image' : 'document';
+  // The category is DECLARED on the catalog row, never parsed out of the MIME string.
+  const fileCategory = row.category;
 
   // Append MediaEntry to registry with status:'processing' (variants generated async)
   const entry: MediaEntry = {
@@ -365,7 +367,7 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   }
   const replaceGateResult = evaluateUpload({
     mimeType,
-    derivedExtension: MIME_TO_EXT[mimeType] ?? null,
+    derivedExtension: lookupByMime(mimeType)?.ext ?? null,
     allowed: getAllowedFileTypes(),
   });
   if (!replaceGateResult.ok) {
