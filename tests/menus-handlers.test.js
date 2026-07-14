@@ -43,7 +43,7 @@ test('handleGetMenus returns empty menus list with locale info', async () => {
 
     assert.equal(response.status, 200);
     const body = await response.json();
-    assert.ok(Object.prototype.hasOwnProperty.call(body, 'menus'));
+    assert.ok(Object.hasOwn(body, 'menus'));
     assert.ok(Array.isArray(body.menus));
     assert.equal(body.menus.length, 0);
     assert.ok(typeof body.locale === 'string');

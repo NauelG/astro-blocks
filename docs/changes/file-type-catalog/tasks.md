@@ -120,23 +120,23 @@ src/` returns **nothing**.
 
 ## Slice 5 — Ingest: authorise before reading, branch on category
 
-- [ ] **5.1** `tests/media-upload-limits.test.js` (new) — **S7** `Content-Length` over the limit → 413
+- [x] **5.1** `tests/media-upload-limits.test.js` (new) — **S7** `Content-Length` over the limit → 413
   **and the request body is never read**; **S8** a body that lies and overruns mid-stream → 413 **and no
   file remains on disk** (the failure mode that matters); **S9** `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` clamps
   below a larger `maxUploadBytes.video`; per-category defaults (image 5 MB unchanged, document 10, audio
   20, video 200).
-- [ ] **5.2** `src/api/handlers/media.ts` — resolve `limit(row.category)` =
+- [x] **5.2** `src/api/handlers/media.ts` — resolve `limit(row.category)` =
   `min(maxUploadBytes[cat] ?? default, envCeiling ?? Infinity)`. Reject on `Content-Length` **before**
   touching the body.
-- [ ] **5.3** `src/api/handlers/media.ts#handleUpload` — branch on `row.category`:
+- [x] **5.3** `src/api/handlers/media.ts#handleUpload` — branch on `row.category`:
   `image` → `arrayBuffer()` as today; everything else → stream `request.body` to
   `fs.createWriteStream(tmpPath)` with a byte counter that is **the authority** (`Content-Length` is
   client-supplied). Overrun → destroy, **unlink**, 413. Success → `fs.rename()` into place, so a partial
   file is never observable at its final URL.
-- [ ] **5.4** `src/api/handlers/media.ts#handleReplaceUpload` (`:348`) — same treatment. It already
+- [x] **5.4** `src/api/handlers/media.ts#handleReplaceUpload` (`:348`) — same treatment. It already
   requires the original's MIME, so category, limit and strategy follow by construction.
   Keep `tests/media-replace.test.js` green.
-- [ ] **5.5** Keep `MAX_UPLOAD_BYTES`'s `process.env` read (`:75-82`) — it is the **runtime ops ceiling**
+- [x] **5.5** Keep `MAX_UPLOAD_BYTES`'s `process.env` read (`:75-82`) — it is the **runtime ops ceiling**
   and the only knob that works without a rebuild. Not deprecated. Only its role is renamed.
 
 **Verify:** `npm test`. On 413, `fs.readdir(uploadsDir)` is **empty** — assert it, do not assume it.

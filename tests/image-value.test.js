@@ -127,7 +127,7 @@ test('T-18: imageAttrs — empty alt is "" not absent (SC-7.2)', () => {
   assert.equal(attrs.src, '/deco.png');
   assert.equal(attrs.alt, '');
   // alt must be present (not undefined)
-  assert.ok(Object.prototype.hasOwnProperty.call(attrs, 'alt'), 'alt must be a key in attrs');
+  assert.ok(Object.hasOwn(attrs, 'alt'), 'alt must be a key in attrs');
 });
 
 test('T-19: imageAttrs — absent width/height are omitted (SC-7.3)', () => {
@@ -137,14 +137,8 @@ test('T-19: imageAttrs — absent width/height are omitted (SC-7.3)', () => {
   assert.equal(attrs.width, undefined);
   assert.equal(attrs.height, undefined);
   // width and height should NOT be enumerable keys when absent
-  assert.ok(
-    !Object.prototype.hasOwnProperty.call(attrs, 'width') || attrs.width === undefined,
-    'width absent',
-  );
-  assert.ok(
-    !Object.prototype.hasOwnProperty.call(attrs, 'height') || attrs.height === undefined,
-    'height absent',
-  );
+  assert.ok(!Object.hasOwn(attrs, 'width') || attrs.width === undefined, 'width absent');
+  assert.ok(!Object.hasOwn(attrs, 'height') || attrs.height === undefined, 'height absent');
 });
 
 test('imageAttrs — missing alt defaults to ""', () => {
@@ -431,18 +425,12 @@ test('toImageValue passes caption string', () => {
 
 test('toImageValue drops non-string caption', () => {
   const result = toImageValue({ url: '/img.jpg', alt: 'Alt', caption: 42 });
-  assert.ok(
-    !Object.prototype.hasOwnProperty.call(result, 'caption'),
-    'non-string caption must be dropped',
-  );
+  assert.ok(!Object.hasOwn(result, 'caption'), 'non-string caption must be dropped');
 });
 
 test('toImageValue omits caption when absent', () => {
   const result = toImageValue({ url: '/img.jpg', alt: 'Alt' });
-  assert.ok(
-    !Object.prototype.hasOwnProperty.call(result, 'caption'),
-    'caption key must be absent when not provided',
-  );
+  assert.ok(!Object.hasOwn(result, 'caption'), 'caption key must be absent when not provided');
 });
 
 test('parseImageValue round-trips caption', () => {
@@ -461,10 +449,7 @@ test('parseImageValue round-trips caption with quotes and unicode', () => {
 test('parseImageValue on legacy value (no caption)', () => {
   const raw = JSON.stringify({ url: '/img.jpg', alt: 'Old photo', width: 800, height: 600 });
   const result = parseImageValue(raw);
-  assert.ok(
-    !Object.prototype.hasOwnProperty.call(result, 'caption'),
-    'legacy value must have no caption key',
-  );
+  assert.ok(!Object.hasOwn(result, 'caption'), 'legacy value must have no caption key');
   // All existing fields preserved
   assert.equal(result.url, '/img.jpg');
   assert.equal(result.alt, 'Old photo');

@@ -177,23 +177,31 @@ const DEFAULT_MAX_BYTES: Record<FileCategory, number> = {
 };
 ```
 
-Effective limit for a row:
+Effective limit for a row — **most specific wins**:
 
 ```
-limit(category) = min( maxUploadBytes[category] ?? DEFAULT_MAX_BYTES[category],
-                       ASTRO_BLOCKS_MAX_UPLOAD_BYTES ?? Infinity )
+limit(category) = maxUploadBytes[category]         // build-time, per category
+               ?? ASTRO_BLOCKS_MAX_UPLOAD_BYTES    // runtime, global
+               ?? DEFAULT_MAX_BYTES[category]      // shipped default
 ```
 
 `maxUploadBytes` is **build-time policy** (plugin option → `vite.define`, like `allowedFileTypes`).
-`ASTRO_BLOCKS_MAX_UPLOAD_BYTES` is a **runtime ops ceiling** (`process.env`, read at server boot). They
-are not redundant: the env var is the only knob that can cap uploads **without a rebuild**, which is
-exactly the layering PHP has had for twenty years (`upload_max_filesize` in `php.ini` caps what the
-application may accept). It is kept, not deprecated. Anyone who set it to 5 MB still gets 5 MB — they
-asked for that.
+`ASTRO_BLOCKS_MAX_UPLOAD_BYTES` is the **runtime global limit** (`process.env`, read per request so it
+takes effect without a rebuild). It is kept, not deprecated.
 
-The one behavioural note worth documenting: today's default of 5 MB applies to *everything*. After this
-change, an unset env var means images stay at 5 MB and video gets 200 MB. Anyone who wants the old
-blanket cap sets the env var. That is not a regression; it is the knob doing what it says.
+> **Correction, made during implementation.** The grilling settled on the env var becoming a *hard
+> ceiling* — `min(policy, env)` — on the reasoning that "anyone who set it to 5 MB still gets 5 MB".
+> That reasoning only considered *lowering*. `docs/media.md:384` documents the variable as "Maximum
+> accepted upload size", and consumers **raise** it to allow bigger images; the existing `P3` tests
+> exercise exactly that. Under `min()`, a consumer running with `ASTRO_BLOCKS_MAX_UPLOAD_BYTES=50MB`
+> would silently drop to the 5 MB image default and find out when an editor failed to upload a photo
+> in production. A ceiling is the wrong shape: the variable REPLACES the defaults, it does not clamp
+> them. That keeps the documented contract, keeps the release a `minor`, and still lets whoever runs
+> the server cap everything in one move.
+
+The behavioural note worth documenting: today's single default of 5 MB applies to *everything*. After
+this change, an unset env var means images stay at 5 MB and video gets 200 MB. Anyone who wants the old
+blanket cap sets the env var, exactly as before.
 
 ---
 

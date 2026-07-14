@@ -492,7 +492,7 @@ test('ML-R3-backcompat: response always has uploads key as array', async () => {
     const res = await handleGetMedia(req);
     assert.equal(res.status, 200);
     const body = await res.json();
-    assert.ok(Object.prototype.hasOwnProperty.call(body, 'uploads'), 'body must have uploads key');
+    assert.ok(Object.hasOwn(body, 'uploads'), 'body must have uploads key');
     assert.ok(Array.isArray(body.uploads), 'uploads must be an array');
   });
 });

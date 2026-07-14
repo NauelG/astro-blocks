@@ -337,7 +337,7 @@ test('error response wire shape is { error: string } — no extra fields from lo
       }),
     );
     const body = await res.json();
-    assert.ok(Object.prototype.hasOwnProperty.call(body, 'error'), 'Must have error field');
+    assert.ok(Object.hasOwn(body, 'error'), 'Must have error field');
     assert.ok(typeof body.error === 'string', 'error must be string');
     // May optionally have other fields from jsonError extra param, but must have error
   });
