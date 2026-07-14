@@ -10,7 +10,7 @@ This guide is for maintaining the package itself.
 ## Workspace Model
 
 - The package lives at the repository root.
-- Consumer validation happens in [`playgrounds/basic`](./playgrounds/basic).
+- Consumer validation happens in [`playgrounds/basic`](../playgrounds/basic).
 - The package is built to `dist/` with `tsc`.
 - Local distribution is validated with `npm pack`.
 - Default for public pages is `server + Astro experimental cache`.
@@ -33,15 +33,15 @@ npm run pack:local
 
 `npm run build` does three things:
 
-1. validates `meta/features.json`
-2. copies static package files to `dist/` (including `meta/features.json`)
+1. validates `src/meta/features.json`
+2. copies static package files to `dist/` (including `src/meta/features.json`)
 3. compiles TypeScript sources to `dist/` with declarations
 
 The package root publishes `dist/` only.
 
 ## Website Feature Manifest
 
-- `meta/features.json` is an internal metadata catalog used by the informational website.
+- `src/meta/features.json` is an internal metadata catalog used by the informational website.
 - It is copied to `dist/meta/features.json` during build.
 - It is intentionally **not** exposed as a public runtime API subpath.
 - Keep `id` values stable and update `updatedIn` whenever an existing feature changes.
@@ -61,7 +61,7 @@ Validate at least:
 - `/cms`
 - `/cms/pages`
 - `/cms/menus`
-- `/cms/media` (upload an image, pick it from an `image` block field, replace it, delete it — see [docs/media.md](./docs/media.md) for the full feature reference)
+- `/cms/media` (upload an image, pick it from an `image` block field, replace it, delete it — see [docs/media.md](./media.md) for the full feature reference)
 - `/robots.txt`
 - `/sitemap-index.xml`
 - the public home page rendered dynamically from `data/pages.json`
@@ -71,14 +71,14 @@ Validate at least:
 
 ### Playground Admin Credentials
 
-The playground seeds a single admin user in [`playgrounds/basic/data/users.json`](./playgrounds/basic/data/users.json). Use these to log in at `/cms`:
+The playground seeds a single admin user in [`playgrounds/basic/data/users.json`](../playgrounds/basic/data/users.json). Use these to log in at `/cms`:
 
 | Field | Value |
 | --- | --- |
 | Email | `admin@test.com` |
 | Password | `admin1234` |
 
-The stored `passwordHash` is a `scrypt` digest (`base64(salt):base64(hash)`, keylen 64 — see `hashPassword` in `api/handlers.ts`); the plaintext password is not recoverable from it. This is throwaway dev data, not a real secret, and is regenerated whenever you reset the playground. To rotate it, hash a new password with the same function:
+The stored `passwordHash` is a `scrypt` digest (`base64(salt):base64(hash)`, keylen 64 — see `hashPassword` in `src/api/handlers.ts`); the plaintext password is not recoverable from it. This is throwaway dev data, not a real secret, and is regenerated whenever you reset the playground. To rotate it, hash a new password with the same function:
 
 ```bash
 node -e "const c=require('crypto');const s=c.randomBytes(16);c.scrypt(process.argv[1],s,64,(e,h)=>console.log(s.toString('base64')+':'+h.toString('base64')))" 'yourNewPassword'
@@ -191,7 +191,7 @@ The step-by-step flow is documented in [LOCAL_PACKAGE_TESTING.md](./LOCAL_PACKAG
 
 ### Steps
 
-1. **Update `meta/features.json`** if this release adds or changes user-facing capabilities.
+1. **Update `src/meta/features.json`** if this release adds or changes user-facing capabilities.
    Run `npm run features:validate` to confirm it is valid.
 
 2. **Add the CHANGELOG entry** — open `CHANGELOG.md` and prepend a new block at the top:
@@ -269,7 +269,7 @@ The step-by-step flow is documented in [LOCAL_PACKAGE_TESTING.md](./LOCAL_PACKAG
 
 Before running `npm version`, confirm:
 
-1. `meta/features.json` is up to date — `npm run features:validate`
+1. `src/meta/features.json` is up to date — `npm run features:validate`
 2. Tests pass — `npm run test`
 3. Playground builds cleanly — `npm run build:playground`
 4. `npm run pack:local` produces a valid tarball (install into a clean Astro project to confirm)

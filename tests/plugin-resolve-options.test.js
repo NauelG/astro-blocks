@@ -13,7 +13,7 @@ Licensed under the Business Source License 1.1
  *   C5 — DEFAULT_ALLOWED_FILE_TYPES importable from package root
  *
  * Spec: R1.1-A, R1.2-A, R1.3-A, R1.4-A, R7.2-A, R7.3-A
- * Design: plugin/index.ts resolveOptions + vite.define, ADR-6
+ * Design: src/plugin/index.ts resolveOptions + vite.define, ADR-6
  */
 
 import test from 'node:test';
@@ -83,7 +83,7 @@ test('C5: DEFAULT_ALLOWED_FILE_TYPES is importable from package root', async () 
   assert.deepEqual(
     [...mod.DEFAULT_ALLOWED_FILE_TYPES].sort(),
     [...DEFAULT_ALLOWED_FILE_TYPES].sort(),
-    'root re-export must match utils/file-types.ts source',
+    'root re-export must match src/utils/file-types.ts source',
   );
 });
 

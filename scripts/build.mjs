@@ -9,6 +9,7 @@ import { spawn } from 'node:child_process';
 import { readAndValidateFeaturesManifest } from './features-manifest.mjs';
 
 const rootDir = process.cwd();
+const srcDir = path.join(rootDir, 'src');
 const distDir = path.join(rootDir, 'dist');
 const watchMode = process.argv.includes('--watch');
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -47,11 +48,11 @@ async function copyRouteAstroFiles(sourceDir, targetDir) {
 }
 
 async function copyStaticAssets() {
-  await copyRouteAstroFiles(path.join(rootDir, 'routes'), path.join(distDir, 'routes'));
-  await copyRouteAstroFiles(path.join(rootDir, 'components'), path.join(distDir, 'components'));
-  await fs.cp(path.join(rootDir, 'styles'), path.join(distDir, 'styles'), { recursive: true });
-  await fs.cp(path.join(rootDir, 'img'), path.join(distDir, 'img'), { recursive: true });
-  await fs.cp(path.join(rootDir, 'meta'), path.join(distDir, 'meta'), { recursive: true });
+  await copyRouteAstroFiles(path.join(srcDir, 'routes'), path.join(distDir, 'routes'));
+  await copyRouteAstroFiles(path.join(srcDir, 'components'), path.join(distDir, 'components'));
+  await fs.cp(path.join(srcDir, 'styles'), path.join(distDir, 'styles'), { recursive: true });
+  await fs.cp(path.join(srcDir, 'img'), path.join(distDir, 'img'), { recursive: true });
+  await fs.cp(path.join(srcDir, 'meta'), path.join(distDir, 'meta'), { recursive: true });
   await copyFile(path.join(rootDir, 'package.json'), path.join(distDir, 'package.json'));
 }
 

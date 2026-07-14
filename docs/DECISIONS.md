@@ -99,8 +99,8 @@ language). Issue #1 raised by the community requested English as the default for
 international contributors and consumers.
 
 **Decision:** The admin UI defaults to English. A full i18n system was
-introduced in v3.1.0 with two catalogs (`routes/admin/i18n/en.ts` and
-`routes/admin/i18n/es.ts`). Language resolution is SSR-first: the server
+introduced in v3.1.0 with two catalogs (`src/routes/admin/i18n/en.ts` and
+`src/routes/admin/i18n/es.ts`). Language resolution is SSR-first: the server
 resolves the UI locale on every request using the resolution order
 `cms-ui-locale` cookie → `Accept-Language` header → English fallback. A
 language switcher in the profile dropdown writes the `cms-ui-locale` cookie and
@@ -114,7 +114,7 @@ with strict parity enforced at compile time (missing or extra keys are type
 errors). A hardcoded-string guard test (`tests/i18n-no-spanish-leak.test.js`)
 prevents Spanish literals from leaking into shared files.
 
-**Status:** Accepted — see `routes/admin/i18n/`, `CHANGELOG.md` v3.1.0.
+**Status:** Accepted — see `src/routes/admin/i18n/`, `CHANGELOG.md` v3.1.0.
 
 ---
 

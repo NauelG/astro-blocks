@@ -5,11 +5,11 @@ Licensed under the Business Source License 1.1
 
 /**
  * catchall-authz-routing.test.js — router-level authorization + tier-equivalence
- * regression safety net for routes/api/catchall.ts (PR2 of the route-table-auth-gating
+ * regression safety net for src/routes/api/catchall.ts (PR2 of the route-table-auth-gating
  * change, resolves #36 + #37).
  *
  * These tests drive the catchall dispatcher's exported GET/POST/PUT/PATCH/DELETE
- * functions directly (NOT the underlying api/handlers.ts business-logic handlers in
+ * functions directly (NOT the underlying src/api/handlers.ts business-logic handlers in
  * isolation) — same pattern as tests/catchall-media-routing.test.js. They are
  * CHARACTERIZATION tests: written and observed GREEN against the CURRENT if-chain
  * dispatcher, BEFORE the route-table + dispatch-swap implementation (PR3) lands. This

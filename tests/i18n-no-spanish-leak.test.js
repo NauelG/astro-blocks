@@ -20,8 +20,8 @@ Licensed under the Business Source License 1.1
  *      válido, "Ya existe", "No se puede"
  *
  * Exclusion list (EXPLICITLY DOCUMENTED — add new entries with justification):
- *   1. routes/admin/i18n/es.ts         — the Spanish catalog itself
- *   2. routes/admin/i18n/en.ts         — may contain "…" ellipsis but not Spanish
+ *   1. src/routes/admin/i18n/es.ts         — the Spanish catalog itself
+ *   2. src/routes/admin/i18n/en.ts         — may contain "…" ellipsis but not Spanish
  *   3. Copyright header lines           — "Gómez" is the author surname
  *   4. "Español" endonym               — shown as option label in its own language
  *   5. Code comments (// and /* lines) — comments are not user-facing strings
@@ -48,9 +48,9 @@ const ROOT = path.resolve(import.meta.dirname, '..');
  * catalog completeness tests (i18n-catalog.test.js).
  */
 const SCAN_DIRS = [
-  path.join(ROOT, 'routes', 'admin'),
-  path.join(ROOT, 'utils'),
-  path.join(ROOT, 'api'),
+  path.join(ROOT, 'src', 'routes', 'admin'),
+  path.join(ROOT, 'src', 'utils'),
+  path.join(ROOT, 'src', 'api'),
 ];
 
 /** Files to include: only .astro and .ts under the scan directories. */
@@ -61,9 +61,9 @@ const INCLUDE_EXTENSIONS = new Set(['.astro', '.ts']);
  * Use POSIX path segments relative to ROOT for cross-platform safety.
  */
 const EXCLUDED_FILES = new Set([
-  path.join(ROOT, 'routes', 'admin', 'i18n', 'es.ts'),
+  path.join(ROOT, 'src', 'routes', 'admin', 'i18n', 'es.ts'),
   // en.ts might contain "…" or Loading… — no Spanish needed, included for symmetry
-  path.join(ROOT, 'routes', 'admin', 'i18n', 'en.ts'),
+  path.join(ROOT, 'src', 'routes', 'admin', 'i18n', 'en.ts'),
   // block-validation.ts: build-time messages have been translated to English (H1 fix).
   // No exclusion needed — the file is now fully scannable.
 ]);
@@ -409,7 +409,7 @@ test('admin source files contain no hardcoded Spanish string literals (REQ-5.1)'
       .join('\n');
     assert.fail(
       `Spanish leak guard: found ${allViolations.length} hardcoded Spanish string(s):\n${report}\n\n` +
-        `Fix: move the string(s) into routes/admin/i18n/en.ts and es.ts, ` +
+        `Fix: move the string(s) into src/routes/admin/i18n/en.ts and es.ts, ` +
         `then reference via t() or ct() in the source file.\n` +
         `If a string is legitimately Spanish (e.g. a new language endonym), ` +
         `add it to the EXCLUDED_FILES or "Español" strip list in this test file ` +

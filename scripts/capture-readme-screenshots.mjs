@@ -17,9 +17,9 @@ import { chromium } from 'playwright';
 const ROOT = process.cwd();
 const PLAYGROUND_DIR = path.join(ROOT, 'playgrounds', 'basic');
 const PLAYGROUND_REDIRECTS_PATH = path.join(PLAYGROUND_DIR, 'data', 'redirects.json');
-const DASHBOARD_PATH = path.join(ROOT, 'img', 'dashboard.jpg');
-const PAGE_EDITOR_PATH = path.join(ROOT, 'img', 'page_editor.jpg');
-const IMPORT_EXPORT_PATH = path.join(ROOT, 'img', 'import-export.jpg');
+const DASHBOARD_PATH = path.join(ROOT, 'src', 'img', 'dashboard.jpg');
+const PAGE_EDITOR_PATH = path.join(ROOT, 'src', 'img', 'page_editor.jpg');
+const IMPORT_EXPORT_PATH = path.join(ROOT, 'src', 'img', 'import-export.jpg');
 
 const HOST = '127.0.0.1';
 const DEFAULT_PORT = 4327;

@@ -1,6 +1,6 @@
 ---
 name: astro-integration-authoring
-description: Author an Astro integration as an npm package. Use when working with plugin/index.ts, injectRoute authoring, astro:config:setup hook, AstroIntegration return type, addVirtualImports, integration package structure, or peerDependency astro.
+description: Author an Astro integration as an npm package. Use when working with src/plugin/index.ts, injectRoute authoring, astro:config:setup hook, AstroIntegration return type, addVirtualImports, integration package structure, or peerDependency astro.
 license: MIT
 metadata:
   authors: "astro-blocks"
@@ -9,7 +9,7 @@ metadata:
 
 # Astro Integration Authoring
 
-This skill covers **authoring** an Astro integration as a publishable npm package — specifically writing `plugin/index.ts`, implementing lifecycle hooks, injecting routes, and generating runtime files at config time.
+This skill covers **authoring** an Astro integration as a publishable npm package — specifically writing `src/plugin/index.ts`, implementing lifecycle hooks, injecting routes, and generating runtime files at config time.
 
 **Consumer-side patterns** (`.astro` component syntax, `Astro.props`, `client:*` directives, content collections, SSR adapter consumption) are out of scope here. Consult the `astro` skill for those.
 
@@ -19,7 +19,7 @@ This skill covers **authoring** an Astro integration as a publishable npm packag
 
 | Topic | Covered here | Covered by `astro` skill |
 |-------|-------------|--------------------------|
-| `plugin/index.ts` hook authoring | ✅ | — |
+| `src/plugin/index.ts` hook authoring | ✅ | — |
 | `injectRoute()` call signature | ✅ | — |
 | Runtime codegen to `.astro-blocks/` | ✅ | — |
 | `peerDependency` strategy | ✅ | — |
@@ -42,7 +42,7 @@ Fires synchronously during config resolution — before any build or server star
 
 **What it receives**: `{ config, injectRoute, addWatchFile, updateConfig, ... }`
 
-**Common patterns** (see `plugin/index.ts` lines 108–206):
+**Common patterns** (see `src/plugin/index.ts` lines 108–206):
 - Resolve the consumer project root via `getProjectRoot(config)` (line 109) — reads `config.root` or `process.env.ASTRO_BLOCKS_PROJECT_ROOT`
 - Call `generateRuntime(projectRoot, options)` to write `.astro-blocks/` files (line 135)
 - Call `injectRoute(...)` for every route the integration owns (lines 188–205)
@@ -79,7 +79,7 @@ injectRoute({
 })
 ```
 
-### `resolveCms` pattern (plugin/index.ts lines 137, 188–205)
+### `resolveCms` pattern (src/plugin/index.ts lines 137, 188–205)
 
 The integration resolves entrypoints relative to its own package directory (`cmsDir`), not the consumer project root:
 
@@ -95,7 +95,7 @@ Use `path.join(packageRoot, 'routes', file)` — do NOT pass bare package-relati
 
 ### Dynamic patterns
 
-For catch-all slug routes with conditional rendering mode (plugin/index.ts lines 202–205):
+For catch-all slug routes with conditional rendering mode (src/plugin/index.ts lines 202–205):
 
 ```ts
 injectRoute({
@@ -118,7 +118,7 @@ The `.astro-blocks/` codegen pattern writes consumer-project-specific JavaScript
 
 Injected routes live inside the npm package and cannot statically `import` consumer-defined components. Instead, the integration writes a `runtime.mjs` file into the consumer's `.astro-blocks/` directory at startup, and injected routes import from that generated file.
 
-### `generateRuntime()` (plugin/index.ts lines 39–81)
+### `generateRuntime()` (src/plugin/index.ts lines 39–81)
 
 ```
 .astro-blocks/

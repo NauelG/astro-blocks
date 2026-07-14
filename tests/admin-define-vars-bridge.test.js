@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const ADMIN_DIR = path.join(ROOT, 'routes', 'admin');
+const ADMIN_DIR = path.join(ROOT, 'src', 'routes', 'admin');
 
 /**
  * An EMPTY `<script define:vars={{ x }}></script>` bridge is broken: define:vars

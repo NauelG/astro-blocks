@@ -4,8 +4,8 @@ Licensed under the Business Source License 1.1
 */
 
 /**
- * Source-level guard: routes/admin/client/block-form.ts must consume the
- * canonical escapeHtml/escapeAttr pair from utils/html-escape.ts instead of
+ * Source-level guard: src/routes/admin/client/block-form.ts must consume the
+ * canonical escapeHtml/escapeAttr pair from src/utils/html-escape.ts instead of
  * defining its own local `escapePickerHtml` attribute escaper, and must no
  * longer import escapeHtml from ./common.js. This is part of the issue #39
  * consolidation effort (sub-slice 2d).
@@ -22,7 +22,7 @@ import { join } from 'node:path';
 import { escapeAttr } from '../dist/utils/html-escape.js';
 
 const root = process.cwd();
-const relPath = 'routes/admin/client/block-form.ts';
+const relPath = 'src/routes/admin/client/block-form.ts';
 
 /**
  * Verbatim copy of the deleted local escapePickerHtml body (pre-refactor),

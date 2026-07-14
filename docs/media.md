@@ -37,7 +37,7 @@ Two more rules worth knowing:
 
 ### The media library (`/cms/media`)
 
-![The /cms/media library: upload area, image grid with metadata, search and pagination](../img/media-library.png)
+![The /cms/media library: upload area, image grid with metadata, search and pagination](../src/img/media-library.png)
 
 The media library is where every uploaded asset lives. From there you can:
 
@@ -53,7 +53,7 @@ The media library is where every uploaded asset lives. From there you can:
 
 ### The image field picker (in the block editor)
 
-![The image field picker: searchable grid plus alt and caption inputs](../img/image-picker.png)
+![The image field picker: searchable grid plus alt and caption inputs](../src/img/image-picker.png)
 
 When a block has an `image` field, the page editor shows a picker. From it you can:
 
@@ -402,4 +402,4 @@ These are known boundaries of the current implementation, not bugs:
 
 - [README — Media Library and Responsive Images](../README.md#media-library-and-responsive-images) — the short overview.
 - [AGENTS.consumer.md](../AGENTS.consumer.md) — AI-context reference for `BlockImage`, `getMediaVariants`, and the data model.
-- [DEVELOPING.md](../DEVELOPING.md) — playground setup and the `/cms/media` manual test checklist.
+- [DEVELOPING.md](./DEVELOPING.md) — playground setup and the `/cms/media` manual test checklist.

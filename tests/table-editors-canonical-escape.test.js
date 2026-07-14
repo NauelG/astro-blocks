@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 /**
  * Source-level guard: the four table-editor client modules must consume the
- * canonical escapeHtml/escapeAttr pair from utils/html-escape.ts for BOTH
+ * canonical escapeHtml/escapeAttr pair from src/utils/html-escape.ts for BOTH
  * attribute and text-content escaping, instead of splitting escapeHtml from
  * ./common.js and escapeAttr from the canonical module.
  *
@@ -23,10 +23,10 @@ import { join } from 'node:path';
 const root = process.cwd();
 
 const FILES = [
-  'routes/admin/client/configs-editor.ts',
-  'routes/admin/client/menus-editor.ts',
-  'routes/admin/client/redirects-editor.ts',
-  'routes/admin/client/page-editor.ts',
+  'src/routes/admin/client/configs-editor.ts',
+  'src/routes/admin/client/menus-editor.ts',
+  'src/routes/admin/client/redirects-editor.ts',
+  'src/routes/admin/client/page-editor.ts',
 ];
 
 for (const relPath of FILES) {

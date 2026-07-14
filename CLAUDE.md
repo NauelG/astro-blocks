@@ -10,6 +10,6 @@ verdad**: `AGENTS.md`. Este fichero solo lo importa para que Claude Code lo carg
 
 @AGENTS.md
 
-Antes de tocar código, lee además `CONTEXT.md` (mental model, glosario, convenciones, gotchas) y,
-para cualquier trabajo de UI del panel, `DESIGN.md`. Las decisiones de arquitectura están en
-`DECISIONS.md` y `adr/`.
+Antes de tocar código, lee además `docs/CONTEXT.md` (mental model, glosario, convenciones, gotchas) y,
+para cualquier trabajo de UI del panel, `docs/DESIGN.md`. Las decisiones de arquitectura están en
+`docs/DECISIONS.md` y `docs/adr/`.

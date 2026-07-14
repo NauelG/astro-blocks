@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 /**
  * upload-gate.test.js
- * Unit tests for utils/upload-gate.ts — evaluateUpload denylist + allowlist gate.
+ * Unit tests for src/utils/upload-gate.ts — evaluateUpload denylist + allowlist gate.
  * Tests import from ../dist/ after build.
  *
  * RED phase: written before the implementation exists.

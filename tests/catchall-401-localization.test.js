@@ -6,13 +6,13 @@ Licensed under the Business Source License 1.1
 /**
  * catchall-401-localization.test.js — issue #60.
  *
- * The central dispatch() (routes/api/catchall.ts) must return a LOCALIZED body for the
+ * The central dispatch() (src/routes/api/catchall.ts) must return a LOCALIZED body for the
  * unauthenticated 401, consistent with its 403/404 siblings. Two call sites:
  *   - matched route requiring auth, no session      -> 401 (localized)
  *   - unmatched path, unauthenticated (info-hiding)  -> 401 (localized, never 404)
  *
  * Drives the exported verb handlers directly (same harness as catchall-authz-routing.test.js).
- * Locale resolution order is cookie > Accept-Language > 'en' (api/handlers/shared.ts).
+ * Locale resolution order is cookie > Accept-Language > 'en' (src/api/handlers/shared.ts).
  */
 
 import test from 'node:test';
@@ -50,7 +50,7 @@ function unauthReq(url, method, { acceptLanguage } = {}) {
   return new Request(url, { method, headers });
 }
 
-// ── Matched route requiring auth (routes/api/catchall.ts L67) ─────────────────
+// ── Matched route requiring auth (src/routes/api/catchall.ts L67) ─────────────────
 
 test('401 on a matched auth route is localized to Spanish (Accept-Language: es)', async () => {
   await withTempProject(async () => {

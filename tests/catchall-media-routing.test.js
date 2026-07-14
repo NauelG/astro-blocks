@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 /**
  * catchall-media-routing.test.js — routing/dispatch coverage for the media
- * endpoints in routes/api/catchall.ts.
+ * endpoints in src/routes/api/catchall.ts.
  *
  * These tests exercise the catchall GET/POST/PATCH/DELETE dispatchers (NOT the
  * handlers directly). The goal is to prove:

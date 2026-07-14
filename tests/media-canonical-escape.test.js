@@ -4,8 +4,8 @@ Licensed under the Business Source License 1.1
 */
 
 /**
- * Source-level guard: routes/admin/client/media.ts must consume the
- * canonical escapeHtml/escapeAttr pair from utils/html-escape.ts instead of
+ * Source-level guard: src/routes/admin/client/media.ts must consume the
+ * canonical escapeHtml/escapeAttr pair from src/utils/html-escape.ts instead of
  * defining its own local copies.
  *
  * Rule: no `function escapeHtml(` or `function escapeAttr(` declarations may
@@ -20,7 +20,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const root = process.cwd();
-const relPath = 'routes/admin/client/media.ts';
+const relPath = 'src/routes/admin/client/media.ts';
 
 test(`${relPath} — must not declare local escapeHtml/escapeAttr functions`, async () => {
   const src = await readFile(join(root, relPath), 'utf-8');

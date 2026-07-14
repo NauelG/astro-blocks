@@ -6,7 +6,7 @@ Licensed under the Business Source License 1.1
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-export const FEATURES_MANIFEST_RELATIVE_PATH = path.join('meta', 'features.json');
+export const FEATURES_MANIFEST_RELATIVE_PATH = path.join('src', 'meta', 'features.json');
 
 const ALLOWED_STATUSES = new Set(['stable', 'alpha', 'experimental']);
 const ALLOWED_CATEGORIES = new Set([

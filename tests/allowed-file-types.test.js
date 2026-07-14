@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 /**
  * allowed-file-types.test.js
- * Unit tests for utils/file-types.ts constants.
+ * Unit tests for src/utils/file-types.ts constants.
  * Tests import from ../dist/ after build.
  *
  * RED phase: written before the implementation exists.

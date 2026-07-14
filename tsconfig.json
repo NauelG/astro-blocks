@@ -4,7 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "src",
     "strict": true,
     "declaration": true,
     "declarationMap": true,
@@ -17,14 +17,7 @@
     "lib": ["ES2023", "DOM"],
     "types": ["node"]
   },
-  "include": [
-    "plugin/**/*.ts",
-    "api/**/*.ts",
-    "contract/**/*.ts",
-    "utils/**/*.ts",
-    "routes/**/*.ts",
-    "types/**/*.ts"
-  ],
+  "include": ["src/**/*.ts"],
   "exclude": [
     "dist",
     "node_modules",

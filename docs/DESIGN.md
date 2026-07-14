@@ -6,14 +6,14 @@ Licensed under the Business Source License 1.1
 # DESIGN.md — Design system del panel AstroBlocks
 
 Sistema de diseño del panel de administración (white-label). Léelo antes de cualquier trabajo de UI
-del admin. La fuente de verdad de estilos es `styles/cms-admin.css`.
+del admin. La fuente de verdad de estilos es `src/styles/cms-admin.css`.
 
 ---
 
 ## 1. Estilos del panel (Pico CSS, Animate.css, tema white-label y design system)
 
 - **Tailwind eliminado.** El panel no usa Tailwind ni ninguna integración de estilos inyectada desde el plugin.
-- **Base UI:** Pico CSS (`@picocss/pico`). Se importa en `routes/admin/layout.astro` junto con Animate.css y `styles/cms-admin.css`. Orden: Pico → Animate.css → cms-admin.css para que los overrides del CMS tengan prioridad.
+- **Base UI:** Pico CSS (`@picocss/pico`). Se importa en `src/routes/admin/layout.astro` junto con Animate.css y `src/styles/cms-admin.css`. Orden: Pico → Animate.css → cms-admin.css para que los overrides del CMS tengan prioridad.
 - **Tema white-label:** En el layout se inyectan en `<body class="cms-root">` las variables `--cms-primary` y `--cms-secondary` desde `site.primaryColor` y `site.secondaryColor` (Settings). En `cms-admin.css`, `.cms-root` redefine `--pico-primary` (y variantes) con `var(--cms-primary)` para que Pico use el color del tema.
 
 ### 1.1. Principios del design system
@@ -53,7 +53,7 @@ El panel debe seguir siempre estos principios visuales:
   - bordes suaves
   - hover states muy sutiles
 
-### 1.3. `styles/cms-admin.css`
+### 1.3. `src/styles/cms-admin.css`
 
 `cms-admin.css` es la fuente de verdad del design system del panel. Las mejoras visuales del admin deben implementarse preferentemente aquí.
 
@@ -121,7 +121,7 @@ Clases base del sistema:
 
 ### 1.8. Modales y diálogos
 
-- **Componente de detalle:** usar siempre `routes/admin/components/DetailModal.astro` para crear/editar entidades.
+- **Componente de detalle:** usar siempre `src/routes/admin/components/DetailModal.astro` para crear/editar entidades.
 - El panel del modal (`.cms-detail-modal-panel`) debe seguir el mismo criterio visual que `.cms-card`:
   - superficie clara
   - borde suave
