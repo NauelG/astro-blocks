@@ -5,7 +5,13 @@ Licensed under the Business Source License 1.1
 
 # 0018 — Non-image file uploads: 'file' prop type + server-side denylist
 
-- **Status:** Accepted — verified against the code on 2026-07-14
+- **Status:** Superseded by [ADR-0023](./0023-supported-file-type-catalog.md) — was Accepted, verified
+  against the code on 2026-07-14. Superseded for its *structure*, not its *security posture*: the
+  denylist and its locked evaluation order, the extension-derived-from-MIME rule, the sanitised base
+  filename and the separator-safe path containment all survive unchanged in ADR-0023, which turns them
+  from discipline into data. What failed is the Consequences note below: it required cross-checking any
+  new file type against the denylist and **forgot that `MIME_TO_EXT` was also a gate**, which is what
+  produced the `video/mp4` 415 (#111).
 - **Date:** 2026-06-29
 - **Source:** engram observation(s) #1833, #800
 

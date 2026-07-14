@@ -1327,7 +1327,7 @@ test('R3.2-B: image/jpeg cannot replace an existing PDF entry (same-MIME constra
 //
 // This replaces the old "M-1" test, which asserted that an allowlisted MIME with no
 // extension mapping returns 415 — and called that outcome "guaranteed deterministically".
-// It was not a guard. It was the bug (see docs/changes/file-type-catalog/): the security
+// It was not a guard. It was the bug (see docs/specs/media-uploads.md): the security
 // gate approved the file and the extension lookup rejected it, with the same status and
 // the same message, so a consumer who legitimately widened allowedFileTypes was told their
 // file type was unsupported when in fact the server could not name it.

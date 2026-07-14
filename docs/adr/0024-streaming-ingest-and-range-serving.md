@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 # 0024 — Category-branched ingest and Range-capable, streamed serving
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-14
 - **Deciders:** Nauel Gómez
 - **Source:** the `video/mp4` 415 incident (see ADR-0023) — admitting video to the catalog exposes the

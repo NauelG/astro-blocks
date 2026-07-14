@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 # 0023 — The supported-file-type catalog is the single source of truth
 
-- **Status:** Proposed — supersedes ADR-0018
+- **Status:** Accepted — supersedes ADR-0018
 - **Date:** 2026-07-14
 - **Deciders:** Nauel Gómez
 - **Source:** user incident against `@astroblocks/astro-blocks@3.4.0` — `type: 'file'` returns 415 for

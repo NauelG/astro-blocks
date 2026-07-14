@@ -13,7 +13,7 @@ Licensed under the Business Source License 1.1
  * This state was previously unreachable from the test suite (the allowlist is a Vite
  * compile-time constant), which is why the bug shipped: it was approximated by a
  * neighbouring test and canonised as "FIX M-1". __setAllowedFileTypesForTest makes it
- * reachable. See docs/changes/file-type-catalog/.
+ * reachable. See docs/specs/media-uploads.md.
  */
 
 import test from 'node:test';
