@@ -233,30 +233,88 @@ The plugin injects a file-serving route at `/uploads/[...path]`. Do **not** crea
 
 ---
 
-## Non-image file uploads (PDF and document support)
+## Non-image file uploads (documents, video and audio)
 
-### Allowed file types
+### The supported-file-type catalog
 
-By default, AstroBlocks accepts uploads of these MIME types:
+AstroBlocks knows how to handle a fixed **catalog** of file types. Each row carries everything the
+system needs: the extension the file is stored under, the `Content-Type` it is served with, what
+category it belongs to, and whether it may be rendered inline.
 
-```
-image/jpeg  image/png  image/webp  image/svg+xml  image/gif  application/pdf
-```
+| MIME | Stored as | Category | Served | Enabled by default |
+| --- | --- | --- | --- | --- |
+| `image/jpeg` | `.jpg` | image | inline | ✅ |
+| `image/png` | `.png` | image | inline | ✅ |
+| `image/webp` | `.webp` | image | inline | ✅ |
+| `image/gif` | `.gif` | image | inline | ✅ |
+| `image/svg+xml` | `.svg` | image | **attachment** | ✅ |
+| `image/avif` | `.avif` | image | inline | — |
+| `application/pdf` | `.pdf` | document | inline | ✅ |
+| `video/mp4` | `.mp4` | video | inline | — |
+| `video/webm` | `.webm` | video | inline | — |
+| `audio/mpeg` | `.mp3` | audio | inline | — |
 
-You can override the list via the `allowedFileTypes` plugin option:
+The catalog is **what the system can handle**. `allowedFileTypes` is **what is switched on**. They are
+different questions, and the difference is the whole point: the stored extension is derived from the
+validated MIME type (a security requirement — an SVG uploaded as `foo.jpg` and served inline is stored
+XSS), so AstroBlocks can only accept a type it has an extension for.
+
+### Choosing which types are accepted
+
+`allowedFileTypes` **selects a subset of the catalog**. It does not invent types.
 
 ```ts
 // astro.config.ts
 astroBlocks({
-  allowedFileTypes: ['image/jpeg', 'image/png', 'application/pdf'],
+  // Enable video on top of the defaults
+  allowedFileTypes: [
+    'image/jpeg', 'image/png', 'image/webp', 'image/svg+xml', 'image/gif',
+    'application/pdf',
+    'video/mp4',
+  ],
 })
 ```
 
 **Rules:**
 
 - The list is deduplicated and lowercased automatically.
+- **A MIME type with no catalog row fails the build**, with a message naming it and listing what is
+  supported. It does not silently fall back, and it does not surface later as a `415` at upload time.
 - An explicitly empty array (`[]`) is accepted: every upload will be rejected (a warning is emitted).
-- The hard security denylist (HTML, JavaScript, executables, shell scripts) is **always enforced** regardless of this setting — those types can never be re-enabled.
+- The hard security denylist (HTML, JavaScript, executables, shell scripts) is **always enforced**
+  regardless of this setting — those types can never be re-enabled.
+
+### Registering your own file type
+
+For a format the catalog does not cover, register it with `customFileTypes`:
+
+```ts
+astroBlocks({
+  customFileTypes: [
+    { mime: 'application/zip', ext: '.zip', category: 'document' },
+  ],
+  allowedFileTypes: [...DEFAULTS, 'application/zip'],
+})
+```
+
+You supply the MIME, the extension and the category — and nothing else. **Every registered type is
+served as `application/octet-stream` with `Content-Disposition: attachment`**, always. You cannot make
+one render inline, and that is deliberate: a format AstroBlocks has never audited must not be able to
+execute in the CMS's own origin. The security denylist applies to registered types too — a row
+declaring `text/html` or a `.js` extension fails the build.
+
+### Video and audio
+
+Video and audio are in the catalog and **off by default**: add `video/mp4`, `video/webm` or
+`audio/mpeg` to `allowedFileTypes` to enable them. Once enabled:
+
+- Uploads are **streamed to disk**, never held whole in memory, with a default ceiling of 200 MB for
+  video and 20 MB for audio (see [Configuration](#configuration)).
+- Files are served with **HTTP Range support** (`Accept-Ranges`, `206 Partial Content`), so the browser
+  can seek — and so Safari plays them at all, since it refuses any media source that does not answer a
+  ranged request.
+- They are **passthrough**: no dimensions, no duration, no poster frame, no transcoding. AstroBlocks
+  stores and serves the file you uploaded. See [Limitations](#limitations-and-future-work).
 
 ### The `file` block prop type
 
@@ -375,14 +433,34 @@ All endpoints live under `/cms/api/` and require authentication (a valid CMS ses
 | `GET` | `/cms/api/media/:id/usage` | Where-used scan. Returns `{ count, usages[] }`. |
 | `POST` | `/cms/api/media/:id/replace` | Replace bytes in place (`multipart/form-data`, field `file`). Must be the **same MIME type**. Keeps the URL; returns `{ entry }` with `status: 'processing'`. |
 
-Uploads are validated **before** any disk write: the MIME type must be in the allowlist (`image/jpeg`, `image/png`, `image/webp`, `image/svg+xml`, `image/gif`) and the size must be within the limit. The stored file extension is derived from the validated MIME type, never from the user-supplied filename (this prevents an SVG-as-JPG stored-XSS bypass). SVG files are served with `Content-Disposition: attachment` to neutralize inline script execution.
+Uploads are authorised **before a single byte of the body is read**: the MIME type comes from the
+`Content-Type` header, and the denylist, the allowlist and the size limit are all checked against
+headers alone. An oversized upload is rejected with a `413` without ever being buffered.
+
+The stored file extension is derived from the validated MIME type, never from the user-supplied
+filename (this prevents an SVG-as-JPG stored-XSS bypass). SVG files are served with
+`Content-Disposition: attachment` to neutralize inline script execution.
 
 ### Configuration
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
-| `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` | `5242880` (5 MB) | Maximum accepted upload size, in bytes. Set as an environment variable. |
-| `allowedFileTypes` (plugin option) | `['image/jpeg','image/png','image/webp','image/svg+xml','image/gif','application/pdf']` | MIME types accepted at upload. Override in the plugin config; see [Non-image file uploads](#non-image-file-uploads-pdf-and-document-support). |
+| `allowedFileTypes` (plugin option) | 5 image types + `application/pdf` | Which catalog types are accepted at upload. See [Choosing which types are accepted](#choosing-which-types-are-accepted). |
+| `customFileTypes` (plugin option) | `[]` | Register a file type the catalog does not cover. Always served as a download. See [Registering your own file type](#registering-your-own-file-type). |
+| `maxUploadBytes` (plugin option) | `{ image: 5 MB, document: 10 MB, audio: 20 MB, video: 200 MB }` | Per-category upload ceiling, in bytes. Build-time policy. |
+| `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` | *(unset)* | A single global limit, in bytes, applied to every category. Set as an **environment variable**, so it takes effect without a rebuild — the only upload knob that does. |
+
+**How the two size settings interact.** The most specific wins:
+
+```
+limit(category) = maxUploadBytes[category]         // build-time, per category
+               ?? ASTRO_BLOCKS_MAX_UPLOAD_BYTES    // runtime, global
+               ?? the shipped default for that category
+```
+
+If you set neither, images stay at 5 MB and video gets 200 MB. If you set only the environment
+variable, that one number applies to everything — exactly as it did before per-category limits
+existed.
 
 ---
 
@@ -394,6 +472,7 @@ These are known boundaries of the current implementation, not bugs:
 - **Reconciliation runs on every media GET.** Listing media reconciles the registry against disk on each `GET /cms/api/media`. This keeps the registry honest but adds latency as the library grows — a scaling consideration for very large media sets.
 - **No folders or tags yet.** Media is a single flat, searchable list. Organizing assets into folders or tagging them is not implemented.
 - **No focal point / crop.** There is no UI to set a focal point or crop region; variants are width-resized from the full original.
+- **Video and audio are passthrough.** No dimensions, no duration, no poster frame, no transcoding. Extracting any of those requires `ffprobe`/`ffmpeg` — a native binary, and a new system requirement for every consumer's CI, container and laptop. The media library shows a category icon rather than a thumbnail, and the block picker does the same.
 - **Admin UI language.** The CMS admin currently mixes languages in places (navigation vs. content). Full UI i18n is not yet settled.
 
 ---

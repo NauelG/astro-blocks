@@ -348,7 +348,9 @@ All options are passed to `astroBlocks({})` in `astro.config.*` (the `AstroBlock
 | `publicRendering` | `'server' \| 'static'` | `'server'` | Whether CMS-managed public pages are served via SSR or prerendered as static HTML. |
 | `cache` | `{ enabled?: boolean; maxAge?: number; swr?: number }` | see below | HTTP cache behavior for SSR public pages. No effect in static mode. |
 | `i18n` | `{ routingStrategy?: 'path-prefix' }` | `{ routingStrategy: 'path-prefix' }` | Public routing contract for localized paths. Only `'path-prefix'` is supported in this version. |
-| `allowedFileTypes` | `string[]` | see [File Uploads](#file-uploads--non-image) | Global allowlist of MIME types accepted by the media upload endpoint. Lowercased and deduplicated automatically. |
+| `allowedFileTypes` | `string[]` | see [File Uploads](#file-uploads--non-image) | Which supported file types the media upload endpoint accepts. Selects from the catalog; a type with no catalog row fails the build. Lowercased and deduplicated automatically. |
+| `customFileTypes` | `{ mime, ext, category }[]` | `[]` | Register a file type the catalog does not cover. Registered types are always served as downloads, never rendered inline. |
+| `maxUploadBytes` | `Partial<Record<FileCategory, number>>` | `{ image: 5 MB, document: 10 MB, audio: 20 MB, video: 200 MB }` | Per-category upload ceiling, in bytes. |
 
 The `cache` sub-shape:
 
@@ -477,7 +479,13 @@ const href = file?.url ? fileDownloadUrl(file) : undefined;
 {href && <a href={href} download={file?.download ? file.filename : undefined}>Download PDF</a>}
 ```
 
-The global allowlist is controlled by the `allowedFileTypes` option (default: `image/jpeg`, `image/png`, `image/webp`, `image/svg+xml`, `image/gif`, `application/pdf`). A hard security denylist (HTML, JavaScript, executables, shell scripts) is **always enforced** and cannot be re-enabled. Full details — the `FileFieldValue` shape, PDF serving behavior, the denylist and document tiles — are in [docs/media.md → Non-image file uploads](./docs/media.md#non-image-file-uploads-pdf-and-document-support).
+AstroBlocks knows how to handle a fixed **catalog** of file types — images, PDF, MP4, WebM and MP3 — and `allowedFileTypes` selects which of them are switched on (default: `image/jpeg`, `image/png`, `image/webp`, `image/svg+xml`, `image/gif`, `application/pdf`). Video and audio are in the catalog but **off by default**; add `video/mp4` to enable it. A MIME type with no catalog row **fails the build**, naming the offending type — it is never silently ignored.
+
+Video and audio uploads are streamed to disk rather than buffered, and served with HTTP Range support so the browser can seek. They are stored and served as-is: no dimensions, duration, poster frame or transcoding.
+
+For a format the catalog does not cover, register it with `customFileTypes`. Registered types are always served as downloads, never rendered inline.
+
+A hard security denylist (HTML, JavaScript, executables, shell scripts) is **always enforced** and cannot be re-enabled — not by `allowedFileTypes`, and not by `customFileTypes`. Full details — the catalog table, the `FileFieldValue` shape, serving behavior, size limits and media tiles — are in [docs/media.md → Non-image file uploads](./docs/media.md#non-image-file-uploads-documents-video-and-audio).
 
 ### Menus
 

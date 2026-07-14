@@ -201,18 +201,18 @@ page, **press play, and seek**. Seeking is the assertion that Range actually wor
 
 ## Slice 9 — Docs
 
-- [ ] **9.1** `docs/media.md:236-259` — rewrite *"Allowed file types"*. The word **"override"** is what
+- [x] **9.1** `docs/media.md:236-259` — rewrite *"Allowed file types"*. The word **"override"** is what
   authorised this bug: `allowedFileTypes` **selects from a catalog**, it does not invent types. Document
   the catalog table, `customFileTypes` (and **why** it is always `attachment`), and the build-time throw.
-- [ ] **9.2** `docs/media.md:384` — `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` is re-described as the **runtime ops
+- [x] **9.2** `docs/media.md:384` — `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` is re-described as the **runtime ops
   ceiling**, with `maxUploadBytes` as build-time per-category policy and `min()` as the rule.
-- [ ] **9.3** `docs/media.md:389-398` *"Limitations and future work"* — video/audio are **passthrough**:
+- [x] **9.3** `docs/media.md:389-398` *"Limitations and future work"* — video/audio are **passthrough**:
   no dimensions, no duration, no poster. Beside EXIF and focal point, where this class of limit already
   lives.
-- [ ] **9.4** `README.md:351,480` — the `allowedFileTypes` row and the File Uploads paragraph.
-- [ ] **9.5** `docs/CONTEXT.md` — **file-type catalog**, **file category** and **ops ceiling** enter the
+- [x] **9.4** `README.md:351,480` — the `allowedFileTypes` row and the File Uploads paragraph.
+- [x] **9.5** `docs/CONTEXT.md` — **file-type catalog**, **file category** and **ops ceiling** enter the
   glossary. This is the vocabulary whose absence caused the bug; it belongs in the ubiquitous language.
-- [ ] **9.6** `src/meta/features.json` — the closing checklist requires it. `npm run features:validate`.
+- [x] **9.6** `src/meta/features.json` — the closing checklist requires it. `npm run features:validate`.
 
 **Verify:** `npm run features:validate`. No build note, no `npm pack`, no playground detail leaks into
 `README.md` (`AGENTS.md` → *Documentación*).
@@ -221,7 +221,7 @@ page, **press play, and seek**. Seeking is the assertion that Range actually wor
 
 ## Slice 10 — E2E
 
-- [ ] **10.1** `e2e/media-video.spec.ts` (new) — log in, upload an MP4 through the media library, assert
+- [x] **10.1** `e2e/media-video.spec.ts` (new) — log in, upload an MP4 through the media library, assert
   the **video** tile renders (not the document icon), and assert `GET` on the upload URL with
   `Range: bytes=0-1` answers **206**.
 
