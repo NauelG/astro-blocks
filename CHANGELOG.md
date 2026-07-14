@@ -9,6 +9,36 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.6.1] - 2026-07-14
+
+### Title
+
+Block schemas resolve on a deployed server
+
+### Fixed
+
+- **The admin could not edit blocks on a deployed server.** The plugin generates two files into the
+  gitignored `.astro-blocks/` directory: the global-blocks registry and the **block schema map**. The
+  registry is baked into the bundle at build time; the schema map was not — it was read from disk at
+  request time. That directory is a build artifact and is **absent on a deployed server**, so block
+  validation and the admin block picker failed there, while public rendering kept working through the
+  bundled alias. Saving a page returned `500`; the "add block" button was dead. The schema map is now
+  baked alongside the registry, and `.astro-blocks/` is no longer needed at request time at all.
+- **A failed registry lookup no longer masquerades as an empty one.** When the global-blocks registry
+  could not be resolved, it silently defaulted to an empty list — indistinguishable from *"this
+  project declares no global blocks"*. It now fails visibly.
+- **The admin says what went wrong.** When block schemas cannot be loaded, the page editor reports it
+  instead of silently disabling *Add block*, and the global-block editor reports the load failure
+  instead of *"schema not found"* — a message that pointed at a schema that was perfectly fine.
+
+### Changed
+
+- **An unresolvable schema map is now a hard failure on every admin API path, reads included.** It
+  previously failed loudly on writes but degraded quietly on reads, serving pages projected without a
+  schema — from a server that would reject the very next save. Deleting a language proceeded outright.
+  Reads now return `500` and destructive operations refuse to run. This only manifests on a
+  deployment that was already broken; a healthy one is unaffected. See ADR-0025.
+
 ## [3.6.0] - 2026-07-14
 
 ### Title
