@@ -94,8 +94,6 @@ export function readUiLocaleCookie(cookieHeader: string | null | undefined): UiL
       if ((SUPPORTED_UI_LOCALES as readonly string[]).includes(candidate)) {
         return candidate as UiLocale;
       }
-      // Cookie present but value not supported → continue scanning remaining pairs
-      continue;
     }
   }
 

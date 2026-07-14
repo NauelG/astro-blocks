@@ -1031,7 +1031,7 @@ test('T-17: imageAttrs — all four attributes present (SC-7.1)', () => {
 
 test('T-18: imageAttrs — empty alt renders alt="" not absent (SC-7.2)', () => {
   const attrs = imageAttrs({ url: '/deco.png', alt: '' });
-  assert.ok(Object.prototype.hasOwnProperty.call(attrs, 'alt'), 'alt key must exist');
+  assert.ok(Object.hasOwn(attrs, 'alt'), 'alt key must exist');
   assert.equal(attrs.alt, '');
 });
 
@@ -1126,29 +1126,23 @@ test('FIX-3: handleGetPages — legacy string image prop is projected as { url, 
   }
 });
 
-// ─── P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override (read at MODULE LOAD) ──────────
+// ─── P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES, the runtime global limit ──────────────
 //
-// MAX_UPLOAD_BYTES is computed once when handlers/media.ts is first evaluated. To
-// test an override we must import a FRESH module instance AFTER setting the env
-// var. Node ESM caches by URL, so we cache-bust with a unique query string. The
-// env var is restored after each test so other suites see the default 5 MB limit.
+// The env var is now read on every call rather than frozen when the module is first
+// evaluated, so this no longer needs the cache-busted fresh-import dance it used to: set the
+// variable, call the handler, restore. That is not incidental tidying — a limit frozen at
+// import time is not a runtime knob, and the whole reason to keep this variable (rather than
+// fold it into the plugin config) is that it works WITHOUT a rebuild.
 //
-// NOTE: we import '../dist/api/handlers/media.js' directly (not the '../dist/api/
-// handlers.js' shim). Busting the shim's URL only re-evaluates the shim itself —
-// relative re-export specifiers like './handlers/media.js' resolve without the
-// query string, so they still hit the existing cached module. Importing the
-// concern module directly is required to actually force re-evaluation of the
-// module-load-time MAX_UPLOAD_BYTES singleton. `media.js` exports handleUpload/
-// handleReplaceUpload/etc. under the same public names as the shim.
+// It REPLACES the per-category defaults; it does not clamp them. Consumers raise it to allow
+// bigger images as readily as they lower it, and treating it as a hard ceiling would silently
+// cut them back to the 5 MB default. See tests/media-upload-limits.test.js.
 
-async function importFreshHandlers(maxBytes) {
+async function withMaxUploadBytes(maxBytes, fn) {
   const prev = process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
   process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES = String(maxBytes);
   try {
-    const url =
-      new URL('../dist/api/handlers/media.js', import.meta.url).href +
-      `?maxbytes=${maxBytes}-${Date.now()}-${Math.random()}`;
-    return await import(url);
+    return await fn();
   } finally {
     if (prev === undefined) delete process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
     else process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES = prev;
@@ -1157,16 +1151,17 @@ async function importFreshHandlers(maxBytes) {
 
 test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleUpload accepts under-limit, rejects over-limit (413)', async () => {
   await withTempProject(async () => {
-    const handlersFresh = await importFreshHandlers(1024); // 1 KB limit
-    // Under limit: 500 bytes JPEG
-    const okReq = makeUploadRequest(new Uint8Array(500).fill(0xff), 'small.jpg', 'image/jpeg');
-    const okRes = await handlersFresh.handleUpload(okReq);
-    assert.equal(okRes.status, 200, 'under-limit upload should pass with raised/lowered limit');
+    await withMaxUploadBytes(1024, async () => {
+      // Under limit: 500 bytes JPEG
+      const okReq = makeUploadRequest(new Uint8Array(500).fill(0xff), 'small.jpg', 'image/jpeg');
+      const okRes = await handleUpload(okReq);
+      assert.equal(okRes.status, 200, 'under-limit upload should pass with raised/lowered limit');
 
-    // Over limit: 2 KB > 1 KB
-    const bigReq = makeUploadRequest(new Uint8Array(2048).fill(0xff), 'big.jpg', 'image/jpeg');
-    const bigRes = await handlersFresh.handleUpload(bigReq);
-    assert.equal(bigRes.status, 413, 'over-override-limit upload should be rejected with 413');
+      // Over limit: 2 KB > 1 KB
+      const bigReq = makeUploadRequest(new Uint8Array(2048).fill(0xff), 'big.jpg', 'image/jpeg');
+      const bigRes = await handleUpload(bigReq);
+      assert.equal(bigRes.status, 413, 'over-override-limit upload should be rejected with 413');
+    });
   });
 });
 
@@ -1190,7 +1185,7 @@ test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleReplaceUpload honors 
       status: 'ready',
     });
 
-    const handlersFresh = await importFreshHandlers(1024); // 1 KB limit
+    process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES = '1024'; // 1 KB limit, read per request
 
     // Auth token (replace requires auth)
     const { SignJWT } = await import('jose');
@@ -1210,7 +1205,7 @@ test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleReplaceUpload honors 
       },
       body: new Uint8Array(500).fill(0xff),
     });
-    const okRes = await handlersFresh.handleReplaceUpload(okReq, id);
+    const okRes = await handleReplaceUpload(okReq, id);
     assert.equal(okRes.status, 200, 'under-limit replace should pass');
 
     // Over limit replace → 413 (binary body transport)
@@ -1223,8 +1218,10 @@ test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleReplaceUpload honors 
       },
       body: new Uint8Array(2048).fill(0xff),
     });
-    const bigRes = await handlersFresh.handleReplaceUpload(bigReq, id);
+    const bigRes = await handleReplaceUpload(bigReq, id);
     assert.equal(bigRes.status, 413, 'over-override-limit replace should be rejected with 413');
+
+    delete process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
   });
 });
 
@@ -1326,27 +1323,24 @@ test('R3.2-B: image/jpeg cannot replace an existing PDF entry (same-MIME constra
   });
 });
 
-// ─── M-1: MIME absent from MIME_TO_EXT yields 415 ────────────────────────────
+// ─── An uncatalogued MIME cannot reach the handler at all ────────────────────
 //
-// FIX M-1 adds a guard in handleUpload: after the allowlist gate passes, if
-// MIME_TO_EXT has no mapping for the MIME type the handler returns 415 rather
-// than writing a filename ending in "undefined".
+// This replaces the old "M-1" test, which asserted that an allowlisted MIME with no
+// extension mapping returns 415 — and called that outcome "guaranteed deterministically".
+// It was not a guard. It was the bug (see docs/changes/file-type-catalog/): the security
+// gate approved the file and the extension lookup rejected it, with the same status and
+// the same message, so a consumer who legitimately widened allowedFileTypes was told their
+// file type was unsupported when in fact the server could not name it.
 //
-// Direct test of the allowlisted+unmapped combo is not reachable via the prebuilt
-// dist because import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES is a Vite compile-
-// time constant and cannot be overridden at node --test runtime. The test below
-// asserts the closest reachable invariant: a MIME absent from MIME_TO_EXT is
-// rejected with 415. In the current build this is caught by the allowlist gate
-// (step 3 of evaluateUpload), but with the new guard the 415 is also guaranteed
-// deterministically even if a future allowlist override included an unmapped MIME.
-test('M-1: upload with MIME absent from MIME_TO_EXT yields 415 (unmapped extension guard)', async () => {
+// The contract now: an uncatalogued MIME cannot enter the effective allowlist (it throws at
+// config time, and the runtime allowlist is intersected with the catalog). So a MIME with no
+// row never passes the gate, and 415 means only ever what it says: not allowed here.
+test('an uncatalogued MIME is rejected by the gate, before any extension is derived', async () => {
   await withTempProject(async () => {
-    // 'image/x-custom' is not in DEFAULT_ALLOWED_FILE_TYPES and not in MIME_TO_EXT.
-    // It passes neither the allowlist nor the extension map, so it must be rejected with 415.
-    // The new guard (FIX M-1) ensures the same outcome even for allowlisted+unmapped MIMEs.
+    // 'image/x-custom' has no catalog row and is in no allowlist.
     const req = makeUploadRequest(new Uint8Array([0x00, 0x01, 0x02]), 'file.bin', 'image/x-custom');
     const res = await handleUpload(req);
-    assert.equal(res.status, 415, 'MIME absent from MIME_TO_EXT must be rejected with 415');
+    assert.equal(res.status, 415);
     const body = await res.json();
     assert.ok(body.error, 'response must have error message');
   });

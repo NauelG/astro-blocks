@@ -233,12 +233,22 @@
     },
     {
       "id": "non-image-file-uploads",
-      "title": "Non-image file uploads (PDF and document support)",
-      "summary": "Upload and serve non-image files such as PDFs alongside images. Configurable allowedFileTypes, hard security denylist, 'file' block prop type with per-component MIME accept and download flag, fileDownloadUrl helper, and accessible document tiles in the media library.",
+      "title": "Non-image file uploads (documents, video and audio)",
+      "summary": "Upload and serve non-image files alongside images. A closed supported-file-type catalog drives the stored extension, the served Content-Type, the category and the inline/attachment policy; allowedFileTypes selects from it and an unsupported MIME fails the build. Includes a hard security denylist, the 'file' block prop type with per-component MIME accept and download flag, fileDownloadUrl helper, customFileTypes registration (always served as downloads), and accessible category tiles in the media library.",
       "category": "media",
       "status": "alpha",
       "sinceVersion": "3.2.0",
-      "updatedIn": "3.2.0",
+      "updatedIn": "3.6.0",
+      "docsPath": "docs/media.md"
+    },
+    {
+      "id": "video-audio-uploads",
+      "title": "Video and audio uploads",
+      "summary": "MP4, WebM and MP3 in the file-type catalog, opt-in via allowedFileTypes. Uploads stream to disk instead of buffering, with per-category size limits, and are served with HTTP Range support (206 / Content-Range) so browsers can seek and Safari plays at all. Passthrough: no transcoding, dimensions, duration or poster frame.",
+      "category": "media",
+      "status": "alpha",
+      "sinceVersion": "3.6.0",
+      "updatedIn": "3.6.0",
       "docsPath": "docs/media.md"
     },
     {

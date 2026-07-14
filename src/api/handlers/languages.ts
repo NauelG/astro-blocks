@@ -158,11 +158,11 @@ export async function handleDeleteLanguage(
   const localeKeys = getLanguageLocaleKeys(languagesData);
 
   const affectedPages = pagesData.pages.filter((page) => {
-    return Object.prototype.hasOwnProperty.call(page.status || {}, normalizedCode);
+    return Object.hasOwn(page.status || {}, normalizedCode);
   }).length;
 
   const affectedMenus = menusData.menus.filter((menu) => {
-    return Object.prototype.hasOwnProperty.call(menu.items || {}, normalizedCode);
+    return Object.hasOwn(menu.items || {}, normalizedCode);
   }).length;
 
   pagesData.pages = pagesData.pages

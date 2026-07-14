@@ -11,7 +11,8 @@ import { Image as ImageIcon } from '@lucide/astro';
 import { loadMedia, loadSite } from '../../api/data.js';
 import { resolveUiLocale } from './i18n/resolve.js';
 import { createT } from './i18n/t.js';
-import { DEFAULT_ALLOWED_FILE_TYPES } from '../../utils/file-types.js';
+import { DEFAULT_ALLOWED_FILE_TYPES } from '../../utils/file-catalog.js';
+import { CATEGORY_ICON, categoryThumbClass, resolveTileCategory } from '../../utils/media-tile.js';
 
 // Build the dynamic accept attribute for the upload dropzone.
 // Reads the global allowlist injected by vite.define at build time;
@@ -142,18 +143,28 @@ function formatMediaDate(isoString: string): string {
       ) : (
         <div id="cms-media-grid" class="cms-media-grid" aria-label={t('media.imageLibraryAriaLabel')} role="list">
           {uploads.map((entry) => {
-            // Prefer the stored fileCategory field (Slice B); derive from MIME for legacy entries.
-            const isDocument = (entry as typeof entry & { fileCategory?: string }).fileCategory === 'document'
-              || (!(entry as typeof entry & { fileCategory?: string }).fileCategory && !entry.mimeType.startsWith('image/'));
+            // The category is resolved once, in one place, for all three grids that draw media
+            // (this one, client/media.ts and client/block-form.ts). See utils/media-tile.ts.
+            const category = resolveTileCategory(entry);
             return (
             <div class="cms-media-card" role="listitem" data-media-url={entry.url} data-media-id={entry.id}>
-              {isDocument ? (
+              {category !== 'image' ? (
                 <div
-                  class="cms-media-card-thumb cms-media-card-thumb--doc"
+                  class={`cms-media-card-thumb ${categoryThumbClass(category)}`}
                   role="img"
-                  aria-label={`${entry.filename} (${entry.mimeType} document)`}
+                  aria-label={`${entry.filename} (${entry.mimeType} ${category})`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="cms-media-doc-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                  {/* Rendered from CATEGORY_ICON geometry, not from an SVG string — no set:html,
+                      so this file introduces no HTML sink that ADR-0022's guard cannot see. */}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="cms-media-doc-icon">
+                    {CATEGORY_ICON[category].map((s) => (
+                      s.kind === 'path' ? <path d={s.d} />
+                      : s.kind === 'rect' ? <rect x={s.x} y={s.y} width={s.width} height={s.height} rx={s.rx} />
+                      : s.kind === 'circle' ? <circle cx={s.cx} cy={s.cy} r={s.r} />
+                      : s.kind === 'line' ? <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} />
+                      : <polyline points={s.points} />
+                    ))}
+                  </svg>
                 </div>
               ) : (
                 <div class="cms-media-card-thumb">

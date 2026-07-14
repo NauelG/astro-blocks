@@ -1,0 +1,64 @@
+---
+/*
+Copyright (c) 2026 Nauel Gómez Gamero
+Licensed under the Business Source License 1.1
+*/
+
+/**
+ * VideoEmbed — demonstrates the 'file' prop type carrying a video.
+ *
+ * This block is the end-to-end proof of the file-type catalog change. To verify it by hand:
+ *
+ *   1. Add a Video Embed block in /cms/pages
+ *   2. Upload an .mp4 from the media library. It must NOT 415 — that was the bug.
+ *   3. The media tile must show the VIDEO icon, not the document one.
+ *   4. Load the page and press play.
+ *   5. SEEK. Drag the scrubber to the middle of the clip.
+ *
+ * Step 5 is the one that matters. A video that starts playing proves nothing: Chrome and
+ * Firefox will happily stream a 200 response from the start. Seeking is what requires the
+ * server to answer a Range request with a 206, and Safari refuses to play at all without one.
+ * `controls` and `preload="metadata"` both make the browser issue ranged requests.
+ */
+
+import type { FileFieldValue } from '@astroblocks/astro-blocks/contract';
+
+export interface Props {
+  video?: FileFieldValue;
+  caption?: string;
+}
+
+const { video, caption } = Astro.props;
+
+// The raw url — deliberately NOT fileDownloadUrl(). A `?download` would force
+// Content-Disposition: attachment and the browser would save the file instead of playing it.
+const src = video?.url || undefined;
+---
+
+{src && (
+  <figure class="video-embed">
+    <video class="video-embed-player" src={src} controls preload="metadata" playsinline>
+      <track kind="captions" />
+    </video>
+    {caption && <figcaption class="video-embed-caption">{caption}</figcaption>}
+  </figure>
+)}
+
+<style>
+  .video-embed {
+    margin: 0;
+  }
+
+  .video-embed-player {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 8px;
+    background: #000;
+  }
+
+  .video-embed-caption {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: #6b7280;
+  }
+</style>

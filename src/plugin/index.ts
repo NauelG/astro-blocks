@@ -12,11 +12,18 @@ import { buildSchemaMap, resolveBlockEntries } from '../utils/blocks.js';
 import { COMPONENT_PATH_KEY } from '../contract/index.js';
 import type {
   AstroBlocksOptions,
+  CustomFileTypeSpec,
+  FileCategory,
   GlobalBlockDeclaration,
   GlobalBlockRuntimeEntry,
   PrimitivePropDef,
 } from '../types/index.js';
-import { DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-types.js';
+import { BUILTIN_FILE_TYPES, DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-catalog.js';
+import {
+  DANGEROUS_EXTENSIONS,
+  DANGEROUS_MIME,
+  DANGEROUS_MIME_PATTERN,
+} from '../utils/upload-gate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cmsDir = path.resolve(__dirname, '..');
@@ -35,6 +42,8 @@ type ResolvedPluginOptions = AstroBlocksOptions & {
     routingStrategy: 'path-prefix' | 'subdomain' | 'domain';
   };
   allowedFileTypes: string[];
+  customFileTypes: CustomFileTypeSpec[];
+  maxUploadBytes: Partial<Record<FileCategory, number>>;
 };
 
 /**
@@ -59,6 +68,137 @@ function getProjectRoot(config?: { root?: string | URL }): string {
   if (raw instanceof URL) return fileURLToPath(raw);
   if (typeof raw === 'string') return raw;
   return process.cwd();
+}
+
+const EXT_REGEX = /^\.[a-z0-9]+$/;
+const VALID_FILE_CATEGORIES: ReadonlySet<string> = new Set(['image', 'video', 'audio', 'document']);
+
+/**
+ * Validate the file-type configuration at `astro:config:setup`, and THROW on violation
+ * (ADR-0023). Modelled on validateGlobalBlocks below, which already throws on a bad slug.
+ *
+ * The rules:
+ *
+ *   V1/V2 — a customFileTypes row whose MIME or extension is on the hard denylist is
+ *           rejected. The denylist always wins (ADR-0018), and the escape hatch is a
+ *           registration, not a bypass. Payload CMS ships the bypass shape — defining
+ *           `mimeTypes` on a collection skips its executable denylist entirely — and that
+ *           is exactly the door we refuse to build.
+ *   V3    — a row cannot shadow a builtin. A consumer redefining image/png would be
+ *           overriding an audited serving policy with an unaudited one.
+ *   V4    — a MIME in allowedFileTypes that the system cannot handle is a configuration
+ *           error, and it fails the BUILD.
+ *
+ * V4 is the fix for the incident this change came from. It guarantees
+ * `allowedFileTypes ⊆ catalog`, which is what makes the "allowlisted but unmapped" state —
+ * where the security gate approved an upload and the extension lookup then rejected it with
+ * a misleading 415 — unreachable. We do not patch the bug; we delete the state in which it
+ * can exist.
+ *
+ * Note this is deliberately louder than the two warnings nearby (an empty allowlist, and a
+ * schema `accept` that does not intersect). Those describe configs that are a NO-OP. This
+ * describes a config the system cannot honour, and telling the consumer at build time — with
+ * the offending MIME named and the supported list printed — is the whole point.
+ */
+export function validateFileTypeConfig(
+  allowedFileTypes: string[],
+  customFileTypes: CustomFileTypeSpec[] = [],
+): void {
+  const seen = new Set<string>();
+  const seenExts = new Set<string>();
+
+  for (const raw of customFileTypes) {
+    const mime = String(raw?.mime ?? '')
+      .toLowerCase()
+      .trim();
+    const ext = String(raw?.ext ?? '')
+      .toLowerCase()
+      .trim();
+    const category = String(raw?.category ?? '');
+
+    if (!mime || !mime.includes('/')) {
+      throw new Error(
+        `[astro-blocks] customFileTypes: invalid mime "${raw?.mime}". Expected a MIME type like "application/zip".`,
+      );
+    }
+    if (!EXT_REGEX.test(ext)) {
+      throw new Error(
+        `[astro-blocks] customFileTypes["${mime}"]: invalid ext "${raw?.ext}". Expected a lowercase dotted extension like ".zip".`,
+      );
+    }
+    if (!VALID_FILE_CATEGORIES.has(category)) {
+      throw new Error(
+        `[astro-blocks] customFileTypes["${mime}"]: invalid category "${category}". Expected one of: image, video, audio, document.`,
+      );
+    }
+
+    // V1 — denylisted MIME. The denylist beats the escape hatch, always.
+    if (DANGEROUS_MIME.has(mime) || DANGEROUS_MIME_PATTERN.test(mime)) {
+      throw new Error(
+        `[astro-blocks] customFileTypes: "${mime}" is on the hard security denylist and cannot be registered. ` +
+          `The denylist is not configurable — it exists so that a mistake in this file cannot turn the uploads directory into a way to serve scripts.`,
+      );
+    }
+    // V2 — denylisted extension.
+    if (DANGEROUS_EXTENSIONS.has(ext)) {
+      throw new Error(
+        `[astro-blocks] customFileTypes["${mime}"]: extension "${ext}" is on the hard security denylist and cannot be registered.`,
+      );
+    }
+    // V3 — cannot shadow a builtin row, by MIME...
+    if (BUILTIN_FILE_TYPES.some((r) => r.mime === mime)) {
+      throw new Error(
+        `[astro-blocks] customFileTypes: "${mime}" is already a builtin file type and cannot be redefined. ` +
+          `Remove it from customFileTypes; it is available through allowedFileTypes.`,
+      );
+    }
+
+    // ...nor by EXTENSION, and the extension is the load-bearing half.
+    //
+    // Uploads resolve the row by MIME, but the SERVING route can only resolve it by the file's
+    // on-disk extension — it has no memory of the MIME the bytes arrived with. Two rows sharing
+    // an extension therefore make the serving lookup ambiguous, and the builtin wins it.
+    //
+    // Register { mime: 'application/x-my-doc', ext: '.pdf' } and the file is STORED under the
+    // custom row (attachment, octet-stream) but SERVED under the builtin PDF row: inline, as
+    // application/pdf. The registered type renders in our own origin — precisely the thing
+    // ADR-0023 claims registration is structurally incapable of. `ext` is a primary key too.
+    if (BUILTIN_FILE_TYPES.some((r) => r.ext === ext)) {
+      throw new Error(
+        `[astro-blocks] customFileTypes["${mime}"]: extension "${ext}" already belongs to a builtin file type. ` +
+          `Files are served by extension, so a registered type sharing one would be served under the builtin's ` +
+          `rules — inline, instead of as a download. Choose a different extension.`,
+      );
+    }
+
+    if (seen.has(mime)) {
+      throw new Error(`[astro-blocks] customFileTypes: duplicate mime "${mime}".`);
+    }
+    if (seenExts.has(ext)) {
+      throw new Error(
+        `[astro-blocks] customFileTypes: duplicate extension "${ext}". Files are served by extension, ` +
+          `so two types cannot share one.`,
+      );
+    }
+    seen.add(mime);
+    seenExts.add(ext);
+  }
+
+  // V4 — every allowed MIME must be one the system can actually handle.
+  const supported = new Set([...BUILTIN_FILE_TYPES.map((r) => r.mime), ...seen]);
+  for (const mime of allowedFileTypes) {
+    if (!supported.has(mime)) {
+      throw new Error(
+        `[astro-blocks] allowedFileTypes: "${mime}" is not a supported file type.\n` +
+          `  AstroBlocks derives the stored file extension from the validated MIME type (a security\n` +
+          `  requirement — see ADR-0018), so it can only accept types it has a catalog row for.\n\n` +
+          `  Supported: ${[...supported].sort().join(', ')}\n\n` +
+          `  To add your own, register it with the customFileTypes plugin option:\n` +
+          `    customFileTypes: [{ mime: '${mime}', ext: '.xxx', category: 'document' }]\n` +
+          `  Registered types are always served as downloads, never rendered inline.`,
+      );
+    }
+  }
 }
 
 const GLOBAL_BLOCK_SLUG_REGEX = /^[a-z0-9][a-z0-9-]*$/;
@@ -192,6 +332,33 @@ export async function generateRuntime(
 function resolveOptions(options: AstroBlocksOptions): ResolvedPluginOptions {
   const routingStrategy = options.i18n?.routingStrategy || 'path-prefix';
 
+  const normalizedCustomFileTypes: CustomFileTypeSpec[] = (options.customFileTypes ?? []).map(
+    (r) => ({
+      mime: String(r?.mime ?? '')
+        .toLowerCase()
+        .trim(),
+      ext: String(r?.ext ?? '')
+        .toLowerCase()
+        .trim(),
+      category: r?.category,
+    }),
+  );
+
+  const rawAllowedFileTypes = options.allowedFileTypes ?? DEFAULT_ALLOWED_FILE_TYPES;
+  if (Array.isArray(rawAllowedFileTypes) && rawAllowedFileTypes.length === 0) {
+    // A no-op config, not one we cannot honour: warn, do not throw. (Contrast with
+    // validateFileTypeConfig, which throws — see its doc comment.)
+    console.warn(
+      '[astro-blocks] allowedFileTypes is empty — all file uploads will be rejected. Omit the option (or pass null) to use the default list.',
+    );
+  }
+  const resolvedAllowedFileTypes = dedupeLowercase(rawAllowedFileTypes);
+
+  // Throws on a MIME the system cannot handle, on a denylisted or duplicate registration,
+  // and on a row that would shadow a builtin. The build fails here rather than an editor
+  // meeting a misleading 415 at upload time.
+  validateFileTypeConfig(resolvedAllowedFileTypes, normalizedCustomFileTypes);
+
   return {
     ...options,
     publicRendering: options.publicRendering === 'static' ? 'static' : 'server',
@@ -203,20 +370,14 @@ function resolveOptions(options: AstroBlocksOptions): ResolvedPluginOptions {
     i18n: {
       routingStrategy,
     },
-    allowedFileTypes: (() => {
-      const rawAllowedFileTypes = options.allowedFileTypes ?? DEFAULT_ALLOWED_FILE_TYPES;
-      if (Array.isArray(rawAllowedFileTypes) && rawAllowedFileTypes.length === 0) {
-        console.warn(
-          '[astro-blocks] allowedFileTypes is empty — all file uploads will be rejected. Omit the option (or pass null) to use the default list.',
-        );
-      }
-      return dedupeLowercase(rawAllowedFileTypes);
-    })(),
+    customFileTypes: normalizedCustomFileTypes,
+    maxUploadBytes: options.maxUploadBytes ?? {},
+    allowedFileTypes: resolvedAllowedFileTypes,
   };
 }
 
-export type { AstroBlocksOptions } from '../types/index.js';
-export { DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-types.js';
+export type { AstroBlocksOptions, CustomFileTypeSpec } from '../types/index.js';
+export { DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-catalog.js';
 
 /**
  * Advisory validator for 'file' prop accept arrays (ADR-6).
@@ -406,8 +567,28 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
         vite.define['import.meta.env.ASTRO_BLOCKS_ROUTING_STRATEGY'] = JSON.stringify(
           resolvedOptions.i18n.routingStrategy,
         );
+        // DOUBLE-encode. vite.define splices its value in as raw SOURCE, so a single
+        // JSON.stringify(array) becomes an array LITERAL in the bundle — and the consumer of
+        // this bridge (getAllowedFileTypes) guards with `typeof raw === 'string'`, so it
+        // silently rejected the array and fell back to DEFAULT_ALLOWED_FILE_TYPES. The
+        // consequence: allowedFileTypes never reached the server, in any released version.
+        //
+        // That, not the missing MIME_TO_EXT row, is what produced the reported video/mp4 415:
+        // the upload was refused by the ALLOWLIST gate, because the allowlist was always the
+        // shipped default. The outer JSON.stringify emits a string literal the runtime parses
+        // back with JSON.parse — the same pattern GLOBAL_BLOCKS_REGISTRY below already used.
         vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'] = JSON.stringify(
-          resolvedOptions.allowedFileTypes,
+          JSON.stringify(resolvedOptions.allowedFileTypes),
+        );
+        // Consumer-registered file types and the per-category size policy travel to the
+        // runtime the same way the allowlist does: baked in at build time. The runtime ops
+        // ceiling (ASTRO_BLOCKS_MAX_UPLOAD_BYTES) deliberately does NOT — it is read from
+        // process.env at server boot so it can be lowered without a rebuild.
+        vite.define['import.meta.env.ASTRO_BLOCKS_CUSTOM_FILE_TYPES'] = JSON.stringify(
+          JSON.stringify(resolvedOptions.customFileTypes),
+        );
+        vite.define['import.meta.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES_BY_CATEGORY'] = JSON.stringify(
+          JSON.stringify(resolvedOptions.maxUploadBytes),
         );
         // Bake the global-block registry into the bundle so the precompiled admin API
         // (catchall.js) resolves declarations without reading .astro-blocks/runtime.mjs

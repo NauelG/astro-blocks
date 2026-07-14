@@ -16,13 +16,7 @@ Licensed under the Business Source License 1.1
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  DEFAULT_ALLOWED_FILE_TYPES,
-  RASTER_MIME,
-  DOCUMENT_MIME_TO_EXT,
-  MIME_TO_EXT,
-  intersectAccept,
-} from '../dist/utils/file-types.js';
+import { DEFAULT_ALLOWED_FILE_TYPES, intersectAccept } from '../dist/utils/file-catalog.js';
 
 // ─── R1.1-A: DEFAULT_ALLOWED_FILE_TYPES export is correct ────────────────────
 
@@ -59,54 +53,19 @@ test('R1.1-A: DEFAULT_ALLOWED_FILE_TYPES has no duplicates', () => {
   assert.equal(unique.size, DEFAULT_ALLOWED_FILE_TYPES.length);
 });
 
-// ─── RASTER_MIME set ──────────────────────────────────────────────────────────
-
-test('RASTER_MIME contains image/jpeg, image/png, image/webp', () => {
-  assert.ok(RASTER_MIME.has('image/jpeg'));
-  assert.ok(RASTER_MIME.has('image/png'));
-  assert.ok(RASTER_MIME.has('image/webp'));
-});
-
-test('RASTER_MIME does NOT contain image/gif', () => {
-  assert.ok(!RASTER_MIME.has('image/gif'));
-});
-
-test('RASTER_MIME does NOT contain image/svg+xml', () => {
-  assert.ok(!RASTER_MIME.has('image/svg+xml'));
-});
-
-test('RASTER_MIME does NOT contain application/pdf', () => {
-  assert.ok(!RASTER_MIME.has('application/pdf'));
-});
-
-test('RASTER_MIME has exactly 3 entries', () => {
-  assert.equal(RASTER_MIME.size, 3);
-});
-
-// ─── DOCUMENT_MIME_TO_EXT ────────────────────────────────────────────────────
-
-test('DOCUMENT_MIME_TO_EXT maps application/pdf to .pdf', () => {
-  assert.equal(DOCUMENT_MIME_TO_EXT['application/pdf'], '.pdf');
-});
-
-// ─── MIME_TO_EXT (merged map) ─────────────────────────────────────────────────
-
-test('MIME_TO_EXT maps image/jpeg to .jpg', () => {
-  assert.ok(MIME_TO_EXT['image/jpeg'] === '.jpg' || MIME_TO_EXT['image/jpeg'] === '.jpeg');
-});
-
-test('MIME_TO_EXT maps image/png to .png', () => {
-  assert.equal(MIME_TO_EXT['image/png'], '.png');
-});
-
-test('MIME_TO_EXT maps application/pdf to .pdf (merged from DOCUMENT_MIME_TO_EXT)', () => {
-  assert.equal(MIME_TO_EXT['application/pdf'], '.pdf');
-});
-
-// ─── R1.3-A: getAllowedFileTypes dedup + lowercase (B7) ───────────────────────
+// ─── R1.5-A: the handler's allowlist resolution ──────────────────────────────
 //
 // getAllowedFileTypes() memoizes at module load time, so we must use a fresh ESM
 // import (cache-bust via unique query string) after setting the env var.
+//
+// Dedupe + lowercasing of the configured list happens in the plugin (resolveOptions →
+// dedupeLowercase) and is covered in plugin-resolve-options.test.js. It used to be
+// "covered" here by a test that asserted resetAllowedFileTypesCache was a function —
+// which is not a test of anything. Removed rather than kept as decoration.
+//
+// The catalog's own invariants (extensions, raster set, serving policy) live in
+// file-catalog.test.js, which replaced the RASTER_MIME / MIME_TO_EXT assertions this
+// file used to carry.
 
 async function importFreshHandlers(allowedFileTypesJson) {
   const prev = process.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES;
@@ -125,31 +84,6 @@ async function importFreshHandlers(allowedFileTypesJson) {
     else process.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES = prev;
   }
 }
-
-test('R1.3-A: getAllowedFileTypes deduplicates and lowercases the allowlist from env', async () => {
-  // Supply duplicates + mixed case
-  const customList = JSON.stringify([
-    'Image/JPEG',
-    'image/jpeg',
-    'Application/PDF',
-    'APPLICATION/PDF',
-  ]);
-  const { resetAllowedFileTypesCache, getAllowedFileTypes } = await importFreshHandlers(customList);
-
-  // The fresh module read the env on import; reset cache is a no-op here
-  // but keep for clarity in case the impl reads it lazily
-  if (typeof resetAllowedFileTypesCache === 'function') resetAllowedFileTypesCache();
-
-  // getAllowedFileTypes is not exported publicly — test indirectly via upload behavior
-  // We verify the dedup/lowercase by ensuring an upload with the lowercased MIME passes.
-  // Direct unit test: import the fresh module and invoke resetAllowedFileTypesCache to re-read env,
-  // but since we used a cache-busted URL the env was already read at module load.
-  // The simplest observable: the module loaded without error and exports are intact.
-  assert.ok(
-    typeof resetAllowedFileTypesCache === 'function',
-    'resetAllowedFileTypesCache should be exported',
-  );
-});
 
 test('R1.5-A: getAllowedFileTypes falls back to DEFAULT_ALLOWED_FILE_TYPES when env is absent', async () => {
   // Import fresh module with env unset

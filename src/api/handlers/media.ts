@@ -9,12 +9,9 @@ import path from 'node:path';
 import { imageSize } from 'image-size';
 import { getUploadsDir, resolveUploadPath } from '../../utils/paths.js';
 import { generateAndPersistVariants } from '../../utils/variant-generator.js';
-import {
-  DEFAULT_ALLOWED_FILE_TYPES,
-  MIME_TO_EXT as FILE_TYPES_MIME_TO_EXT,
-} from '../../utils/file-types.js';
+import { DEFAULT_ALLOWED_FILE_TYPES, lookupByMime } from '../../utils/file-catalog.js';
 import { evaluateUpload } from '../../utils/upload-gate.js';
-import type { MediaEntry } from '../../types/index.js';
+import type { FileCategory, MediaEntry } from '../../types/index.js';
 import * as data from '../data.js';
 import { localizedJsonError, parseJsonBody } from './shared.js';
 import { getAuth } from './auth-core.js';
@@ -58,7 +55,16 @@ function getAllowedFileTypes(): Set<string> {
     }
   }
 
-  _allowedFileTypesCache = new Set(parsed ?? DEFAULT_ALLOWED_FILE_TYPES);
+  // Belt and braces: intersect with the catalog (ADR-0023).
+  //
+  // validateFileTypeConfig() already throws at build time for any MIME the catalog has no row
+  // for, so for a valid config this filter removes nothing. It exists so that NO path — not a
+  // hand-edited bundle, not a future config source we have not thought of — can admit a MIME
+  // the system cannot name a file for. V4 makes the misconfiguration loud; this makes the bad
+  // state impossible, which is what lets handleUpload treat a missing row as a server bug
+  // rather than pretending the client sent something unsupported.
+  const resolved = parsed ?? DEFAULT_ALLOWED_FILE_TYPES;
+  _allowedFileTypesCache = new Set(resolved.filter((mime) => lookupByMime(mime) !== null));
   return _allowedFileTypesCache;
 }
 
@@ -70,19 +76,188 @@ export function resetAllowedFileTypesCache(): void {
   _allowedFileTypesCache = null;
 }
 
-/** Single source of truth: extension is always derived from the validated MIME type, never from the user filename. */
-const MIME_TO_EXT: Record<string, string> = FILE_TYPES_MIME_TO_EXT;
-const MAX_UPLOAD_BYTES = (() => {
-  const envVal = process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
-  if (envVal) {
-    const parsed = Number.parseInt(envVal, 10);
-    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+/**
+ * Test hook: seed the allowlist directly. Pass null to restore normal resolution.
+ *
+ * The allowlist reaches the runtime through import.meta.env, which vite.define replaces
+ * at COMPILE time — so `node --test` running against dist/ cannot influence it by any
+ * ordinary means. That is not a trivia point: it is why this bug shipped. The
+ * "allowlisted MIME with no extension mapping" state was known to be unreachable from
+ * the test suite (see the FIX M-1 note this hook's first test replaced), so it was
+ * approximated by a neighbouring case and the real one was never exercised.
+ *
+ * Test-only, hence the __ prefix. It adds no production configuration surface — routing
+ * the allowlist through process.env would have created a runtime path to WIDEN a
+ * security-relevant allowlist behind the back of the config-time validator.
+ */
+export function __setAllowedFileTypesForTest(mimes: string[] | null): void {
+  _allowedFileTypesCache = mimes === null ? null : new Set(mimes.map((m) => m.toLowerCase()));
+}
+
+/**
+ * Per-category upload ceilings, in bytes. `image` keeps today's 5 MB exactly — this change
+ * must not move the limit for the common case.
+ */
+const DEFAULT_MAX_BYTES: Record<FileCategory, number> = {
+  image: 5 * 1024 * 1024,
+  document: 10 * 1024 * 1024,
+  audio: 20 * 1024 * 1024,
+  video: 200 * 1024 * 1024,
+};
+
+/** Memoised per-category policy from the plugin config (baked in by vite.define). */
+let _maxUploadBytesCache: Partial<Record<FileCategory, number>> | null = null;
+
+function getCategoryPolicy(): Partial<Record<FileCategory, number>> {
+  if (_maxUploadBytesCache !== null) return _maxUploadBytesCache;
+
+  // biome-ignore lint/suspicious/noExplicitAny: import.meta.env is untyped at this call site
+  const raw: string =
+    (((import.meta as any).env as Record<string, unknown> | undefined)
+      ?.ASTRO_BLOCKS_MAX_UPLOAD_BYTES_BY_CATEGORY as string) ?? '';
+
+  let parsed: Partial<Record<FileCategory, number>> = {};
+  if (typeof raw === 'string' && raw.trim().length > 0) {
+    try {
+      const decoded = JSON.parse(raw);
+      if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) {
+        parsed = decoded as Partial<Record<FileCategory, number>>;
+      }
+    } catch {
+      // Malformed — fall through to the defaults.
+    }
   }
-  return 5 * 1024 * 1024; // 5 MB default
-})();
+
+  _maxUploadBytesCache = parsed;
+  return parsed;
+}
+
+/**
+ * ASTRO_BLOCKS_MAX_UPLOAD_BYTES — the RUNTIME global limit. Read from process.env on every
+ * call, so it takes effect without a rebuild (`maxUploadBytes` is baked in by vite.define).
+ *
+ * It REPLACES the per-category defaults; it does not clamp them. That is the semantics it has
+ * always had — docs/media.md documents it as "Maximum accepted upload size", and consumers
+ * raise it as readily as they lower it. Treating it as a hard ceiling (min(policy, env)) would
+ * silently cut anyone who had raised it back down to the 5 MB image default, and they would
+ * only find out when an editor failed to upload a photo in production.
+ *
+ * Not deprecated. It is the only knob that works without a rebuild, and it still lets whoever
+ * runs the server cap everything in one move.
+ */
+function getGlobalLimitOverride(): number | null {
+  const envVal = process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES;
+  if (!envVal) return null;
+  const parsed = Number.parseInt(envVal, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+/**
+ * The effective limit for a category.
+ *
+ *   maxUploadBytes[category]  — explicit per-category policy (build time), most specific
+ *   ASTRO_BLOCKS_MAX_UPLOAD_BYTES — global override (runtime)
+ *   DEFAULT_MAX_BYTES[category]   — the shipped default
+ *
+ * Most specific wins. A consumer with no maxUploadBytes and an env var set gets exactly
+ * today's behaviour: that one number, for everything.
+ */
+function limitFor(category: FileCategory): number {
+  return getCategoryPolicy()[category] ?? getGlobalLimitOverride() ?? DEFAULT_MAX_BYTES[category];
+}
+
+function tooLarge(request: Request, limit: number): Response {
+  const limitMb = Math.ceil(limit / (1024 * 1024));
+  return localizedJsonError(request, 'errors.fileTooLarge', 413, { limitMb: String(limitMb) });
+}
+
+/** Why a streamed ingest ended. A number is the byte count written. */
+type StreamOutcome = number | 'too-large' | 'empty' | 'write-failed';
+
+/**
+ * Stream a request body to disk without ever holding it whole in memory.
+ *
+ * The bytes written are counted as they go, and the counter — not the Content-Length header —
+ * is the authority: the header is client-supplied and a body is free to lie about it. The
+ * preflight in handleUpload is a cheap early-out; this is the guarantee.
+ *
+ * The failure mode that matters is the partial file. Between the first byte and the rename,
+ * this function owns a real file on disk, and EVERY exit — overrun, aborted connection, write
+ * error — must remove it. A leaked partial upload is the thing a streaming ingest gets wrong,
+ * so the cleanup lives in one place and the tests assert an empty uploads directory after a
+ * 413 rather than trusting that it happened.
+ *
+ * Bytes land under a temporary name and are renamed into place only on success, so a partial
+ * file is never observable at its final URL. rename(2) is atomic on POSIX.
+ */
+async function streamBodyToFile(
+  body: ReadableStream<Uint8Array> | null,
+  destPath: string,
+  limit: number,
+): Promise<StreamOutcome> {
+  if (!body) return 'empty';
+
+  const tmpPath = `${destPath}.${crypto.randomBytes(6).toString('hex')}.part`;
+  const handle = await fs.open(tmpPath, 'w');
+
+  let written = 0;
+  const cleanup = async () => {
+    try {
+      await handle.close();
+    } catch {
+      /* already closed */
+    }
+    try {
+      await fs.unlink(tmpPath);
+    } catch {
+      /* never existed, or already gone */
+    }
+  };
+
+  const reader = body.getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value || value.byteLength === 0) continue;
+
+      written += value.byteLength;
+      if (written > limit) {
+        await reader.cancel().catch(() => {});
+        await cleanup();
+        return 'too-large';
+      }
+      await handle.write(value);
+    }
+  } catch {
+    // Aborted connection, read error, disk full — all the same from here: leave nothing behind.
+    await cleanup();
+    return 'write-failed';
+  }
+
+  if (written === 0) {
+    await cleanup();
+    return 'empty';
+  }
+
+  try {
+    await handle.close();
+    await fs.rename(tmpPath, destPath);
+  } catch {
+    await cleanup();
+    return 'write-failed';
+  }
+
+  return written;
+}
 
 export async function handleUpload(request: Request): Promise<Response> {
-  // Read raw binary body. The request Content-Type carries the file's real MIME.
+  // NOTHING here reads the request body. The Content-Type header carries the file's real MIME,
+  // so the file can be authorised — denylist, allowlist, size — before a single byte is
+  // accepted. That property always existed; it was simply never used, and the old code called
+  // request.arrayBuffer() first and checked the size afterwards, so the 413 rejected what the
+  // server had already swallowed.
+  //
   // CSRF is not a concern here: these endpoints authenticate via a JWT in the
   // Authorization/x-cms-token HEADER (see getAuth), never an ambient cookie, so a
   // cross-origin page cannot forge an authenticated request — the OWASP token-in-
@@ -91,8 +266,6 @@ export async function handleUpload(request: Request): Promise<Response> {
   // non-form body additionally avoids Astro's origin-check middleware, which would
   // otherwise 403 legitimate same-app uploads behind a reverse proxy (Origin vs
   // computed url.origin mismatch).
-  const buffer = await request.arrayBuffer();
-  if (buffer.byteLength === 0) return localizedJsonError(request, 'errors.noFile');
 
   // Decode filename from x-cms-filename header (percent-encoded); fall back to 'upload'.
   let rawName = 'upload';
@@ -102,33 +275,45 @@ export async function handleUpload(request: Request): Promise<Response> {
     rawName = 'upload';
   }
 
-  // Validate MIME type BEFORE disk write (denylist + allowlist gate — ADR-4)
+  // 1. MIME from the header — denylist + allowlist gate (ADR-0018, order untouched)
   const mimeType = request.headers.get('content-type')?.split(';')[0]?.trim() || '';
   if (!mimeType) {
     return localizedJsonError(request, 'errors.unsupportedFileType', 415);
   }
+  const row = lookupByMime(mimeType);
   const gateResult = evaluateUpload({
     mimeType,
-    derivedExtension: MIME_TO_EXT[mimeType] ?? null,
+    derivedExtension: row?.ext ?? null,
     allowed: getAllowedFileTypes(),
   });
   if (!gateResult.ok) {
     return localizedJsonError(request, 'errors.unsupportedFileType', 415);
   }
 
-  // Validate size BEFORE disk write
-  if (buffer.byteLength > MAX_UPLOAD_BYTES) {
-    const limitMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
-    return localizedJsonError(request, 'errors.fileTooLarge', 413, { limitMb: String(limitMb) });
+  // The gate passed, so the MIME is in the allowlist — and the allowlist is intersected with
+  // the catalog (and validated against it at config time), so its row exists. Reaching this
+  // means our own invariant is broken: a server bug, not an unsupported file. Saying 415 here
+  // is the lie that produced this incident — the gate approved the upload and the caller was
+  // told their file type was unsupported. Fail as what it is.
+  if (!row) {
+    throw new Error(
+      `[astro-blocks] catalog invariant violated: "${mimeType}" passed the allowlist gate but has no catalog row.`,
+    );
+  }
+
+  // 2. Size preflight, still without touching the body. Content-Length is client-supplied and
+  //    may be absent or a lie, so this is a cheap early-out, not the guarantee — the bytes
+  //    actually written are counted below.
+  const limit = limitFor(row.category);
+  const contentLength = request.headers.get('content-length');
+  if (contentLength !== null) {
+    const declared = Number.parseInt(contentLength, 10);
+    if (Number.isFinite(declared) && declared > limit) return tooLarge(request, limit);
   }
 
   // Extension is derived from the already-validated MIME type — never from the user-supplied filename.
   // This prevents a stored-XSS bypass where an SVG uploaded as "foo.jpg" would be served inline.
-  const extension = MIME_TO_EXT[mimeType];
-  if (!extension) {
-    // MIME passed the gate but has no extension mapping — refuse rather than store a broken filename.
-    return localizedJsonError(request, 'errors.unsupportedFileType', 415);
-  }
+  const extension = row.ext;
   const subdir = new Date().toISOString().slice(0, 7).replace(/-/g, '/');
   const dir = path.join(getUploadsDir(), subdir);
 
@@ -138,19 +323,46 @@ export async function handleUpload(request: Request): Promise<Response> {
   const rawBase = path.basename(rawName || 'upload', path.extname(rawName || ''));
   const base = rawBase.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'file';
   const filename = `${token}-${base}${extension}`;
-  await fs.writeFile(path.join(dir, filename), Buffer.from(buffer));
+  const destPath = path.join(dir, filename);
+
+  // 3. Ingest, branching on the category.
+  //
+  //    Images are buffered: sharp and imageSize both need the bytes resident, and images are
+  //    bounded at 5 MB by default. Everything else — video, audio, documents — streams to disk
+  //    and is never held whole in memory. That is the difference between a 200 MB video costing
+  //    200 MB of RAM per concurrent upload and costing a chunk.
+  let sizeOnDisk: number;
+  let imageBuffer: Buffer | null = null;
+
+  if (row.category === 'image') {
+    const buffer = await request.arrayBuffer();
+    if (buffer.byteLength === 0) return localizedJsonError(request, 'errors.noFile');
+    if (buffer.byteLength > limit) return tooLarge(request, limit);
+    imageBuffer = Buffer.from(buffer);
+    sizeOnDisk = imageBuffer.byteLength;
+    await fs.writeFile(destPath, imageBuffer);
+  } else {
+    const streamed = await streamBodyToFile(request.body, destPath, limit);
+    if (streamed === 'too-large') return tooLarge(request, limit);
+    if (streamed === 'empty') return localizedJsonError(request, 'errors.noFile');
+    if (streamed === 'write-failed') {
+      return localizedJsonError(request, 'errors.uploadFailed', 500);
+    }
+    sizeOnDisk = streamed;
+  }
 
   const url = `/uploads/${subdir}/${filename}`.replace(/\/+/, '/');
 
   // Capture image dimensions from the in-memory buffer (REQ-4).
-  // Skip for non-image MIME types (e.g. application/pdf) — imageSize cannot parse them
-  // and they have no meaningful width/height. image/* types (jpeg/png/webp/svg/gif) are tried.
+  // Only the 'image' category has meaningful pixel dimensions; imageSize cannot parse the rest.
+  // Video and audio are passthrough: no dimensions, no duration, no poster, and therefore no
+  // ffprobe — a native binary would be a new system requirement for every consumer (ADR-0024).
   // Wrapped in try/catch so corrupt headers or unsupported formats never fail the upload.
   let capturedWidth: number | undefined;
   let capturedHeight: number | undefined;
-  if (mimeType.startsWith('image/')) {
+  if (imageBuffer !== null) {
     try {
-      const dim = imageSize(Buffer.from(buffer));
+      const dim = imageSize(imageBuffer);
       if (
         typeof dim.width === 'number' &&
         typeof dim.height === 'number' &&
@@ -165,15 +377,15 @@ export async function handleUpload(request: Request): Promise<Response> {
     }
   }
 
-  // Classify file category: image/* → 'image', everything else → 'document'
-  const fileCategory: 'image' | 'document' = mimeType.startsWith('image/') ? 'image' : 'document';
+  // The category is DECLARED on the catalog row, never parsed out of the MIME string.
+  const fileCategory = row.category;
 
   // Append MediaEntry to registry with status:'processing' (variants generated async)
   const entry: MediaEntry = {
     id: data.generateId(),
     url,
     filename: rawName || filename,
-    size: buffer.byteLength,
+    size: sizeOnDisk,
     mimeType,
     fileCategory,
     createdAt: new Date().toISOString(),
@@ -320,7 +532,9 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   const entry = m.uploads.find((e) => e.id === id);
   if (!entry) return localizedJsonError(request, 'errors.notFound', 404);
 
-  // Read raw binary body. The request Content-Type carries the file's real MIME.
+  // Same shape as handleUpload: authorise from the headers, then ingest. Nothing below this
+  // line reads the body until the file has passed the gate and the size preflight.
+  //
   // CSRF is not a concern here: these endpoints authenticate via a JWT in the
   // Authorization/x-cms-token HEADER (see getAuth), never an ambient cookie, so a
   // cross-origin page cannot forge an authenticated request — the OWASP token-in-
@@ -329,25 +543,16 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   // non-form body additionally avoids Astro's origin-check middleware, which would
   // otherwise 403 legitimate same-app uploads behind a reverse proxy (Origin vs
   // computed url.origin mismatch).
-  const buffer = await request.arrayBuffer();
-  if (buffer.byteLength === 0) return localizedJsonError(request, 'errors.noFile');
 
-  // Decode filename from x-cms-filename header; fall back to 'upload'.
-  let rawReplaceName = 'upload';
-  try {
-    rawReplaceName = decodeURIComponent(request.headers.get('x-cms-filename') ?? 'upload');
-  } catch {
-    rawReplaceName = 'upload';
-  }
-
-  // MIME validation — denylist + allowlist gate (ADR-4), then same-MIME constraint
+  // MIME validation — denylist + allowlist gate (ADR-0018), then same-MIME constraint
   const mimeType = request.headers.get('content-type')?.split(';')[0]?.trim() || '';
   if (!mimeType) {
     return localizedJsonError(request, 'errors.unsupportedFileType', 415);
   }
+  const row = lookupByMime(mimeType);
   const replaceGateResult = evaluateUpload({
     mimeType,
-    derivedExtension: MIME_TO_EXT[mimeType] ?? null,
+    derivedExtension: row?.ext ?? null,
     allowed: getAllowedFileTypes(),
   });
   if (!replaceGateResult.ok) {
@@ -356,51 +561,79 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   if (mimeType !== entry.mimeType) {
     return localizedJsonError(request, 'errors.replaceSameType', 415, { mimeType: entry.mimeType });
   }
+  if (!row) {
+    throw new Error(
+      `[astro-blocks] catalog invariant violated: "${mimeType}" passed the allowlist gate but has no catalog row.`,
+    );
+  }
 
-  // Size guard
-  if (buffer.byteLength > MAX_UPLOAD_BYTES) {
-    const limitMb = Math.ceil(MAX_UPLOAD_BYTES / (1024 * 1024));
-    return localizedJsonError(request, 'errors.fileTooLarge', 413, { limitMb: String(limitMb) });
+  // The replacement must carry the original's MIME, so its category — and therefore its limit
+  // and its ingest strategy — are identical to the original's by construction.
+  const limit = limitFor(row.category);
+  const contentLength = request.headers.get('content-length');
+  if (contentLength !== null) {
+    const declared = Number.parseInt(contentLength, 10);
+    if (Number.isFinite(declared) && declared > limit) return tooLarge(request, limit);
   }
 
   // Resolve the on-disk path (reuses traversal guard)
   const filePath = resolveUploadPath(entry.url);
   if (!filePath) return localizedJsonError(request, 'errors.invalidUrl', 500);
 
-  // Overwrite bytes ATOMICALLY: write to a temp file then rename into place.
-  // rename(2) is atomic on POSIX, so a read never observes a half-written file.
-  // On failure the temp file is cleaned up and the original is left intact.
-  const tmpPath = `${filePath}.${crypto.randomBytes(6).toString('hex')}.tmp`;
-  try {
-    await fs.writeFile(tmpPath, Buffer.from(buffer));
-    await fs.rename(tmpPath, filePath);
-  } catch (writeErr) {
-    // Clean up the temp file on error (best-effort) and abort before any
-    // variant unlink or registry update so the original stays intact.
+  // Overwrite bytes ATOMICALLY: write to a temp file then rename into place. rename(2) is
+  // atomic on POSIX, so a read never observes a half-written file, and on any failure the
+  // temp file is removed and the ORIGINAL is left intact — the replace is all-or-nothing.
+  let replacedSize: number;
+  let imageBuffer: Buffer | null = null;
+
+  if (row.category === 'image') {
+    const buffer = await request.arrayBuffer();
+    if (buffer.byteLength === 0) return localizedJsonError(request, 'errors.noFile');
+    if (buffer.byteLength > limit) return tooLarge(request, limit);
+    imageBuffer = Buffer.from(buffer);
+    replacedSize = imageBuffer.byteLength;
+
+    const tmpPath = `${filePath}.${crypto.randomBytes(6).toString('hex')}.tmp`;
     try {
-      await fs.unlink(tmpPath);
+      await fs.writeFile(tmpPath, imageBuffer);
+      await fs.rename(tmpPath, filePath);
     } catch {
-      /* ignore */
+      try {
+        await fs.unlink(tmpPath);
+      } catch {
+        /* ignore */
+      }
+      return localizedJsonError(request, 'errors.replaceWriteFailed', 500);
     }
-    return localizedJsonError(request, 'errors.replaceWriteFailed', 500);
+  } else {
+    const streamed = await streamBodyToFile(request.body, filePath, limit);
+    if (streamed === 'too-large') return tooLarge(request, limit);
+    if (streamed === 'empty') return localizedJsonError(request, 'errors.noFile');
+    if (streamed === 'write-failed') {
+      return localizedJsonError(request, 'errors.replaceWriteFailed', 500);
+    }
+    replacedSize = streamed;
   }
 
-  // Recompute dimensions
+  // Recompute dimensions — only images have any. This used to run imageSize over every
+  // replacement, PDFs included; the try/catch made it harmless but it was never meaningful.
   let capturedWidth: number | undefined;
   let capturedHeight: number | undefined;
-  try {
-    const dim = imageSize(Buffer.from(buffer));
-    if (
-      typeof dim.width === 'number' &&
-      typeof dim.height === 'number' &&
-      Number.isFinite(dim.width) &&
-      Number.isFinite(dim.height)
-    ) {
-      capturedWidth = Math.floor(dim.width);
-      capturedHeight = Math.floor(dim.height);
+  if (imageBuffer !== null) {
+    try {
+      const dim = imageSize(imageBuffer);
+      if (
+        typeof dim.width === 'number' &&
+        typeof dim.height === 'number' &&
+        Number.isFinite(dim.width) &&
+        Number.isFinite(dim.height)
+      ) {
+        capturedWidth = Math.floor(dim.width);
+        capturedHeight = Math.floor(dim.height);
+      }
+    } catch {
+      // Swallow dimension errors — never fail the replace
     }
-  } catch {
-    // Swallow dimension errors — never fail the replace
   }
 
   // Update registry under lock. replaceMediaEntryBytes atomically captures
@@ -409,7 +642,7 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
   // not the pre-lock snapshot from the early loadMedia(), which avoids the race
   // where a concurrent regen re-populates variants between the snapshot and lock.
   const result = await data.replaceMediaEntryBytes(id, {
-    size: buffer.byteLength,
+    size: replacedSize,
     width: capturedWidth,
     height: capturedHeight,
   });

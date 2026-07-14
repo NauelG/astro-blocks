@@ -148,7 +148,7 @@ export function validateSchemaItemsDefinition(
       return `Schema "${schemaName}": prop "${propName}" cannot have minItems greater than maxItems.`;
     }
 
-    if (!Object.prototype.hasOwnProperty.call(rawDef, 'item')) {
+    if (!Object.hasOwn(rawDef, 'item')) {
       return `Schema "${schemaName}": prop "${propName}" requires an item definition.`;
     }
 
@@ -201,7 +201,7 @@ export function validateSchemaItemsDefinition(
         return `Schema "${schemaName}": prop "${propName}" has an invalid summaryField value.`;
       }
 
-      if (!Object.prototype.hasOwnProperty.call(rawDef.item.fields, rawDef.item.summaryField)) {
+      if (!Object.hasOwn(rawDef.item.fields, rawDef.item.summaryField)) {
         return `Schema "${schemaName}": prop "${propName}" references a non-existent summaryField "${rawDef.item.summaryField}".`;
       }
     }

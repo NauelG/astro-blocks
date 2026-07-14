@@ -21,6 +21,7 @@ const EXPECTED_EXPORT_NAMES = [
   'localizedJsonError',
   'classifyJwtSecret',
   'resetAllowedFileTypesCache',
+  '__setAllowedFileTypesForTest',
   'hashPassword',
   'verifyPassword',
   'getAuth',

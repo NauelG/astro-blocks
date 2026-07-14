@@ -3,6 +3,16 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
+/**
+ * What a media file IS, as far as the CMS is concerned. A closed enum: it governs the ingest
+ * strategy (buffer vs stream), the sharp routing, the serving policy and the media-library
+ * tile — every one of which is a finite switch.
+ *
+ * Declared on the catalog row (`utils/file-catalog.ts`), never derived by parsing the MIME
+ * string a client handed us. See ADR-0023.
+ */
+export type FileCategory = 'image' | 'video' | 'audio' | 'document';
+
 export type PrimitivePropType =
   | 'string'
   | 'text'
@@ -301,12 +311,14 @@ export interface MediaEntry {
   /** Processing status of variant generation. */
   status?: 'processing' | 'ready' | 'failed';
   /**
-   * Discriminator for the media entry type.
-   * 'image' → mimeType starts with 'image/'.
-   * 'document' → all other file types (e.g. PDF).
-   * Derived from mimeType on load when absent (backward compat).
+   * What this media entry IS. Declared on the catalog row at upload time (ADR-0023) —
+   * never parsed out of the MIME string. Governs the ingest strategy, the sharp routing,
+   * the serving policy and the media-library tile.
+   *
+   * Entries written before this field existed resolve their category through the catalog
+   * on load, defaulting to 'document'.
    */
-  fileCategory?: 'image' | 'document';
+  fileCategory?: FileCategory;
 }
 
 export interface MediaData {
@@ -351,6 +363,62 @@ export interface AstroBlocksOptions {
    * Global allowlist of MIME types accepted by the media upload endpoint.
    * Defaults to DEFAULT_ALLOWED_FILE_TYPES when not provided.
    * Values are lowercased and deduplicated by resolveOptions.
+   *
+   * This SELECTS from the supported-file-type catalog; it does not invent types. A MIME the
+   * catalog has no row for fails the build with a message naming it — AstroBlocks derives the
+   * stored extension from the validated MIME (ADR-0018), so it cannot accept a type it has no
+   * extension for. To add one, register it with `customFileTypes`.
    */
   allowedFileTypes?: string[];
+
+  /**
+   * Register file types the builtin catalog does not cover (ADR-0023).
+   *
+   * Deliberately narrow: you supply the MIME, the extension and the category, and nothing
+   * else. `disposition` and `contentType` are NOT yours to choose — every registered type is
+   * served as `application/octet-stream` with `Content-Disposition: attachment`, so a format
+   * AstroBlocks has never audited can never be rendered inside the CMS's own origin. That is
+   * what makes this a registration rather than a bypass, and it is why it cannot reintroduce
+   * the stored-XSS class that the upload denylist exists to prevent.
+   *
+   * The hard denylist still applies: a row declaring `text/html`, `.js` or any other denied
+   * MIME or extension fails the build.
+   *
+   * @example
+   * customFileTypes: [{ mime: 'application/zip', ext: '.zip', category: 'document' }]
+   */
+  customFileTypes?: CustomFileTypeSpec[];
+
+  /**
+   * Per-category upload ceiling, in bytes. Omitted categories fall back to
+   * `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` if it is set, and otherwise to the built-in default
+   * (image 5 MB — today's value — document 10 MB, audio 20 MB, video 200 MB).
+   *
+   * **Most specific wins:**
+   *
+   *     limit(category) = maxUploadBytes[category]          // build-time, per category
+   *                    ?? ASTRO_BLOCKS_MAX_UPLOAD_BYTES     // runtime, global
+   *                    ?? the built-in default for that category
+   *
+   * This is BUILD-TIME policy (baked in by `vite.define`). `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` is a
+   * RUNTIME global limit read from the environment, so it is the only upload knob that takes
+   * effect without a rebuild. It does NOT clamp a per-category setting — it is the fallback for
+   * categories you did not name.
+   */
+  maxUploadBytes?: Partial<Record<FileCategory, number>>;
+}
+
+/**
+ * A file type registered by the consumer through `customFileTypes`.
+ *
+ * There is no `disposition` and no `contentType` here, and their absence is the point:
+ * see AstroBlocksOptions#customFileTypes.
+ */
+export interface CustomFileTypeSpec {
+  /** Canonical MIME type, e.g. 'application/zip'. Lowercased on resolution. */
+  mime: string;
+  /** The extension the file is stored under, leading dot included, e.g. '.zip'. */
+  ext: string;
+  /** What the file is. Governs the ingest strategy and the media-library tile. */
+  category: FileCategory;
 }
