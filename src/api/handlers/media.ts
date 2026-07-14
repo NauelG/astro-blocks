@@ -70,6 +70,24 @@ export function resetAllowedFileTypesCache(): void {
   _allowedFileTypesCache = null;
 }
 
+/**
+ * Test hook: seed the allowlist directly. Pass null to restore normal resolution.
+ *
+ * The allowlist reaches the runtime through import.meta.env, which vite.define replaces
+ * at COMPILE time — so `node --test` running against dist/ cannot influence it by any
+ * ordinary means. That is not a trivia point: it is why this bug shipped. The
+ * "allowlisted MIME with no extension mapping" state was known to be unreachable from
+ * the test suite (see the FIX M-1 note this hook's first test replaced), so it was
+ * approximated by a neighbouring case and the real one was never exercised.
+ *
+ * Test-only, hence the __ prefix. It adds no production configuration surface — routing
+ * the allowlist through process.env would have created a runtime path to WIDEN a
+ * security-relevant allowlist behind the back of the config-time validator.
+ */
+export function __setAllowedFileTypesForTest(mimes: string[] | null): void {
+  _allowedFileTypesCache = mimes === null ? null : new Set(mimes.map((m) => m.toLowerCase()));
+}
+
 /** Single source of truth: extension is always derived from the validated MIME type, never from the user filename. */
 const MIME_TO_EXT: Record<string, string> = FILE_TYPES_MIME_TO_EXT;
 const MAX_UPLOAD_BYTES = (() => {

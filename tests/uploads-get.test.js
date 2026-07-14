@@ -37,6 +37,51 @@ async function withUploadedFile(subpath, content, fn) {
   }
 }
 
+// S11: AVIF — a pre-existing bug with nothing to do with video.
+//
+// MIME_TO_EXT maps image/avif → .avif, and variant-generator.ts writes ['webp', 'avif']
+// variants. This route's private extension map has no .avif entry, so EVERY AVIF variant
+// AstroBlocks generates is served as application/octet-stream. Browsers sniff images and
+// render it anyway, which is exactly why nobody noticed. The header is wrong regardless,
+// and the response falls into the non-image branch that honours ?download.
+//
+// Two maps that had to agree, and did not. That is the whole diagnosis.
+test('S11: GET /uploads/*.avif returns Content-Type: image/avif', async () => {
+  // 'ftypavif' box header
+  const avifBytes = new Uint8Array([
+    0x00, 0x00, 0x00, 0x1c, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66,
+  ]);
+
+  await withUploadedFile('2026/06/photo-640.avif', avifBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/photo-640.avif');
+    const res = await GET({ request: req });
+
+    assert.equal(res.status, 200);
+    assert.equal(
+      res.headers.get('Content-Type'),
+      'image/avif',
+      'the variant generator writes AVIF; the serving route must know what AVIF is',
+    );
+  });
+});
+
+test('S11: an AVIF variant is not treated as a downloadable document', async () => {
+  const avifBytes = new Uint8Array([
+    0x00, 0x00, 0x00, 0x1c, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66,
+  ]);
+
+  await withUploadedFile('2026/06/photo-640.avif', avifBytes, async () => {
+    const req = new Request('http://localhost/uploads/2026/06/photo-640.avif');
+    const res = await GET({ request: req });
+
+    assert.equal(
+      res.headers.get('Content-Disposition'),
+      null,
+      'AVIF is an image: it must render inline, not download',
+    );
+  });
+});
+
 // SEC-CDN-01: SVG under /uploads/... must return Content-Disposition: attachment
 test('SEC-CDN-01: GET /uploads/*.svg returns Content-Disposition: attachment', async () => {
   const svgContent = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>';

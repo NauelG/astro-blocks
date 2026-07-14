@@ -1326,27 +1326,24 @@ test('R3.2-B: image/jpeg cannot replace an existing PDF entry (same-MIME constra
   });
 });
 
-// ─── M-1: MIME absent from MIME_TO_EXT yields 415 ────────────────────────────
+// ─── An uncatalogued MIME cannot reach the handler at all ────────────────────
 //
-// FIX M-1 adds a guard in handleUpload: after the allowlist gate passes, if
-// MIME_TO_EXT has no mapping for the MIME type the handler returns 415 rather
-// than writing a filename ending in "undefined".
+// This replaces the old "M-1" test, which asserted that an allowlisted MIME with no
+// extension mapping returns 415 — and called that outcome "guaranteed deterministically".
+// It was not a guard. It was the bug (see docs/changes/file-type-catalog/): the security
+// gate approved the file and the extension lookup rejected it, with the same status and
+// the same message, so a consumer who legitimately widened allowedFileTypes was told their
+// file type was unsupported when in fact the server could not name it.
 //
-// Direct test of the allowlisted+unmapped combo is not reachable via the prebuilt
-// dist because import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES is a Vite compile-
-// time constant and cannot be overridden at node --test runtime. The test below
-// asserts the closest reachable invariant: a MIME absent from MIME_TO_EXT is
-// rejected with 415. In the current build this is caught by the allowlist gate
-// (step 3 of evaluateUpload), but with the new guard the 415 is also guaranteed
-// deterministically even if a future allowlist override included an unmapped MIME.
-test('M-1: upload with MIME absent from MIME_TO_EXT yields 415 (unmapped extension guard)', async () => {
+// The contract now: an uncatalogued MIME cannot enter the effective allowlist (it throws at
+// config time, and the runtime allowlist is intersected with the catalog). So a MIME with no
+// row never passes the gate, and 415 means only ever what it says: not allowed here.
+test('an uncatalogued MIME is rejected by the gate, before any extension is derived', async () => {
   await withTempProject(async () => {
-    // 'image/x-custom' is not in DEFAULT_ALLOWED_FILE_TYPES and not in MIME_TO_EXT.
-    // It passes neither the allowlist nor the extension map, so it must be rejected with 415.
-    // The new guard (FIX M-1) ensures the same outcome even for allowlisted+unmapped MIMEs.
+    // 'image/x-custom' has no catalog row and is in no allowlist.
     const req = makeUploadRequest(new Uint8Array([0x00, 0x01, 0x02]), 'file.bin', 'image/x-custom');
     const res = await handleUpload(req);
-    assert.equal(res.status, 415, 'MIME absent from MIME_TO_EXT must be rejected with 415');
+    assert.equal(res.status, 415);
     const body = await res.json();
     assert.ok(body.error, 'response must have error message');
   });

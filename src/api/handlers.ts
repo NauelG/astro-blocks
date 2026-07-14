@@ -40,6 +40,7 @@ export {
 } from './handlers/global-blocks.js';
 export {
   resetAllowedFileTypesCache,
+  __setAllowedFileTypesForTest,
   handleUpload,
   handleDeleteUpload,
   handleGetMedia,
