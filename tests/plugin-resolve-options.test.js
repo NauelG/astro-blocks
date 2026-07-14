@@ -87,6 +87,39 @@ test('C5: DEFAULT_ALLOWED_FILE_TYPES is importable from package root', async () 
   );
 });
 
+
+// ─── Modelling what vite.define actually does ────────────────────────────────
+//
+// vite.define splices its value into the bundle as raw SOURCE. So a define value of
+// `JSON.stringify(["a"])` becomes the array LITERAL ["a"] in the emitted code, while
+// `JSON.stringify(JSON.stringify(["a"]))` becomes the string literal "[\"a\"]".
+//
+// These tests used to do a single JSON.parse on the define value and assert the array. That
+// passes for BOTH encodings — which is why nobody noticed that ASTRO_BLOCKS_ALLOWED_FILE_TYPES
+// was single-encoded, arrived at the runtime as an array, was rejected by
+// getAllowedFileTypes()'s `typeof raw === 'string'` guard, and silently fell back to the
+// shipped defaults. allowedFileTypes never reached the server in any released version, and
+// that -- not the missing MIME_TO_EXT row -- is what produced the reported video/mp4 415.
+//
+// runtimeValueOf() models the substitution, so the tests now assert what the SERVER sees.
+
+/** The value the runtime observes for `import.meta.env.X`, given the define source text. */
+function runtimeValueOf(defineSource) {
+  return JSON.parse(defineSource);
+}
+
+/** A JSON bridge must arrive at the runtime as a STRING, to be JSON.parsed there. */
+function assertJsonBridge(defineSource, expected, key) {
+  const runtimeValue = runtimeValueOf(defineSource);
+  assert.equal(
+    typeof runtimeValue,
+    'string',
+    `${key}: vite.define splices this in as source. It must evaluate to a STRING (double-encode ` +
+      `it) or the runtime's typeof check rejects it and silently falls back to defaults.`,
+  );
+  assert.deepEqual(JSON.parse(runtimeValue), expected);
+}
+
 // ─── C3: resolveOptions — allowedFileTypes defaults ──────────────────────────
 
 test('C3 R1.1-A: resolveOptions defaults allowedFileTypes to DEFAULT_ALLOWED_FILE_TYPES', async () => {
@@ -94,9 +127,10 @@ test('C3 R1.1-A: resolveOptions defaults allowedFileTypes to DEFAULT_ALLOWED_FIL
     const vite = await runSetupHook({}, tempRoot);
     const raw = vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'];
     assert.ok(raw !== undefined, 'vite.define must have ASTRO_BLOCKS_ALLOWED_FILE_TYPES');
-    const parsed = JSON.parse(raw);
+    const runtimeValue = runtimeValueOf(raw);
+    assert.equal(typeof runtimeValue, 'string', 'the bridge must arrive at the runtime as a string');
     assert.deepEqual(
-      [...parsed].sort(),
+      [...JSON.parse(runtimeValue)].sort(),
       [...DEFAULT_ALLOWED_FILE_TYPES].sort(),
       'default allowedFileTypes must equal DEFAULT_ALLOWED_FILE_TYPES',
     );
@@ -111,12 +145,7 @@ test('C3 R1.2-A: resolveOptions uses custom allowedFileTypes (replaces defaults)
     );
     const raw = vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'];
     assert.ok(raw !== undefined);
-    const parsed = JSON.parse(raw);
-    assert.deepEqual(
-      parsed.sort(),
-      ['application/pdf', 'image/jpeg'],
-      'custom list must replace defaults',
-    );
+    assertJsonBridge(raw, ['image/jpeg', 'application/pdf'], 'ASTRO_BLOCKS_ALLOWED_FILE_TYPES');
   });
 });
 
@@ -128,12 +157,7 @@ test('C3 R1.3-A: resolveOptions deduplicates and lowercases allowedFileTypes', a
     );
     const raw = vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'];
     assert.ok(raw !== undefined);
-    const parsed = JSON.parse(raw);
-    assert.deepEqual(
-      parsed.sort(),
-      ['application/pdf', 'image/jpeg'],
-      'dedup+lowercase must reduce to 2 entries',
-    );
+    assertJsonBridge(raw, ['image/jpeg', 'application/pdf'], 'ASTRO_BLOCKS_ALLOWED_FILE_TYPES');
   });
 });
 
@@ -145,12 +169,7 @@ test('C3 R1.4-A: vite.define ASTRO_BLOCKS_ALLOWED_FILE_TYPES matches resolved al
     const vite = await runSetupHook({ allowedFileTypes: custom }, tempRoot);
     const raw = vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'];
     assert.ok(raw !== undefined, 'define key must be present');
-    const parsed = JSON.parse(raw);
-    assert.deepEqual(
-      parsed.sort(),
-      [...custom].sort(),
-      'define value must deep-equal resolved allowlist',
-    );
+    assertJsonBridge(raw, custom, 'ASTRO_BLOCKS_ALLOWED_FILE_TYPES');
   });
 });
 
@@ -166,8 +185,7 @@ test('I2: allowedFileTypes:[] resolves to [] and emits empty-allowlist warn', as
       const vite = await runSetupHook({ allowedFileTypes: [] }, tempRoot);
       const raw = vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'];
       assert.ok(raw !== undefined, 'vite.define must have ASTRO_BLOCKS_ALLOWED_FILE_TYPES');
-      const parsed = JSON.parse(raw);
-      assert.deepEqual(parsed, [], 'empty allowedFileTypes must resolve to []');
+      assertJsonBridge(raw, [], 'ASTRO_BLOCKS_ALLOWED_FILE_TYPES');
       assert.ok(
         warns.some((w) => w.includes('allowedFileTypes is empty')),
         `expected empty-allowlist warn, got: ${JSON.stringify(warns)}`,
@@ -306,4 +324,46 @@ test('C4: non-file props are ignored by validateFileProps', async () => {
   } finally {
     console.warn = origWarn;
   }
+});
+
+
+// ─── The bridge class ────────────────────────────────────────────────────────
+
+test('every JSON vite.define bridge arrives at the runtime as a string', async () => {
+  // This is the guard for the class of bug, not the instance. A single JSON.stringify(value)
+  // becomes an object/array LITERAL in the bundle; the runtime readers all guard with
+  // `typeof raw === 'string'` before JSON.parse, so a single-encoded bridge is not a loud
+  // failure — it is a SILENT fallback to defaults. allowedFileTypes shipped that way and
+  // nobody noticed, because the tests parsed the define value directly instead of modelling
+  // the substitution.
+  await withTempProject(async (tempRoot) => {
+    const vite = await runSetupHook(
+      {
+        allowedFileTypes: ['image/png', 'video/mp4'],
+        customFileTypes: [{ mime: 'application/zip', ext: '.zip', category: 'document' }],
+        maxUploadBytes: { video: 123 },
+      },
+      tempRoot,
+    );
+
+    const JSON_BRIDGES = [
+      'import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES',
+      'import.meta.env.ASTRO_BLOCKS_CUSTOM_FILE_TYPES',
+      'import.meta.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES_BY_CATEGORY',
+      'import.meta.env.ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY',
+    ];
+
+    for (const key of JSON_BRIDGES) {
+      const source = vite.define[key];
+      assert.ok(source !== undefined, `${key} must be defined`);
+      const runtimeValue = runtimeValueOf(source);
+      assert.equal(
+        typeof runtimeValue,
+        'string',
+        `${key} is single-encoded: the runtime will see a literal, its typeof check will ` +
+          `reject it, and the configuration will be silently ignored. Double-encode it.`,
+      );
+      assert.doesNotThrow(() => JSON.parse(runtimeValue), `${key} must JSON.parse at runtime`);
+    }
+  });
 });

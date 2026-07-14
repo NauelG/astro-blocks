@@ -540,8 +540,18 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
         vite.define['import.meta.env.ASTRO_BLOCKS_ROUTING_STRATEGY'] = JSON.stringify(
           resolvedOptions.i18n.routingStrategy,
         );
+        // DOUBLE-encode. vite.define splices its value in as raw SOURCE, so a single
+        // JSON.stringify(array) becomes an array LITERAL in the bundle — and the consumer of
+        // this bridge (getAllowedFileTypes) guards with `typeof raw === 'string'`, so it
+        // silently rejected the array and fell back to DEFAULT_ALLOWED_FILE_TYPES. The
+        // consequence: allowedFileTypes never reached the server, in any released version.
+        //
+        // That, not the missing MIME_TO_EXT row, is what produced the reported video/mp4 415:
+        // the upload was refused by the ALLOWLIST gate, because the allowlist was always the
+        // shipped default. The outer JSON.stringify emits a string literal the runtime parses
+        // back with JSON.parse — the same pattern GLOBAL_BLOCKS_REGISTRY below already used.
         vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'] = JSON.stringify(
-          resolvedOptions.allowedFileTypes,
+          JSON.stringify(resolvedOptions.allowedFileTypes),
         );
         // Consumer-registered file types and the per-category size policy travel to the
         // runtime the same way the allowlist does: baked in at build time. The runtime ops

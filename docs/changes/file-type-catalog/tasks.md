@@ -188,11 +188,11 @@ component.
 
 `docs/DECISIONS.md` requires a working demo under `playgrounds/` for every new feature.
 
-- [ ] **8.1** `playgrounds/basic/astro.config.*` — `allowedFileTypes` extended with `video/mp4`.
-- [ ] **8.2** A block schema with a `type: 'file'`, `accept: ['video/mp4']` prop, and a component that
+- [x] **8.1** `playgrounds/basic/astro.config.*` — `allowedFileTypes` extended with `video/mp4`.
+- [x] **8.2** A block schema with a `type: 'file'`, `accept: ['video/mp4']` prop, and a component that
   renders it in a `<video controls>`. **This is verbatim the configuration from the incident report** —
   it is the regression baseline. If that config ever 415s again, this is where it surfaces.
-- [ ] **8.3** No incidental changes to playground data (`docs/DESIGN.md` §1.13, last bullet).
+- [x] **8.3** No incidental changes to playground data (`docs/DESIGN.md` §1.13, last bullet).
 
 **Verify:** `npm run dev:playground` → upload an MP4 through `/cms/media`, place the block, load the
 page, **press play, and seek**. Seeking is the assertion that Range actually works.
