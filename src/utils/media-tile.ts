@@ -106,23 +106,23 @@ export function categoryThumbClass(category: IconCategory): string {
  * Every value interpolated here comes from CATEGORY_ICON — compile-time constants indexed by a
  * closed enum. No caller data reaches this string.
  */
+function shapeToSvg(s: IconShape): string {
+  switch (s.kind) {
+    case 'path':
+      return `<path d="${s.d}"/>`;
+    case 'rect':
+      return `<rect x="${s.x}" y="${s.y}" width="${s.width}" height="${s.height}" rx="${s.rx}"/>`;
+    case 'circle':
+      return `<circle cx="${s.cx}" cy="${s.cy}" r="${s.r}"/>`;
+    case 'line':
+      return `<line x1="${s.x1}" y1="${s.y1}" x2="${s.x2}" y2="${s.y2}"/>`;
+    case 'polyline':
+      return `<polyline points="${s.points}"/>`;
+  }
+}
+
 export function categoryIconSvg(category: IconCategory): string {
-  const body = CATEGORY_ICON[category]
-    .map((s) => {
-      switch (s.kind) {
-        case 'path':
-          return `<path d="${s.d}"/>`;
-        case 'rect':
-          return `<rect x="${s.x}" y="${s.y}" width="${s.width}" height="${s.height}" rx="${s.rx}"/>`;
-        case 'circle':
-          return `<circle cx="${s.cx}" cy="${s.cy}" r="${s.r}"/>`;
-        case 'line':
-          return `<line x1="${s.x1}" y1="${s.y1}" x2="${s.x2}" y2="${s.y2}"/>`;
-        case 'polyline':
-          return `<polyline points="${s.points}"/>`;
-      }
-    })
-    .join('');
+  const body = CATEGORY_ICON[category].map(shapeToSvg).join('');
 
   return (
     '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" ' +
