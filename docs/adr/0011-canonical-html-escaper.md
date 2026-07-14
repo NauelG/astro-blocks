@@ -5,9 +5,19 @@ Licensed under the Business Source License 1.1
 
 # 0011 — Single canonical context-aware HTML escaper
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-07-07
 - **Source:** engram observations #1980, #1984
+
+> **Compliance note (2026-07-14).** Verified against the code. The *one implementation* rule holds:
+> `src/utils/html-escape.ts` is the only escaper in the repo, and all six `src/routes/admin/client/*.ts`
+> modules import from it. **But two admin pages use no escaper at all** —
+> `src/routes/admin/languages.astro:255-264` and `src/routes/admin/users.astro:226-233` build
+> `innerHTML` by concatenating API data into both text and attribute contexts. That is a stored XSS
+> (owner-privileged to plant; see the issue for the severity reasoning). CI misses it twice over: the
+> guard test (`tests/html-escape-attr-guard.test.js:44-51`) only covers `client/*.ts`, and `biome.json`
+> excludes `**/*.astro`. Note also that `src/utils/html-escape.ts:9` claims to be canonical "for the
+> whole codebase" — a claim the code does not currently earn. Tracked in **#99**.
 
 ## Context
 

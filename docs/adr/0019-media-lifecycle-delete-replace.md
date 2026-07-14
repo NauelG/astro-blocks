@@ -5,9 +5,18 @@ Licensed under the Business Source License 1.1
 
 # 0019 — Media lifecycle: warn-and-allow delete, same-MIME keep-URL replace
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-06-14
 - **Source:** engram observation #857
+
+> **Compliance note (2026-07-14).** Verified against the code. Warn-and-allow delete, the 415 on MIME
+> mismatch, the keep-URL byte overwrite and `Cache-Control: no-cache` are all implemented and enforced.
+> **Two gaps.** (1) The usage scan does not cover a legacy plain-string `seo.image`:
+> `src/api/data.ts:497-508` guards on `typeof … === 'object'`, so such a page is never matched and the
+> delete confirms "used in 0 places" — a warn-and-allow design makes the warning *the* safety
+> mechanism, so a blind spot there is worse than no scan (**#103**). (2) Replace fires
+> `void generateAndPersistVariants(...)` without awaiting (`src/api/handlers/media.ts:437`), so the
+> promised `processing → ready` cycle is best-effort; there is no stuck-`processing` repair (**#96**).
 
 ## Context
 

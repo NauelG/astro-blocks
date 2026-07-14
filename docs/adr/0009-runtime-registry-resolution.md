@@ -5,9 +5,18 @@ Licensed under the Business Source License 1.1
 
 # 0009 — Runtime registry resolution for injected & precompiled routes
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-04-21
 - **Source:** engram observations #139, #1907
+
+> **Compliance note (2026-07-14).** Verified against the code. For the **global-blocks registry** the
+> decision is fully implemented: Vite alias for pages, `import.meta.env` bake for the precompiled API
+> route, no swallowing catch on the page side. **The schema map got only the fragile half:**
+> `generateRuntime()` emits `schema-map.mjs` too (`src/plugin/index.ts:177-181`), but it is never baked —
+> `src/api/handlers/schema-loading.ts:19-34` resolves it from disk only, behind a swallowing
+> `catch { return { error: ... } }`. That is the exact deployment failure mode this ADR exists to
+> eliminate, reproduced one layer over. Page-save validation and global-block PUT depend on it.
+> Tracked in **#101**.
 
 ## Context
 

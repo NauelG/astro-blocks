@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 # 0016 — Image field value is a structured object (alt, dimensions, caption)
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-06-13
 - **Source:** engram observation(s) #807, #809, #849
 

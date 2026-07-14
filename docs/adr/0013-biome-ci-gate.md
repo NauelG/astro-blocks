@@ -5,9 +5,18 @@ Licensed under the Business Source License 1.1
 
 # 0013 — Adopt Biome as a CI gate separate from tests
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-07-07
 - **Source:** engram observation(s) #1959, #2004, #1978
+
+> **Compliance note (2026-07-14).** Verified against the code. The decision holds: `npm run check`
+> (`biome ci .`) is its own CI step in job `validate`, independent of `npm test`, and `e2e` needs
+> `validate`. **But the gate is narrower than "`biome ci .`" reads.** `biome.json` `files.includes` is an
+> allowlist (`src/`, `scripts/`, `tests/`, `e2e/`), so root configs, `playgrounds/` and `docs/` are out
+> of scope; `!**/*.astro` leaves the several hundred lines of inline TypeScript in the admin `.astro`
+> pages entirely unlinted — which is where the XSS in **#99** lives; and `!src/styles/**` excludes
+> `cms-admin.css` (**#95**). None of this falsifies the Decision — it is about *where the gate runs*,
+> not what it covers — but a reader will over-estimate the coverage.
 
 ## Context
 

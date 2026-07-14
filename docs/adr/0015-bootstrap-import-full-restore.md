@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 # 0015 — Bootstrap import = full restore, gated only by zero-users
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-06-30
 - **Source:** engram observation(s) #1857, #1889
 

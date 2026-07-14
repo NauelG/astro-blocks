@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 # 0010 — SSR adapter required via config-time guard, not peerDependency
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-07-06
 - **Source:** engram observations #1950, #1949
 

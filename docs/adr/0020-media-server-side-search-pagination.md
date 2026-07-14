@@ -5,9 +5,20 @@ Licensed under the Business Source License 1.1
 
 # 0020 — Media library: server-side search + pagination
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-06-14
 - **Source:** engram observation #838
+
+> **Compliance note (2026-07-14).** Verified against the code. The **handler** is a line-for-line match
+> with this decision (`src/api/handlers/media.ts:240-265`), search and pagination really are
+> server-side, and the shared `fetchMedia()` utility the ADR could not verify does exist and is used by
+> both the grid and the picker. **The drift is at the consumer edges.** (1) The SSR first paint
+> (`src/routes/admin/media.astro:32-33`) renders the *entire* registry with no sort, filter or slice —
+> exactly what this ADR's Context rejects — and in a different order than the client re-render.
+> (2) The picker's `accept` filter runs client-side **after** the server's slice
+> (`src/routes/admin/client/block-form.ts:499-503`), so file-mode counts and paging are wrong. That is
+> the "each consumer re-implementing filtering client-side" this ADR set out to prevent. Tracked in
+> **#104**.
 
 ## Context
 

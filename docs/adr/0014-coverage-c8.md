@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 # 0014 — Test coverage via c8; browser-only controllers excluded
 
-- **Status:** Draft — proposed (triaged from engram memory, awaiting review)
+- **Status:** Accepted — verified against the code on 2026-07-14
 - **Date:** 2026-06-15
 - **Source:** engram observation(s) #881, #885
 
