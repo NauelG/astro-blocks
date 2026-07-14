@@ -20,14 +20,21 @@ import { jsonError, localizedJsonError } from './shared.js';
  * permitted it, so the type is what changed. Nothing compiles now without facing the
  * failure. See ADR-0025.
  *
- * - `unresolved` — neither the baked value nor the disk artifact yielded a map. The
- *   deployment is broken (ADR-0009's failure mode).
- * - `incomplete` — the map resolved, but declared blocks carry no schema. A consumer
- *   configuration error; `missing` names them.
+ * There is exactly one way to fail — `unresolved`: neither the baked value nor the disk
+ * artifact yielded a map, so the deployment is broken (ADR-0009's failure mode).
+ *
+ * An earlier draft carried a second reason, `incomplete` (+ a `missing[]` payload), for
+ * declared blocks that carry no schema. It was inherited from the pre-union code and is
+ * **unreachable**: `buildSchemaMap` (`utils/blocks.ts`) OMITS a key it cannot serialize
+ * rather than assigning `undefined`, and the baked path cannot express it either — JSON
+ * drops `undefined`. No emitted artifact can trip it, nothing consumed its payload, and no
+ * test covered it. A branch no input can reach is not defensive; it is a second green light
+ * that means nothing. Removed. A block whose schema is genuinely absent still surfaces, via
+ * `validateBlocks` rejecting it as an unknown type.
  */
 export type SchemaMapResult =
   | { ok: true; schemaMap: SchemaMap }
-  | { ok: false; reason: 'unresolved' | 'incomplete'; missing: string[] };
+  | { ok: false; reason: 'unresolved' };
 
 /**
  * Resolves the block schema map for the precompiled API route.
@@ -50,7 +57,7 @@ export async function loadSchemaMap(): Promise<SchemaMapResult> {
   if (typeof baked === 'string' && baked.length > 0) {
     try {
       const parsed = JSON.parse(baked) as SchemaMap;
-      if (parsed && typeof parsed === 'object') return finalizeSchemaMap(parsed);
+      if (parsed && typeof parsed === 'object') return { ok: true, schemaMap: parsed };
     } catch {
       // Malformed bake — fall through to the filesystem read.
     }
@@ -62,7 +69,7 @@ export async function loadSchemaMap(): Promise<SchemaMapResult> {
   try {
     const schemaMapUrl = pathToFileURL(schemaMapPath).href;
     const mod = (await import(/* @vite-ignore */ schemaMapUrl)) as { schemaMap?: SchemaMap };
-    return finalizeSchemaMap(mod.schemaMap || {});
+    return { ok: true, schemaMap: mod.schemaMap || {} };
   } catch (error) {
     // NOT swallowed. The old `catch { return { error: 'Failed to load block schemas' } }`
     // told an operator nothing: it could not distinguish a missing artifact from a broken
@@ -76,18 +83,8 @@ export async function loadSchemaMap(): Promise<SchemaMapResult> {
         'artifact and is never a resolution strategy. See ADR-0009 and ADR-0025.',
       error,
     );
-    return { ok: false, reason: 'unresolved', missing: [] };
+    return { ok: false, reason: 'unresolved' };
   }
-}
-
-function finalizeSchemaMap(schemaMap: SchemaMap): SchemaMapResult {
-  const missing = Object.entries(schemaMap)
-    .filter(([, value]) => value === undefined)
-    .map(([key]) => key);
-
-  if (missing.length > 0) return { ok: false, reason: 'incomplete', missing };
-
-  return { ok: true, schemaMap };
 }
 
 /**
@@ -97,13 +94,9 @@ function finalizeSchemaMap(schemaMap: SchemaMap): SchemaMapResult {
  * props (image values never coerced), from a server that will 500 on the very next save.
  * A half-working admin is a trap, not a degradation (ADR-0025).
  */
-export function schemaMapFailureResponse(result: { missing: string[] }, request?: Request): Response {
-  if (request) {
-    return localizedJsonError(request, 'errors.loadBlockSchemasFailed', 500, undefined, {
-      missing: result.missing,
-    });
-  }
-  return jsonError('Failed to load block schemas', 500, { missing: result.missing });
+export function schemaMapFailureResponse(request?: Request): Response {
+  if (request) return localizedJsonError(request, 'errors.loadBlockSchemasFailed', 500);
+  return jsonError('Failed to load block schemas', 500);
 }
 
 export async function ensureValidBlocks(
@@ -114,7 +107,7 @@ export async function ensureValidBlocks(
 
   if (!Array.isArray(blocks) || blocks.length > 0) {
     const result = await loadSchemaMap();
-    if (!result.ok) return schemaMapFailureResponse(result, request);
+    if (!result.ok) return schemaMapFailureResponse(request);
 
     const validation = validateBlocks(result.schemaMap, blocks);
     if (validation) {

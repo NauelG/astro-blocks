@@ -146,7 +146,7 @@ export async function handleDeleteLanguage(
   // irreversible. It must not run against a schema map the system could not resolve
   // (ADR-0025). Guard BEFORE any of the checks below, so the handler never reports a
   // reassuring "not found" when the truth is "this server cannot resolve schemas".
-  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
+  if (!schemaResult.ok) return schemaMapFailureResponse(request);
 
   const languageIndex = languagesData.languages.findIndex(
     (language) => normalizeLanguageCode(language.code) === normalizedCode,

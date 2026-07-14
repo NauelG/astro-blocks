@@ -25,7 +25,7 @@ export async function handleGetGlobalBlocks(
     loadSchemaMap(),
   ]);
 
-  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
+  if (!schemaResult.ok) return schemaMapFailureResponse(request);
 
   const defaultLocale = getDefaultLanguageCode(languagesData);
   const locale = normalizeLocaleFromRequest(request, languagesData);
@@ -65,7 +65,7 @@ export async function handleGetGlobalBlock(
     loadSchemaMap(),
   ]);
 
-  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
+  if (!schemaResult.ok) return schemaMapFailureResponse(request);
 
   const defaultLocale = getDefaultLanguageCode(languagesData);
   const locale = normalizeLocaleFromRequest(request, languagesData);
@@ -117,7 +117,7 @@ export async function handlePutGlobalBlock(
     data.loadLanguages(),
     loadSchemaMap(),
   ]);
-  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
+  if (!schemaResult.ok) return schemaMapFailureResponse(request);
 
   const locale = resolveLocaleFromBody(body, request, languagesData);
   const localeKeys = getLanguageLocaleKeys(languagesData);

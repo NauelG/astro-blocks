@@ -57,10 +57,17 @@ This is enforced by the **type system, not by convention**. `loadSchemaMap()` re
 union:
 
 ```ts
-{ ok: true; schemaMap: SchemaMap } | { ok: false; reason: 'unresolved' | 'incomplete'; missing?: string[] }
+{ ok: true; schemaMap: SchemaMap } | { ok: false; reason: 'unresolved' }
 ```
 
-so no call site type-checks without branching on the failure. This mirrors the repo's existing stance
+There is exactly **one** way to fail. A second reason (`incomplete`, for declared blocks carrying no
+schema) was drafted and dropped: `buildSchemaMap` omits a key it cannot serialize rather than
+assigning `undefined`, and the baked path cannot express it either, since JSON drops `undefined`. No
+artifact can reach it, nothing consumed it, and no test covered it. A branch no input can reach is
+not defensive — it is one more green light that means nothing, which is the very thing this ADR is
+about.
+
+So no call site type-checks without branching on the failure. This mirrors the repo's existing stance
 on authorization: `defineRoute<A>` exists (see `api/route-table.ts`) so that a handler's
 `RouteContext<A>.user` nullability is checked against its declared `auth` literal **at compile time**,
 rather than trusting each handler to remember. Registry resolution earns the same guarantee.

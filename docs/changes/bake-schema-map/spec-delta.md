@@ -57,10 +57,10 @@ capability specifies which artifact each side reads, and what happens when it ca
   failure the caller **cannot ignore**.
 
 - **R8 — The failure is unignorable by construction.** **Both** loaders return a discriminated union —
-  `{ ok: true; schemaMap } | { ok: false; reason: 'unresolved' | 'incomplete'; missing? }` for the
-  schema map, `{ ok: true; entries } | { ok: false; reason: 'unresolved' }` for the global-blocks
-  registry — so the type checker rejects any call site that reads either without branching on the
-  failure. A convention that each caller must remember is not a guarantee.
+  `{ ok: true; schemaMap } | { ok: false; reason: 'unresolved' }` for the schema map,
+  `{ ok: true; entries } | { ok: false; reason: 'unresolved' }` for the global-blocks registry — so the
+  type checker rejects any call site that reads either without branching on the failure. A convention
+  that each caller must remember is not a guarantee.
 
 - **R9 — Unresolvable registry ⇒ 500, on every path, including reads.** All eight schema-map call
   sites fail with `errors.loadBlockSchemasFailed`; the three global-block routes fail with
@@ -71,9 +71,13 @@ capability specifies which artifact each side reads, and what happens when it ca
   no error boundary, so a throw would escape as Astro's HTML error page and break the JSON contract
   every admin `fetch` depends on.
 
-- **R10 — `incomplete` keeps its payload.** When the map resolves but declared entries are
-  `undefined`, the response carries `missing[]`, naming the block types with no schema. This is a
-  consumer configuration error and is reported as such, distinctly from `unresolved`.
+- **R10 — There is exactly ONE way to fail: `unresolved`.** The loader carries no second reason
+  and no `missing[]` payload. An `incomplete` variant (declared blocks with no schema) was drafted
+  and removed as **unreachable**: `buildSchemaMap` OMITS a key it cannot serialize rather than
+  assigning `undefined`, and the baked path cannot express it either — JSON drops `undefined`. No
+  emitted artifact can trip it, nothing consumed its payload, and no test covered it. A branch no
+  input can reach is not defensive; it is a green light that means nothing. A block whose schema is
+  genuinely absent still surfaces — `validateBlocks` rejects it as an unknown type.
 
 - **R11 — The admin surfaces the failure; it does not absorb it.** A server that fails loudly into a
   client that shrugs is still a silent failure. No admin controller may swallow a resolution error:
@@ -111,9 +115,6 @@ capability specifies which artifact each side reads, and what happens when it ca
   **succeeds** with an empty map. Every handler serves normally; a page carrying a block of any type
   fails validation as an unknown type.
 
-- **S-6 — Declared block with no schema.** `{ ok: false, reason: 'incomplete', missing: ['hero'] }`
-  → 500 carrying `missing: ['hero']`.
-
 - **S-7 — Language deletion with an unresolvable schema map.** `handleDeleteLanguage` returns 500 and
   **writes nothing**. The language, its pages and its menus are left intact.
   *(Today: it proceeds and deletes.)*
@@ -142,7 +143,7 @@ capability specifies which artifact each side reads, and what happens when it ca
   string, the other measured comment order. A guard that cannot fail is worse than no guard: it is a
   green light that means nothing. The e2e covers that side behaviourally instead (a server with no
   artifact on disk can only work if the bake is primary). See #81.
-- **Unit.** S-4, S-5, S-6 at all eight schema-map call sites; S-7 asserts no write occurred;
+- **Unit.** S-4 and S-5 at all eight schema-map call sites; S-7 asserts no write occurred;
   `tests/registry-resolution.test.js` covers R6 for both registries — an unresolvable one is a 500, a
   genuinely empty one is a 200.
 - **e2e, R11** (`e2e/schema-map-failure.spec.ts`). S-8 and S-9, forced by intercepting

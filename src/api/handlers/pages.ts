@@ -151,7 +151,7 @@ export async function handleGetPages(request: Request): Promise<Response> {
     loadSchemaMap(),
   ]);
 
-  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
+  if (!schemaResult.ok) return schemaMapFailureResponse(request);
 
   const defaultLocale = getDefaultLanguageCode(languagesData);
   const locale = normalizeLocaleFromRequest(request, languagesData);
@@ -165,7 +165,7 @@ export async function handleGetPages(request: Request): Promise<Response> {
 
 export async function handleGetBlockSchemas(): Promise<Response> {
   const result = await loadSchemaMap();
-  if (!result.ok) return schemaMapFailureResponse(result);
+  if (!result.ok) return schemaMapFailureResponse();
 
   return Response.json(result.schemaMap);
 }
@@ -189,7 +189,7 @@ export async function handlePostPages(
   // ensureValidBlocks above already fails on an unresolvable map, but only when the payload
   // carries blocks. This guard is what makes the merge below unreachable without a schema —
   // mergeBlockPropsForLocale with a null map would flatten a LocalizedValueMap into a scalar.
-  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
+  if (!schemaResult.ok) return schemaMapFailureResponse(request);
 
   const defaultLocale = getDefaultLanguageCode(languagesData);
   const locale = resolveLocaleFromBody(body, request, languagesData);
@@ -258,7 +258,7 @@ export async function handlePutPage(
   // is a confident wrong answer: it names the wrong culprit and sends the owner looking at their
   // content instead of their deployment. Report what is actually broken (ADR-0025). Same
   // ordering, same reason, as handleDeleteLanguage.
-  if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
+  if (!schemaResult.ok) return schemaMapFailureResponse(request);
 
   const index = pagesData.pages.findIndex((page) => page.id === id);
   if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
