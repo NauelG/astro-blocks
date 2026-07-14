@@ -649,6 +649,7 @@ export const en = {
   'errors.blockSchemaMissing': 'Block schema missing.',
   'errors.loadBlockSchemasFailed': 'Failed to load block schemas.',
   'errors.loadGlobalBlocksRegistryFailed': 'Failed to load the global-blocks registry.',
+  'errors.loadPagesFailed': 'Failed to load pages.',
   'errors.fileTooLarge': 'File too large. Maximum size is {limitMb} MB.',
   'errors.unsupportedFileType': 'Unsupported file type. Allowed: jpg, png, webp, svg, gif.',
   'errors.deleteFailed': 'Delete failed.',
