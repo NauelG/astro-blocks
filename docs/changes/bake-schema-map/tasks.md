@@ -163,6 +163,32 @@ it breaks again.
 
 ---
 
+## Slice 7 — The admin must SAY it (added during Review)
+
+**Found reviewing the change against its own ADR.** The server now fails loudly; the admin client
+caught the 500 and said nothing. A server that screams into a client that shrugs is still a silent
+failure — R11.
+
+- [x] **7.1** `src/routes/admin/client/page-editor.ts` — `loadSchemaMap()` disabled *Add block* and
+  moved on. A dead control is not an explanation; it is the exact symptom the e2e RED produced
+  (`element is not enabled`, nothing on screen). Show the server's message.
+- [x] **7.2** `src/routes/admin/client/global-blocks-editor.ts` — the worst one. It swallowed the
+  load failure and fell through to `!schema?.items`, reporting **"schema not found for `<name>`"** —
+  a **confident lie**. The schemas did not fail to *contain* the block; they failed to *load*. It
+  sent the owner debugging a schema that was fine. Report the load failure as a load failure.
+- [x] **7.3** Two fire-and-forget `void` calls dropped their rejection: `void openEdit(id)` and
+  `void refreshPages()`. That renders as **"clicking Edit does nothing"** — the worst kind of bug,
+  because the user has nothing to report. Route both through `reportFailure`.
+- [x] **7.4** `submitEdit`'s pre-validation fetch **keeps** swallowing, deliberately and in writing:
+  it is a courtesy preflight and the `PUT` it precedes is loud. Deferring beats inventing a verdict.
+- [x] **7.5** `e2e/schema-map-failure.spec.ts` — S-8 and S-9, forcing the 500 by route interception
+  (the real fault is no longer reproducible naturally). **Validated by reverting the fix**: one test
+  catches the missing toast, the other catches the "not found" lie.
+
+**Verify:** `npm test` · `npm run typecheck` · `npm run e2e` → 11 passing.
+
+---
+
 ## Not in this change
 
 - **No version bump, no `CHANGELOG` entry** until you ask to close (AGENTS.md, *Versionado*).

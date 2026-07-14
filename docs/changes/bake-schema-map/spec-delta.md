@@ -75,6 +75,20 @@ capability specifies which artifact each side reads, and what happens when it ca
   `undefined`, the response carries `missing[]`, naming the block types with no schema. This is a
   consumer configuration error and is reported as such, distinctly from `unresolved`.
 
+- **R11 — The admin surfaces the failure; it does not absorb it.** A server that fails loudly into a
+  client that shrugs is still a silent failure. No admin controller may swallow a resolution error:
+  the page editor reports it rather than merely disabling *Add block*, the global-block editor reports
+  it rather than falling through to *"schema not found"*, and no fire-and-forget call may drop the
+  rejection. The message shown is the **server's** — it already names the real fault.
+
+  **A load failure is never reported as a "not found".** The schemas did not fail to *contain* the
+  block; they failed to *load*. Reporting the former sends the owner debugging a schema that is fine
+  — the same confident-wrong answer, in a new costume.
+
+  One deliberate exception: the global-block editor's **pre-submit** schema fetch is a courtesy
+  validation preflight, and the `PUT` it precedes fails loudly with the real reason. Skipping the
+  preflight defers to that truth instead of inventing a verdict without a schema.
+
 ### Scenarios
 
 - **S-1 — Deployed server, artifact absent.** `.astro-blocks/` does not exist next to the server.
@@ -104,6 +118,15 @@ capability specifies which artifact each side reads, and what happens when it ca
   **writes nothing**. The language, its pages and its menus are left intact.
   *(Today: it proceeds and deletes.)*
 
+- **S-8 — The owner opens the page editor on a broken deployment.** `GET /cms/api/block-schemas`
+  500s. The admin shows an **error toast carrying the server's message**, and *Add block* is disabled.
+  *(Today: the button is disabled and nothing is said. The e2e RED for this change caught exactly that
+  — `element is not enabled`, with no explanation anywhere on the screen.)*
+
+- **S-9 — The owner opens a global block on a broken deployment.** The edit modal reports the **load
+  failure**. It does **not** say *"schema not found for `<name>`"*.
+  *(Today: it says exactly that, and the schema is fine.)*
+
 ### Coverage
 
 - **e2e (load-bearing).** `e2e/global-setup.ts` no longer copies `.astro-blocks/` into `.e2e-data/`.
@@ -122,6 +145,10 @@ capability specifies which artifact each side reads, and what happens when it ca
 - **Unit.** S-4, S-5, S-6 at all eight schema-map call sites; S-7 asserts no write occurred;
   `tests/registry-resolution.test.js` covers R6 for both registries — an unresolvable one is a 500, a
   genuinely empty one is a 200.
+- **e2e, R11** (`e2e/schema-map-failure.spec.ts`). S-8 and S-9, forced by intercepting
+  `GET /cms/api/block-schemas` with a 500 — the real fault can no longer be reproduced naturally, which
+  is the point of the fix. Validated by reverting the client change: one test catches the missing
+  toast, the other catches the *"not found"* lie.
 
 ---
 

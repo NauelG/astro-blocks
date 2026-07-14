@@ -254,6 +254,10 @@ export async function handlePutPage(
     loadSchemaMap(),
   ]);
 
+  // Before the 404, deliberately. A "page not found" from a server that cannot resolve schemas
+  // is a confident wrong answer: it names the wrong culprit and sends the owner looking at their
+  // content instead of their deployment. Report what is actually broken (ADR-0025). Same
+  // ordering, same reason, as handleDeleteLanguage.
   if (!schemaResult.ok) return schemaMapFailureResponse(schemaResult, request);
 
   const index = pagesData.pages.findIndex((page) => page.id === id);
