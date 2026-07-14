@@ -145,14 +145,14 @@ src/` returns **nothing**.
 
 ## Slice 6 — Serving: Range and streaming
 
-- [ ] **6.1** `tests/uploads-get-range.test.js` (new) — **S13** no `Range` → 200 + `Accept-Ranges: bytes`;
+- [x] **6.1** `tests/uploads-get-range.test.js` (new) — **S13** no `Range` → 200 + `Accept-Ranges: bytes`;
   **S12** `Range: bytes=0-1` → **206**, `Content-Range: bytes 0-1/<size>`, exactly 2 bytes of body (this
   is **Safari's probe** — without it Safari discards the source and plays nothing); suffix range
   (`bytes=-100`) and open-ended (`bytes=100-`); **416** + `Content-Range: bytes */<size>` for
   `start > size`; multi-range → full 200.
-- [ ] **6.2** `src/routes/uploads-get.ts` — `parseRange(header, size)` as an isolated pure function with
+- [x] **6.2** `src/routes/uploads-get.ts` — `parseRange(header, size)` as an isolated pure function with
   its own tests. Anything it does not understand degrades to a **full 200**, never to a wrong 206.
-- [ ] **6.3** `src/routes/uploads-get.ts` — `fs.readFile` (`:40`) → `fs.stat` + `fs.createReadStream(path,
+- [x] **6.3** `src/routes/uploads-get.ts` — `fs.readFile` (`:40`) → `fs.stat` + `fs.createReadStream(path,
   { start, end })` → `Readable.toWeb()` as the `Response` body. **S22:** memory per request is bounded by
   the chunk size for *every* category, on a route that has no authentication. `resolveUploadPath()` stays
   the sole containment check; `ENOENT` still → 404.
