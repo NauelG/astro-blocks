@@ -323,6 +323,7 @@ const t = createT(uiLocale);
       };
     </script>
     <script>
+      import { escapeHtml } from '../../utils/html-escape.js';
       (function() {
         if (typeof document === 'undefined') return;
         const loginForm = document.getElementById('login-form');
@@ -373,7 +374,7 @@ const t = createT(uiLocale);
               authLogo.innerHTML = '';
               authLogo.appendChild(img);
             } else {
-              authLogo.innerHTML = '<span class="cms-auth-logo-title">' + (siteName || 'AstroBlocks') + '</span>';
+              authLogo.innerHTML = '<span class="cms-auth-logo-title">' + escapeHtml(siteName || 'AstroBlocks') + '</span>';
             }
           }
           if (authMessage) {
@@ -537,6 +538,7 @@ const t = createT(uiLocale);
       };
     </script>
     <script>
+      import { escapeAttr, escapeHtml } from '../../utils/html-escape.js';
       (window as unknown as {
         getCmsToken: () => string;
         getCmsUser: () => { id: string; email: string; role: string } | null;
@@ -622,7 +624,10 @@ const t = createT(uiLocale);
             const selected = availableCodes.has(stored) ? stored : defaultLanguage.code;
 
             select.innerHTML = languages
-              .map((entry: { code: string; label?: string }) => `<option value="${entry.code}">${entry.label || entry.code}</option>`)
+              .map(
+                (entry: { code: string; label?: string }) =>
+                  `<option value="${escapeAttr(entry.code)}">${escapeHtml(entry.label || entry.code)}</option>`,
+              )
               .join('');
             select.value = selected;
             select.disabled = false;
@@ -926,6 +931,7 @@ const t = createT(uiLocale);
       })();
     </script>
     <script>
+      import { escapeHtml } from '../../utils/html-escape.js';
       (function() {
         if (typeof document === 'undefined') return;
         const toastRegion = document.getElementById('cms-toast-region');
@@ -939,7 +945,7 @@ const t = createT(uiLocale);
           toast.className = `cms-toast cms-toast--${options.tone || 'info'}`;
           const toastNotice = (window as unknown as { __cmsLayoutI18n?: { toastNotice?: string } }).__cmsLayoutI18n?.toastNotice || 'Notice';
           toast.innerHTML =
-            `<strong class="cms-toast-title">${options.title || toastNotice}</strong>` +
+            `<strong class="cms-toast-title">${escapeHtml(options.title || toastNotice)}</strong>` +
             `<p class="cms-toast-message"></p>`;
           const messageEl = toast.querySelector('.cms-toast-message');
           if (messageEl) messageEl.textContent = options.message;
