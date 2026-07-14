@@ -103,6 +103,9 @@ astro.config  │                        register the `astro-blocks-runtime` Vit
 | **Bootstrap state** | A fresh instance with `users.length === 0`: the login screen is reachable unauthenticated and allows a full import/restore. Leaves bootstrap once users exist. (ADR-0015, obs #1857) |
 | **Catchall** | `src/routes/api/catchall.ts` — the single precompiled REST entry injected into the consumer; dispatches `/cms/api/*` through the route table. |
 | **Owner** | The first bootstrapped user; owner-only gates protect user management; the sole owner cannot be demoted or deleted; `passwordHash` is never exposed. (obs #878) |
+| **HTML sink** | A DOM property/method that parses a string as markup: `innerHTML`, `outerHTML`, `insertAdjacentHTML`. Any API-sourced value reaching a sink must be escaped by context first. (ADR-0022, #99) |
+| **Canonical escaper** | The single `escapeHtml` / `escapeAttr` pair in `utils/html-escape.ts` — `escapeHtml` for text content, `escapeAttr` for attribute values. The only HTML escaper allowed anywhere. (ADR-0011, ADR-0022) |
+| **i18n bridge** | The two-script pattern that feeds server-rendered i18n strings to a bundled client module: a `<script define:vars={{ xI18n }}>` that only does `window.__cmsXI18n = xI18n`, plus a `<script>` that imports `./client/x.js`. `define:vars` forces `is:inline`, so the bridge is how an admin page hands data to real (linted, escaper-reachable) module code. See `import-export.astro`. |
 
 ---
 
@@ -138,6 +141,13 @@ astro.config  │                        register the `astro-blocks-runtime` Vit
 - **`CHANGELOG.md` has no `[Unreleased]` section** — it is written at the release-cut commit, organized strictly by
   released version. CI-only/infra changes get no changelog entry; they fold in at the next cut. (obs #1935)
 - **CI gate = tests AND `npm run check`** (`biome ci .`), which is a **separate** job from `npm test`. See ADR-0013.
+- **Admin HTML rendering lives in `client/*.ts`, and every API-sourced value is escaped at the sink.**
+  Never build an HTML sink from dynamic data inside a `.astro` file — `define:vars` forces `is:inline`, so
+  the code cannot reach the [canonical escaper] and Biome cannot lint it (`biome.json` excludes `**/*.astro`).
+  Put the logic in a client module (wired via the i18n bridge) and pass every API value through `escapeHtml`
+  (text) / `escapeAttr` (attribute) before it reaches `innerHTML`. `tests/html-escape-guard.test.js` enforces
+  this repo-wide; `layout.astro` is a time-boxed exception (its sinks are escaped but not yet moved — #106).
+  (ADR-0022, #99)
 
 ---
 
@@ -203,6 +213,9 @@ create the component with its `schema` and add it to the `blocks` array. (See AD
 - **Empty `define:vars` bridge doesn't cross scripts**: `<script define:vars={{x}}></script>` then a separate
   `<script>` referencing `x` → `ReferenceError`. Put `define:vars` on the same script that consumes the var, or use
   an explicit `window.__cms*` attach. (obs #934)
+- **Never render HTML from a `define:vars`/`is:inline` script** — beyond being un-transpiled and un-lintable, it
+  cannot import the [canonical escaper], so any `innerHTML` built there is an unescaped XSS sink. This is exactly
+  how #99 happened. Move rendering to a `client/*.ts` module and feed it via the [i18n bridge]. (ADR-0022)
 - **Block-form fields do not re-render on value change** — react to changes with **in-place DOM mutation**, not a
   global re-render. Also, `<img>` `error` events **don't bubble** → use capture-phase delegation. (obs #806)
 - **`.cms-input` is a text-input style — never on checkboxes/radios** (it adds padding/border the checkbox reset
