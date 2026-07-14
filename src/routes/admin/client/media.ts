@@ -12,6 +12,11 @@ Licensed under the Business Source License 1.1
 import { getCmsToken, getCmsWindow } from './common.js';
 import { escapeHtml, escapeAttr } from '../../../utils/html-escape.js';
 import {
+  categoryIconSvg,
+  categoryThumbClass,
+  resolveTileCategory,
+} from '../../../utils/media-tile.js';
+import {
   fetchMedia,
   formatBytes,
   formatDimensions,
@@ -45,10 +50,6 @@ let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 // ─── Grid rendering ───────────────────────────────────────────────────────────
 
-// Document SVG icon — rendered inside accessible document tiles (aria-hidden).
-const docIconSvg =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="cms-media-doc-icon"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>';
-
 function renderCard(entry: MediaEntry): string {
   const dims = formatDimensions(entry.width, entry.height);
   const metaDims =
@@ -64,21 +65,21 @@ function renderCard(entry: MediaEntry): string {
   const deleteLbl = escapeAttr(`${ct('media.deleteLabel')} ${entry.filename}`);
   const altPlaceholder = escapeAttr(ct('media.altPlaceholder'));
 
-  // Determine whether this entry is an image or a document file.
-  // Prefer the stored fileCategory field (set by the backend since Slice B);
-  // fall back to MIME-type derivation for any legacy entries loaded without it.
-  const isDocument =
-    (entry as MediaEntry & { fileCategory?: string }).fileCategory === 'document' ||
-    (!(entry as MediaEntry & { fileCategory?: string }).fileCategory &&
-      !entry.mimeType.startsWith('image/'));
+  // The category is resolved by the shared rule (utils/media-tile.ts), not re-derived here.
+  // This grid and the server-rendered one in media.astro must agree, or the same file gets two
+  // different tiles depending on whether you arrived by first paint or by a fetch.
+  const category = resolveTileCategory(entry);
 
-  // Thumbnail section: <img> for images, accessible document tile for non-images.
-  // Per accessibility skill (WCAG 1.1 text alternatives):
-  //   - The decorative icon carries aria-hidden="true"
-  //   - The container carries role="img" + descriptive aria-label
-  const thumbHtml = isDocument
-    ? `<div class="cms-media-card-thumb cms-media-card-thumb--doc" role="img" aria-label="${escapeAttr(entry.filename)} (${escapeAttr(entry.mimeType)} document)">${docIconSvg}</div>`
-    : `<div class="cms-media-card-thumb"><img src="${escapeAttr(entry.url)}" alt="${escapeAttr(entry.filename)}" class="cms-media-card-img" loading="lazy" /></div>`;
+  // Thumbnail: <img> for images, an accessible icon tile for everything else.
+  // Per WCAG 1.1.1 (text alternatives):
+  //   - the decorative icon carries aria-hidden="true"
+  //   - the container carries role="img" + a descriptive aria-label
+  // categoryIconSvg() returns a compile-time constant indexed by a closed enum — no caller
+  // data reaches it, which is why it is safe to interpolate unescaped.
+  const thumbHtml =
+    category !== 'image'
+      ? `<div class="cms-media-card-thumb ${categoryThumbClass(category)}" role="img" aria-label="${escapeAttr(entry.filename)} (${escapeAttr(entry.mimeType)} ${escapeAttr(category)})">${categoryIconSvg(category)}</div>`
+      : `<div class="cms-media-card-thumb"><img src="${escapeAttr(entry.url)}" alt="${escapeAttr(entry.filename)}" class="cms-media-card-img" loading="lazy" /></div>`;
 
   return `
     <div class="cms-media-card" role="listitem" data-media-url="${escapeAttr(entry.url)}" data-media-id="${escapeAttr(entry.id)}">

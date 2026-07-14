@@ -4566,7 +4566,12 @@ Licensed under the Business Source License 1.1
 
 /* Document tile: accessible placeholder shown instead of a broken <img>
    for non-image entries (PDFs, etc.). Role and aria-label are set in JS. */
-.cms-media-card-thumb--doc {
+/* Icon tiles stand in for a thumbnail when the file has no visual to show. One surface,
+   one treatment; only the glyph changes per category (see utils/media-tile.ts). Neutral by
+   design — a media tile is not where the 10% accent gets spent (DESIGN.md 1.1). */
+.cms-media-card-thumb--doc,
+.cms-media-card-thumb--video,
+.cms-media-card-thumb--audio {
   display: flex;
   align-items: center;
   justify-content: center;

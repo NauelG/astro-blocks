@@ -167,16 +167,16 @@ src/` returns **nothing**.
 resolverse dentro del sistema compartido"*. The pattern already exists — this adds two icons, not a
 component.
 
-- [ ] **7.1** `src/routes/admin/media.astro:145-157` — the `isDocument` ternary → a switch on
+- [x] **7.1** `src/routes/admin/media.astro:145-157` — the `isDocument` ternary → a switch on
   `entry.fileCategory`. `image` → `<img>`; `document` / `video` / `audio` → the existing
   `.cms-media-card-thumb--*` surface with a per-category SVG. Legacy entries resolve through the catalog.
-- [ ] **7.2** `src/routes/admin/client/media.ts:68-73` and
+- [x] **7.2** `src/routes/admin/client/media.ts:68-73` and
   `src/routes/admin/client/block-form.ts:464` — same switch. These are the client-side renderers of the
   same grid; all three must agree or a video is a PDF in one of them.
-- [ ] **7.3** `src/styles/cms-admin.css` — `.cms-media-card-thumb--video` / `--audio` beside `--doc`.
+- [x] **7.3** `src/styles/cms-admin.css` — `.cms-media-card-thumb--video` / `--audio` beside `--doc`.
   Same surface, same border, same neutral treatment; only the icon changes. **No accent colour** (§1.1
   caps it at 10%, and a media tile is not where it is spent), no elevation, no new tokens.
-- [ ] **7.4** `tests/media-file-category.test.js` — extend for the four categories.
+- [x] **7.4** `tests/media-file-category.test.js` — extend for the four categories.
   **No `<video>` element in the grid** (`design.md` §6) — assert its absence, so a later "improvement"
   has to argue with a test.
 
