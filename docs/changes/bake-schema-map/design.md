@@ -79,7 +79,7 @@ The union makes the compiler do the enforcing: nothing type-checks until every s
 | Site | Handler | Today |
 |---|---|---|
 | `pages.ts:165` | `handleGetBlockSchemas` | explicit 500 |
-| `global-blocks.ts:114` | `handleUpdateGlobalBlock` | explicit 500, `errors.schemaLoadFailed` |
+| `global-blocks.ts:114` | `handleUpdateGlobalBlock` | explicit 500, `errors.loadBlockSchemasFailed` |
 | `pages.ts:184` | `handlePostPages` | guarded upstream by `ensureValidBlocks` (`:178`) |
 | `pages.ts:253` | `handlePutPage` | guarded upstream by `ensureValidBlocks` (`:247`) |
 
@@ -87,7 +87,7 @@ The union makes the compiler do the enforcing: nothing type-checks until every s
 
 | Site | Handler | Today | After |
 |---|---|---|---|
-| `pages.ts:151` | `handleGetPages` | 200, unprojected images | 500 `errors.schemaLoadFailed` |
+| `pages.ts:151` | `handleGetPages` | 200, unprojected images | 500 `errors.loadBlockSchemasFailed` |
 | `global-blocks.ts:25` | `handleGetGlobalBlocks` | 200, unprojected | 500 |
 | `global-blocks.ts:63` | `handleGetGlobalBlock` | 200, unprojected | 500 |
 | `languages.ts:142` | `handleDeleteLanguage` | proceeds, deletes | 500 — **refuses to mutate** |
@@ -97,7 +97,12 @@ it branches on value shape, not schema (`src/utils/locale-projection.ts:118-127`
 design. A destructive, irreversible operation must not run on a resolution the system could not make.
 It now refuses.
 
-`errors.schemaLoadFailed` already exists in both i18n catalogs — no new key, no parity churn.
+**i18n keys.** The catalogs carried two near-duplicate keys for one failure:
+`errors.loadBlockSchemasFailed` (*"Failed to load block schemas."*) and `errors.schemaLoadFailed`
+(*"Failed to load block schema."*), the latter used at exactly one call site. One failure, one key:
+every schema-map failure now returns `errors.loadBlockSchemasFailed`, and `errors.schemaLoadFailed` is
+removed from both catalogs. The registry failure (§4) needs a key of its own —
+`errors.loadGlobalBlocksRegistryFailed`, added to both.
 
 `ensureValidBlocks` (`schema-loading.ts:37-62`) keeps its shape and simply consumes the union. Note
 its existing skip: `blocks === undefined` or `blocks === []` bypasses validation entirely. That is

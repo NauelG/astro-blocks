@@ -56,14 +56,20 @@ capability specifies which artifact each side reads, and what happens when it ca
   error. Failures are logged with the artifact name and the remedy, and surfaced to the caller as a
   failure the caller **cannot ignore**.
 
-- **R8 — The failure is unignorable by construction.** The schema-map loader returns a discriminated
-  union — `{ ok: true; schemaMap } | { ok: false; reason: 'unresolved' | 'incomplete'; missing? }` —
-  so the type checker rejects any call site that reads the map without branching on the failure.
-  A convention that each caller must remember is not a guarantee.
+- **R8 — The failure is unignorable by construction.** **Both** loaders return a discriminated union —
+  `{ ok: true; schemaMap } | { ok: false; reason: 'unresolved' | 'incomplete'; missing? }` for the
+  schema map, `{ ok: true; entries } | { ok: false; reason: 'unresolved' }` for the global-blocks
+  registry — so the type checker rejects any call site that reads either without branching on the
+  failure. A convention that each caller must remember is not a guarantee.
 
-- **R9 — Unresolvable schema map ⇒ 500, on every path, including reads.** All eight handler call
-  sites fail with `errors.schemaLoadFailed` (500). Reads do **not** degrade to a partial render, and
-  mutations (notably deleting a language) do **not** proceed. See ADR-0025 for the trade-off.
+- **R9 — Unresolvable registry ⇒ 500, on every path, including reads.** All eight schema-map call
+  sites fail with `errors.loadBlockSchemasFailed`; the three global-block routes fail with
+  `errors.loadGlobalBlocksRegistryFailed`. Reads do **not** degrade to a partial render, and mutations
+  (notably deleting a language) do **not** proceed. See ADR-0025 for the trade-off.
+
+  The failure is a **500 response, never a `throw`**: `dispatch()` (`src/routes/api/catchall.ts`) has
+  no error boundary, so a throw would escape as Astro's HTML error page and break the JSON contract
+  every admin `fetch` depends on.
 
 - **R10 — `incomplete` keeps its payload.** When the map resolves but declared entries are
   `undefined`, the response carries `missing[]`, naming the block types with no schema. This is a
@@ -104,9 +110,18 @@ capability specifies which artifact each side reads, and what happens when it ca
   The standalone e2e server therefore runs against a project root where the artifact **does not
   exist** — S-1. Login, page-with-blocks create/save and global-block edit passing under that
   condition is the proof. *(The copy exists today precisely because this does not currently work.)*
-- **Structural guard.** A source test asserts `src/plugin/index.ts` bakes `ASTRO_BLOCKS_SCHEMA_MAP`
-  with the double-encode of R4 — guarding R3 against silent removal.
-- **Unit.** S-4, S-5, S-6 at all eight call sites; S-7 asserts no write occurred.
+- **Structural guard** (`tests/schema-map-bake-guard.test.js`). Asserts `src/plugin/index.ts` bakes
+  **both** registries, each with the double-encode of R4 — guarding R3 against silent removal. Validated
+  by sabotage: deleting the bake, and downgrading it to a single `JSON.stringify`, each turn it red.
+
+  The **reader** side is deliberately *not* source-grepped. Two such assertions were written and both
+  proved incapable of failing — one matched the identifier inside the loader's own `console.error`
+  string, the other measured comment order. A guard that cannot fail is worse than no guard: it is a
+  green light that means nothing. The e2e covers that side behaviourally instead (a server with no
+  artifact on disk can only work if the bake is primary). See #81.
+- **Unit.** S-4, S-5, S-6 at all eight schema-map call sites; S-7 asserts no write occurred;
+  `tests/registry-resolution.test.js` covers R6 for both registries — an unresolvable one is a 500, a
+  genuinely empty one is a 200.
 
 ---
 

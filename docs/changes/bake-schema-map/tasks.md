@@ -143,19 +143,19 @@ is what proves no call site can read the map without facing the failure.
 **Goal:** the artifact that broke is the artifact the vocabulary never named. Fix the vocabulary, or
 it breaks again.
 
-- [ ] **6.1** `docs/CONTEXT.md` — glossary (§3): add **Schema map**. The pure-data twin of the
+- [x] **6.1** `docs/CONTEXT.md` — glossary (§3): add **Schema map**. The pure-data twin of the
   registry (`.astro-blocks/schema-map.mjs`), holding block schemas only. It exists as a **separate
   file** because `runtime.mjs` imports real `.astro` components and therefore cannot be loaded outside
   a Vite graph. Resolved baked-first by the precompiled API route; the file on disk is the dev/test
   seam. Amend the **Registry / runtime.mjs** entry (`:97`) to point at its twin.
-- [ ] **6.2** `docs/CONTEXT.md:35` — the mental-model diagram shows **both** generated artifacts. Fix
+- [x] **6.2** `docs/CONTEXT.md:35` — the mental-model diagram shows **both** generated artifacts. Fix
   `:40-41`, which claims the precompiled route *"reads BAKED `import.meta.env` (or filesystem fallback
   in dev)"* — true of the registry, false of the schema map. After this change it is finally true of
   both.
-- [ ] **6.3** `docs/CONTEXT.md` §7 (Gotchas) — any new value the precompiled API route must read is
+- [x] **6.3** `docs/CONTEXT.md` §7 (Gotchas) — any new value the precompiled API route must read is
   **baked into `vite.define`, double-encoded**, or it does not exist in production. The filesystem is
   not a resolution strategy: `.astro-blocks/` is gitignored and absent on deployed servers.
-- [ ] **6.4** `docs/adr/0009-runtime-registry-resolution.md` — update the compliance note. The gap is
+- [x] **6.4** `docs/adr/0009-runtime-registry-resolution.md` — update the compliance note. The gap is
   closed; point at ADR-0025. The **decision** is untouched (ADRs are immutable); the note is a dated
   verification annotation and is now false.
 

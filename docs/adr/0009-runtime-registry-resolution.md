@@ -9,14 +9,28 @@ Licensed under the Business Source License 1.1
 - **Date:** 2026-04-21
 - **Source:** engram observations #139, #1907
 
-> **Compliance note (2026-07-14).** Verified against the code. For the **global-blocks registry** the
-> decision is fully implemented: Vite alias for pages, `import.meta.env` bake for the precompiled API
-> route, no swallowing catch on the page side. **The schema map got only the fragile half:**
-> `generateRuntime()` emits `schema-map.mjs` too (`src/plugin/index.ts:177-181`), but it is never baked —
-> `src/api/handlers/schema-loading.ts:19-34` resolves it from disk only, behind a swallowing
-> `catch { return { error: ... } }`. That is the exact deployment failure mode this ADR exists to
-> eliminate, reproduced one layer over. Page-save validation and global-block PUT depend on it.
-> Tracked in **#101**.
+> **Compliance note (2026-07-14, updated).** Verified against the code, then **closed**.
+>
+> The first pass found the decision fully implemented for the **global-blocks registry** (Vite alias for
+> pages, `import.meta.env` bake for the precompiled API route) but only half-implemented for the **schema
+> map**: `generateRuntime()` emits `schema-map.mjs` too, yet it was never baked — resolved from disk
+> alone, behind a swallowing `catch`. That was the exact deployment failure mode this ADR exists to
+> eliminate, reproduced one layer over, and it broke page-save validation and the admin block picker on
+> every deployed server. Tracked as **#101**.
+>
+> **#101 is now fixed.** The schema map is baked (`ASTRO_BLOCKS_SCHEMA_MAP`) and resolves baked-first.
+> Both swallowing catches are gone, including `loadGlobalBlocksRegistry`'s `catch { return [] }` — the
+> original symptom, which had survived inside this ADR's own fallback path.
+>
+> Two things this ADR did **not** settle were decided in **ADR-0025**: what an API handler does when
+> resolution fails anyway (a 500 on every path, reads included — no degraded projections), and how that
+> is enforced (a discriminated union, so the type checker rejects any call site that ignores the
+> failure). This ADR's Decisión is unchanged.
+>
+> One consequence worth carrying: the e2e suite used to copy `.astro-blocks/` next to the standalone
+> server "so the standalone server can find block schemas". That copy was the defect wearing test
+> scaffolding — it is why this class of bug stayed invisible in a green suite. **It has been removed and
+> must not come back.**
 
 ## Context
 

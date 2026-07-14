@@ -5,7 +5,7 @@ Licensed under the Business Source License 1.1
 
 # 0025 — The schema map is a hard dependency: no degraded reads
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-14
 - **Deciders:** Nauel Gómez
 - **Source:** issue #101, raised by the ADR-0009 compliance pass.
@@ -49,7 +49,7 @@ resolves successfully to an empty map. **Unresolvable never means empty.**
 ## Decisión
 
 The schema map is a **hard dependency** of the CMS API. When it cannot be resolved, every handler
-that needs it fails with 500 (`errors.schemaLoadFailed`) — **reads included, and mutations
+that needs it fails with 500 (`errors.loadBlockSchemasFailed`) — **reads included, and mutations
 especially**. No handler serves a partial projection, and no handler mutates state on a resolution the
 system could not make. `handleDeleteLanguage` in particular refuses to delete.
 
