@@ -89,28 +89,28 @@ src/` returns **nothing**.
 
 ## Slice 4 — Config: the escape hatch, and the failure that is loud
 
-- [ ] **4.1** `tests/file-type-config.test.js` (new) — **V1** a `customFileTypes` row with a denylisted
+- [x] **4.1** `tests/file-type-config.test.js` (new) — **V1** a `customFileTypes` row with a denylisted
   MIME (`text/html`) throws; **V2** a denylisted `ext` (`.js`) throws — *the denylist beats the escape
   hatch*; **V3** a row shadowing a builtin (`image/png`) throws; **V4** a MIME in `allowedFileTypes`
   absent from catalog + custom (`application/zip`) throws, and the message **names the MIME**.
   Plus: a registered row is forced to `application/octet-stream` + `attachment` **whatever the consumer
   passed** (S3, S15).
-- [ ] **4.2** `src/types/index.ts` — `AstroBlocksOptions` gains
+- [x] **4.2** `src/types/index.ts` — `AstroBlocksOptions` gains
   `customFileTypes?: Array<{ mime, ext, category }>` and `maxUploadBytes?: Partial<Record<FileCategory,
   number>>`. `customFileTypes` accepts **no** `disposition` and **no** `contentType` — that is the
   security property, expressed in the type.
-- [ ] **4.3** `src/plugin/index.ts` — `validateFileTypeConfig()`, modelled on `validateGlobalBlocks()`
+- [x] **4.3** `src/plugin/index.ts` — `validateFileTypeConfig()`, modelled on `validateGlobalBlocks()`
   (`:66-83`), which already **throws**. Called from `resolveOptions`. V4's message lists the supported
   MIMEs and points at `customFileTypes`.
-- [ ] **4.4** `src/plugin/index.ts:409` — `vite.define` bridges for
+- [x] **4.4** `src/plugin/index.ts:409` — `vite.define` bridges for
   `ASTRO_BLOCKS_CUSTOM_FILE_TYPES` and `ASTRO_BLOCKS_MAX_UPLOAD_BYTES_BY_CATEGORY`, alongside the
   existing `ASTRO_BLOCKS_ALLOWED_FILE_TYPES`. Extend `tests/plugin-resolve-options.test.js` (C3).
-- [ ] **4.5** `src/api/handlers/media.ts#getAllowedFileTypes` — the resolved allowlist is intersected
+- [x] **4.5** `src/api/handlers/media.ts#getAllowedFileTypes` — the resolved allowlist is intersected
   with the effective catalog: **`allowlist ∩ catalog`**. V4 already makes this a no-op for any valid
   config; it exists so that **no** configuration path — including one that bypasses build-time
   validation — can admit an uncatalogued MIME. It is what makes 3.1's `throw` unreachable rather than
   merely unlikely.
-- [ ] **4.6** The existing warnings stay warnings: empty allowlist (`:208-212`) and
+- [x] **4.6** The existing warnings stay warnings: empty allowlist (`:208-212`) and
   `validateFileProps()` (`:255`). They describe configs that are a **no-op**, not configs the system
   **cannot honour**.
 

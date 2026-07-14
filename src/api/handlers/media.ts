@@ -55,7 +55,16 @@ function getAllowedFileTypes(): Set<string> {
     }
   }
 
-  _allowedFileTypesCache = new Set(parsed ?? DEFAULT_ALLOWED_FILE_TYPES);
+  // Belt and braces: intersect with the catalog (ADR-0023).
+  //
+  // validateFileTypeConfig() already throws at build time for any MIME the catalog has no row
+  // for, so for a valid config this filter removes nothing. It exists so that NO path — not a
+  // hand-edited bundle, not a future config source we have not thought of — can admit a MIME
+  // the system cannot name a file for. V4 makes the misconfiguration loud; this makes the bad
+  // state impossible, which is what lets handleUpload treat a missing row as a server bug
+  // rather than pretending the client sent something unsupported.
+  const resolved = parsed ?? DEFAULT_ALLOWED_FILE_TYPES;
+  _allowedFileTypesCache = new Set(resolved.filter((mime) => lookupByMime(mime) !== null));
   return _allowedFileTypesCache;
 }
 

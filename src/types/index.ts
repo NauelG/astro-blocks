@@ -363,6 +363,54 @@ export interface AstroBlocksOptions {
    * Global allowlist of MIME types accepted by the media upload endpoint.
    * Defaults to DEFAULT_ALLOWED_FILE_TYPES when not provided.
    * Values are lowercased and deduplicated by resolveOptions.
+   *
+   * This SELECTS from the supported-file-type catalog; it does not invent types. A MIME the
+   * catalog has no row for fails the build with a message naming it — AstroBlocks derives the
+   * stored extension from the validated MIME (ADR-0018), so it cannot accept a type it has no
+   * extension for. To add one, register it with `customFileTypes`.
    */
   allowedFileTypes?: string[];
+
+  /**
+   * Register file types the builtin catalog does not cover (ADR-0023).
+   *
+   * Deliberately narrow: you supply the MIME, the extension and the category, and nothing
+   * else. `disposition` and `contentType` are NOT yours to choose — every registered type is
+   * served as `application/octet-stream` with `Content-Disposition: attachment`, so a format
+   * AstroBlocks has never audited can never be rendered inside the CMS's own origin. That is
+   * what makes this a registration rather than a bypass, and it is why it cannot reintroduce
+   * the stored-XSS class that the upload denylist exists to prevent.
+   *
+   * The hard denylist still applies: a row declaring `text/html`, `.js` or any other denied
+   * MIME or extension fails the build.
+   *
+   * @example
+   * customFileTypes: [{ mime: 'application/zip', ext: '.zip', category: 'document' }]
+   */
+  customFileTypes?: CustomFileTypeSpec[];
+
+  /**
+   * Per-category upload ceiling, in bytes. Omitted categories use the built-in default
+   * (image 5 MB — today's value — document 10 MB, audio 20 MB, video 200 MB).
+   *
+   * This is BUILD-TIME policy. The `ASTRO_BLOCKS_MAX_UPLOAD_BYTES` environment variable is a
+   * separate, RUNTIME ops ceiling that clamps every category and is the only knob that works
+   * without a rebuild. The effective limit is the minimum of the two.
+   */
+  maxUploadBytes?: Partial<Record<FileCategory, number>>;
+}
+
+/**
+ * A file type registered by the consumer through `customFileTypes`.
+ *
+ * There is no `disposition` and no `contentType` here, and their absence is the point:
+ * see AstroBlocksOptions#customFileTypes.
+ */
+export interface CustomFileTypeSpec {
+  /** Canonical MIME type, e.g. 'application/zip'. Lowercased on resolution. */
+  mime: string;
+  /** The extension the file is stored under, leading dot included, e.g. '.zip'. */
+  ext: string;
+  /** What the file is. Governs the ingest strategy and the media-library tile. */
+  category: FileCategory;
 }

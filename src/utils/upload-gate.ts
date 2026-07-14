@@ -65,8 +65,11 @@ export const DANGEROUS_MIME: Set<string> = new Set([
 /**
  * Regex for dangerous MIME type families not captured by the exact set above.
  * Matches any MIME matching these patterns.
+ *
+ * Exported so the plugin's config validator can enforce the denylist over customFileTypes
+ * at build time: a registered type must never be able to re-enable a denied one (ADR-0023).
  */
-const DANGEROUS_MIME_PATTERN =
+export const DANGEROUS_MIME_PATTERN =
   /^(text\/(html|javascript)|application\/(javascript|x-javascript|x-sh|x-bat|x-msdownload|x-msdos-program|x-executable))(?:[;\s]|$)/i;
 
 /** Input to evaluateUpload. */
