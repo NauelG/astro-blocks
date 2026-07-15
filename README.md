@@ -36,7 +36,7 @@ The integration runs in **SSR mode by default**: it needs an Astro SSR adapter s
 - Edit pages in `/cms` without adding a database.
 - Keep full control over the rendered HTML by using your own Astro components.
 - Define blocks with a small, explicit, type-safe schema contract.
-- Manage media in a built-in library with responsive images, alt text and captions out of the box.
+- Manage media in a built-in library — images, video, audio and documents — with responsive images, alt text and captions out of the box.
 - Store content in `data/*.json` and uploads in `public/uploads/`.
 - Generate `sitemap-index.xml` and `robots.txt` from the same content source.
 - Keep consumer imports explicit and type-safe.
@@ -74,7 +74,7 @@ A snapshot of what AstroBlocks provides, grouped by area. Full behavior for each
 | **SEO** | Per-page title, description, canonical, image and indexability; `robots.txt` and `sitemap-index.xml` generated from CMS content. |
 | **Navigation** | Visual nested menus builder with selector-based access; 301/302 redirect rules manager (SSR mode). |
 | **Runtime** | `getConfig` key/value parameters; `getMenu`, `getLanguages`, `getI18nMeta` locale-aware helpers. |
-| **Media** | Media library with search and metadata; automatic responsive WebP/AVIF variants via `<BlockImage>`; per-asset and per-usage alt text; captions; where-used and in-place replace; non-image file uploads (PDF/document support). |
+| **Media** | Media library with search and metadata; automatic responsive WebP/AVIF variants via `<BlockImage>`; per-asset and per-usage alt text; captions; where-used and in-place replace; video, audio, PDF and document uploads. |
 | **Auth** | Session-based (JWT) CMS authentication with owner and user roles. |
 | **i18n** | Content languages and default locale; admin UI in English or Spanish. |
 | **Performance** | Astro experimental cache invalidation from content updates and manual panel actions. |
@@ -348,7 +348,7 @@ All options are passed to `astroBlocks({})` in `astro.config.*` (the `AstroBlock
 | `publicRendering` | `'server' \| 'static'` | `'server'` | Whether CMS-managed public pages are served via SSR or prerendered as static HTML. |
 | `cache` | `{ enabled?: boolean; maxAge?: number; swr?: number }` | see below | HTTP cache behavior for SSR public pages. No effect in static mode. |
 | `i18n` | `{ routingStrategy?: 'path-prefix' }` | `{ routingStrategy: 'path-prefix' }` | Public routing contract for localized paths. Only `'path-prefix'` is supported in this version. |
-| `allowedFileTypes` | `string[]` | see [File Uploads](#file-uploads--non-image) | Which supported file types the media upload endpoint accepts. Selects from the catalog; a type with no catalog row fails the build. Lowercased and deduplicated automatically. |
+| `allowedFileTypes` | `string[]` | see [File props](#file-props-non-image) | Which supported file types the media upload endpoint accepts. Selects from the catalog; a type with no catalog row fails the build. Lowercased and deduplicated automatically. |
 | `customFileTypes` | `{ mime, ext, category }[]` | `[]` | Register a file type the catalog does not cover. Registered types are always served as downloads, never rendered inline. |
 | `maxUploadBytes` | `Partial<Record<FileCategory, number>>` | `{ image: 5 MB, document: 10 MB, audio: 20 MB, video: 200 MB }` | Per-category upload ceiling, in bytes. |
 
@@ -432,9 +432,13 @@ import GlobalBlock from '@astroblocks/astro-blocks/components/GlobalBlock';
 
 Slugs are static (`^[a-z0-9][a-z0-9-]*$`, unique), managed in the admin at `/cms/global-blocks`, and stored in `data/global-blocks.json`. Full declaration rules, the REST API, storage shape, i18n behavior and the v1→v2 migration note are in [AGENTS.consumer.md → Global Blocks](./AGENTS.consumer.md#global-blocks).
 
-### Media & Responsive Images
+### Media
 
-Upload an image once at `/cms/media`; AstroBlocks captures its dimensions, generates WebP and AVIF variants in the background (only for breakpoints strictly smaller than the original — no upscaling), and serves the best format the browser supports. The original is always retained as the `<img>` fallback, even while processing or on failure.
+Upload any file — images, video, audio and documents — at `/cms/media`. AstroBlocks keeps them in a searchable library with metadata, where-used tracking and in-place replace, and serves them back from `/uploads/*`. Images get a responsive pipeline on top; every other type is stored and served as-is.
+
+#### Responsive images (`<BlockImage>`)
+
+For an image, AstroBlocks captures its dimensions, generates WebP and AVIF variants in the background (only for breakpoints strictly smaller than the original — no upscaling), and serves the best format the browser supports. The original is always retained as the `<img>` fallback, even while processing or on failure.
 
 Render image fields with `<BlockImage>` — it emits a `<picture>` with avif + webp sources when variants are ready and a plain `<img>` otherwise, with `alt` always present (WCAG 1.1.1):
 
@@ -450,9 +454,9 @@ import BlockImage from '@astroblocks/astro-blocks/components/BlockImage';
 
 For advanced cases, read variant data directly with `getMediaVariants('/uploads/…')`. Full guide — editor workflow, the `ImageFieldValue`/`MediaEntry` shapes, `<BlockImage>` props, the API endpoints and limitations — in [docs/media.md](./docs/media.md).
 
-### File Uploads / Non-Image
+#### File props (non-image)
 
-AstroBlocks accepts non-image uploads (PDF and documents) alongside images. Use the `file` block prop type for file references:
+For non-image assets — PDFs, documents, video and audio — use the `file` block prop type for file references:
 
 ```ts
 items: {
