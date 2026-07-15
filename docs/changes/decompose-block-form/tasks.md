@@ -89,14 +89,14 @@ which still contains picker + mount sinks — stays meaningful until Slice 6).
 
 ## Slice 5 — `picker-dialog`
 
-- [ ] **5.1** Create `src/routes/admin/client/block-form/picker-dialog.ts` — move the singleton
+- [x] **5.1** Create `src/routes/admin/client/block-form/picker-dialog.ts` — move the singleton
   state (`pickerDialog`, `activePickerInputId`, `activePickerMode`, `activePickerAccept`), the
   `MediaEntry` alias, `mountPickerDialog`, `closePickerDialog`, `PickerState`, `renderPickerItem`,
   `renderPickerGrid`, `pickerLoadPage`, `openPickerDialog`, `selectPickerImage`,
   `selectPickerFile`, `xIconSvg`. Imports: `./field-dom-sync.js`, media-fetch, media-tile,
   image/file-value utils, escapers, `ct`, `showToast`. Export `openPickerDialog` (the only entry
   point `mount` needs).
-- [ ] **5.2** `block-form.ts` — delete moved code, import `openPickerDialog` from
+- [x] **5.2** `block-form.ts` — delete moved code, import `openPickerDialog` from
   `./block-form/picker-dialog.js`.
 
 **Verify:** `npm run typecheck` · `npm test`.
