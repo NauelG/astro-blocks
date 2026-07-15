@@ -469,7 +469,7 @@ export async function openPickerDialog(
       }
     });
   } catch {
-    gridContainer.innerHTML = `<p class="cms-muted">${escapeHtml(ct('blockForm.imageLoadError'))}</p>`;
+    gridContainer.innerHTML = `<p class="cms-muted">${escapeHtml(ct('blockForm.pickerLoadError'))}</p>`;
   }
 }
 
