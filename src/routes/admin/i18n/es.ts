@@ -585,6 +585,11 @@ export const es = {
   'blockForm.altPlaceholder': 'Describe esta imagen…',
   'blockForm.captionLabel': 'Pie de foto',
   'blockForm.captionPlaceholder': 'Agrega un pie de foto…',
+  // File field (non-image prop)
+  'blockForm.chooseFile': 'Elegir archivo',
+  'blockForm.replaceFile': 'Reemplazar',
+  'blockForm.clearFile': 'Quitar archivo',
+  'blockForm.noFileSelected': 'Ningún archivo seleccionado',
 
   // ─── Dialogs ──────────────────────────────────────────────────────────────
   'dialog.defaultAlertTitle': 'Aviso',
