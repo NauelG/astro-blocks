@@ -9,6 +9,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.6.2] - 2026-07-15
+
+### Title
+
+A slimmer admin bundle, a modular block editor
+
+### Changed
+
+- **The admin JS bundle no longer embeds CSS.** The media picker's styles (~163 lines) used to ship
+  inside the block editor's JavaScript and were injected via `innerHTML` when the picker opened.
+  They now live in the global admin stylesheet with the rest of the panel's CSS. The picker looks
+  and behaves exactly the same.
+- **The block editor's internals are modularized.** `block-form.ts` (1654 lines, five concerns) is
+  now a pure re-export facade over seven focused modules (`client/block-form/`): mount/wiring,
+  picker dialog, field renderers, in-place DOM sync, array limits, file-accept computation and
+  shared helpers. The public API and import path are unchanged — no action needed for consumers.
+- **Source guards cover the new layout.** The canonical-escaper and upload-error guards now scan the
+  whole `block-form/` directory instead of one pinned file, and the admin HTML rendering spec (R3)
+  explicitly covers client subdirectories.
+
 ## [3.6.1] - 2026-07-14
 
 ### Title
