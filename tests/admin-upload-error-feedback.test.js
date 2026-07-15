@@ -9,7 +9,8 @@ Licensed under the Business Source License 1.1
  *
  * Two client call sites previously ignored non-2xx / network upload failures:
  *   - page-editor.ts  uploadSeoImage()  — threw inside an unawaited async fn
- *   - block-form.ts   picker upload     — only acted on `if (uploadRes.ok)`
+ *   - block-form/picker-dialog.ts  picker upload — only acted on `if (uploadRes.ok)`
+ *     (lived in block-form.ts until the #38 decomposition)
  *
  * Both must now route failures through showToast(...) with the shared
  * media.uploadError / media.uploadFailed i18n keys, mirroring media.ts.
@@ -27,7 +28,10 @@ import { join } from 'node:path';
 const root = process.cwd();
 
 const pageEditor = await readFile(join(root, 'src/routes/admin/client/page-editor.ts'), 'utf-8');
-const blockForm = await readFile(join(root, 'src/routes/admin/client/block-form.ts'), 'utf-8');
+const pickerDialog = await readFile(
+  join(root, 'src/routes/admin/client/block-form/picker-dialog.ts'),
+  'utf-8',
+);
 
 test('page-editor.ts — SEO image upload surfaces failures via showToast', () => {
   const fn = pageEditor.slice(
@@ -52,10 +56,10 @@ test('page-editor.ts — SEO image upload surfaces failures via showToast', () =
   );
 });
 
-test('block-form.ts — picker upload surfaces failures via showToast', () => {
-  const handler = blockForm.slice(
-    blockForm.indexOf("uploadBtn?.addEventListener('click'"),
-    blockForm.indexOf('uploadBtn.disabled = false;'),
+test('block-form/picker-dialog.ts — picker upload surfaces failures via showToast', () => {
+  const handler = pickerDialog.slice(
+    pickerDialog.indexOf("uploadBtn?.addEventListener('click'"),
+    pickerDialog.indexOf('uploadBtn.disabled = false;'),
   );
   assert.ok(handler.length > 0, 'picker upload handler not found');
   assert.ok(
