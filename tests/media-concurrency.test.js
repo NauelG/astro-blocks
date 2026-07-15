@@ -14,6 +14,7 @@ import {
   appendMediaEntry,
   removeMediaEntryByUrl,
   reconcileMedia,
+  replaceMedia,
   generateId,
 } from '../dist/api/data.js';
 
@@ -120,6 +121,47 @@ test('CONC-02: concurrent appends + delete + reconcile keep file valid, no dup/o
     // No orphaned entry: every remaining entry must have a known id from our set.
     const knownIds = new Set(entries.map((e) => e.id));
     for (const id of ids) {
+      assert.ok(knownIds.has(id), `unexpected/orphaned id ${id}`);
+    }
+  });
+});
+
+// CONC-03: a whole-registry replaceMedia (restore/import path) interleaved with
+// concurrent appends must serialize through the media mutex. Under the lock the
+// replace-set is written atomically, so every replace entry survives regardless
+// of interleaving: an append that runs after replace only adds, one that runs
+// before is overwritten by replace. An unlocked replace loses updates — an append
+// that read the pre-replace state writes back over it and wipes the entire set.
+test('CONC-03: replaceMedia interleaved with concurrent appends never loses the replace-set', async () => {
+  await withTempProject(async () => {
+    const N = 10;
+    const replaceSet = Array.from({ length: N }, (_, i) => makeEntry(1000 + i));
+    const appended = Array.from({ length: N }, (_, i) => makeEntry(i));
+
+    const ops = [
+      replaceMedia({ uploads: replaceSet }),
+      ...appended.map((entry) => appendMediaEntry(entry)),
+    ];
+
+    await Promise.all(ops);
+
+    const { loadMedia } = await import('../dist/api/data.js');
+    const parsed = await loadMedia();
+
+    // File must remain valid (loadMedia would throw on parse failure).
+    const finalIds = new Set(parsed.uploads.map((e) => e.id));
+
+    // Invariant: every replace-set entry must survive any serialization.
+    for (const entry of replaceSet) {
+      assert.ok(
+        finalIds.has(entry.id),
+        `replace-set entry ${entry.id} must survive interleaved appends`,
+      );
+    }
+
+    // No corruption: every surviving entry belongs to replace-set or append-set.
+    const knownIds = new Set([...replaceSet, ...appended].map((e) => e.id));
+    for (const id of finalIds) {
       assert.ok(knownIds.has(id), `unexpected/orphaned id ${id}`);
     }
   });

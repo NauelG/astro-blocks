@@ -581,9 +581,10 @@ export interface ApplyImportResult {
  *   `_runImportPipelineCore`'s bootstrapMode branch), and handleLogin's
  *   first-user path acquires the same lock — so users.json IS
  *   lock-protected, via withUsersLock rather than withFileLock directly.
- * - For the media unit: replaces public/uploads tree, then calls
- *   reconcileMedia (media writes go through withFileLock(mediaLockKey())
- *   inside data.ts — a separate mutex from withUsersLock).
+ * - For the media unit: writes the registry via data.replaceMedia (which takes
+ *   withFileLock(mediaLockKey()) — a separate mutex from withUsersLock — so the
+ *   whole-registry overwrite cannot lose a concurrent upload's append, per
+ *   ADR-0008), then replaces the public/uploads tree.
  * - Calls handleInvalidateCache equivalent (invalidates global cache via context.cache).
  * - Returns { usersReplaced } based on whether users unit was in selectedUnits.
  *
@@ -648,7 +649,7 @@ export async function applyImport(
         case 'media': {
           // Save media registry
           const raw = await fs.readFile(path.join(stagingDir, 'data', 'media.json'), 'utf-8');
-          await data.saveMedia(JSON.parse(raw));
+          await data.replaceMedia(JSON.parse(raw));
 
           // Replace public/uploads tree atomically:
           // 1. Copy staging uploads into a temp sibling dir (minimises destructive window).

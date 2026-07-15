@@ -15,6 +15,12 @@ Licensed under the Business Source License 1.1
 > calls the exported, unlocked `data.saveMedia()` during restore, holding only `withUsersLock` — a
 > different key. That is a lost-update window against a concurrent upload. The comment at
 > `src/api/backup.ts:577-586` asserts the opposite of what line 651 does. Tracked in **#100**.
+>
+> **Update (2026-07-15) — #100 closed.** The escape hatch is gone. `saveMedia` is now module-private
+> (raw unlocked write, callable only from inside an already-held media lock), and the restore path
+> writes through the new exported `data.replaceMedia`, which takes `withFileLock(mediaLockKey())`.
+> No unlocked whole-registry write is reachable from outside `data.ts`. Regression: `CONC-03` in
+> `tests/media-concurrency.test.js` (replace interleaved with concurrent appends loses no update).
 
 ## Context
 

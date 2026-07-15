@@ -9,7 +9,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ensureDefaultFiles, saveMedia } from '../dist/api/data.js';
+import { ensureDefaultFiles, replaceMedia } from '../dist/api/data.js';
 import { getMediaVariants } from '../dist/utils/getMediaVariants.js';
 
 async function withTempProject(fn) {
@@ -45,7 +45,7 @@ test('cache hit — single loadMedia call when mtime unchanged', async () => {
       status: 'ready',
       variants: [{ format: 'webp', width: 480, url: '/uploads/2026/06/img-480.webp' }],
     };
-    await saveMedia({ uploads: [entry] });
+    await replaceMedia({ uploads: [entry] });
 
     // First call — should populate cache
     const result1 = await getMediaVariants(entry.url);
@@ -74,7 +74,7 @@ test('cache invalidation — re-reads after mtime changes', async () => {
       status: 'processing',
       variants: [],
     };
-    await saveMedia({ uploads: [entry1] });
+    await replaceMedia({ uploads: [entry1] });
 
     const result1 = await getMediaVariants(url);
     assert.equal(result1.status, 'processing');
@@ -87,12 +87,12 @@ test('cache invalidation — re-reads after mtime changes', async () => {
       status: 'ready',
       variants: [{ format: 'webp', width: 480, url: '/uploads/2026/06/img2-480.webp' }],
     };
-    await saveMedia({ uploads: [entry2] });
+    await replaceMedia({ uploads: [entry2] });
 
     // Next call should see the updated status
     const result2 = await getMediaVariants(url);
     // Status should reflect the new registry (processing or ready depending on cache)
-    // Since mtime changed (saveMedia writes a new file), cache should be invalidated
+    // Since mtime changed (replaceMedia writes a new file), cache should be invalidated
     assert.equal(result2.status, 'ready', 'should read updated status after mtime change');
     assert.equal(result2.variants.length, 1, 'should have updated variants');
   });
@@ -123,7 +123,7 @@ test('URL not in registry → returns status:none', async () => {
       status: 'ready',
       variants: [],
     };
-    await saveMedia({ uploads: [entry] });
+    await replaceMedia({ uploads: [entry] });
 
     const result = await getMediaVariants('/uploads/2026/06/nonexistent.jpg');
     assert.equal(result.status, 'none', 'unknown URL should return status:none');
@@ -167,7 +167,7 @@ test('ready entry with variants — returns full result', async () => {
       { format: 'webp', width: 480, url: '/uploads/2026/06/full-480.webp' },
       { format: 'avif', width: 480, url: '/uploads/2026/06/full-480.avif' },
     ];
-    await saveMedia({
+    await replaceMedia({
       uploads: [
         {
           id: 'full-1',

@@ -419,7 +419,7 @@ test('SEC-03: filename with special characters is sanitized in stored path', asy
 
 test('T1.2: legacy entry (no status/variants) loads without error', async () => {
   await withTempProject(async () => {
-    const { saveMedia, loadMedia: reloadMedia } = await import('../dist/api/data.js');
+    const { replaceMedia, loadMedia: reloadMedia } = await import('../dist/api/data.js');
     const legacyEntry = {
       id: 'legacy-1',
       url: '/uploads/2026/01/legacy.jpg',
@@ -428,7 +428,7 @@ test('T1.2: legacy entry (no status/variants) loads without error', async () => 
       mimeType: 'image/jpeg',
       createdAt: '2026-01-01T00:00:00.000Z',
     };
-    await saveMedia({ uploads: [legacyEntry] });
+    await replaceMedia({ uploads: [legacyEntry] });
     const loaded = await reloadMedia();
     assert.equal(loaded.uploads.length, 1);
     const entry = loaded.uploads[0];
@@ -440,7 +440,7 @@ test('T1.2: legacy entry (no status/variants) loads without error', async () => 
 
 test('T1.2: invalid status coerced to undefined', async () => {
   await withTempProject(async () => {
-    const { saveMedia, loadMedia: reloadMedia } = await import('../dist/api/data.js');
+    const { replaceMedia, loadMedia: reloadMedia } = await import('../dist/api/data.js');
     const invalidEntry = {
       id: 'bad-status',
       url: '/uploads/2026/01/bad.jpg',
