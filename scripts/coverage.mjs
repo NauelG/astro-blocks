@@ -84,6 +84,8 @@ function main() {
     '--exclude',
     'dist/routes/admin/client/block-form.js',
     '--exclude',
+    'dist/routes/admin/client/block-form/**',
+    '--exclude',
     'dist/routes/admin/client/common.js',
     '--reporter',
     'json-summary',

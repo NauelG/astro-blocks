@@ -54,7 +54,6 @@ import {
 } from '../../../utils/image-value.js';
 import {
   toFileValue,
-  parseFileValue,
   mediaEntryToFileValue,
   serializeFileValueAttr,
   isEmptyFileValue,
@@ -67,14 +66,25 @@ import {
   uploadMedia,
 } from './media-fetch.js';
 import type { MediaEntry as MediaFetchEntry } from './media-fetch.js';
-import { DEFAULT_ALLOWED_FILE_TYPES, intersectAccept } from '../../../utils/file-catalog.js';
 import { categoryIconSvg, resolveTileCategory } from '../../../utils/media-tile.js';
+import { checkArrayLimitReached } from './block-form/array-limits.js';
+import type { ArrayLimitInfo } from './block-form/array-limits.js';
+import {
+  defaultArrayItemValue,
+  errorKey,
+  imageFilenameFromUrl,
+  imagePickerIconSvg,
+  parseFieldValue,
+  withLocaleHint,
+} from './block-form/field-helpers.js';
+import { computeEffectiveAccept } from './block-form/file-accept.js';
+
+export { checkArrayLimitReached };
+export type { ArrayLimitInfo };
 
 // SVG icons (same as page-editor.ts and global-blocks-editor.ts)
 const trashIconSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
-const imagePickerIconSvg =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>';
 const xIconSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 
@@ -615,34 +625,6 @@ export interface FieldChangeInfo {
   fieldName?: string;
 }
 
-/** Info passed to onArrayLimitReached when an add/delete hits a min/max boundary. */
-export interface ArrayLimitInfo {
-  prop: string;
-  limit: 'min' | 'max';
-  value: number;
-}
-
-/**
- * Pure helper: given the current array length and its PropDef, returns limit info if the
- * array is AT or BEYOND a min/max boundary, or null if no limit applies.
- *
- * Used internally by the add/delete handlers and exported so tests can verify the logic.
- *
- * Convention:
- *   - "max" → currentLength >= maxItems (cannot add)
- *   - "min" → currentLength <= minItems (cannot delete)
- */
-export function checkArrayLimitReached(
-  currentLength: number,
-  def: { maxItems?: number; minItems?: number },
-): { limit: 'min' | 'max'; value: number } | null {
-  const maxItems = typeof def.maxItems === 'number' ? def.maxItems : null;
-  const minItems = typeof def.minItems === 'number' ? def.minItems : null;
-  if (maxItems !== null && currentLength >= maxItems) return { limit: 'max', value: maxItems };
-  if (minItems !== null && currentLength <= minItems) return { limit: 'min', value: minItems };
-  return null;
-}
-
 export interface BlockFormOptions {
   container: HTMLElement;
   schemaItems: Record<string, PropDef>;
@@ -666,65 +648,9 @@ export interface BlockFormHandle {
   getOpenArrayItems(): Map<string, number | null>;
 }
 
-// Key helpers
-function errorKey(propName: string, itemIndex?: number, fieldName?: string): string {
-  return [propName, itemIndex === undefined ? '' : String(itemIndex), fieldName || ''].join('::');
-}
-
-function withLocaleHint(label: string, localizable = true): string {
-  if (!localizable) return escapeHtml(label);
-  return `${escapeHtml(label)} <span class="cms-locale-hint">(${escapeHtml(getActiveContentLocale('es'))})</span>`;
-}
-
-function parseFieldValue(
-  input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
-): unknown {
-  if (input instanceof HTMLInputElement && input.type === 'checkbox') return input.checked;
-  if (input instanceof HTMLInputElement && input.type === 'number')
-    return input.value === '' ? '' : Number(input.value);
-  // Image field: hidden input carries JSON ImageFieldValue (marked with data-image-value)
-  if (input instanceof HTMLInputElement && input.dataset.imageValue !== undefined) {
-    return parseImageValue(input.value);
-  }
-  // File field: hidden input carries JSON FileFieldValue (marked with data-file-value)
-  if (input instanceof HTMLInputElement && input.dataset.fileValue !== undefined) {
-    return parseFileValue(input.value);
-  }
-  return input.value;
-}
-
-function defaultPrimitiveValue(def: PrimitivePropDef): unknown {
-  if (def.type === 'boolean') return false;
-  if (def.type === 'number') return '';
-  if (def.type === 'select')
-    return Array.isArray(def.options) && def.options.length > 0 ? def.options[0] : '';
-  if (def.type === 'file') return { url: '' };
-  if (def.type === 'image') return { url: '', alt: '' };
-  return '';
-}
-
-function defaultArrayItemValue(def: ArrayPropDef): unknown {
-  if (isPrimitivePropDef(def.item)) return defaultPrimitiveValue(def.item);
-  const output: Record<string, unknown> = {};
-  for (const [fieldName, fieldDef] of Object.entries(def.item.fields || {})) {
-    output[fieldName] = defaultPrimitiveValue(fieldDef);
-  }
-  return output;
-}
-
 // "File missing" icon — shown when a preview src fails to load (404 / legacy raw path).
 const imageMissingIconSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="m2 2 20 20"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><path d="M21 15.5 16.92 11.4a2 2 0 0 0-2.83 0L8 17.5"/></svg>';
-
-/** Derive a human-friendly filename from a stored URL/path value. */
-function imageFilenameFromUrl(url: string): string {
-  const last = url.split('/').pop() ?? url;
-  try {
-    return decodeURIComponent(last);
-  } catch {
-    return last;
-  }
-}
 
 /**
  * Render the image field as a compact horizontal control.
@@ -791,48 +717,6 @@ function imageFieldHtml(
     `</div>` +
     `</div>`
   );
-}
-
-// ─── Global allowlist (for file-prop effectiveAccept) ────────────────────────
-// Read once at module load; falls back to DEFAULT_ALLOWED_FILE_TYPES when the
-// vite.define env var is absent (e.g. no build or test context).
-let _globalAllowlist: string[] | null = null;
-
-function getGlobalAllowlist(): string[] {
-  if (_globalAllowlist) return _globalAllowlist;
-  // import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES is injected by vite.define at build time.
-  // Casting through unknown avoids TS complaints about the ImportMeta type not having
-  // an index signature — this is safe because vite.define replaces the literal at build time.
-  const metaEnv = (import.meta as unknown as { env?: Record<string, unknown> }).env ?? {};
-  const raw: string = (metaEnv.ASTRO_BLOCKS_ALLOWED_FILE_TYPES as string) ?? '';
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        _globalAllowlist = parsed as string[];
-        return _globalAllowlist;
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-  _globalAllowlist = DEFAULT_ALLOWED_FILE_TYPES;
-  return _globalAllowlist;
-}
-
-/**
- * Compute the effectiveAccept for a file field:
- *   - If def.accept is provided: intersection with global allowlist (warn-and-drop per ADR-6)
- *   - If def.accept is omitted: full global allowlist
- *
- * Delegates to intersectAccept() which normalises both sides to lowercase, so
- * mixed-case schema entries like `'Application/PDF'` are correctly matched
- * against the lowercase global allowlist. The returned values are always
- * lowercase, ensuring consistent comparison in renderPickerGrid and in the
- * data-file-accept attribute.
- */
-function computeEffectiveAccept(def: PrimitivePropDef): string[] {
-  return intersectAccept(def.accept, getGlobalAllowlist());
 }
 
 // Icon for file fields (document)

@@ -34,18 +34,18 @@ Legend: `[ ]` pending · `[x]` done
 
 ## Slice 2 — Leaf modules: `field-helpers`, `array-limits`, `file-accept`
 
-- [ ] **2.1** Create `src/routes/admin/client/block-form/field-helpers.ts` — move `errorKey`,
+- [x] **2.1** Create `src/routes/admin/client/block-form/field-helpers.ts` — move `errorKey`,
   `withLocaleHint`, `parseFieldValue`, `defaultPrimitiveValue`, `defaultArrayItemValue`,
   `imageFilenameFromUrl`, `imagePickerIconSvg` (with their imports). Export all.
-- [ ] **2.2** Create `src/routes/admin/client/block-form/array-limits.ts` — move `ArrayLimitInfo`,
+- [x] **2.2** Create `src/routes/admin/client/block-form/array-limits.ts` — move `ArrayLimitInfo`,
   `checkArrayLimitReached`.
-- [ ] **2.3** Create `src/routes/admin/client/block-form/file-accept.ts` — move
+- [x] **2.3** Create `src/routes/admin/client/block-form/file-accept.ts` — move
   `getGlobalAllowlist`, `computeEffectiveAccept` (imports: `DEFAULT_ALLOWED_FILE_TYPES`,
   `intersectAccept` from `utils/file-catalog.js`; note the relative path gains one `../`).
-- [ ] **2.4** `src/routes/admin/client/block-form.ts` — delete the moved code; import from the three
+- [x] **2.4** `src/routes/admin/client/block-form.ts` — delete the moved code; import from the three
   new modules; keep `export { checkArrayLimitReached }` / `export type { ArrayLimitInfo }`
   re-exported so `dist/.../block-form.js` keeps its surface.
-- [ ] **2.5** `scripts/coverage.mjs` — add `--exclude` for `dist/routes/admin/client/block-form/**`
+- [x] **2.5** `scripts/coverage.mjs` — add `--exclude` for `dist/routes/admin/client/block-form/**`
   (same rationale as the existing `block-form.js` exclusion: browser-only, node:test cannot drive a
   DOM). Keep the existing line — the facade still compiles to that path.
 
