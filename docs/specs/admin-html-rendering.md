@@ -7,7 +7,8 @@ Licensed under the Business Source License 1.1
 
 > Living specification. Describes how the admin panel renders API-sourced data into the DOM and how
 > that rendering is kept safe. Changed via the cycle's `spec-delta.md` mechanism (see `AGENTS.md`).
-> History: inaugurated by change `enforce-admin-html-escaping` (#99).
+> History: inaugurated by change `enforce-admin-html-escaping` (#99); R3 widened to client
+> subdirectories by change `decompose-block-form` (#38).
 
 ## Capability
 
@@ -26,9 +27,10 @@ encoded so the panel cannot be turned into a stored-XSS vector.
   canonical pair, chosen by its actual HTML context: text content → `escapeHtml`, attribute value →
   `escapeAttr`.
 
-- **R3 — Rendering lives in `client/*.ts`.** No admin `.astro` file writes a **dynamic** HTML sink;
-  it may assign only a static literal. Dynamic rendering belongs in `src/routes/admin/client/*.ts`,
-  which Biome lints and the test suite can reach. The `.astro` file is a bootstrap: a `define:vars`
+- **R3 — Rendering lives in `client/**/*.ts`.** No admin `.astro` file writes a **dynamic** HTML sink;
+  it may assign only a static literal. Dynamic rendering belongs in `src/routes/admin/client/`
+  modules — including subdirectories such as `client/block-form/` — which Biome lints and the escape
+  guard walks recursively. The `.astro` file is a bootstrap: a `define:vars`
   script publishing `window.__cmsXI18n`, plus a module script importing `./client/x.js`.
   - **Time-boxed exception:** `src/routes/admin/layout.astro` still hosts rendering logic in bundled
     `<script>` modules. It is exempt from R3 and **not** from R2 — its sinks are escaped. The
