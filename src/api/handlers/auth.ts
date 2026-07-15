@@ -40,7 +40,7 @@ export async function handleLogin(request: Request): Promise<Response> {
       const id = data.generateId();
       const createdAt = new Date().toISOString();
       const passwordHash = await hashPassword(password);
-      const newUser: User = { id, email, passwordHash, role: 'owner', createdAt };
+      const newUser: User = { id, email, passwordHash, role: 'owner', tokenVersion: 1, createdAt };
       await data.saveUsers({ users: [newUser] });
       return { kind: 'created' as const, user: newUser };
     });

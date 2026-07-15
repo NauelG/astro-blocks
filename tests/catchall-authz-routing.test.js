@@ -34,14 +34,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { SignJWT } from 'jose';
 
-import { ensureDefaultFiles, appendMediaEntry, generateId } from '../dist/api/data.js';
+import { ensureDefaultFiles, appendMediaEntry, generateId, saveUsers } from '../dist/api/data.js';
 import { GET, POST, PUT, PATCH, DELETE } from '../dist/routes/api/catchall.js';
 
 const JWT_SECRET = new TextEncoder().encode('cms-jwt-secret-change-me');
 
 /** Signs a JWT for the given role, matching handlers.ts's expected payload shape. */
 async function makeToken(role) {
-  return new SignJWT({ email: `${role}@example.com`, role })
+  // getAuth is stateful (ADR-0027, #124): the token carries only sub + tokenVersion; the matching
+  // user is seeded in withTempProject so the store read succeeds and the fresh role is authoritative.
+  return new SignJWT({ tokenVersion: 1 })
     .setSubject(`${role}-user-id`)
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('1h')
@@ -66,6 +68,27 @@ async function withTempProject(fn) {
   process.env.ASTRO_BLOCKS_PROJECT_ROOT = tempRoot;
   await ensureDefaultFiles();
   await seedSchemaMap(tempRoot);
+  // getAuth is stateful (ADR-0027): seed the users that makeToken('owner'|'user') will name.
+  await saveUsers({
+    users: [
+      {
+        id: 'owner-user-id',
+        email: 'owner@example.com',
+        passwordHash: 'c2FsdA==:aGFzaA==',
+        role: 'owner',
+        tokenVersion: 1,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'user-user-id',
+        email: 'user@example.com',
+        passwordHash: 'c2FsdA==:aGFzaA==',
+        role: 'user',
+        tokenVersion: 1,
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  });
   try {
     await fn(tempRoot);
   } finally {

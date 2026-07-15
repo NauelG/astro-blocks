@@ -18,6 +18,7 @@ import {
   markMediaVariantsFailed,
   appendMediaEntry,
   generateId,
+  saveUsers,
 } from '../dist/api/data.js';
 import {
   handleUpload,
@@ -1187,13 +1188,8 @@ test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleReplaceUpload honors 
 
     process.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES = '1024'; // 1 KB limit, read per request
 
-    // Auth token (replace requires auth)
-    const { SignJWT } = await import('jose');
-    const token = await new SignJWT({ email: 't@e.com', role: 'owner' })
-      .setSubject('uid')
-      .setProtectedHeader({ alg: 'HS256' })
-      .setExpirationTime('1h')
-      .sign(new TextEncoder().encode('cms-jwt-secret-change-me'));
+    // Auth token (replace requires auth). getAuth is stateful (ADR-0027) — mintJwt seeds the user.
+    const token = await mintJwt();
 
     // Under limit replace → 200 processing (binary body transport)
     const okReq = new Request(`http://localhost/cms/api/media/${id}/replace`, {
@@ -1233,7 +1229,20 @@ test('P3: ASTRO_BLOCKS_MAX_UPLOAD_BYTES override — handleReplaceUpload honors 
 /** Mint a JWT for handleReplaceUpload auth. */
 async function mintJwt() {
   const { SignJWT } = await import('jose');
-  return new SignJWT({ email: 'test@e.com', role: 'owner' })
+  // getAuth is stateful (ADR-0027, #124): seed the user the token names, then sign sub + tokenVersion.
+  await saveUsers({
+    users: [
+      {
+        id: 'uid',
+        email: 'test@e.com',
+        passwordHash: 'c2FsdA==:aGFzaA==',
+        role: 'owner',
+        tokenVersion: 1,
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  });
+  return new SignJWT({ tokenVersion: 1 })
     .setSubject('uid')
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('1h')

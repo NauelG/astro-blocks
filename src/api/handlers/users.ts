@@ -47,6 +47,7 @@ export async function handlePostUsers(
     email,
     passwordHash: await hashPassword(password),
     role,
+    tokenVersion: 1,
     createdAt,
   };
 
@@ -82,9 +83,12 @@ export async function handlePutUser(
   }
 
   if (typeof body.password === 'string' && body.password.length > 0) {
+    const current = usersData.users[index];
     usersData.users[index] = {
-      ...usersData.users[index],
+      ...current,
       passwordHash: await hashPassword(body.password),
+      // A password change revokes every live session for this user (ADR-0027, #124).
+      tokenVersion: (current.tokenVersion ?? 1) + 1,
     };
   }
 

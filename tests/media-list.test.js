@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import {
+  saveUsers,
   ensureDefaultFiles,
   loadMedia,
   saveMedia,
@@ -25,7 +26,21 @@ import { SignJWT } from 'jose';
 const JWT_SECRET = new TextEncoder().encode('cms-jwt-secret-change-me');
 
 async function makeAuthToken() {
-  return new SignJWT({ email: 'test@example.com', role: 'owner' })
+  // getAuth is stateful (ADR-0027, #124): the token's user must exist in the store with a
+  // matching tokenVersion. Seed a persistent owner, then sign only sub + tokenVersion.
+  await saveUsers({
+    users: [
+      {
+        id: 'test-user-id',
+        email: 'test@example.com',
+        passwordHash: 'c2FsdA==:aGFzaA==',
+        role: 'owner',
+        tokenVersion: 1,
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  });
+  return new SignJWT({ tokenVersion: 1 })
     .setSubject('test-user-id')
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('1h')

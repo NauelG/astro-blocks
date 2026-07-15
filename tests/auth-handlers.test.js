@@ -9,8 +9,38 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ensureDefaultFiles, loadUsers } from '../dist/api/data.js';
-import { handleLogin, handleAuthMe, handleAuthStatus } from '../dist/api/handlers.js';
+import { SignJWT } from 'jose';
+
+import { ensureDefaultFiles, loadUsers, saveUsers } from '../dist/api/data.js';
+import {
+  handleLogin,
+  handleAuthMe,
+  handleAuthStatus,
+  handleGetUsers,
+  getAuth,
+} from '../dist/api/handlers.js';
+
+// The dev/test fallback signing secret (auth-core.ts INSECURE_JWT_FALLBACK). getAuth verifies
+// with it when ASTRO_BLOCKS_JWT_SECRET is unset, so tokens forged here round-trip through it.
+const FALLBACK_SECRET = new TextEncoder().encode('cms-jwt-secret-change-me');
+
+async function loginOwner(email = 'owner@example.com', password = 'secret123') {
+  const res = await handleLogin(
+    new Request('http://localhost/cms/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    }),
+  );
+  const body = await res.json();
+  return { token: body.token, user: body.user };
+}
+
+function authRequest(token) {
+  return new Request('http://localhost/cms/api/auth/me', {
+    headers: { authorization: `Bearer ${token}` },
+  });
+}
 
 async function withTempProject(fn) {
   const previousRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
@@ -219,6 +249,108 @@ test('handleAuthMe: returns 401 when user is undefined', async () => {
     assert.equal(response.status, 401);
     const body = await response.json();
     assert.equal(body.error, 'Unauthorized');
+  });
+});
+
+// ─── getAuth: stateful session revocation (#124, ADR-0027) ─────────────────────
+
+test('getAuth: token of a deleted user is rejected (null)', async () => {
+  await withTempProject(async () => {
+    const { token } = await loginOwner();
+
+    // The user is removed from the store after the token was issued.
+    await saveUsers({ users: [] });
+
+    const result = await getAuth(authRequest(token));
+    assert.equal(result, null);
+  });
+});
+
+test('getAuth: token is rejected once tokenVersion is bumped (revoked)', async () => {
+  await withTempProject(async () => {
+    const { token } = await loginOwner();
+
+    const stored = await loadUsers();
+    stored.users[0].tokenVersion = (stored.users[0].tokenVersion ?? 1) + 1;
+    await saveUsers(stored);
+
+    const result = await getAuth(authRequest(token));
+    assert.equal(result, null);
+  });
+});
+
+test('getAuth: legacy token without a tokenVersion claim is rejected', async () => {
+  await withTempProject(async () => {
+    const { user } = await loginOwner();
+
+    // A token shaped like the pre-revocation model: email + role, no tokenVersion.
+    const legacy = await new SignJWT({ email: user.email, role: 'owner' })
+      .setSubject(user.id)
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('7d')
+      .sign(FALLBACK_SECRET);
+
+    const result = await getAuth(authRequest(legacy));
+    assert.equal(result, null);
+  });
+});
+
+test('getAuth: role is resolved fresh from the store, not the token', async () => {
+  await withTempProject(async () => {
+    const { token } = await loginOwner(); // issued while role === 'owner'
+
+    // Demote directly in the store (bypassing the last-owner guard, which is not under test).
+    const stored = await loadUsers();
+    stored.users[0] = { ...stored.users[0], role: 'user' };
+    await saveUsers(stored);
+
+    const result = await getAuth(authRequest(token));
+    assert.ok(result, 'a valid token must still authenticate');
+    assert.equal(result.user.role, 'user', 'role must come from the store, not the stale token');
+  });
+});
+
+test('getAuth: demoted-owner token fails requireOwner (403) but still authenticates', async () => {
+  await withTempProject(async () => {
+    const { token } = await loginOwner();
+
+    const stored = await loadUsers();
+    stored.users[0] = { ...stored.users[0], role: 'user' };
+    await saveUsers(stored);
+
+    const auth = await getAuth(authRequest(token));
+    assert.ok(auth, 'still a valid session');
+    const response = await handleGetUsers(auth.user); // owner-only route
+    assert.equal(response.status, 403);
+  });
+});
+
+test('getAuth: legacy record without a tokenVersion field defaults to 1 and passes', async () => {
+  await withTempProject(async () => {
+    // A record persisted before the field existed — no tokenVersion.
+    await saveUsers({
+      users: [
+        {
+          id: 'legacy-1',
+          email: 'legacy@example.com',
+          passwordHash: 'c2FsdA==:aGFzaA==',
+          role: 'owner',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    });
+
+    const token = await new SignJWT({ tokenVersion: 1 })
+      .setSubject('legacy-1')
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('7d')
+      .sign(FALLBACK_SECRET);
+
+    const result = await getAuth(authRequest(token));
+    assert.ok(result, 'a v1 token must match a fieldless record read as v1');
+    assert.equal(result.user.id, 'legacy-1');
+    assert.equal(result.user.email, 'legacy@example.com');
+    assert.equal(result.user.role, 'owner');
   });
 });
 

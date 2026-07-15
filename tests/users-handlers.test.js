@@ -448,3 +448,85 @@ test('handleDeleteUser: can delete an owner when another owner exists', async ()
     assert.equal(stored.users[0].id, secondOwner.id);
   });
 });
+
+// ─── tokenVersion (session revocation, #124 / ADR-0027) ────────────────────────
+
+test('handlePostUsers: new user is created with tokenVersion 1', async () => {
+  await withTempProject(async () => {
+    const owner = await seedOwner();
+
+    const response = await handlePostUsers(
+      new Request('http://localhost/cms/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'new@example.com', password: 'pass456', role: 'user' }),
+      }),
+      owner,
+    );
+    assert.equal(response.status, 200);
+
+    const stored = await loadUsers();
+    const created = stored.users.find((u) => u.email === 'new@example.com');
+    assert.ok(created, 'user must be persisted');
+    assert.equal(created.tokenVersion, 1);
+  });
+});
+
+test('handlePutUser: changing the password bumps tokenVersion', async () => {
+  await withTempProject(async () => {
+    const owner = await seedOwner();
+
+    const before = await loadUsers();
+    const initial = before.users[0].tokenVersion ?? 1;
+
+    const response = await handlePutUser(
+      owner.id,
+      new Request(`http://localhost/cms/api/users/${owner.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: 'brand-new-pass' }),
+      }),
+      owner,
+    );
+    assert.equal(response.status, 200);
+
+    const after = await loadUsers();
+    assert.equal(after.users[0].tokenVersion, initial + 1);
+  });
+});
+
+test('handlePutUser: a role change alone does not bump tokenVersion', async () => {
+  await withTempProject(async () => {
+    const owner = await seedOwner();
+
+    // Second owner so the first can be demoted without hitting the last-owner guard.
+    const createResponse = await handlePostUsers(
+      new Request('http://localhost/cms/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'owner2@example.com', password: 'pass456', role: 'owner' }),
+      }),
+      owner,
+    );
+    const secondOwner = await createResponse.json();
+
+    const before = await loadUsers();
+    const target = before.users.find((u) => u.id === secondOwner.id);
+    const initial = target.tokenVersion ?? 1;
+
+    await handlePutUser(
+      secondOwner.id,
+      new Request(`http://localhost/cms/api/users/${secondOwner.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'user' }),
+      }),
+      owner,
+    );
+
+    const after = await loadUsers();
+    const updated = after.users.find((u) => u.id === secondOwner.id);
+    assert.equal(updated.role, 'user');
+    assert.equal(updated.tokenVersion, initial, 'demotion must not revoke the session');
+  });
+});
