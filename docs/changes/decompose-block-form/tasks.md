@@ -130,11 +130,11 @@ no module in `block-form/` exceeds ~450 lines.
 
 ## Slice 7 — Verification bar (no commit; gates Review)
 
-- [ ] **7.1** `npm run e2e` (or the repo's e2e invocation) — `admin-flow.spec.ts` green.
+- [x] **7.1** `npm run e2e` (or the repo's e2e invocation) — `admin-flow.spec.ts` green.
 - [ ] **7.2** Manual picker smoke in `playgrounds/basic`: open picker · paginate · select image ·
   select file (accept filter applies) · clear both · array add/remove/reorder (Sortable) · upload
   from picker · inline errors render on remount.
-- [ ] **7.3** Bundle check: built admin JS contains no `.cms-media-picker-` rules; picker renders
+- [x] **7.3** Bundle check: built admin JS contains no `.cms-media-picker-` rules; picker renders
   identically (styles now from `cms-admin.css`).
 
 **Note for Review/Archive:** the `spec-delta.md` R3 edit to `docs/specs/admin-html-rendering.md`
