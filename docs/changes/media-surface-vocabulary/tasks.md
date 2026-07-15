@@ -38,15 +38,13 @@ Legend: `[ ]` todo · `[x]` done.
 
 ## Slice 3 — File field localized + image dynamic-path fix · `fix`
 
-- [ ] **3.1** `en.ts` + `es.ts`: add `blockForm.chooseFile`, `replaceFile`, `clearFile`,
-  `noFileSelected` (values per `design.md §2d`).
-- [ ] **3.2** `src/routes/admin/client/block-form/field-renderers.ts` `fileFieldHtml`: replace the
-  hardcoded literals (name-empty, choose/replace label, aria choose, aria+text clear) with `ct()`
-  calls. Clear button reads "Clear file" (mirrors image's "Clear image").
-- [ ] **3.3** `src/routes/admin/client/block-form/field-dom-sync.ts`: route the in-place updaters
-  through `ct()` — **file** (lines ~68 `noFileSelected`, ~74 `replaceFile`/`chooseFile`) and
-  **image** (lines ~45 `noImageSelected`, ~51 `replaceImage`/`chooseImage`, existing keys).
-- [ ] **3.4 (guard)** Extend guard: `chooseFile`/`replaceFile`/`clearFile`/`noFileSelected` exist in en+es.
+- [x] **3.1** `en.ts` + `es.ts`: added `blockForm.chooseFile`/`replaceFile`/`clearFile`/`noFileSelected`.
+- [x] **3.2** `field-renderers.ts` `fileFieldHtml`: hardcoded literals → `ct()`; Clear button reads
+  "Clear file".
+- [x] **3.3** `field-dom-sync.ts`: in-place updaters through `ct()` — file (noFileSelected,
+  replaceFile/chooseFile) and image (noImageSelected, replaceImage/chooseImage, existing keys).
+  Added the `ct` import.
+- [x] **3.4 (guard)** Guard extended: file-field keys exist in en+es.
 - **Verify:** guard + parity green; `npm run typecheck`; `npm run check` (no hardcoded-string lint on
   the touched renderers).
 

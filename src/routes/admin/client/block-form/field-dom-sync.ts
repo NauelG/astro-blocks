@@ -16,6 +16,7 @@ import { escapeAttr } from '../../../../utils/html-escape.js';
 import { parseImageValue } from '../../../../utils/image-value.js';
 import { isEmptyFileValue } from '../../../../utils/file-value.js';
 import { imageFilenameFromUrl, imagePickerIconSvg } from './field-helpers.js';
+import { ct } from '../../i18n/client.js';
 
 /**
  * Update an image field's visible DOM IN PLACE to reflect `url` (empty string =
@@ -42,13 +43,14 @@ export function updateImageFieldDom(hiddenInput: HTMLInputElement, url: string):
   const nameEl = field.querySelector<HTMLElement>('.cms-image-field-name');
   if (nameEl) {
     nameEl.classList.toggle('cms-image-field-name--empty', !hasValue);
-    nameEl.textContent = hasValue ? filename : 'No image selected';
+    nameEl.textContent = hasValue ? filename : ct('blockForm.noImageSelected');
     if (hasValue) nameEl.setAttribute('title', filename);
     else nameEl.removeAttribute('title');
   }
 
   const chooseLabel = field.querySelector<HTMLElement>('[data-choose-label]');
-  if (chooseLabel) chooseLabel.textContent = hasValue ? 'Replace' : 'Choose image';
+  if (chooseLabel)
+    chooseLabel.textContent = hasValue ? ct('blockForm.replaceImage') : ct('blockForm.chooseImage');
 }
 
 /**
@@ -65,13 +67,14 @@ export function updateFileFieldDom(hiddenInput: HTMLInputElement, value: FileFie
   const nameEl = field.querySelector<HTMLElement>('.cms-file-field-name');
   if (nameEl) {
     nameEl.classList.toggle('cms-file-field-name--empty', !hasValue);
-    nameEl.textContent = hasValue ? displayName : 'No file selected';
+    nameEl.textContent = hasValue ? displayName : ct('blockForm.noFileSelected');
     if (hasValue) nameEl.setAttribute('title', displayName);
     else nameEl.removeAttribute('title');
   }
 
   const chooseLabel = field.querySelector<HTMLElement>('[data-file-choose-label]');
-  if (chooseLabel) chooseLabel.textContent = hasValue ? 'Replace' : 'Choose file';
+  if (chooseLabel)
+    chooseLabel.textContent = hasValue ? ct('blockForm.replaceFile') : ct('blockForm.chooseFile');
 }
 
 /**

@@ -574,6 +574,11 @@ export const en = {
   'blockForm.altPlaceholder': 'Describe this image…',
   'blockForm.captionLabel': 'Caption',
   'blockForm.captionPlaceholder': 'Add a visible caption…',
+  // File field (non-image prop)
+  'blockForm.chooseFile': 'Choose file',
+  'blockForm.replaceFile': 'Replace',
+  'blockForm.clearFile': 'Clear file',
+  'blockForm.noFileSelected': 'No file selected',
 
   // ─── Dialogs ──────────────────────────────────────────────────────────────
   'dialog.defaultAlertTitle': 'Notice',

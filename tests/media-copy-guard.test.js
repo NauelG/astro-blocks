@@ -56,11 +56,7 @@ test('picker title/aria/close pairs exist in every catalog', () => {
 });
 
 test('the old single-title picker keys are gone', () => {
-  const removed = [
-    'blockForm.pickerTitle',
-    'blockForm.pickerAriaLabel',
-    'blockForm.pickerClose',
-  ];
+  const removed = ['blockForm.pickerTitle', 'blockForm.pickerAriaLabel', 'blockForm.pickerClose'];
   for (const locale of LOCALES) {
     for (const key of removed) {
       assert.ok(!(key in catalogs[locale]), `${locale} still has removed key ${key}`);
@@ -94,7 +90,26 @@ test('picker-internal (grid/count/search) keys do not say "image"', () => {
 
 test('picker load-error key was renamed off "image"', () => {
   for (const locale of LOCALES) {
-    assert.ok(!('blockForm.imageLoadError' in catalogs[locale]), `${locale} still has imageLoadError`);
+    assert.ok(
+      !('blockForm.imageLoadError' in catalogs[locale]),
+      `${locale} still has imageLoadError`,
+    );
     assert.ok(catalogs[locale]['blockForm.pickerLoadError'], `${locale} missing pickerLoadError`);
+  }
+});
+
+// ─── 3. File-field controls are localized ───────────────────────────────────
+
+test('file-field keys exist in every catalog', () => {
+  const keys = [
+    'blockForm.chooseFile',
+    'blockForm.replaceFile',
+    'blockForm.clearFile',
+    'blockForm.noFileSelected',
+  ];
+  for (const locale of LOCALES) {
+    for (const key of keys) {
+      assert.ok(catalogs[locale][key], `${locale} missing ${key}`);
+    }
   }
 });

@@ -139,8 +139,8 @@ function fileFieldHtml(
   const stateClass = hasValue ? ' cms-file-field--has-value' : '';
   const nameHtml = hasValue
     ? `<span class="cms-file-field-name" title="${escapeAttr(displayName)}">${escapeHtml(displayName)}</span>`
-    : `<span class="cms-file-field-name cms-file-field-name--empty">No file selected</span>`;
-  const chooseLabel = hasValue ? 'Replace' : 'Choose file';
+    : `<span class="cms-file-field-name cms-file-field-name--empty">${escapeHtml(ct('blockForm.noFileSelected'))}</span>`;
+  const chooseLabel = hasValue ? ct('blockForm.replaceFile') : ct('blockForm.chooseFile');
   // Serialize effectiveAccept as a JSON string in a data attribute so the picker
   // click handler can recover it without keeping additional module-level state per field.
   const acceptAttr = escapeAttr(JSON.stringify(effectiveAccept));
@@ -151,8 +151,8 @@ function fileFieldHtml(
     `<div class="cms-file-field-detail">` +
     nameHtml +
     `<div class="cms-file-field-actions">` +
-    `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-choose" data-file-picker-for="${escapeAttr(id)}" data-file-accept="${acceptAttr}" aria-label="Choose file">${filePickerIconSvg}<span data-file-choose-label>${escapeHtml(chooseLabel)}</span></button>` +
-    `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-clear" data-file-picker-clear="${escapeAttr(id)}" aria-label="Clear file">Clear</button>` +
+    `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-choose" data-file-picker-for="${escapeAttr(id)}" data-file-accept="${acceptAttr}" aria-label="${escapeAttr(ct('blockForm.chooseFile'))}">${filePickerIconSvg}<span data-file-choose-label>${escapeHtml(chooseLabel)}</span></button>` +
+    `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-clear" data-file-picker-clear="${escapeAttr(id)}" aria-label="${escapeAttr(ct('blockForm.clearFile'))}">${escapeHtml(ct('blockForm.clearFile'))}</button>` +
     `</div>` +
     `</div>` +
     `</div>`
