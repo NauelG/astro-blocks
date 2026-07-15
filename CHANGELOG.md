@@ -9,6 +9,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.6.3] - 2026-07-15
+
+### Title
+
+Redirect targets can no longer point off-site
+
+### Fixed
+
+- **Stored open redirect via backslash (security).** The redirect path validator did not block
+  backslashes, and browsers normalize `\` to `/` — so a redirect target of `/\evil.com` was stored
+  and served as a protocol-relative redirect to `evil.com`, hitting unauthenticated public
+  visitors. The validator now rejects any path containing `\` or starting with `//` (external URLs
+  in disguise) with the existing "must be internal" error, on both the source and target fields.
+  Already-stored malicious entries are dropped at read time, so no data migration is needed.
+  Note: a leading `//` (previously silently collapsed to `/`) is now a validation error —
+  redirect targets are internal-only, and off-origin shapes are rejected, never rewritten.
+
 ## [3.6.2] - 2026-07-15
 
 ### Title
