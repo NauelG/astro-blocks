@@ -107,18 +107,18 @@ which still contains picker + mount sinks — stays meaningful until Slice 6).
 
 ## Slice 6 — `mount` + facade + guard repoint
 
-- [ ] **6.1** Create `src/routes/admin/client/block-form/mount.ts` — move `FieldChangeInfo`,
+- [x] **6.1** Create `src/routes/admin/client/block-form/mount.ts` — move `FieldChangeInfo`,
   `BlockFormOptions`, `BlockFormHandle`, `mountBlockForm` (Sortable lifecycle included, per the
   header contract). Keep the file-header doc comment (interface contract + security note) with it.
-- [ ] **6.2** `src/routes/admin/client/block-form.ts` — reduce to the pure re-export facade
+- [x] **6.2** `src/routes/admin/client/block-form.ts` — reduce to the pure re-export facade
   (design §2): `mountBlockForm` + types from `./block-form/mount.js`, `checkArrayLimitReached` +
   `ArrayLimitInfo` from `./block-form/array-limits.js`. Short header comment pointing into
   `block-form/` (ADR-0012 pattern, cf. `api/handlers.ts`).
-- [ ] **6.3** `tests/block-form-canonical-escape.test.js` — replace the single pinned `relPath` with
+- [x] **6.3** `tests/block-form-canonical-escape.test.js` — replace the single pinned `relPath` with
   the sink-bearing modules: `block-form/picker-dialog.ts`, `block-form/field-dom-sync.ts`,
   `block-form/field-renderers.ts`, `block-form/mount.ts`. Update the header comment (including the
   stale coverage note if wording changed in 2.5).
-- [ ] **6.4** Consumers sanity check (no edits expected): `page-editor.ts`,
+- [x] **6.4** Consumers sanity check (no edits expected): `page-editor.ts`,
   `global-blocks-editor.ts` still import from `'./block-form.js'`.
 
 **Verify:** `npm run typecheck` · `npm test` · `wc -l src/routes/admin/client/block-form.ts` → ~25 ·
