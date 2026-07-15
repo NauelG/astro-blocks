@@ -220,6 +220,12 @@ export interface User {
   email: string;
   passwordHash: string;
   role: 'owner' | 'user';
+  /**
+   * Session generation. The JWT carries this value; getAuth rejects a token whose claim no longer
+   * matches the store. Bumped to revoke all of a user's live sessions ("sign out everywhere").
+   * Legacy records without the field read as 1. (ADR-0027, #124)
+   */
+  tokenVersion: number;
   createdAt?: string;
 }
 

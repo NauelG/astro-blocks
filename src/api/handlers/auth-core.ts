@@ -6,6 +6,7 @@ Licensed under the Business Source License 1.1
 import crypto from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import type { AuthResult, AuthUser, User } from '../../types/index.js';
+import { loadUsers } from '../data.js';
 import { jsonError, localizedJsonError } from './shared.js';
 
 // SECURITY: this constant signs and verifies admin session tokens. When no secret is
@@ -116,8 +117,11 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return crypto.timingSafeEqual(derived, expected);
 }
 
-export async function createToken(user: Pick<User, 'id' | 'email' | 'role'>): Promise<string> {
-  return new SignJWT({ email: user.email, role: user.role })
+export async function createToken(user: Pick<User, 'id' | 'tokenVersion'>): Promise<string> {
+  // The token carries only identity (sub) and session generation (tokenVersion). email and role
+  // are NOT signed — getAuth reads them fresh from the store so a stale claim can never drive an
+  // authorization decision (ADR-0027, #124).
+  return new SignJWT({ tokenVersion: user.tokenVersion })
     .setSubject(user.id)
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime(JWT_EXPIRY)
@@ -141,11 +145,18 @@ export async function getAuth(request: Request): Promise<AuthResult | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     const id = payload.sub;
-    const email = payload.email;
-    const role = payload.role;
-    if (!id || !email || !role) return null;
+    const tokenVersion = payload.tokenVersion;
+    // A token missing sub, or without a numeric tokenVersion (a legacy pre-revocation token),
+    // is rejected — there is no compatibility path (ADR-0027, #124).
+    if (!id || typeof tokenVersion !== 'number') return null;
 
-    return { user: { id: String(id), email: String(email), role: String(role) } };
+    // Stateful validation: the store, not the token payload, is the source of truth for identity.
+    const { users } = await loadUsers();
+    const user = users.find((candidate) => candidate.id === id);
+    if (!user) return null; // deleted user
+    if ((user.tokenVersion ?? 1) !== tokenVersion) return null; // revoked session
+
+    return { user: { id: user.id, email: user.email, role: user.role } };
   } catch {
     return null;
   }
