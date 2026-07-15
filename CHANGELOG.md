@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.7.1] - 2026-07-15
+
+### Title
+
+Restore can no longer clobber a concurrent upload
+
+### Fixed
+
+- **Restore routes its media write through the media mutex.** The import/restore path overwrote `media.json` via an unlocked write while holding only the users lock — a different key — leaving a lost-update window against a concurrent upload's locked append (ADR-0008). The raw whole-registry write is now module-private, and restore uses a new locked `replaceMedia` seam, so no wholesale write can bypass the media mutex. (#100)
+
 ## [3.7.0] - 2026-07-15
 
 ### Title
