@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.7.2] - 2026-07-15
+
+### Title
+
+Variant jobs no longer leak into the repo root
+
+### Fixed
+
+- **Fire-and-forget variant jobs are drained before test teardown.** `handleUpload`/`handleReplaceUpload` spawn variant generation un-awaited; a job that resolved the store path after a test unset `ASTRO_BLOCKS_PROJECT_ROOT` wrote `data/media.json` into the package root (#96). Jobs are now registered and awaitable via `drainVariantJobs`, drained in test teardown, and a `check-root-data-leak` guard chained into `npm test` fails the suite if a package-root `data/` ever appears.
+
 ## [3.7.1] - 2026-07-15
 
 ### Title
