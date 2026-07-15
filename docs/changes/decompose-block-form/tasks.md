@@ -73,12 +73,12 @@ subdirectories — confirmed at plan time) · coverage script still passes if ru
 
 ## Slice 4 — `field-renderers`
 
-- [ ] **4.1** Create `src/routes/admin/client/block-form/field-renderers.ts` — move
+- [x] **4.1** Create `src/routes/admin/client/block-form/field-renderers.ts` — move
   `imageFieldHtml`, `fileFieldHtml`, `primitiveInputHtml`, `renderPrimitiveField`,
   `renderArrayPrimitiveItem`, `renderArrayObjectItem`, `renderArrayField`, plus `trashIconSvg`
   (single consumer). Imports from `./field-helpers.js`, `./file-accept.js`, escapers, types.
   Export the render functions consumed by `mountBlockForm`.
-- [ ] **4.2** `block-form.ts` — delete moved code, import from `./block-form/field-renderers.js`.
+- [x] **4.2** `block-form.ts` — delete moved code, import from `./block-form/field-renderers.js`.
 
 **Verify:** `npm run typecheck` · `npm test` (canonical-escape guard still points at `block-form.ts`,
 which still contains picker + mount sinks — stays meaningful until Slice 6).
