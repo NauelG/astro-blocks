@@ -55,7 +55,7 @@ test('redirect handlers support CRUD and canonical path normalization', async ()
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from: '/old-path/',
-          to: '//new-path//',
+          to: '/new-path//',
           statusCode: 301,
           enabled: true,
         }),
@@ -152,5 +152,45 @@ test('redirect handlers validate input and avoid duplicate origins', async () =>
 
     assert.equal(withQuery.status, 400);
     assert.match((await withQuery.json()).error, /query|fragment/i);
+  });
+});
+
+test('redirect handlers reject off-origin bypass shapes and persist nothing', async () => {
+  await withTempProject(async () => {
+    for (const to of ['/\\evil.com', '//evil.com']) {
+      const response = await handlePostRedirects(
+        new Request('http://localhost/cms/api/redirects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: '/old', to }),
+        }),
+      );
+
+      assert.equal(response.status, 400);
+      assert.match((await response.json()).error, /internal/i);
+    }
+
+    const afterAttempts = await loadRedirects();
+    assert.equal(afterAttempts.redirects.length, 0);
+  });
+});
+
+test('loadRedirects drops persisted entries with off-origin targets', async () => {
+  await withTempProject(async (tempRoot) => {
+    const redirectsPath = path.join(tempRoot, 'data', 'redirects.json');
+    await fs.writeFile(
+      redirectsPath,
+      JSON.stringify({
+        redirects: [
+          { id: 'evil', from: '/promo', to: '/\\evil.com', statusCode: 301, enabled: true },
+          { id: 'good', from: '/old', to: '/new', statusCode: 301, enabled: true },
+        ],
+      }),
+      'utf-8',
+    );
+
+    const data = await loadRedirects();
+    assert.equal(data.redirects.length, 1);
+    assert.equal(data.redirects[0].id, 'good');
   });
 });

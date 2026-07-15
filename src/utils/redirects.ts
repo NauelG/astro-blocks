@@ -36,7 +36,11 @@ export function validateRedirectPathInput(
   const fieldKey = fieldLabelKey(field);
 
   if (!path) return { errorKey: 'redirects.pathRequired', fieldKey };
-  if (ABSOLUTE_URL_REGEX.test(path)) return { errorKey: 'redirects.pathMustBeInternal', fieldKey };
+  // Backslashes and protocol-relative prefixes are off-origin in disguise: browsers
+  // normalize "\" to "/", so "/\evil.com" and "//evil.com" both resolve to
+  // https://evil.com. Redirect targets are internal-only — reject, never rewrite.
+  if (ABSOLUTE_URL_REGEX.test(path) || path.includes('\\') || path.startsWith('//'))
+    return { errorKey: 'redirects.pathMustBeInternal', fieldKey };
   if (!path.startsWith('/')) return { errorKey: 'redirects.pathMustStartSlash', fieldKey };
   if (path.includes('?') || path.includes('#'))
     return { errorKey: 'redirects.pathNoQueryFragment', fieldKey };

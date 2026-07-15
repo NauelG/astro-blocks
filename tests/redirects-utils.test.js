@@ -54,6 +54,27 @@ test('validateRedirectPathInput rejects external urls, query and hash', () => {
   assert.equal(validateRedirectPathInput('/valid-path', 'from'), null);
 });
 
+test('validateRedirectPathInput rejects backslash and protocol-relative bypass shapes', () => {
+  // Browsers normalize "\" to "/" and resolve "//host" as protocol-relative,
+  // so every one of these would escape the internal-only policy if stored.
+  const vectors = ['/\\evil.com', '/\\/evil.com', '\\\\evil.com', '//evil.com', '///evil.com'];
+
+  for (const vector of vectors) {
+    assert.deepEqual(validateRedirectPathInput(vector, 'from'), {
+      errorKey: 'redirects.pathMustBeInternal',
+      fieldKey: 'redirects.labelFrom',
+    });
+    assert.deepEqual(validateRedirectPathInput(vector, 'to'), {
+      errorKey: 'redirects.pathMustBeInternal',
+      fieldKey: 'redirects.labelTo',
+    });
+  }
+
+  // Interior double slashes are not protocol-relative; normalization still collapses them.
+  assert.equal(validateRedirectPathInput('/docs//intro', 'from'), null);
+  assert.equal(validateRedirectPathInput('/docs//intro', 'to'), null);
+});
+
 test('findRedirectByPath only returns enabled exact matches', () => {
   const redirects = [
     { id: '1', from: '/old', to: '/new', statusCode: 301, enabled: true },

@@ -113,6 +113,7 @@ astro.config  │                        register the `astro-blocks-runtime` Vit
 | **Handler contract** | `(id?, Request, context?) => Promise<Response>`, isolated in tests via `ASTRO_BLOCKS_PROJECT_ROOT` + `withTempProject`. (obs #881) |
 | **Bootstrap state** | A fresh instance with `users.length === 0`: the login screen is reachable unauthenticated and allows a full import/restore. Leaves bootstrap once users exist. (ADR-0015, obs #1857) |
 | **Catchall** | `src/routes/api/catchall.ts` — the single precompiled REST entry injected into the consumer; dispatches `/cms/api/*` through the route table. |
+| **Redirect** | An internal-only mapping from one site path to another; the target can never point off-origin. External targets are not a looser validation — they would be an explicit feature (#128). |
 | **Owner** | The first bootstrapped user; owner-only gates protect user management; the sole owner cannot be demoted or deleted; `passwordHash` is never exposed. (obs #878) |
 | **HTML sink** | A DOM property/method that parses a string as markup: `innerHTML`, `outerHTML`, `insertAdjacentHTML`. Any API-sourced value reaching a sink must be escaped by context first. (ADR-0022, #99) |
 | **Canonical escaper** | The single `escapeHtml` / `escapeAttr` pair in `utils/html-escape.ts` — `escapeHtml` for text content, `escapeAttr` for attribute values. The only HTML escaper allowed anywhere. (ADR-0011, ADR-0022) |
