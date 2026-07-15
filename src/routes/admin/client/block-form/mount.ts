@@ -31,11 +31,7 @@ Licensed under the Business Source License 1.1
  */
 
 import Sortable, { type SortableEvent } from 'sortablejs';
-import type {
-  FileFieldValue,
-  PrimitivePropDef,
-  PropDef,
-} from '../../../../types/index.js';
+import type { FileFieldValue, PrimitivePropDef, PropDef } from '../../../../types/index.js';
 import { isObjectArrayItemDef } from '../../../../utils/block-validation.js';
 import { parseImageValue } from '../../../../utils/image-value.js';
 import { checkArrayLimitReached } from './array-limits.js';

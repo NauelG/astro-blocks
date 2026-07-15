@@ -25,7 +25,11 @@ import { isPrimitivePropDef } from '../../../../utils/block-validation.js';
 import { isSchemaPropLocalizable } from '../../../../utils/localization.js';
 import { escapeHtml, escapeAttr } from '../../../../utils/html-escape.js';
 import { toImageValue, serializeImageValueAttr } from '../../../../utils/image-value.js';
-import { toFileValue, serializeFileValueAttr, isEmptyFileValue } from '../../../../utils/file-value.js';
+import {
+  toFileValue,
+  serializeFileValueAttr,
+  isEmptyFileValue,
+} from '../../../../utils/file-value.js';
 import { getActiveContentLocale } from '../common.js';
 import { ct } from '../../i18n/client.js';
 import {
