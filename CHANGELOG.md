@@ -9,6 +9,35 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.6.4] - 2026-07-15
+
+### Title
+
+The admin panel and README stop calling every file an image
+
+### Changed
+
+- **Admin media copy speaks of files and assets, not images.** The library, counters, dropzone,
+  search and the block picker now name uploads by what they are: the upload widgets say _file_ (the
+  disk action), the library grid and counters say _asset_ (ES _recurso_). Image-specific surfaces —
+  alt text, dimensions and responsive variants — keep saying _image_ by design.
+- **The media section lead names the real categories.** It listed a raster-only format list
+  (`JPG, PNG, WebP, SVG, GIF`) that has been stale since 3.6.0; it now reads "images, video, audio and
+  documents".
+- **README media section reframed around any file.** The `Media` section opens on uploading any file,
+  with responsive images and non-image file props as peer subsections rather than the whole story.
+
+### Fixed
+
+- **The block picker no longer titles itself "Choose image" for every file type.** Opening it for a
+  PDF, video or audio prop showed a modal headed "Choose image"; it now titles itself by prop type
+  (image props keep "Choose image", file props read "Choose media").
+- **The `file` field is now localized.** Its controls ("Choose file", "Replace", "Clear") shipped
+  hardcoded in English, so a Spanish panel showed them untranslated; they now resolve through the i18n
+  catalog. The image field's in-place labels had the same latent gap and are fixed too.
+- **Spanish media messages agree in gender with a file, not an image.** Upload/delete/replace toasts
+  read _subido_/_eliminado_/_reemplazado_ now that the unit is a masculine _recurso_/_archivo_.
+
 ## [3.6.3] - 2026-07-15
 
 ### Title
