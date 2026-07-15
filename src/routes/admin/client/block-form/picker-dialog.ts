@@ -35,6 +35,7 @@ import {
   updateFileFieldDom,
   updateImageFieldDom,
 } from './field-dom-sync.js';
+import { pickerTitleKeyForMode } from './picker-title.js';
 
 const xIconSvg =
   '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
@@ -60,12 +61,15 @@ function mountPickerDialog(): void {
   pickerDialog = document.createElement('dialog');
   pickerDialog.id = 'cms-media-picker';
   pickerDialog.className = 'cms-media-picker-dialog';
-  pickerDialog.setAttribute('aria-label', ct('blockForm.pickerAriaLabel'));
+  // Mount with the image-mode title triple; openPickerDialog overwrites all
+  // three on every open from the mode it is called with (see applyPickerTitle).
+  const initial = pickerTitleKeyForMode('image');
+  pickerDialog.setAttribute('aria-label', ct(initial.aria));
   pickerDialog.innerHTML = `
     <div class="cms-media-picker-panel">
       <div class="cms-media-picker-header">
-        <h2 class="cms-media-picker-title">${escapeHtml(ct('blockForm.pickerTitle'))}</h2>
-        <button type="button" class="cms-media-picker-close" id="cms-media-picker-close" aria-label="${escapeAttr(ct('blockForm.pickerClose'))}">${xIconSvg}</button>
+        <h2 class="cms-media-picker-title">${escapeHtml(ct(initial.title))}</h2>
+        <button type="button" class="cms-media-picker-close" id="cms-media-picker-close" aria-label="${escapeAttr(ct(initial.close))}">${xIconSvg}</button>
       </div>
       <div class="cms-media-picker-body" id="cms-media-picker-body">
         <p class="cms-muted">${escapeHtml(ct('blockForm.pickerLoading'))}</p>
@@ -320,6 +324,16 @@ export async function openPickerDialog(
   activePickerInputId = inputId;
   activePickerMode = mode;
   activePickerAccept = effectiveAccept;
+
+  // Title the dialog for the prop type it was opened for: 'image' keeps "image"
+  // (it acts on an image prop, §3); 'file' reads as "media" (holds any asset).
+  // textContent/setAttribute are safe sinks — no escaping needed.
+  const titleKeys = pickerTitleKeyForMode(mode);
+  pickerDialog.setAttribute('aria-label', ct(titleKeys.aria));
+  const titleEl = pickerDialog.querySelector<HTMLElement>('.cms-media-picker-title');
+  if (titleEl) titleEl.textContent = ct(titleKeys.title);
+  const closeEl = pickerDialog.querySelector<HTMLElement>('#cms-media-picker-close');
+  if (closeEl) closeEl.setAttribute('aria-label', ct(titleKeys.close));
 
   // Reset picker state for fresh open.
   // pickerReqSeq is NOT reset here — it is monotonically increasing (module-level).
