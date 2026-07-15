@@ -67,7 +67,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "check": "biome ci .",
-    "test": "npm run build && node --test tests/*.test.js",
+    "test": "npm run build && node --test tests/*.test.js && node scripts/check-root-data-leak.mjs",
     "coverage": "node scripts/coverage.mjs",
     "coverage:badge": "node scripts/coverage-badge.mjs",
     "prepare:playground": "npm run build && node scripts/install-playground-package.mjs",

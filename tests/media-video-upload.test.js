@@ -24,6 +24,7 @@ import path from 'node:path';
 
 import { ensureDefaultFiles, loadMedia } from '../dist/api/data.js';
 import { handleUpload, __setAllowedFileTypesForTest } from '../dist/api/handlers.js';
+import { drainVariantJobs } from '../dist/utils/variant-generator.js';
 
 /** Minimal MP4 header: a real `ftyp` box. The handler trusts Content-Type and never sniffs, but a
  *  test that ships plausible bytes is a test that keeps being honest if that ever changes. */
@@ -31,15 +32,6 @@ const MP4_BYTES = new Uint8Array([
   0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0x00, 0x00, 0x02, 0x00,
   0x69, 0x73, 0x6f, 0x6d, 0x69, 0x73, 0x6f, 0x32, 0x61, 0x76, 0x63, 0x31, 0x6d, 0x70, 0x34, 0x31,
 ]);
-
-async function drainVariantJobs(maxWaitMs = 5000) {
-  const deadline = Date.now() + maxWaitMs;
-  while (Date.now() < deadline) {
-    const media = await loadMedia();
-    if (!media.uploads.some((u) => u.status === 'processing')) return;
-    await new Promise((r) => setTimeout(r, 20));
-  }
-}
 
 async function withTempProject(allowed, fn) {
   const previousRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
@@ -51,8 +43,9 @@ async function withTempProject(allowed, fn) {
 
   try {
     await fn(tempRoot);
-    await drainVariantJobs();
   } finally {
+    // Drain fire-and-forget variant jobs before restoring the env var (#96).
+    await drainVariantJobs();
     __setAllowedFileTypesForTest(null);
     if (previousRoot === undefined) delete process.env.ASTRO_BLOCKS_PROJECT_ROOT;
     else process.env.ASTRO_BLOCKS_PROJECT_ROOT = previousRoot;

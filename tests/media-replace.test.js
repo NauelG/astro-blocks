@@ -24,6 +24,7 @@ import {
   markMediaVariantsReady,
 } from '../dist/api/data.js';
 import { handleReplaceUpload } from '../dist/api/handlers.js';
+import { drainVariantJobs } from '../dist/utils/variant-generator.js';
 import { getMediaVariants } from '../dist/utils/getMediaVariants.js';
 
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
@@ -64,6 +65,9 @@ async function withTempProject(fn) {
   try {
     await fn(tempRoot);
   } finally {
+    // Drain fire-and-forget variant jobs before restoring the env var, so a job
+    // that outlives fn writes to the temp root (still active here) not cwd (#96).
+    await drainVariantJobs();
     if (previousRoot === undefined) {
       delete process.env.ASTRO_BLOCKS_PROJECT_ROOT;
     } else {
