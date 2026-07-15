@@ -95,9 +95,9 @@ function formatMediaDate(isoString: string): string {
           type="button"
           id="cms-media-upload-btn"
           class="cms-btn cms-btn-secondary"
-          aria-label={t('media.chooseImageAriaLabel')}
+          aria-label={t('media.chooseFileAriaLabel')}
         >
-          {t('media.chooseImage')}
+          {t('media.chooseFile')}
         </button>
         <input
           type="file"
@@ -141,7 +141,7 @@ function formatMediaDate(isoString: string): string {
           <p class="cms-muted">{t('media.empty.text')}</p>
         </div>
       ) : (
-        <div id="cms-media-grid" class="cms-media-grid" aria-label={t('media.imageLibraryAriaLabel')} role="list">
+        <div id="cms-media-grid" class="cms-media-grid" aria-label={t('media.libraryAriaLabel')} role="list">
           {uploads.map((entry) => {
             // The category is resolved once, in one place, for all three grids that draw media
             // (this one, client/media.ts and client/block-form.ts). See utils/media-tile.ts.
@@ -178,7 +178,7 @@ function formatMediaDate(isoString: string): string {
               )}
               <div class="cms-media-card-info">
                 <span class="cms-media-card-name" title={entry.filename}>{entry.filename}</span>
-                <div class="cms-media-card-meta cms-muted" aria-label={t('media.imageMetaAriaLabel')}>
+                <div class="cms-media-card-meta cms-muted" aria-label={t('media.metaAriaLabel')}>
                   {formatDimensions(entry.width, entry.height) !== '—' && (
                     <>
                       <span class="cms-media-card-meta-dim">{formatDimensions(entry.width, entry.height)}</span>

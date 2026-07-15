@@ -57,7 +57,7 @@ function renderCard(entry: MediaEntry): string {
       ? `<span class="cms-media-card-meta-dim">${escapeHtml(dims)}</span><span class="cms-media-card-meta-sep" aria-hidden="true">·</span>`
       : '';
   const metaRow = `
-    <div class="cms-media-card-meta cms-muted" aria-label="${escapeAttr(ct('media.imageMetaAriaLabel'))}">
+    <div class="cms-media-card-meta cms-muted" aria-label="${escapeAttr(ct('media.metaAriaLabel'))}">
       ${metaDims}<span class="cms-media-card-meta-size">${escapeHtml(formatBytes(entry.size))}</span><span class="cms-media-card-meta-sep" aria-hidden="true">·</span><span class="cms-media-card-meta-type">${escapeHtml(entry.mimeType)}</span><span class="cms-media-card-meta-sep" aria-hidden="true">·</span><span class="cms-media-card-meta-date">${escapeHtml(formatMediaDate(entry.createdAt))}</span>
     </div>`;
   const altLabel = escapeAttr(ct('media.altLabel', { filename: entry.filename }));
@@ -174,7 +174,7 @@ function renderGrid(envelope: MediaListEnvelope): void {
 
   // Render grid items
   const items = uploads.map(renderCard).join('');
-  gridCard.innerHTML = `<div id="cms-media-grid" class="cms-media-grid" aria-label="${escapeAttr(ct('media.imageLibraryAriaLabel'))}" role="list">${items}</div>`;
+  gridCard.innerHTML = `<div id="cms-media-grid" class="cms-media-grid" aria-label="${escapeAttr(ct('media.libraryAriaLabel'))}" role="list">${items}</div>`;
 
   // Update count region (aria-live polite)
   if (countEl)
