@@ -7,7 +7,8 @@ Licensed under the Business Source License 1.1
 
 > Living specification. Describes which file types AstroBlocks accepts, how they are stored, and how
 > they are served back. Changed via the cycle's `spec-delta.md` mechanism (see `AGENTS.md`).
-> History: inaugurated by change `file-type-catalog` (#111).
+> History: inaugurated by change `file-type-catalog` (#111); admin-surface vocabulary (R31–R34)
+> added by change `media-surface-vocabulary` (#114).
 
 ## Capability
 
@@ -174,6 +175,29 @@ hardcoded constants, and are now answered by one table.
   an `<img>`; `document`, `video` and `audio` render a category icon on a shared surface. No `<video>`
   element in the grid: no bytes are fetched to paint it.
 
+- **R31 — The picker titles itself by prop type.** The block-form media picker is opened for a prop
+  whose type is `image` or `file`. In `image` mode it presents as an image chooser; in `file` mode as
+  a media chooser. Its title, dialog aria-label and close-button aria-label are set on every open from
+  the mode (`pickerTitleKeyForMode` in `client/block-form/picker-title.ts`), never baked to a single
+  type.
+
+- **R32 — Container surfaces name any asset, not "image".** Surfaces that hold or count the library as
+  a whole — the library grid and its aria label, the counters, the empty state, the search, the
+  dropzone, the picker grid — speak of media, assets or files. A library of three videos reports "3
+  assets", never "3 images".
+
+- **R33 — Image-acting surfaces keep "image".** Alt text (WCAG 1.1.1), image dimensions, responsive
+  variants, `<BlockImage>`, and the picker opened in `image` mode continue to say "image". Widening
+  these to "media" would be wrong, not more inclusive.
+
+- **R34 — Every admin media string is localized.** No admin media control renders a hardcoded
+  user-facing string; every one resolves through the i18n catalog (`ct()`/`t()`), on both the initial
+  render and the in-place update path.
+
+> User-facing vocabulary (mass "media", countable "asset", disk/contract "file", image-acting
+> "image") is defined in `CONTEXT.md §3` and justified in
+> `docs/adr/0026-media-user-facing-vocabulary.md`.
+
 ---
 
 ## Scenarios
@@ -205,4 +229,6 @@ hardcoded constants, and are now answered by one table.
 
 `docs/adr/0023-supported-file-type-catalog.md` (supersedes ADR-0018) ·
 `docs/adr/0024-streaming-ingest-and-range-serving.md` · `docs/adr/0017` (variants) ·
-`docs/adr/0016` (image field value) · `docs/media.md` (consumer guide)
+`docs/adr/0016` (image field value) ·
+`docs/adr/0026-media-user-facing-vocabulary.md` (media/asset/file/image vocabulary) ·
+`docs/media.md` (consumer guide)
