@@ -17,6 +17,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { DEFAULT_ALLOWED_FILE_TYPES, intersectAccept } from '../dist/utils/file-catalog.js';
+import { drainVariantJobs } from '../dist/utils/variant-generator.js';
 
 // ─── R1.1-A: DEFAULT_ALLOWED_FILE_TYPES export is correct ────────────────────
 
@@ -114,6 +115,8 @@ test('R1.5-A: getAllowedFileTypes falls back to DEFAULT_ALLOWED_FILE_TYPES when 
     const res = await handleUpload(req);
     assert.equal(res.status, 200, 'image/jpeg should be accepted from default fallback allowlist');
   } finally {
+    // Drain fire-and-forget variant jobs before restoring the env var (#96).
+    await drainVariantJobs();
     if (previousRoot === undefined) delete process.env.ASTRO_BLOCKS_PROJECT_ROOT;
     else process.env.ASTRO_BLOCKS_PROJECT_ROOT = previousRoot;
     await rm(tempRoot, { recursive: true, force: true });

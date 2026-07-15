@@ -285,9 +285,13 @@ create the component with its `schema` and add it to the `blocks` array. (See AD
 
 ### Data store & testing
 - **Concurrent writes corrupt the JSON store** — always go through `writeJson` (atomic) + `withFileLock`. (ADR-0008, obs #805)
-- **Fire-and-forget async in handlers can outlive the test's env scope**: `handleUpload` fires
-  `generateAndPersistVariants` un-awaited; tests must **drain pending variant jobs** before `withTempProject`
-  restores `ASTRO_BLOCKS_PROJECT_ROOT`, or stray files land at repo root (SVG is the fastest to trip it). (obs #836)
+- **Fire-and-forget async in handlers can outlive the test's env scope**: `handleUpload`/`handleReplaceUpload`
+  spawn variant generation un-awaited via `spawnVariantGeneration`, which resolves the store path *at write time* —
+  a job that outlives the test writes to `process.cwd()/data` once `withTempProject` has unset
+  `ASTRO_BLOCKS_PROJECT_ROOT`. Tests that upload/replace **must `await drainVariantJobs()`** (from
+  `utils/variant-generator`) in `withTempProject`'s `finally`, *before* the env restore + temp-dir removal.
+  `scripts/check-root-data-leak.mjs` (chained in `npm test`) fails the suite if a package-root `data/` ever
+  appears — a `.gitignore` rule is not self-enforcing. (obs #836, #96)
 - **Delete/status-code inconsistency across domains**: `handleDeleteMenu` → `204`; `handleDeleteLanguage` → `200`
   with a JSON body. Don't assume a uniform delete contract. (obs #879)
 

@@ -24,6 +24,7 @@ import path from 'node:path';
 
 import { ensureDefaultFiles } from '../dist/api/data.js';
 import { handleUpload, __setAllowedFileTypesForTest } from '../dist/api/handlers.js';
+import { drainVariantJobs } from '../dist/utils/variant-generator.js';
 
 const MB = 1024 * 1024;
 
@@ -42,6 +43,8 @@ async function withTempProject(allowed, env, fn) {
   try {
     await fn(tempRoot);
   } finally {
+    // Drain fire-and-forget variant jobs before restoring the env var (#96).
+    await drainVariantJobs();
     __setAllowedFileTypesForTest(null);
     if (prevRoot === undefined) delete process.env.ASTRO_BLOCKS_PROJECT_ROOT;
     else process.env.ASTRO_BLOCKS_PROJECT_ROOT = prevRoot;

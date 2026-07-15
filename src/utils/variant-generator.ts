@@ -92,3 +92,32 @@ export async function generateAndPersistVariants(entry: MediaEntry): Promise<voi
     await data.markMediaVariantsFailed(entry.id);
   }
 }
+
+// In-flight variant jobs spawned fire-and-forget from the media handlers. The
+// job resolves the store path lazily at write time, so one that outlives its
+// caller writes to whatever process.cwd() resolves to then (see #96). Tracking
+// the promises lets a test drain them before it tears down the temp project.
+const pendingVariantJobs = new Set<Promise<void>>();
+
+/**
+ * Spawn variant generation as fire-and-forget (production behaviour) while
+ * registering the promise so tests can await completion via drainVariantJobs.
+ * Never throws; the job's own error handling marks the entry failed.
+ */
+export function spawnVariantGeneration(entry: MediaEntry): void {
+  const job = generateAndPersistVariants(entry).catch(() => {});
+  pendingVariantJobs.add(job);
+  void job.finally(() => pendingVariantJobs.delete(job));
+}
+
+/**
+ * Await every variant job spawned so far. Loops because draining is only
+ * meaningful before teardown, and a settling job could still be registered.
+ * Tests call this in withTempProject's teardown, before the temp root is
+ * removed and ASTRO_BLOCKS_PROJECT_ROOT is unset.
+ */
+export async function drainVariantJobs(): Promise<void> {
+  while (pendingVariantJobs.size > 0) {
+    await Promise.all([...pendingVariantJobs]);
+  }
+}

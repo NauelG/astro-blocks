@@ -8,7 +8,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { imageSize } from 'image-size';
 import { getUploadsDir, resolveUploadPath } from '../../utils/paths.js';
-import { generateAndPersistVariants } from '../../utils/variant-generator.js';
+import { spawnVariantGeneration } from '../../utils/variant-generator.js';
 import { DEFAULT_ALLOWED_FILE_TYPES, lookupByMime } from '../../utils/file-catalog.js';
 import { evaluateUpload } from '../../utils/upload-gate.js';
 import type { FileCategory, MediaEntry } from '../../types/index.js';
@@ -397,7 +397,7 @@ export async function handleUpload(request: Request): Promise<Response> {
 
   // Build response first, then fire-and-forget variant generation (after response returns)
   const res = Response.json({ url, entry });
-  void generateAndPersistVariants(entry).catch(() => {});
+  spawnVariantGeneration(entry);
   return res;
 }
 
@@ -667,6 +667,6 @@ export async function handleReplaceUpload(request: Request, id: string): Promise
 
   // Build response, then fire-and-forget variant regen (same as handleUpload)
   const res = Response.json({ entry: updated });
-  void generateAndPersistVariants(updated).catch(() => {});
+  spawnVariantGeneration(updated);
   return res;
 }

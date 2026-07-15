@@ -27,26 +27,9 @@ import {
   handleReplaceUpload,
 } from '../dist/api/handlers.js';
 import { replaceMediaEntryBytes } from '../dist/api/data.js';
-import { generateAndPersistVariants } from '../dist/utils/variant-generator.js';
+import { generateAndPersistVariants, drainVariantJobs } from '../dist/utils/variant-generator.js';
 import { toImageValue } from '../dist/utils/image-value.js';
 import { validateBlockPropsAgainstSchema } from '../dist/utils/block-validation.js';
-
-/**
- * Poll loadMedia() until no entry has status:'processing'.
- * This drains any fire-and-forget generateAndPersistVariants calls that
- * handleUpload launches BEFORE we restore ASTRO_BLOCKS_PROJECT_ROOT — which
- * would otherwise cause the async write to land at process.cwd()/data instead
- * of the temp dir.
- */
-async function drainVariantJobs(maxWaitMs = 5000) {
-  const deadline = Date.now() + maxWaitMs;
-  while (Date.now() < deadline) {
-    const media = await loadMedia();
-    const pending = media.uploads.some((u) => u.status === 'processing');
-    if (!pending) return;
-    await new Promise((r) => setTimeout(r, 20));
-  }
-}
 
 async function withTempProject(fn) {
   const previousRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT;
@@ -57,11 +40,11 @@ async function withTempProject(fn) {
 
   try {
     await fn(tempRoot);
-    // Drain any fire-and-forget variant jobs launched by handleUpload before
-    // we restore the env var. Without this, those async writes race against the
-    // finally block and fall back to process.cwd()/data (repo root).
-    await drainVariantJobs();
   } finally {
+    // Drain fire-and-forget variant jobs launched by handleUpload before we
+    // restore the env var. Without this, those async writes race the teardown
+    // and fall back to process.cwd()/data (repo root) — see #96.
+    await drainVariantJobs();
     if (previousRoot === undefined) {
       delete process.env.ASTRO_BLOCKS_PROJECT_ROOT;
     } else {
