@@ -30,12 +30,10 @@ Legend: `[ ]` todo · `[x]` done.
 
 ## Slice 2 — Picker internals speak "asset" · `fix`
 
-- [ ] **2.1** `en.ts` + `es.ts`: reword `blockForm.pickerLoading`, `pickerSearchLabel`,
-  `pickerSearchAriaLabel`, `pickerUploadLabel`, `pickerEmpty`, `pickerCountOf`, `pickerCount0`
-  (asset/recurso); **rename** `blockForm.imageLoadError` → `blockForm.pickerLoadError` (both catalogs).
-- [ ] **2.2** `picker-dialog.ts`: `renderPickerGrid` count/empty already reference these keys —
-  update the grid-load `catch` to `blockForm.pickerLoadError`.
-- [ ] **2.3 (guard)** Extend `media-copy-guard.test.js`: these keys' values ∉ `/image|imagen/i` in en+es.
+- [x] **2.1** `en.ts` + `es.ts`: reworded the picker-internal keys (asset/recurso); renamed
+  `imageLoadError` → `pickerLoadError` in both catalogs.
+- [x] **2.2** `picker-dialog.ts`: grid-load `catch` now uses `blockForm.pickerLoadError`.
+- [x] **2.3 (guard)** Guard extended: picker-internal values ∉ `/image|imagen/i`; `imageLoadError` gone.
 - **Verify:** guard + parity green; `npm run typecheck`.
 
 ## Slice 3 — File field localized + image dynamic-path fix · `fix`

@@ -67,3 +67,34 @@ test('the old single-title picker keys are gone', () => {
     }
   }
 });
+
+// ─── 2. Container surfaces never say "image" ────────────────────────────────
+
+const IMAGE_WORD = /image|imagen/i;
+
+test('picker-internal (grid/count/search) keys do not say "image"', () => {
+  const containerKeys = [
+    'blockForm.pickerLoading',
+    'blockForm.pickerSearchLabel',
+    'blockForm.pickerSearchAriaLabel',
+    'blockForm.pickerUploadLabel',
+    'blockForm.pickerEmpty',
+    'blockForm.pickerCountOf',
+    'blockForm.pickerCount0',
+    'blockForm.pickerLoadError',
+  ];
+  for (const locale of LOCALES) {
+    for (const key of containerKeys) {
+      const value = catalogs[locale][key];
+      assert.ok(value, `${locale} missing ${key}`);
+      assert.ok(!IMAGE_WORD.test(value), `${locale} ${key} still says image: "${value}"`);
+    }
+  }
+});
+
+test('picker load-error key was renamed off "image"', () => {
+  for (const locale of LOCALES) {
+    assert.ok(!('blockForm.imageLoadError' in catalogs[locale]), `${locale} still has imageLoadError`);
+    assert.ok(catalogs[locale]['blockForm.pickerLoadError'], `${locale} missing pickerLoadError`);
+  }
+});
