@@ -50,22 +50,15 @@ Legend: `[ ]` todo · `[x]` done.
 
 ## Slice 4 — Media library surfaces · `fix`
 
-- [ ] **4.1** `en.ts` + `es.ts` — upload widget → **file**: `media.dropzoneLabel`,
-  `dropzoneAriaLabel`, `fileInputAriaLabel` values; **rename** `media.chooseImage` →
-  `media.chooseFile` and `media.chooseImageAriaLabel` → `media.chooseFileAriaLabel`.
-- [ ] **4.2** `en.ts` + `es.ts` — grid → **asset**: `media.searchLabel`, `searchAriaLabel`,
-  `empty.title`, `empty.text`, `noMatchTitle`, `countOf`, `count`, `countPlural`,
-  `deleteFailedMessage` values; **rename** `media.imageLibraryAriaLabel` → `media.libraryAriaLabel`
-  and `media.imageMetaAriaLabel` → `media.metaAriaLabel`.
-- [ ] **4.3** `en.ts` + `es.ts` — `media.lead` reworded; `media.replaceSuccessMessage` softened to
-  drop "Variants regenerating".
-- [ ] **4.4** Update call sites: `client/media.ts` (`imageMetaAriaLabel`→`metaAriaLabel`,
-  `imageLibraryAriaLabel`→`libraryAriaLabel`); `media.astro`
-  (`chooseImageAriaLabel`→`chooseFileAriaLabel`, `chooseImage`→`chooseFile`,
-  `imageLibraryAriaLabel`→`libraryAriaLabel`, `imageMetaAriaLabel`→`metaAriaLabel`).
-- [ ] **4.5 (guard)** Extend guard: container keys (`media.count*`, `empty.*`, `noMatch*`,
-  `libraryAriaLabel`, `metaAriaLabel`, `searchLabel`) ∉ `/image|imagen/i`; renamed keys present,
-  old key names absent.
+- [x] **4.1** `en.ts` + `es.ts` — upload widget → **file** (dropzone/chooseFile/fileInput); renamed
+  `chooseImage`→`chooseFile`, `chooseImageAriaLabel`→`chooseFileAriaLabel`.
+- [x] **4.2** `en.ts` + `es.ts` — grid → **asset** (search/empty/noMatch/count/deleteFailedMessage);
+  renamed `imageLibraryAriaLabel`→`libraryAriaLabel`, `imageMetaAriaLabel`→`metaAriaLabel`.
+- [x] **4.3** `media.lead` reworded (names categories, no format list); `replaceSuccessMessage`
+  softened (dropped "Variants regenerating" / masculine ES).
+- [x] **4.4** Call sites updated in `client/media.ts` and `media.astro`; no orphan stale keys.
+- [x] **4.5 (guard)** Guard extended: container keys ∉ `/image|imagen/i` (media.lead excluded — it
+  names categories); renamed keys present, old names absent. Full suite green (1261/1261).
 - **Verify:** guard + parity green; `npm run typecheck`; `npm run check`.
 
 ## Slice 5 — README reframe · `docs`

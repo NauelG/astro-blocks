@@ -113,3 +113,51 @@ test('file-field keys exist in every catalog', () => {
     }
   }
 });
+
+// ─── 4. Media library container surfaces ────────────────────────────────────
+
+test('media library container keys do not say "image"', () => {
+  // media.lead is excluded: it legitimately enumerates "images" as one of the
+  // supported categories (images, video, audio, documents), which is not the
+  // "calls a video an image" mistake this guard protects against.
+  const containerKeys = [
+    'media.dropzoneLabel',
+    'media.dropzoneAriaLabel',
+    'media.chooseFile',
+    'media.chooseFileAriaLabel',
+    'media.fileInputAriaLabel',
+    'media.searchLabel',
+    'media.searchAriaLabel',
+    'media.libraryAriaLabel',
+    'media.metaAriaLabel',
+    'media.empty.title',
+    'media.empty.text',
+    'media.noMatchTitle',
+    'media.countOf',
+    'media.count',
+    'media.countPlural',
+    'media.deleteFailedMessage',
+  ];
+  for (const locale of LOCALES) {
+    for (const key of containerKeys) {
+      const value = catalogs[locale][key];
+      assert.ok(value, `${locale} missing ${key}`);
+      assert.ok(!IMAGE_WORD.test(value), `${locale} ${key} still says image: "${value}"`);
+    }
+  }
+});
+
+test('renamed media keys replaced their image-named originals', () => {
+  const renamed = {
+    'media.libraryAriaLabel': 'media.imageLibraryAriaLabel',
+    'media.metaAriaLabel': 'media.imageMetaAriaLabel',
+    'media.chooseFile': 'media.chooseImage',
+    'media.chooseFileAriaLabel': 'media.chooseImageAriaLabel',
+  };
+  for (const locale of LOCALES) {
+    for (const [newKey, oldKey] of Object.entries(renamed)) {
+      assert.ok(catalogs[locale][newKey], `${locale} missing ${newKey}`);
+      assert.ok(!(oldKey in catalogs[locale]), `${locale} still has old key ${oldKey}`);
+    }
+  }
+});
