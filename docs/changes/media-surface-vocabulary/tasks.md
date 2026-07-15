@@ -71,9 +71,9 @@ Legend: `[ ]` todo · `[x]` done.
 
 ## Slice 6 — Green board (closing verification, not a commit of its own)
 
-- [ ] **6.1** `npm run typecheck` · `npm test` · `npm run check` all green.
-- [ ] **6.2** Confirm no incidental diffs in `playgrounds/`, `data/`, `src/img/*`.
-- [ ] **6.3** Confirm `src/meta/features.json` needs **no** change (no new feature; copy/i18n only).
+- [x] **6.1** `npm run typecheck` OK · `npm test` 1261/1261 · `npm run check` 0 errors.
+- [x] **6.2** No incidental diffs in `playgrounds/`, `data/`, `src/img/*`.
+- [x] **6.3** `src/meta/features.json` untouched (no new feature; copy/i18n only).
 
 ---
 
