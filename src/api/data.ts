@@ -642,8 +642,22 @@ export async function updateMediaEntryAlt(id: string, alt: string): Promise<Medi
   });
 }
 
-export async function saveMedia(data: MediaData): Promise<void> {
+// Raw, UNLOCKED whole-registry write. Module-private on purpose: it must only be
+// called from inside an already-held withFileLock(mediaLockKey()) — every media
+// mutation in this module does exactly that. External callers that need a wholesale write
+// (restore/import, test fixtures) must use the locked replaceMedia seam instead,
+// so no caller can bypass the media mutex by forgetting to lock (ADR-0008, #100).
+async function saveMedia(data: MediaData): Promise<void> {
   await writeJson(getDataPath('media.json'), data);
+}
+
+// Locked whole-registry replace: the wholesale counterpart to the surgical
+// append/remove/update mutations. Serializes against every other media writer
+// through the shared media mutex, so a concurrent append cannot lose this write.
+export async function replaceMedia(data: MediaData): Promise<void> {
+  await withFileLock(mediaLockKey(), async () => {
+    await saveMedia(data);
+  });
 }
 
 // All media mutations share ONE lock keyed by the resolved media.json path so

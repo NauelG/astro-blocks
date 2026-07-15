@@ -13,7 +13,7 @@ import {
   saveUsers,
   ensureDefaultFiles,
   loadMedia,
-  saveMedia,
+  replaceMedia,
   appendMediaEntry,
   generateId,
 } from '../dist/api/data.js';
@@ -130,7 +130,7 @@ test('T14-07: GET /cms/api/media prunes registry entries whose files are missing
         },
       ],
     };
-    await saveMedia(existingMedia);
+    await replaceMedia(existingMedia);
 
     const token = await makeAuthToken();
     const req = new Request('http://localhost/cms/api/media', {
@@ -169,7 +169,7 @@ test('T-15: loadMedia — old entry without alt/width/height loads cleanly (SC-3
       createdAt: now,
       // no alt, no width, no height
     };
-    await saveMedia({ uploads: [oldEntry] });
+    await replaceMedia({ uploads: [oldEntry] });
 
     const media = await loadMedia();
     assert.equal(media.uploads.length, 1, 'old entry should not be dropped');
@@ -187,7 +187,7 @@ test('FIX-C: loadMedia drops a stored width:0 / height:0 (must match projection 
   await withTempProject(async () => {
     const now = new Date().toISOString();
     // Write malformed-but-tolerated entries directly to disk
-    await saveMedia({
+    await replaceMedia({
       uploads: [
         {
           id: 'zero-w',
@@ -261,7 +261,7 @@ test('T-16: loadMedia — new entry with alt/width/height loads cleanly (SC-3.2)
       width: 1024,
       height: 768,
     };
-    await saveMedia({ uploads: [newEntry] });
+    await replaceMedia({ uploads: [newEntry] });
 
     const media = await loadMedia();
     assert.equal(media.uploads.length, 1, 'new entry should load cleanly');
@@ -308,7 +308,7 @@ test('ML-R1-default: default params — 30 entries returns page:1, limit:24, tot
       const entry = await createRealEntry(tempRoot, subdir, filename);
       entries.push(entry);
     }
-    await saveMedia({ uploads: entries });
+    await replaceMedia({ uploads: entries });
 
     const token = await makeAuthToken();
     const req = new Request('http://localhost/cms/api/media', {
@@ -333,7 +333,7 @@ test('ML-R1-limit-clamp-low: limit=0 clamped to 1', async () => {
       const entry = await createRealEntry(tempRoot, '2026/06', `file-${i}.jpg`);
       entries.push(entry);
     }
-    await saveMedia({ uploads: entries });
+    await replaceMedia({ uploads: entries });
 
     const token = await makeAuthToken();
     const req = new Request('http://localhost/cms/api/media?limit=0', {
@@ -356,7 +356,7 @@ test('ML-R1-limit-clamp-high: limit=500 clamped to 100', async () => {
       const entry = await createRealEntry(tempRoot, '2026/06', `file-${i}.jpg`);
       entries.push(entry);
     }
-    await saveMedia({ uploads: entries });
+    await replaceMedia({ uploads: entries });
 
     const token = await makeAuthToken();
     const req = new Request('http://localhost/cms/api/media?limit=500', {
@@ -378,7 +378,7 @@ test('ML-R1-nan-defaults: NaN page and limit → defaults applied', async () => 
       const entry = await createRealEntry(tempRoot, '2026/06', `file-${i}.jpg`);
       entries.push(entry);
     }
-    await saveMedia({ uploads: entries });
+    await replaceMedia({ uploads: entries });
 
     const token = await makeAuthToken();
     const req = new Request('http://localhost/cms/api/media?page=abc&limit=xyz', {
@@ -399,7 +399,7 @@ test('ML-R4-filter-ci: q=banner matches both banner entries case-insensitively',
     const heroBanner = await createRealEntry(tempRoot, subdir, 'hero-Banner.jpg');
     const bannerSmall = await createRealEntry(tempRoot, subdir, 'banner-small.png', 'image/png');
     const profile = await createRealEntry(tempRoot, subdir, 'profile.jpg');
-    await saveMedia({ uploads: [heroBanner, bannerSmall, profile] });
+    await replaceMedia({ uploads: [heroBanner, bannerSmall, profile] });
 
     const token = await makeAuthToken();
     const req = new Request('http://localhost/cms/api/media?q=banner', {
@@ -425,7 +425,7 @@ test('ML-R4-empty-q: q= (empty string) returns all entries', async () => {
       const entry = await createRealEntry(tempRoot, '2026/06', `img-${i}.jpg`);
       entries.push(entry);
     }
-    await saveMedia({ uploads: entries });
+    await replaceMedia({ uploads: entries });
 
     const token = await makeAuthToken();
     const req = new Request('http://localhost/cms/api/media?q=', {
@@ -442,7 +442,7 @@ test('ML-R4-empty-q: q= (empty string) returns all entries', async () => {
 test('ML-R4-zero-matches: q=xyz returns empty uploads and total:0', async () => {
   await withTempProject(async (tempRoot) => {
     const entry = await createRealEntry(tempRoot, '2026/06', 'photo.jpg');
-    await saveMedia({ uploads: [entry] });
+    await replaceMedia({ uploads: [entry] });
 
     const token = await makeAuthToken();
     const req = new Request('http://localhost/cms/api/media?q=xyz', {
@@ -465,7 +465,7 @@ test('ML-R5-out-of-range-page: page beyond last returns empty uploads + correct 
       const entry = await createRealEntry(tempRoot, '2026/06', `file-${i}.jpg`);
       entries.push(entry);
     }
-    await saveMedia({ uploads: entries });
+    await replaceMedia({ uploads: entries });
 
     const token = await makeAuthToken();
     const req = new Request('http://localhost/cms/api/media?page=5&limit=5', {
@@ -552,7 +552,7 @@ test('ML-R2-pipeline-order: orphan entries excluded before filter+count', async 
     // Add a non-matching real entry
     const nonMatchEntry = await createRealEntry(tempRoot, subdir, 'landscape.jpg');
 
-    await saveMedia({ uploads: [...realEntries, ...orphanEntries, nonMatchEntry] });
+    await replaceMedia({ uploads: [...realEntries, ...orphanEntries, nonMatchEntry] });
 
     const token = await makeAuthToken();
     const req = new Request('http://localhost/cms/api/media?q=photo', {
@@ -602,7 +602,7 @@ test('P4-reconcile-count-slice: missing-file entry excluded from total AND from 
       mimeType: 'image/jpeg',
       createdAt: new Date(base + 99 * 1000).toISOString(), // newest
     };
-    await saveMedia({ uploads: [...real, orphan] });
+    await replaceMedia({ uploads: [...real, orphan] });
 
     const token = await makeAuthToken();
     // limit=2 so the slice is a strict subset — proves reconcile ran before slice
@@ -640,7 +640,7 @@ test('P4-q-filters-reconciled-set: q filters AFTER reconcile (orphan match exclu
     };
     // plus a non-matching real entry
     const other = await createRealEntry(tempRoot, subdir, 'banner.jpg');
-    await saveMedia({ uploads: [realA, realB, orphanLogo, other] });
+    await replaceMedia({ uploads: [realA, realB, orphanLogo, other] });
 
     const token = await makeAuthToken();
     const req = new Request('http://localhost/cms/api/media?q=logo', {
