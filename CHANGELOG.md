@@ -9,6 +9,33 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.7.0] - 2026-07-15
+
+### Title
+
+Sessions can finally be revoked
+
+### Added
+
+- **Session revocation via `tokenVersion`.** Each user record carries a session generation that the
+  JWT echoes; bumping it invalidates every live token for that user. A **password change** now signs
+  the user out everywhere. (ADR-0027, #124)
+
+### Changed
+
+- **Authentication is now stateful.** `getAuth` re-loads the user from the store on every request
+  and treats it as the single source of truth for identity. The JWT carries only `sub` +
+  `tokenVersion`; `email` and `role` are read fresh, so a stale claim can no longer drive an
+  authorization decision.
+- **Every active session is invalidated on upgrade.** Tokens issued before this release carry no
+  `tokenVersion` claim and are rejected — all users must log in again once. There is no migration.
+
+### Security
+
+- **Fixed a fail-open authorization hole (#124).** A deleted or demoted user previously kept full
+  API access until their token expired (up to 7 days), and a stale `role: 'owner'` claim still
+  passed the owner gate. Deletion and demotion now take effect on the next request.
+
 ## [3.6.4] - 2026-07-15
 
 ### Title
