@@ -63,11 +63,11 @@ Legend: `[ ]` todo · `[x]` done.
 
 ## Slice 5 — README reframe · `docs`
 
-- [ ] **5.1** `README.md`: `### Media & Responsive Images` → `### Media` with an "any file" opening;
-  `#### Responsive images (BlockImage)` and `#### File props (non-image)` as peer subsections; update
-  the non-image section to name video + audio.
-- [ ] **5.2** `README.md:39` feature bullet and `:77` feature table cell updated (video/audio/docs).
-- **Verify:** manual read; `README` renders; no version badge / feature-table structural breakage.
+- [x] **5.1** `README.md`: `### Media & Responsive Images` → `### Media` with an "any file" opening;
+  `#### Responsive images (<BlockImage>)` and `#### File props (non-image)` as peer subsections.
+- [x] **5.2** `:39` feature bullet and `:77` feature table cell updated (video/audio/docs). Fixed the
+  now-broken in-page anchor at `:351` (`#file-uploads--non-image` → `#file-props-non-image`).
+- **Verify:** manual read done; heading hierarchy `### Media` › `#### …`; no stale anchors.
 
 ## Slice 6 — Green board (closing verification, not a commit of its own)
 
