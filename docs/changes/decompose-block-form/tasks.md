@@ -59,11 +59,11 @@ subdirectories — confirmed at plan time) · coverage script still passes if ru
 
 ## Slice 3 — `field-dom-sync`
 
-- [ ] **3.1** Create `src/routes/admin/client/block-form/field-dom-sync.ts` — move
+- [x] **3.1** Create `src/routes/admin/client/block-form/field-dom-sync.ts` — move
   `updateImageFieldDom`, `updateFileFieldDom`, `seedAltInput`, `seedCaptionInput`. Imports:
   `imageFilenameFromUrl`, `imagePickerIconSvg` from `./field-helpers.js`; value helpers/escapers per
   the moved code. Export the four functions.
-- [ ] **3.2** `block-form.ts` — delete moved code, import from `./block-form/field-dom-sync.js`.
+- [x] **3.2** `block-form.ts` — delete moved code, import from `./block-form/field-dom-sync.js`.
 
 **Verify:** `npm run typecheck` · `npm test`.
 
