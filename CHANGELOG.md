@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.7.3] - 2026-07-17
+
+### Title
+
+Upgraded installations can log in again
+
+### Fixed
+
+- **`tokenVersion` is normalized at the store boundary.** An installation upgraded to 3.7.0–3.7.2 whose users predate that release could not log in **at all**: those records carry no `tokenVersion`, so `createToken` signed `{ tokenVersion: undefined }`, `JSON.stringify` dropped the claim, and `getAuth` rejected the very token login had just issued — a `200` response carrying a dead token, with no useful error. `loadUsers`, the sole reader of `users.json`, now coerces every record's `tokenVersion` to a positive integer: absent (pre-3.7.0) and malformed values read as `1` instead of locking the account out permanently. The default lives in one place now, so no caller can forget it. Read-only — nothing is rewritten and no migration runs. (#124, ADR-0027)
+
 ## [3.7.2] - 2026-07-15
 
 ### Title
