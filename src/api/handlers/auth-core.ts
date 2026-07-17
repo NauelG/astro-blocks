@@ -154,7 +154,7 @@ export async function getAuth(request: Request): Promise<AuthResult | null> {
     const { users } = await loadUsers();
     const user = users.find((candidate) => candidate.id === id);
     if (!user) return null; // deleted user
-    if ((user.tokenVersion ?? 1) !== tokenVersion) return null; // revoked session
+    if (user.tokenVersion !== tokenVersion) return null; // revoked session
 
     return { user: { id: user.id, email: user.email, role: user.role } };
   } catch {

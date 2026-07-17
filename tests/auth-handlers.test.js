@@ -354,6 +354,77 @@ test('getAuth: legacy record without a tokenVersion field defaults to 1 and pass
   });
 });
 
+// ─── tokenVersion normalization at the store boundary ─────────────────────────
+//
+// The tests above forge their tokens with SignJWT, which skips createToken — the one reader of
+// user.tokenVersion that never defaulted the field. These cross handleLogin -> createToken ->
+// getAuth for real, which is the only way the lockout is visible.
+
+test('handleLogin: a legacy record without tokenVersion yields a token getAuth accepts', async () => {
+  await withTempProject(async () => {
+    await loginOwner(); // bootstrap, so the record carries a real passwordHash
+
+    // A record persisted before ADR-0027 existed.
+    const stored = await loadUsers();
+    delete stored.users[0].tokenVersion;
+    await saveUsers(stored);
+
+    const { token } = await loginOwner();
+    const result = await getAuth(authRequest(token));
+
+    assert.ok(result, 'a legacy record must authenticate through the real login path');
+    assert.equal(result.user.role, 'owner');
+  });
+});
+
+test('handleLogin: a record with a malformed tokenVersion yields a token getAuth accepts', async () => {
+  await withTempProject(async () => {
+    await loginOwner();
+
+    // A hand-edited file or a restored archive: the store casts JSON without validating.
+    const stored = await loadUsers();
+    stored.users[0].tokenVersion = '3';
+    await saveUsers(stored);
+
+    const { token } = await loginOwner();
+    const result = await getAuth(authRequest(token));
+
+    assert.ok(result, 'a malformed generation must read as 1, not lock the user out forever');
+    assert.equal(result.user.role, 'owner');
+  });
+});
+
+test('loadUsers: normalizes absent and malformed tokenVersion to 1', async () => {
+  await withTempProject(async () => {
+    // NaN does not survive JSON.stringify (it serializes to null). Both land on the invalid
+    // branch, so the assertion is about the intent, not the on-disk form.
+    const cases = [
+      { name: 'absent', stored: undefined, expected: 1 },
+      { name: 'string', stored: '3', expected: 1 },
+      { name: 'NaN', stored: NaN, expected: 1 },
+      { name: 'zero', stored: 0, expected: 1 },
+      { name: 'negative', stored: -5, expected: 1 },
+      { name: 'fractional', stored: 1.5, expected: 1 },
+      { name: 'valid', stored: 3, expected: 3 },
+    ];
+
+    for (const { name, stored, expected } of cases) {
+      const record = {
+        id: 'u1',
+        email: 'u1@example.com',
+        passwordHash: 'c2FsdA==:aGFzaA==',
+        role: 'owner',
+        createdAt: new Date().toISOString(),
+      };
+      if (stored !== undefined) record.tokenVersion = stored;
+      await saveUsers({ users: [record] });
+
+      const { users } = await loadUsers();
+      assert.equal(users[0].tokenVersion, expected, `${name} must read as ${expected}`);
+    }
+  });
+});
+
 // ─── handleAuthStatus ─────────────────────────────────────────────────────────
 
 test('handleAuthStatus: returns hasUsers=false on fresh project', async () => {

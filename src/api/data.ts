@@ -400,9 +400,27 @@ export async function saveLanguages(languagesData: LanguagesData): Promise<void>
   await writeJson(getDataPath('languages.json'), normalizeLanguages(languagesData));
 }
 
+/**
+ * A session generation is a positive integer (ADR-0027, #124). Anything else on disk reads as 1:
+ * absent (a record written before the field existed), or malformed — readJson casts without
+ * validating, and restore writes an uploaded archive straight through. Coerce rather than pass
+ * through: getAuth compares the claim strictly, so a malformed value that survived this boundary
+ * would match no token at all and lock the user out permanently ('3' !== 3, NaN !== NaN).
+ */
+function normalizeTokenVersion(value: unknown): number {
+  return Number.isInteger(value) && (value as number) >= 1 ? (value as number) : 1;
+}
+
 export async function loadUsers(): Promise<UsersData> {
   const data = await readJson(getDataPath('users.json'), DEFAULT_USERS);
-  return Array.isArray(data.users) ? data : { ...DEFAULT_USERS, users: data.users ?? [] };
+  const users = Array.isArray(data.users) ? data.users : [];
+  return {
+    ...data,
+    users: users.map((user) => ({
+      ...user,
+      tokenVersion: normalizeTokenVersion(user.tokenVersion),
+    })),
+  };
 }
 
 export async function saveUsers(usersData: UsersData): Promise<void> {

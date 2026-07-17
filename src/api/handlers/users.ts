@@ -88,7 +88,7 @@ export async function handlePutUser(
       ...current,
       passwordHash: await hashPassword(body.password),
       // A password change revokes every live session for this user (ADR-0027, #124).
-      tokenVersion: (current.tokenVersion ?? 1) + 1,
+      tokenVersion: current.tokenVersion + 1,
     };
   }
 
