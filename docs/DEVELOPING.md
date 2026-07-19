@@ -142,8 +142,8 @@ npx playwright install chromium
 
 ## Astro Cache Notes
 
-- AstroBlocks does not configure `experimental.cache.provider` automatically.
-- The consumer project must opt into Astro's experimental cache provider explicitly.
+- AstroBlocks does not configure `cache.provider` automatically.
+- The consumer project must configure Astro's route cache provider explicitly. Route caching graduated out of `experimental` in Astro 7 — the config is top-level `cache`, not `experimental.cache` (ADR-0029).
 - In development, Astro exposes `context.cache` but performs no real caching, so validate invalidation behavior in a built app.
 
 ## Tarball Validation
