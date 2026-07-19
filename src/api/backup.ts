@@ -643,7 +643,11 @@ export async function applyImport(
         }
         case 'users': {
           const raw = await fs.readFile(path.join(stagingDir, 'data', 'users.json'), 'utf-8');
-          await data.saveUsers(JSON.parse(raw));
+          // Not saveUsers: restore is a session-revocation event (ADR-0028, #134). Writing the
+          // archive's session generations through would rewind tokenVersion and re-arm every token
+          // minted at them. restoreUsers re-generates the whole list above both sides' high-water
+          // mark; it requires the users lock, which _runImportPipelineCore holds for this run.
+          await data.restoreUsers(JSON.parse(raw));
           break;
         }
         case 'media': {
@@ -906,9 +910,20 @@ async function _runImportPipelineCore(
   // synchronously, at handleBootstrapImport's call site. Verified in the
   // apply phase's T0 risk check — see design doc D1/D3.
   //
-  // Non-bootstrap imports (bootstrapMode falsy) never acquire the users
-  // lock, so authenticated imports keep their existing latency profile.
-  return opts.bootstrapMode ? data.withUsersLock(run) : run();
+  // The lock is taken for any run that can WRITE users.json (ADR-0028):
+  // bootstrap always does; an explicit selection does when it names the
+  // unit; and a selection still to be read from the manifest is assumed
+  // to. restoreUsers is a read-modify-write, so this is what keeps a
+  // concurrent password change from being lost or overwritten.
+  //
+  // The condition reads synchronously from opts for exactly the reason
+  // above — introducing an await to resolve selectedUnits here would break
+  // the invariant. Runs that cannot touch users.json (a media-only import)
+  // still skip the lock and keep their existing latency profile, rather
+  // than freezing every login for the duration.
+  const touchesUsers =
+    opts.bootstrapMode || !opts.selectedUnits || opts.selectedUnits.includes('users');
+  return touchesUsers ? data.withUsersLock(run) : run();
 }
 
 /**
@@ -925,7 +940,12 @@ export async function _rollbackFromSnapshot(
   const snapshotDataDir = path.join(snapshotDir, 'data');
   const liveDataDir = path.join(projectRoot, 'data');
 
-  // Restore data files
+  // Restore data files.
+  //
+  // users.json is copied RAW here, deliberately bypassing data.restoreUsers (ADR-0028) — do not
+  // "fix" this asymmetry on a refactor. A rollback is not a restore: the snapshot is the PRE-apply
+  // state, so putting it back resurrects nothing, it returns the store to where it already was.
+  // Re-generating tokenVersion here would sign every user out because an import FAILED.
   let snapshotFiles: string[];
   try {
     snapshotFiles = await fs.readdir(snapshotDataDir);
