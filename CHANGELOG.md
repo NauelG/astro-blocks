@@ -9,6 +9,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [3.8.0] - 2026-07-19
+
+### Title
+
+Restoring a backup no longer revives revoked sessions
+
+### Fixed
+
+- **A restore can no longer rewind `tokenVersion`.** Restoring a backup replaced `users.json` wholesale, so the archive's session generations overwrote the store's and the counter moved **backwards**. Every token minted at those generations was re-armed for the rest of its 7-day lifetime — including one a password change had already revoked: change a compromised password, restore a backup taken before it, and the stolen token works again. The password rollback is visible and is what "restore" means; the session resurrection is not. Restored records are now written at one generation **above the high-water mark** of the current store and the archive combined, so no pre-restore token can match — including one held by a user deleted after the backup and resurrected by it, whom a per-record comparison cannot reach. (#134, ADR-0028)
+- **The restore write is serialized.** The authenticated import path held no lock while replacing `users.json`. It now acquires the users lock for any run that can write the file; imports that cannot touch users keep their previous latency. (#134)
+
+### Changed
+
+- **Restoring the `users` unit now signs every user out.** Restore is treated as a session-revocation event rather than a data operation, so every session on the instance ends — every time, including when nothing was compromised. This is deliberate: one rule that cannot be subtly wrong, over a narrower rule that leaves a resurrected account's old tokens valid. The administrator performing the restore was already returned to the login screen; other users now are too. (ADR-0028)
+
 ## [3.7.3] - 2026-07-17
 
 ### Title
