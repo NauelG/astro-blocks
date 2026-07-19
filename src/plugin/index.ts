@@ -524,8 +524,11 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
 
         const resolveCms = (file: string): string => path.join(cmsDir, 'routes', file);
         const vite = config.vite || {};
-        const cacheProvider = (config as { experimental?: { cache?: { provider?: unknown } } })
-          .experimental?.cache?.provider;
+        // Route caching graduated out of experimental in Astro 7: experimental.cache became
+        // top-level cache. peerDependencies is ^7.0.0, so the old shape is unreachable for a
+        // supported consumer — no `??` fallback, which would only be a dead branch that looks
+        // like support (AGENTS.md Compatibilidad, ADR-0029).
+        const cacheProvider = (config as { cache?: { provider?: unknown } }).cache?.provider;
 
         vite.resolve = vite.resolve || {};
         vite.resolve.preserveSymlinks = true;
@@ -629,7 +632,7 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
           !cacheProvider
         ) {
           console.warn(
-            '[astro-blocks] publicRendering="server" with cache enabled requires Astro experimental.cache.provider. Falling back to SSR without active caching until the consumer configures a provider.',
+            '[astro-blocks] publicRendering="server" with cache enabled requires Astro cache.provider. Falling back to SSR without active caching until the consumer configures a provider.',
           );
         }
 

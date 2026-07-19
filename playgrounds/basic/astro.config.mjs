@@ -16,10 +16,8 @@ export default defineConfig({
   // e2e browser-coverage bridge can map bundled admin JS back to its .ts source.
   // Off by default — keeps the normal demo build clean.
   vite: { build: { sourcemap: process.env.COVERAGE === 'true' } },
-  experimental: {
-    cache: {
-      provider: memoryCache(),
-    },
+  cache: {
+    provider: memoryCache(),
   },
   integrations: [
     astroBlocks({

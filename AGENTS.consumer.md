@@ -24,11 +24,13 @@ It is auto-versioned with the installed package. When the package is upgraded, r
 
 ### Node.js version requirement
 
-Node.js >= 18.0.0 is required (the package uses ESM and native async APIs).
+Node.js >= 22.12.0 is required. This floor is copied from Astro 7's own `engines` — Astro 7 refuses to start on Node 22.0–22.11, so declaring anything lower would be a guarantee the package cannot honour.
 
 ### Required Astro version (peerDependency)
 
-Astro 6.0 or higher is required. The integration registers Astro hooks via `astro:config:setup`.
+Astro 7.0 or higher is required (`peerDependencies: astro ^7.0.0`). The integration registers Astro hooks via `astro:config:setup`. Exactly one Astro major is supported at a time — there is no compatibility branch for Astro 6, so AstroBlocks 3.x is the last line that supports it (ADR-0029).
+
+Route caching is configured by **you**, at top-level `cache.provider`; it moved out of `experimental` when Astro 7 graduated the feature. AstroBlocks reads that value only to warn when `publicRendering: "server"` is combined with caching enabled and no provider — it never installs one.
 
 ### Required Astro adapter (SSR mode)
 
