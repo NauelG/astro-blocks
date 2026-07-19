@@ -149,6 +149,14 @@ Clases base del sistema:
   - primera columna → solo editar
   - última columna → solo eliminar
 - **Iconos:** Pencil y Trash2 de `@lucide/astro`; mantener tamaño y grosor consistentes.
+- **Separación icono ↔ etiqueta:** cualquier fila que combine icono y texto (enlace de nav, botón,
+  label de checkbox) **declara su propia separación** — `display: flex | inline-flex`,
+  `align-items: center` y un `gap` con token `--cms-space-*`. **Nunca** se apoya en el espacio en
+  blanco entre los dos elementos de la plantilla: Astro comprime el HTML con reglas JSX
+  (`compressHTML: 'jsx'`, por defecto desde Astro 7) y lo elimina, dejando el icono pegado al texto.
+  Un `gap` sin `display: flex` es una declaración muerta, y `.cms-field label` (0,1,1) gana a una
+  clase suelta (0,1,0) — comprueba el `getComputedStyle` real, no que la propiedad esté escrita.
+  (#55, corregido en `2b52f59`.)
 - **Celdas técnicas:** usar `.cms-table-cell-monospace` para slugs o valores similares.
 - **Indicador indexable:** usar `.cms-indexable-dot`.
 - **Densidad:** la tabla compacta es la referencia. Si en el futuro se quiere soportar una variante más cómoda, debe hacerse como extensión explícita (por ejemplo, clase de densidad), manteniendo la compacta como default.
