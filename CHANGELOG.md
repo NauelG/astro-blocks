@@ -9,6 +9,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.0.0] - 2026-07-19
+
+### Title
+
+Astro 7 and Node 22.12 are now required
+
+### Changed
+
+- **Node.js 22.12 or newer is now required** (was 18). This will break more installs than anything else in this release. The floor is copied from Astro 7's own `engines` rather than rounded down: Astro 7 refuses to start on Node 22.0–22.11, so declaring anything lower would be a guarantee the package cannot honour.
+- **Astro 7 is now required** — `peerDependencies` is `astro ^7.0.0`. Exactly one Astro major is supported at a time and there is no compatibility branch for Astro 6, so the `3.x` line is the last that supports it. AstroBlocks versions its own contract: the major tracks **our** breaking changes, not Astro's, so the numbers do not line up and are not meant to. The README carries a compatibility table, and `peerDependencies` remains the authoritative, machine-checked statement. (ADR-0029)
+- **Route caching moved out of `experimental`.** Astro 7 graduated the feature, so consumers must change `experimental.cache` to top-level `cache` (and `experimental.routeRules` to `routeRules`). Nothing else about the API changed, and `memoryCache()` still ships. AstroBlocks reads the provider only to warn when `publicRendering: "server"` is combined with caching enabled and no provider configured — it still never installs one.
+
+### Fixed
+
+- **Admin icon and label spacing no longer depends on HTML whitespace.** Astro 7 compresses HTML with JSX rules, which strips the whitespace between inline elements. The sidebar navigation and the import/export checkboxes were using that whitespace as their only spacing, so icons and labels rendered glued together. Both now declare an explicit flex gap, verified by measuring every admin element's geometry under both compression settings: 142 elements whose position depended on whitespace, now zero. (#55)
+
+### Upgrading
+
+Beyond raising Astro and Node and moving the `cache` config, expect **Astro 7 to reject invalid HTML in your own templates**. It replaces the Go compiler with a Rust one that validates markup strictly, so a literal `<` in body text — `<p>Tags (array<string>)</p>` — now fails the build as an unclosed tag. That is your markup to fix, not an AstroBlocks regression. See the README's *Upgrading from 3.x to 4.x* section and Astro's [v7 upgrade guide](https://docs.astro.build/en/guides/upgrade-to/v7/).
+
 ## [3.8.0] - 2026-07-19
 
 ### Title
