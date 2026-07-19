@@ -19,8 +19,8 @@ Licensed under the Business Source License 1.1
   <a href="https://www.npmjs.com/package/@astroblocks/astro-blocks"><img src="https://img.shields.io/npm/v/%40astroblocks%2Fastro-blocks?logo=npm" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/@astroblocks/astro-blocks"><img src="https://img.shields.io/npm/dm/%40astroblocks%2Fastro-blocks?logo=npm" alt="npm downloads" /></a>
   <img src="https://img.shields.io/badge/status-stable-brightgreen" alt="stable" />
-  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js" alt="Node 18+" /></a>
-  <a href="https://astro.build"><img src="https://img.shields.io/badge/Astro-6+-FF5D01?logo=astro" alt="Astro 6+" /></a>
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D22.12-339933?logo=node.js" alt="Node 22.12+" /></a>
+  <a href="https://astro.build"><img src="https://img.shields.io/badge/Astro-7+-FF5D01?logo=astro" alt="Astro 7+" /></a>
 </p>
 
 ---
@@ -77,7 +77,7 @@ A snapshot of what AstroBlocks provides, grouped by area. Full behavior for each
 | **Media** | Media library with search and metadata; automatic responsive WebP/AVIF variants via `<BlockImage>`; per-asset and per-usage alt text; captions; where-used and in-place replace; video, audio, PDF and document uploads. |
 | **Auth** | Session-based (JWT) CMS authentication with owner and user roles. |
 | **i18n** | Content languages and default locale; admin UI in English or Spanish. |
-| **Performance** | Astro experimental cache invalidation from content updates and manual panel actions. |
+| **Performance** | Astro route-cache invalidation from content updates and manual panel actions. |
 
 > **Maturity note.** The feature set is pre-1.0 and tracked as **alpha** in the [features manifest](./src/meta/features.json) (cache invalidation is marked experimental). The API surface can still change between minor versions. The version badge above reflects the current published npm release channel; see [Versioning & Support](#versioning--support).
 
@@ -112,12 +112,42 @@ A snapshot of what AstroBlocks provides, grouped by area. Full behavior for each
 
 | Dependency | Version | Notes |
 | --- | --- | --- |
-| Node.js | 18+ | ESM and native async APIs |
-| Astro | 6+ | Registered via `astro:config:setup` (peer dependency `astro ^6.0.0`) |
+| Node.js | 22.12+ | Required by Astro 7 — copied from its `engines`, not chosen |
+| Astro | 7+ | Registered via `astro:config:setup` (peer dependency `astro ^7.0.0`) |
 | SSR adapter | any | Required for the `/cms` admin, its API, and SSR public pages |
-| `@astrojs/node` | 10+ (standalone) | Supported target for **responsive image variant generation** |
+| `@astrojs/node` | 11+ (standalone) | Supported target for **responsive image variant generation** |
 
 AstroBlocks runs in **SSR mode by default** (`publicRendering: 'server'`). The `/cms` admin, `/cms/api`, `/robots.txt`, `/sitemap-index.xml` and CMS-managed public pages all require a server adapter. You may set `publicRendering: 'static'` to prerender the public pages, but the **admin routes still require SSR**. See [Deployment](#deployment) for adapter and serverless caveats.
+
+### Version compatibility
+
+AstroBlocks versions its own contract — the major tracks **our** breaking changes, not Astro's, so the numbers do not line up and are not meant to. `peerDependencies` is the authoritative statement, and npm enforces it; this table is the human-readable form.
+
+| AstroBlocks | Astro | Node | `@astrojs/node` |
+| --- | --- | --- | --- |
+| `4.x` | 7.x | ≥ 22.12 | 11+ |
+| `3.x` | 6.x | ≥ 18 | 10+ |
+
+### Upgrading from 3.x to 4.x
+
+1. **Upgrade Astro to 7 and Node to 22.12+.** Both are hard requirements; npm will refuse the install otherwise.
+2. **Move `cache` (and `routeRules`, if you use it) out of `experimental`.** Astro 7 graduated route caching, so the flag is gone and the config is top-level. Nothing else about the API changed:
+
+   ```diff
+   -experimental: {
+   -  cache: { provider: memoryCache() },
+   -}
+   +cache: { provider: memoryCache() }
+   ```
+
+3. **Expect Astro 7 to reject invalid HTML in your own templates.** Astro 7 replaces the Go compiler with a Rust one that validates markup strictly, so `.astro` files that built fine on Astro 6 may now fail. The most common case is a literal `<` in body text being read as an unclosed tag:
+
+   ```diff
+   -<p>Tags (array<string>)</p>
+   +<p>Tags (array&lt;string&gt;)</p>
+   ```
+
+   This is your markup to fix, not an AstroBlocks regression — the compiler is simply reporting what was always invalid. See Astro's [v7 upgrade guide](https://docs.astro.build/en/guides/upgrade-to/v7/).
 
 ## Installation
 
@@ -169,10 +199,8 @@ import { schema as heroSchema } from './src/components/Hero.schema.ts';
 export default defineConfig({
   output: 'static',
   adapter: node({ mode: 'standalone' }),
-  experimental: {
-    cache: {
-      provider: memoryCache(),
-    },
+  cache: {
+    provider: memoryCache(),
   },
   integrations: [
     astroBlocks({
@@ -362,16 +390,14 @@ The `cache` sub-shape:
 
 ### Cache Provider
 
-AstroBlocks does **not** configure Astro's cache provider for you. The consumer project must opt into Astro's experimental cache explicitly:
+AstroBlocks does **not** configure Astro's cache provider for you. The consumer project must configure Astro's route cache explicitly:
 
 ```ts
 import { defineConfig, memoryCache } from 'astro/config';
 
 export default defineConfig({
-  experimental: {
-    cache: {
-      provider: memoryCache(),
-    },
+  cache: {
+    provider: memoryCache(),
   },
 });
 ```
@@ -570,7 +596,7 @@ i18n uses path prefixes (`path-prefix`, the only strategy in this version). For 
 
 ### Caching
 
-SSR public pages can be cached through Astro's experimental cache provider (which you configure — see [Cache Provider](#cache-provider)). Content updates and manual actions in `/cms/cache` invalidate the cache. In development, Astro exposes the cache API but does not cache real responses — validate cache behavior in a built or preview-like environment.
+SSR public pages can be cached through Astro's route cache provider (which you configure — see [Cache Provider](#cache-provider)). Content updates and manual actions in `/cms/cache` invalidate the cache. In development, Astro exposes the cache API but does not cache real responses — validate cache behavior in a built or preview-like environment.
 
 ## Data Model & CMS Routes
 
@@ -685,13 +711,13 @@ CMS-managed public pages are served in SSR by default. If changes do not appear:
 - make sure the page is `published`;
 - make sure your project uses the AstroBlocks catch-all route and not a conflicting file in `src/pages/`;
 - make sure your server adapter is configured correctly;
-- make sure Astro experimental cache is configured if you expect cache invalidation to work.
+- make sure Astro's route cache provider is configured if you expect cache invalidation to work.
 
 In development, Astro exposes the cache API but does not cache real responses — validate cache behavior in a built or preview-like environment.
 
 ### The CMS routes do not work
 
-Check all of these: you are using Astro 6+, you have a server adapter configured, `output: 'static'` is enabled with that adapter, and the integration is included in `astro.config.*`.
+Check all of these: you are using Astro 7+, you have a server adapter configured, `output: 'static'` is enabled with that adapter, and the integration is included in `astro.config.*`.
 
 ### My home page is not coming from the CMS
 

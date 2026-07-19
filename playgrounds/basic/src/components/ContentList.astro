@@ -23,7 +23,7 @@ const { heading = 'Arrays Demo', tags = [], faqs = [] } = Astro.props;
     <h2 style="margin: 0; font-size: 1.5rem; color: #111827;">{heading}</h2>
 
     <div style="margin-top: 1rem;">
-      <p style="margin: 0 0 0.5rem; font-size: 0.875rem; color: #4b5563;">Tags (array<string>)</p>
+      <p style="margin: 0 0 0.5rem; font-size: 0.875rem; color: #4b5563;">Tags (array&lt;string&gt;)</p>
       {tags.length > 0 ? (
         <ul style="margin: 0; padding-left: 1.25rem; color: #1f2937;">
           {tags.map((tag) => <li>{tag}</li>)}
@@ -34,7 +34,7 @@ const { heading = 'Arrays Demo', tags = [], faqs = [] } = Astro.props;
     </div>
 
     <div style="margin-top: 1.25rem;">
-      <p style="margin: 0 0 0.5rem; font-size: 0.875rem; color: #4b5563;">FAQs (array<object>)</p>
+      <p style="margin: 0 0 0.5rem; font-size: 0.875rem; color: #4b5563;">FAQs (array&lt;object&gt;)</p>
       {faqs.length > 0 ? (
         <div style="display: grid; gap: 0.75rem;">
           {faqs.map((item) => (
