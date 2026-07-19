@@ -403,7 +403,7 @@ export async function saveLanguages(languagesData: LanguagesData): Promise<void>
 /**
  * A session generation is a positive integer (ADR-0027, #124). Anything else on disk reads as 1:
  * absent (a record written before the field existed), or malformed — readJson casts without
- * validating, and restore writes an uploaded archive straight through. Coerce rather than pass
+ * validating, so a hand-edited file reaches this boundary unchecked. Coerce rather than pass
  * through: getAuth compares the claim strictly, so a malformed value that survived this boundary
  * would match no token at all and lock the user out permanently ('3' !== 3, NaN !== NaN).
  */
@@ -425,6 +425,39 @@ export async function loadUsers(): Promise<UsersData> {
 
 export async function saveUsers(usersData: UsersData): Promise<void> {
   await writeJson(getDataPath('users.json'), usersData);
+}
+
+/**
+ * Write a restored user list. Restore is a session-revocation event (ADR-0028, #134).
+ *
+ * A backup's users.json carries the session generations of the moment it was taken, so writing it
+ * through would move counters *backwards* and re-arm every token minted at those generations — the
+ * #124 fail-open class through another door. Every restored record therefore leaves at one
+ * generation above the high-water mark of the current store and the archive combined.
+ *
+ * A per-id max(current, restored) is NOT sufficient: a user deleted after the backup was taken has
+ * no current record to compare against, so every token they ever held would revive.
+ *
+ * The caller MUST hold withUsersLock — this is a read-modify-write against users.json. The lock is
+ * non-reentrant, so this function does not acquire it (same contract as saveUsers).
+ */
+export async function restoreUsers(restored: UsersData): Promise<void> {
+  const { users: current } = await loadUsers();
+  const incoming = Array.isArray(restored.users) ? restored.users : [];
+
+  // Normalize before comparing: max(3, '99') is meaningless, and loadUsers would read that '99'
+  // back as 1 anyway. The mark has to be computed over values the store can actually hold.
+  // reduce over a seed of 1, not Math.max(...array): the spread form returns -Infinity on an empty
+  // list (the bootstrap case) and risks a stack overflow on a large one.
+  const highWater = [...current, ...incoming].reduce(
+    (max, user) => Math.max(max, normalizeTokenVersion(user.tokenVersion)),
+    1,
+  );
+
+  await saveUsers({
+    ...restored,
+    users: incoming.map((user) => ({ ...user, tokenVersion: highWater + 1 })),
+  });
 }
 
 export async function loadGlobalBlocks(): Promise<GlobalBlocksData> {

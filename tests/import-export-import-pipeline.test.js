@@ -17,7 +17,16 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ensureDefaultFiles, loadPages, savePages } from '../dist/api/data.js';
+import { SignJWT } from 'jose';
+
+import {
+  ensureDefaultFiles,
+  loadPages,
+  loadUsers,
+  savePages,
+  saveUsers,
+  withUsersLock,
+} from '../dist/api/data.js';
 import {
   validateStagedImport,
   createBackupSnapshot,
@@ -27,7 +36,7 @@ import {
   runImportPipeline,
   _rollbackFromSnapshot,
 } from '../dist/api/backup.js';
-import { handleImport } from '../dist/api/handlers.js';
+import { getAuth, handleImport } from '../dist/api/handlers.js';
 import { DATA_SCHEMA_VERSION } from '../dist/api/schema-version.js';
 
 // ---------------------------------------------------------------------------
@@ -1352,5 +1361,204 @@ test('GAP-3: concurrent runImportPipeline calls serialize — live data is a com
       fromA || fromB,
       `live pages must all belong to one import, not an interleaved mix. Got ids: ${ids.join(', ')}`,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #134 / ADR-0028: restore is a session-revocation event
+// ---------------------------------------------------------------------------
+
+// The dev/test fallback signing secret (auth-core.ts INSECURE_JWT_FALLBACK).
+const FALLBACK_SECRET = new TextEncoder().encode('cms-jwt-secret-change-me');
+
+function seedUser(tokenVersion) {
+  return {
+    id: 'u1',
+    email: 'u1@example.com',
+    passwordHash: 'c2FsdA==:aGFzaA==',
+    role: 'owner',
+    tokenVersion,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+async function mintToken(id, tokenVersion) {
+  return new SignJWT({ tokenVersion })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject(id)
+    .setExpirationTime('7d')
+    .sign(FALLBACK_SECRET);
+}
+
+function tokenRequest(token) {
+  return new Request('http://localhost/cms/api/auth/me', {
+    headers: { authorization: `Bearer ${token}` },
+  });
+}
+
+test('#134: restore does not rewind tokenVersion, and a token minted at the archived generation stays rejected', async () => {
+  await withTempProject(async (tempRoot) => {
+    // t0 — the store is at generation 1, and this is what the backup captures.
+    await saveUsers({ users: [seedUser(1)] });
+    const stagingDir = await buildAndStage(['users'], tempRoot);
+
+    // t1 — a password change revokes the stolen token.
+    await saveUsers({ users: [seedUser(2)] });
+    const stolen = await mintToken('u1', 1);
+    assert.equal(await getAuth(tokenRequest(stolen)), null, 'precondition: the token is revoked');
+
+    try {
+      // t2 — restore the t0 backup.
+      await applyImport(stagingDir, tempRoot, ['users'], {});
+    } finally {
+      await fs.rm(stagingDir, { recursive: true, force: true });
+    }
+
+    const { users } = await loadUsers();
+    assert.ok(
+      users[0].tokenVersion > 2,
+      `restore must not rewind the counter, got ${users[0].tokenVersion}`,
+    );
+
+    // t3 — the assertion that matters. Checking the number alone would pass even if getAuth
+    // stopped consulting the store, which is the defect this whole ADR exists to prevent.
+    assert.equal(
+      await getAuth(tokenRequest(stolen)),
+      null,
+      'a restore must not re-arm a token that was already revoked',
+    );
+  });
+});
+
+test('#134: a user deleted after the backup cannot revive their old sessions through a restore', async () => {
+  await withTempProject(async (tempRoot) => {
+    // The backup captures a user at generation 3.
+    await saveUsers({ users: [{ ...seedUser(3), id: 'gone' }] });
+    const stagingDir = await buildAndStage(['users'], tempRoot);
+
+    // The user is deleted — their tokens die on the existence check, so no bump was needed.
+    await saveUsers({ users: [seedUser(1)] });
+    const orphaned = await mintToken('gone', 3);
+
+    try {
+      await applyImport(stagingDir, tempRoot, ['users'], {});
+    } finally {
+      await fs.rm(stagingDir, { recursive: true, force: true });
+    }
+
+    const { users } = await loadUsers();
+    assert.equal(users[0].id, 'gone', 'precondition: the restore resurrected the record');
+    assert.equal(
+      await getAuth(tokenRequest(orphaned)),
+      null,
+      'a resurrected record must not revive the tokens it held before deletion',
+    );
+  });
+});
+
+test('#134: rollback restores users.json raw, without bumping tokenVersion', async () => {
+  await withTempProject(async (tempRoot) => {
+    await saveUsers({ users: [seedUser(4)] });
+    const snapshotDir = await createBackupSnapshot(tempRoot, ['users']);
+
+    // Simulate a half-applied restore that then failed.
+    await saveUsers({ users: [seedUser(9)] });
+    await _rollbackFromSnapshot(snapshotDir, tempRoot, ['users']);
+
+    const { users } = await loadUsers();
+    assert.equal(
+      users[0].tokenVersion,
+      4,
+      'a rollback returns the store to where it already was — it must not re-generate sessions',
+    );
+  });
+});
+
+/** Resolves to the sentinel if `promise` has not settled within `ms`. */
+function settlesWithin(promise, ms) {
+  const pending = Symbol('pending');
+  return Promise.race([
+    promise.then(
+      () => true,
+      () => true,
+    ),
+    new Promise((resolve) => setTimeout(() => resolve(pending), ms)).then((v) =>
+      v === pending ? false : true,
+    ),
+  ]);
+}
+
+test('#134: the import pipeline waits on withUsersLock when the run can write users.json', async () => {
+  await withTempProject(async (tempRoot) => {
+    const { readCeilingEnvVars } = await import('../dist/api/import-utils.js');
+
+    await saveUsers({ users: [seedUser(1)] });
+    const zipBody = await buildZipBody(['users'], tempRoot);
+    await saveUsers({ users: [seedUser(5)] });
+
+    // Hold the users lock the way a concurrent password change would.
+    let release;
+    const held = new Promise((resolve) => {
+      release = resolve;
+    });
+    const lockHeld = withUsersLock(() => held);
+
+    const pipeline = runImportPipeline(zipBody, {
+      projectRoot: tempRoot,
+      ceilings: readCeilingEnvVars(),
+      selectedUnits: ['users'],
+      context: {},
+    });
+
+    // A full users import completes in ~20ms unlocked, so settling inside 300ms means it never
+    // waited. No sleeps in the success path — only this negative bound.
+    assert.equal(
+      await settlesWithin(pipeline, 300),
+      false,
+      'the pipeline must not proceed while the users lock is held',
+    );
+
+    const during = await loadUsers();
+    assert.equal(during.users[0].tokenVersion, 5, 'users.json must be untouched while blocked');
+
+    release();
+    await lockHeld;
+
+    const result = await pipeline;
+    assert.equal(result.ok, true, `pipeline must succeed once the lock is free: ${result.reason}`);
+    const after = await loadUsers();
+    assert.ok(after.users[0].tokenVersion > 5, 'the restore must apply after the lock is released');
+  });
+});
+
+test('#134: the import pipeline does not wait on withUsersLock when the run cannot write users.json', async () => {
+  await withTempProject(async (tempRoot) => {
+    const { readCeilingEnvVars } = await import('../dist/api/import-utils.js');
+
+    const zipBody = await buildZipBody(['pages'], tempRoot);
+
+    let release;
+    const held = new Promise((resolve) => {
+      release = resolve;
+    });
+    const lockHeld = withUsersLock(() => held);
+
+    // A pages-only import cannot write users.json, so freezing every login for its duration would
+    // be a cost with no invariant behind it. This is what makes the lock condition *conditional*.
+    const result = await runImportPipeline(zipBody, {
+      projectRoot: tempRoot,
+      ceilings: readCeilingEnvVars(),
+      selectedUnits: ['pages'],
+      context: {},
+    });
+
+    assert.equal(
+      result.ok,
+      true,
+      `pipeline must complete while the lock is held: ${result.reason}`,
+    );
+
+    release();
+    await lockHeld;
   });
 });

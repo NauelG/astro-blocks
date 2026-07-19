@@ -11,7 +11,7 @@ import path from 'node:path';
 
 import { SignJWT } from 'jose';
 
-import { ensureDefaultFiles, loadUsers, saveUsers } from '../dist/api/data.js';
+import { ensureDefaultFiles, loadUsers, restoreUsers, saveUsers } from '../dist/api/data.js';
 import {
   handleLogin,
   handleAuthMe,
@@ -422,6 +422,108 @@ test('loadUsers: normalizes absent and malformed tokenVersion to 1', async () =>
       const { users } = await loadUsers();
       assert.equal(users[0].tokenVersion, expected, `${name} must read as ${expected}`);
     }
+  });
+});
+
+// ─── restoreUsers: restore is a session-revocation event (ADR-0028, #134) ─────
+//
+// Restoring a backup used to write the archive's generations straight through, moving the counter
+// *backwards* and re-arming every token minted at them. Restored records now land above the
+// high-water mark of both sides.
+
+/** A user record shaped like the store's, without the on-disk noise the assertions ignore. */
+function userRecord(id, tokenVersion) {
+  const record = {
+    id,
+    email: `${id}@example.com`,
+    passwordHash: 'c2FsdA==:aGFzaA==',
+    role: 'owner',
+    createdAt: new Date().toISOString(),
+  };
+  if (tokenVersion !== undefined) record.tokenVersion = tokenVersion;
+  return record;
+}
+
+test('restoreUsers: a restored record lands above the current generation', async () => {
+  await withTempProject(async () => {
+    await saveUsers({ users: [userRecord('u1', 5)] });
+
+    // The archive was taken before the bump that revoked the stolen token.
+    await restoreUsers({ users: [userRecord('u1', 1)] });
+
+    const { users } = await loadUsers();
+    assert.equal(users[0].tokenVersion, 6, 'the restore must not rewind the counter');
+  });
+});
+
+test('restoreUsers: a user absent from the current store cannot revive', async () => {
+  await withTempProject(async () => {
+    await saveUsers({ users: [userRecord('a', 3)] });
+
+    // `b` was deleted after the backup was taken: there is no current record to compare against,
+    // which is exactly the case a per-id max(current, restored) cannot reach.
+    await restoreUsers({ users: [userRecord('b', 5)] });
+
+    const { users } = await loadUsers();
+    assert.equal(users.length, 1);
+    assert.equal(users[0].id, 'b');
+    assert.equal(users[0].tokenVersion, 6, 'a resurrected user must land above both sides');
+  });
+});
+
+test('restoreUsers: a malformed archived generation does not inflate the high-water mark', async () => {
+  await withTempProject(async () => {
+    await saveUsers({ users: [userRecord('u1', 3)] });
+
+    // '99' is not a generation the store can hold — loadUsers would read it back as 1, so it must
+    // be normalized *before* it reaches the max.
+    await restoreUsers({ users: [userRecord('u1', '99')] });
+
+    const { users } = await loadUsers();
+    assert.equal(users[0].tokenVersion, 4, 'a malformed value must normalize to 1, not to 99');
+  });
+});
+
+test('restoreUsers: an empty current store still bumps', async () => {
+  await withTempProject(async () => {
+    // The bootstrap shape. Math.max(...[]) would surface here as -Infinity.
+    await restoreUsers({ users: [userRecord('u1', 2)] });
+
+    const { users } = await loadUsers();
+    assert.equal(users[0].tokenVersion, 3);
+    assert.ok(
+      Number.isInteger(users[0].tokenVersion) && users[0].tokenVersion >= 1,
+      'the generation must stay a positive integer on an empty store',
+    );
+  });
+});
+
+test('restoreUsers: every restored record lands on the same generation', async () => {
+  await withTempProject(async () => {
+    await saveUsers({ users: [userRecord('u1', 3)] });
+
+    await restoreUsers({
+      users: [userRecord('u1', 1), userRecord('u2', 2), userRecord('u3', 4)],
+    });
+
+    const { users } = await loadUsers();
+    assert.deepEqual(
+      users.map((user) => user.tokenVersion),
+      [5, 5, 5],
+      'one high-water mark for the whole list, not a per-record bump',
+    );
+  });
+});
+
+test('restoreUsers: a legacy record without tokenVersion is restored at the high-water mark', async () => {
+  await withTempProject(async () => {
+    await saveUsers({ users: [userRecord('u1', 4)] });
+
+    // A pre-ADR-0027 archive: the field does not exist at all.
+    await restoreUsers({ users: [userRecord('u1', undefined)] });
+
+    const { users } = await loadUsers();
+    assert.equal(users[0].tokenVersion, 5);
   });
 });
 
