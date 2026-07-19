@@ -2689,7 +2689,13 @@ Licensed under the Business Source License 1.1
   line-height: 1.15;
 }
 
+/* Icon + label rows declare their own spacing. They must never depend on the whitespace
+   between the two elements in the template: Astro 7 compresses HTML with JSX rules, which
+   strips it, and the icon ends up glued to the label. (#55, ADR-0029) */
 .cms-nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--cms-space-2);
   margin: 0;
   padding: 0.4rem 0.52rem;
   border-radius: var(--cms-radius-base);
@@ -2697,6 +2703,16 @@ Licensed under the Business Source License 1.1
   font-weight: 600;
   line-height: 1.2;
   text-decoration: none;
+}
+
+/* Specificity note: `.cms-field label` (0,1,1) sets display:block and would otherwise win over a
+   bare `.cms-checkbox-label` (0,1,0), leaving the gap inert — gap does nothing on a block box.
+   Both selectors are listed so the rule holds inside a .cms-field and standalone. */
+.cms-checkbox-label,
+.cms-field .cms-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cms-space-2);
 }
 
 .cms-nav-link:hover {
