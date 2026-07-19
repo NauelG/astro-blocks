@@ -42,9 +42,16 @@ second false.
 >
 > Because the computation reads the current store and then writes it, the import pipeline holds
 > `withUsersLock` for any run that can write `users.json` — bootstrap, an explicit selection naming
-> the `users` unit, or a selection not yet resolved from the manifest. A concurrent password change
-> can therefore neither be lost nor overwritten. The lock is non-reentrant, so `restoreUsers` never
-> acquires it and must always be called from inside a held lock.
+> the `users` unit, or a selection not yet resolved from the manifest. The lock is non-reentrant, so
+> `restoreUsers` never acquires it and must always be called from inside a held lock.
+>
+> **What this does not yet cover.** `withUsersLock` is held by exactly two paths: `handleLogin`'s
+> first-user creation and the import pipeline. The user CRUD handlers (`handlePutUser`,
+> `handlePostUsers`, `handleDeleteUser`) each run an unlocked `loadUsers` → mutate → `saveUsers`, so
+> a password change concurrent with a restore is still a lost-update race — as are two concurrent
+> password changes, independently of restore. That gap predates this change and is tracked in #135.
+> The invariant this requirement establishes is that the restore write is serialized against every
+> path that *does* hold the lock — not that `users.json` has a single writer.
 >
 > Rollback from a pre-apply snapshot is **not** a restore: it returns the store to the state it was
 > already in, resurrects nothing, and deliberately bypasses `restoreUsers` — bumping generations on
@@ -68,8 +75,14 @@ Every existing case stays; the restore seam is added.
 > **The restore seam is covered end-to-end**: restoring an archive whose `tokenVersion` is *lower*
 > than the store's must leave a token minted at the older generation rejected; a user deleted after
 > the backup and resurrected by it must not have their old tokens validate; a malformed generation in
-> the archive must not inflate the high-water mark; and a concurrent password change must survive the
-> restore. Bootstrap (empty store) must still apply without deadlocking on the users lock.
+> the archive must not inflate the high-water mark. Asserting the resulting number alone does not
+> satisfy this — the token must be put through `getAuth`, or the coverage would survive `getAuth`
+> ceasing to consult the store at all.
+>
+> The lock is covered from both sides: with the users lock held, a run that names the `users` unit
+> must **not** proceed, and a run that cannot write `users.json` must. The negative case is what
+> distinguishes the conditional lock from an unconditional one. Bootstrap (empty store) must still
+> apply without deadlocking. Rollback must return the store to its pre-apply generation, unbumped.
 
 ## MODIFIED: Boundaries & unchanged behaviour
 

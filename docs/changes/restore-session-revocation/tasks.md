@@ -134,3 +134,30 @@ Tests import from `../dist/…`, so **every verify step is `npm run build && npm
   (`AGENTS.md` *Versionado*). At close this is a `patch` with a `### Fixed` entry; the entry must say
   restoring the `users` unit now signs every user out, since that is user-visible behaviour.
 - **Verify:** `git log -1` shows no agent attribution and a `Reviewed-by` footer.
+
+## Review findings (2026-07-19)
+
+Reviewing the diff against `spec-delta.md` surfaced one false claim in the delta itself. The code
+was correct; the specification promised more than the system delivers.
+
+- **`spec-delta.md` R7 claimed** *"a concurrent password change can therefore neither be lost nor
+  overwritten"*. **False.** `withUsersLock` is held by exactly two paths — `handleLogin`'s first-user
+  creation (`auth.ts:35`) and the import pipeline. `handlePutUser`, `handlePostUsers` and
+  `handleDeleteUser` each run an unlocked `loadUsers` → mutate → `saveUsers`. A restore concurrent
+  with a password change is still a lost-update race. Corrected: R7 now states what the lock does
+  cover and names the gap explicitly.
+- **`spec-delta.md` R6 listed coverage** for *"a concurrent password change must survive the
+  restore"*. No such test was written, and per the finding above it could not pass. Removed, and the
+  lock's actual two-sided coverage documented in its place.
+- **The T4 test comment** described the held lock as *"the way a concurrent password change would"*.
+  Corrected in `tests/import-export-import-pipeline.test.js`.
+- **`docs/CONTEXT.md`** said *"the only two writers move it forward"*. There are four writers of
+  `tokenVersion` (`handlePostUsers` and `auth.ts:43` seed `1`; `handlePutUser` bumps; `restoreUsers`
+  re-generates). The invariant held, the count did not. Reworded to *"no writer moves it backwards"*.
+- **`backup.ts`'s `case 'users'` comment** implied the pipeline is always in the call chain.
+  `applyImport` is exported and called directly by tests. Reworded to put the obligation on the
+  caller.
+
+The users-CRUD lock gap **predates this change** and is out of scope: it is an independent
+lost-update bug (two concurrent password changes already race), and closing it risks reentrancy
+against `handleLogin`, which already holds the lock. Filed as #135.

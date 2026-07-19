@@ -1496,7 +1496,9 @@ test('#134: the import pipeline waits on withUsersLock when the run can write us
     const zipBody = await buildZipBody(['users'], tempRoot);
     await saveUsers({ users: [seedUser(5)] });
 
-    // Hold the users lock the way a concurrent password change would.
+    // Hold the users lock the way handleLogin's first-user creation or another import does. NOT the
+    // way a password change does: handlePutUser writes users.json unlocked, so a restore concurrent
+    // with it is still a lost-update race. That gap predates #134 and is tracked in #135.
     let release;
     const held = new Promise((resolve) => {
       release = resolve;

@@ -646,7 +646,8 @@ export async function applyImport(
           // Not saveUsers: restore is a session-revocation event (ADR-0028, #134). Writing the
           // archive's session generations through would rewind tokenVersion and re-arm every token
           // minted at them. restoreUsers re-generates the whole list above both sides' high-water
-          // mark; it requires the users lock, which _runImportPipelineCore holds for this run.
+          // mark. restoreUsers is a read-modify-write and does NOT acquire the users lock itself —
+          // the caller must hold it. _runImportPipelineCore does for any run that reaches here.
           await data.restoreUsers(JSON.parse(raw));
           break;
         }
