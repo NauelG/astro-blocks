@@ -194,7 +194,7 @@
     {
       "id": "astro-cache-invalidation",
       "title": "Astro cache invalidation",
-      "summary": "Invalidate Astro experimental cache from content updates and manual panel actions.",
+      "summary": "Invalidate Astro's route cache from content updates and manual panel actions.",
       "category": "performance",
       "status": "experimental",
       "sinceVersion": "0.9.0",

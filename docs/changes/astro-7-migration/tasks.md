@@ -124,3 +124,35 @@ Tests import from `../dist/…`, so every verify step is `npm run build && npm t
   (`AGENTS.md` *Versionado*). At close this is **`4.0.0`** with `### Changed` / `### Removed`; the
   entry must lead with the Node floor, since that is what will break most installs.
 - **Verify:** `git log -1` shows no agent attribution and a `Reviewed-by` footer.
+
+## Review findings (2026-07-19)
+
+Reviewing the diff against `spec-delta.md` confirmed R1, R2 and R4 against the code — no fallback
+branch survives, `engines.node` matches `astro@7.1.1`'s exactly, and the provider is read once and
+consumed once, as a warning rather than a throw. It also found four stale documentation spots that
+T4 did not reach.
+
+- **`src/meta/features.json:197`** claimed the CMS invalidates *"Astro **experimental** cache"*.
+  Stale, and the worst of the four: `AGENTS.md`'s release checklist names this file explicitly, it
+  **ships inside the package** (it lives under `src/`, the publish root), and it feeds the README
+  feature table. `npm run features:validate` passed throughout — it validates the manifest's
+  structure, not the truth of its prose. The `"status": "experimental"` field on the same entry is
+  **our** maturity flag and is deliberately unchanged.
+- **`docs/DEVELOPING.md:145-146`** still told maintainers the consumer opts into
+  `experimental.cache.provider`. T4 covered `README.md` and `AGENTS.consumer.md` and missed the
+  maintainer guide.
+- **`docs/CONTEXT.md:202`** still read *"Astro 6, `output: 'static'`"*. `AGENTS.md` marks
+  `CONTEXT.md` as mandatory reading before touching code, so a false fact there propagates into
+  every change that follows.
+- **ADR-0029 did not reference ADR-0010**, which had explicitly recorded the `peerDependencies`
+  version-range question as *"an open, unrelated decision"*. ADR-0029 closes it and now says so.
+  ADR-0010 itself is untouched — immutable, and its `^6.0.0` statement is historical record.
+
+Deliberately left alone, having been checked: `docs/adr/0010:31,39` (immutable), `CHANGELOG.md:856`
+(historical entry), and `README.md:137,143` (the before/after of the migration guide, which must
+show the old shape).
+
+**Pattern worth naming.** This is the third time in this change that a green check meant only that
+the check had not looked: the unit suite passed with a template that would not compile;
+`features:validate` passed with a manifest whose prose was false. R7 of the new spec exists for the
+first case. The second is why documentation accuracy is a review step and not a gate.

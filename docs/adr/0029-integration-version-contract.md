@@ -9,6 +9,11 @@ Licensed under the Business Source License 1.1
 - **Date:** 2026-07-19
 - **Decisores:** Nauel Gómez
 - **Source:** Issue [#55](https://github.com/NauelG/astro-blocks/issues/55), grilled 2026-07-19
+- **Relación:** cierra la cuestión que ADR-0010 dejó abierta — *"the separate `peerDependencies`
+  version-range question (dual-major vs. major bump) … remains an open, unrelated decision"*
+  (`0010-ssr-adapter-config-guard.md:31`). ADR-0010 sigue vigente e intacto: su guard es
+  independiente de esta decisión, y su descripción del estado de entonces (`peerDependencies` en
+  `^6.0.0`) es registro histórico, no una afirmación sobre el presente.
 
 ## Contexto
 

@@ -199,7 +199,7 @@ create the component with its `schema` and add it to the `blocks` array. (See AD
 
 ## 6. Pre-render vs server
 
-- Astro 6, `output: 'static'`. Routes with `export const prerender = false` are served on the server
+- Astro 7, `output: 'static'`. Routes with `export const prerender = false` are served on the server
   (require an adapter, e.g. `@astrojs/node`).
 - **Every injected admin route needs `prerender = false`** — cookie-based UI i18n is invisible on
   prerendered routes under a consumer's `output:'static'` (guarded by `tests/admin-routes-prerender.test.js`).
