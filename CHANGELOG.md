@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.0.2] - 2026-07-20
+
+### Title
+
+Select dropdowns are no longer cut off inside modals
+
+### Fixed
+
+- **The select dropdown escapes the modal that was clipping it.** Opening a select inside a modal — creating a redirect, editing a user — cut the options panel off at the edge of the modal body, added a scrollbar and made the dialog taller than its content. The panel was positioned absolutely, so the nearest scrolling ancestor both clipped it and counted it towards its own scrollable height. It is now positioned against the viewport and measured from its trigger, so no ancestor can clip it. If it does not fit below the field it opens upwards, and if it fits on neither side it shortens rather than covering the field being edited. (#138)
+
 ## [4.0.1] - 2026-07-20
 
 ### Title
