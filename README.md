@@ -744,6 +744,19 @@ When deploying a site that uses this integration:
 - Set a strong, unique `ASTRO_BLOCKS_JWT_SECRET` (32+ characters) and strong admin credentials — never use example values.
 - Never commit real `.env` files to version control.
 - Keep `npm audit` and dependency updates in your workflow.
+- **Add a rate limit for `/cms/api/auth/login` at your reverse proxy or edge.** See below for what the CMS does on its own, and what it does not.
+
+### Login throttling
+
+Repeated failed logins for the same email address are answered with a growing delay: the first few attempts are free, then the wait doubles up to a cap of a few seconds. A correct password clears it immediately, and the delay applies whether or not the email belongs to a real account, so it never reveals which addresses are registered. Throttled attempts return the same `401` as any other failed login.
+
+This is **defense in depth, not your rate limit.** Be aware of its boundaries when planning a deployment:
+
+- The counter is held **in memory, per process**. It is lost on restart and is not shared across instances, so on serverless or multi-instance deployments each instance throttles only what it sees.
+- It is keyed by **email address only**, never by client IP. Behind a proxy the address the application observes is the proxy's, and the `X-Forwarded-For` header is caller-controlled — neither is a value this package can trust, so it does not pretend to.
+- It slows sustained guessing against an account; it does not stop a large burst of simultaneous requests.
+
+A rate limit at your proxy or edge is the layer that bounds request volume. The CMS throttle is there so that an instance is not defenseless without one.
 
 ## Contributing
 

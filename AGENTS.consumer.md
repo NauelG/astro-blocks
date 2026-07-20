@@ -775,6 +775,20 @@ You must set one variable for the admin UI to be usable in production:
 
 **Set this in your server environment — not committed to git.** Add it to your `.env` file locally and set it as an environment/runtime variable in your deployment platform.
 
+### Login throttling (and its limits)
+
+Repeated failed logins for the same email are answered with a growing delay (a few free attempts,
+then doubling to a cap of seconds). A correct password clears it. The delay is identical for emails
+that do not exist, and a throttled attempt returns the same `401` as any other failure — so the
+throttle never reveals which accounts are real.
+
+**Do not treat this as the deployment's rate limit.** It is held in memory per process: lost on
+restart, not shared across instances. It is keyed by **email only, never by client IP** — behind a
+proxy the observed address is the proxy's, and `X-Forwarded-For` is caller-controlled, so neither is
+a value this package can trust. When advising on a deployment, recommend a rate limit on
+`/cms/api/auth/login` at the reverse proxy or edge; the built-in throttle exists so an instance is
+not defenseless without one.
+
 Example `.env` (for local development only — never commit real values):
 
 ```sh
