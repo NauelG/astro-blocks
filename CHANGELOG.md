@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.0.1] - 2026-07-20
+
+### Title
+
+A concurrent write can no longer discard a session revocation
+
+### Fixed
+
+- **Every mutation of `users.json` is now serialized behind a single seam.** Four code paths wrote the user store and two of them took no lock — and because each write persists the **whole list**, two overlapping requests overwrote each other across every record, not just the one they meant to change. What that could silently discard included the `tokenVersion` increment, which **is** a session revocation: an operator changed a compromised password, the API answered `200` and the admin reported success, while the token they believed they had killed stayed valid for the rest of its 7-day lifetime — with no error and no log line. User creation, deletion and role changes could be lost the same way. The last-owner guards and the email-uniqueness check are now re-validated against the freshly re-read list rather than a stale one, so they hold under concurrency too. Password hashing moved out of the critical section, so the two paths that already held the lock now hold it for less time than before. (#135, ADR-0030)
+
 ## [4.0.0] - 2026-07-19
 
 ### Title
