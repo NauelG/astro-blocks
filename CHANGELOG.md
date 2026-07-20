@@ -9,6 +9,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.0.5] - 2026-07-20
+
+### Title
+
+Corrected documentation: importing users signs everyone out
+
+### Fixed
+
+- **The bundled documentation described session behaviour backwards.** `AGENTS.consumer.md` stated that importing the Users unit invalidated only the importing browser and that "other active sessions remain valid because sessions are stateless JWTs". The opposite is true, and has been since `3.7.0`: importing the Users unit **revokes every session on the instance**, and every token issued beforehand stops being accepted. Anyone who planned around other devices staying signed in was in for a surprise, and anyone reasoning about incident response had the guarantee inverted. (#149)
+
+  The stale premise is corrected in both bundled documents: sessions are **not** stateless. Every request re-validates the token against the user store, which is exactly what makes deleting a user, changing a password or restoring the user store take effect immediately rather than whenever the token happens to expire.
+
+  The README's Import / Export section, which never mentioned sessions at all, now says plainly that importing Users signs everyone out and that the other four units do not affect sessions.
+
+  Documentation only — no behaviour changed. This release exists so the corrected `AGENTS.consumer.md`, which ships inside the package and is what AI coding assistants read, reaches consumers rather than waiting for the next functional change.
+
 ## [4.0.4] - 2026-07-20
 
 ### Title
