@@ -144,11 +144,11 @@
     {
       "id": "users-and-auth",
       "title": "Users and authentication",
-      "summary": "Session-based CMS authentication with owner and user roles. Requires ASTRO_BLOCKS_JWT_SECRET in production; auth fails closed without it. Sessions are revocable: every request re-validates against the user store, so deleting or demoting a user takes effect immediately and a password change signs the user out everywhere.",
+      "summary": "Session-based CMS authentication with owner and user roles. Requires ASTRO_BLOCKS_JWT_SECRET in production; auth fails closed without it. Sessions are revocable: every request re-validates against the user store, so deleting or demoting a user takes effect immediately and a password change signs the user out everywhere. Repeated failed logins for the same email accrue a capped exponential backoff (in-process, keyed by email only, never by client IP), so a reverse-proxy rate limit remains the expected production layer.",
       "category": "auth",
       "status": "alpha",
       "sinceVersion": "0.3.0",
-      "updatedIn": "3.7.0",
+      "updatedIn": "4.0.4",
       "docsPath": "#cms-routes"
     },
     {
