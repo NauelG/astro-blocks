@@ -16,6 +16,7 @@ import {
   handlePutUser,
   handleDeleteUser,
   handleLogin,
+  getAuth,
 } from '../dist/api/handlers.js';
 
 async function withTempProject(fn) {
@@ -528,5 +529,144 @@ test('handlePutUser: a role change alone does not bump tokenVersion', async () =
     const updated = after.users.find((u) => u.id === secondOwner.id);
     assert.equal(updated.role, 'user');
     assert.equal(updated.tokenVersion, initial, 'demotion must not revoke the session');
+  });
+});
+
+// ─── #135: every users.json mutation is serialized (ADR-0030) ─────────────────
+//
+// The interleave is deterministic, not hoped for. hashPassword is deliberately slow — orders of
+// magnitude slower than the fs read around it — so two concurrent password changes always overlap:
+// both load the same list, both hash, both write the whole list. Before the fix exactly one bump
+// survived, whichever wrote last. Do not weaken these into a loop of N attempts.
+
+const FALLBACK_SECRET = new TextEncoder().encode('cms-jwt-secret-change-me');
+
+async function seedUser(owner, email, role = 'user') {
+  const res = await handlePostUsers(
+    new Request('http://localhost/cms/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: 'secret123', role }),
+    }),
+    owner,
+  );
+  return (await res.json()).id;
+}
+
+function putUser(id, body, owner) {
+  return handlePutUser(
+    id,
+    new Request(`http://localhost/cms/api/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+    owner,
+  );
+}
+
+async function mintToken(id, tokenVersion) {
+  const { SignJWT } = await import('jose');
+  return new SignJWT({ tokenVersion })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject(id)
+    .setExpirationTime('7d')
+    .sign(FALLBACK_SECRET);
+}
+
+function authRequest(token) {
+  return new Request('http://localhost/cms/api/auth/me', {
+    headers: { authorization: `Bearer ${token}` },
+  });
+}
+
+test('#135: concurrent password changes both keep their revocation bump', async () => {
+  await withTempProject(async () => {
+    const owner = await seedOwner();
+    const a = await seedUser(owner, 'a@example.com');
+    const b = await seedUser(owner, 'b@example.com');
+
+    await Promise.all([
+      putUser(a, { password: 'new-password-a' }, owner),
+      putUser(b, { password: 'new-password-b' }, owner),
+    ]);
+
+    const { users } = await loadUsers();
+    const va = users.find((u) => u.id === a).tokenVersion;
+    const vb = users.find((u) => u.id === b).tokenVersion;
+    assert.equal(va, 2, `user a's bump was lost (tokenVersion ${va})`);
+    assert.equal(vb, 2, `user b's bump was lost (tokenVersion ${vb})`);
+  });
+});
+
+test('#135: a lost bump would leave a revoked token valid', async () => {
+  await withTempProject(async () => {
+    const owner = await seedOwner();
+    const a = await seedUser(owner, 'a@example.com');
+    const b = await seedUser(owner, 'b@example.com');
+
+    // Tokens minted at the pre-change generation. Both password changes must revoke them.
+    const staleA = await mintToken(a, 1);
+    const staleB = await mintToken(b, 1);
+
+    await Promise.all([
+      putUser(a, { password: 'new-password-a' }, owner),
+      putUser(b, { password: 'new-password-b' }, owner),
+    ]);
+
+    // Asserting the counter alone would pass even if getAuth stopped consulting the store.
+    // The revocation is about the session, not the number.
+    assert.equal(await getAuth(authRequest(staleA)), null, "user a's session survived the change");
+    assert.equal(await getAuth(authRequest(staleB)), null, "user b's session survived the change");
+  });
+});
+
+test('#135: concurrent creates both persist', async () => {
+  await withTempProject(async () => {
+    const owner = await seedOwner();
+
+    await Promise.all([seedUser(owner, 'one@example.com'), seedUser(owner, 'two@example.com')]);
+
+    const { users } = await loadUsers();
+    const emails = users.map((u) => u.email);
+    assert.ok(emails.includes('one@example.com'), 'first create was lost');
+    assert.ok(emails.includes('two@example.com'), 'second create was lost');
+  });
+});
+
+test('#135: a concurrent delete and update discard neither', async () => {
+  await withTempProject(async () => {
+    const owner = await seedOwner();
+    const a = await seedUser(owner, 'a@example.com');
+    const b = await seedUser(owner, 'b@example.com');
+
+    await Promise.all([
+      handleDeleteUser(a, owner, new Request(`http://localhost/cms/api/users/${a}`)),
+      putUser(b, { password: 'new-password-b' }, owner),
+    ]);
+
+    const { users } = await loadUsers();
+    assert.equal(
+      users.find((u) => u.id === a),
+      undefined,
+      'the delete was lost',
+    );
+    assert.equal(users.find((u) => u.id === b).tokenVersion, 2, "b's password change was lost");
+  });
+});
+
+test('#135: concurrent demotion and deletion leave at least one owner', async () => {
+  await withTempProject(async () => {
+    const owner = await seedOwner();
+    const second = await seedUser(owner, 'second@example.com', 'owner');
+
+    await Promise.all([
+      putUser(owner.id, { role: 'user' }, owner),
+      handleDeleteUser(second, owner, new Request(`http://localhost/cms/api/users/${second}`)),
+    ]);
+
+    const { users } = await loadUsers();
+    const owners = users.filter((u) => u.role === 'owner');
+    assert.ok(owners.length >= 1, 'the instance was left with no owner');
   });
 });

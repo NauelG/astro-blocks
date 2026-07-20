@@ -37,23 +37,29 @@ export async function handlePostUsers(
   const role = body.role === 'owner' ? 'owner' : 'user';
   if (!email || !password) return localizedJsonError(request, 'errors.emailPasswordRequired');
 
-  const usersData = await data.loadUsers();
-  if (usersData.users.some((user) => user.email === email))
-    return localizedJsonError(request, 'errors.emailExists');
-
+  // Hash BEFORE the lock (#135, ADR-0030): hashPassword is deliberately slow, and holding the
+  // users lock across it would block every login. A duplicate email discards this work — that is
+  // the accepted cost of keeping the critical section short.
+  const passwordHash = await hashPassword(password);
   const createdAt = new Date().toISOString();
-  const newUser: User = {
-    id: data.generateId(),
-    email,
-    passwordHash: await hashPassword(password),
-    role,
-    tokenVersion: 1,
-    createdAt,
-  };
 
-  usersData.users.push(newUser);
-  await data.saveUsers(usersData);
-  return Response.json({ id: newUser.id, email, role, createdAt });
+  return data.mutateUsers((users) => {
+    // Re-checked against the in-lock list, not the pre-lock read: serializing the write without
+    // re-validating would move the lost update and leave the check-then-act intact.
+    if (users.some((user) => user.email === email))
+      return localizedJsonError(request, 'errors.emailExists');
+
+    const newUser: User = {
+      id: data.generateId(),
+      email,
+      passwordHash,
+      role,
+      tokenVersion: 1,
+      createdAt,
+    };
+    users.push(newUser);
+    return Response.json({ id: newUser.id, email, role, createdAt });
+  });
 }
 
 export async function handlePutUser(
@@ -64,41 +70,50 @@ export async function handlePutUser(
   const forbidden = requireOwner(authUser, request);
   if (forbidden) return forbidden;
 
-  const usersData = await data.loadUsers();
-  const index = usersData.users.findIndex((user) => user.id === id);
-  if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
-
   const { data: body, error } = await parseJsonBody<Record<string, unknown>>(request);
   if (error || !body) return error as Response;
 
-  const target = usersData.users[index];
-  const ownerCount = usersData.users.filter((user) => user.role === 'owner').length;
+  // Hashed before the lock (#135, ADR-0030) — see handlePostUsers. A 404 discards it.
+  const passwordHash =
+    typeof body.password === 'string' && body.password.length > 0
+      ? await hashPassword(body.password)
+      : undefined;
 
-  if (body.role !== undefined) {
-    const newRole = body.role === 'owner' ? 'owner' : 'user';
-    if (target.role === 'owner' && newRole === 'user' && ownerCount <= 1) {
-      return localizedJsonError(request, 'errors.cannotRemoveLastOwner', 400);
+  return data.mutateUsers((users) => {
+    // Existence and the last-owner rule are evaluated against the in-lock list.
+    const index = users.findIndex((user) => user.id === id);
+    if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
+
+    const target = users[index];
+    const ownerCount = users.filter((user) => user.role === 'owner').length;
+
+    if (body.role !== undefined) {
+      const newRole = body.role === 'owner' ? 'owner' : 'user';
+      if (target.role === 'owner' && newRole === 'user' && ownerCount <= 1) {
+        return localizedJsonError(request, 'errors.cannotRemoveLastOwner', 400);
+      }
+      users[index] = { ...target, role: newRole };
     }
-    usersData.users[index] = { ...target, role: newRole };
-  }
 
-  if (typeof body.password === 'string' && body.password.length > 0) {
-    const current = usersData.users[index];
-    usersData.users[index] = {
-      ...current,
-      passwordHash: await hashPassword(body.password),
-      // A password change revokes every live session for this user (ADR-0027, #124).
-      tokenVersion: current.tokenVersion + 1,
-    };
-  }
+    if (passwordHash) {
+      const current = users[index];
+      users[index] = {
+        ...current,
+        passwordHash,
+        // A password change revokes every live session for this user (ADR-0027, #124). The
+        // increment is applied to the freshly re-read record, so a concurrent write to another
+        // user cannot discard it (#135).
+        tokenVersion: current.tokenVersion + 1,
+      };
+    }
 
-  await data.saveUsers(usersData);
-  const updated = usersData.users[index];
-  return Response.json({
-    id: updated.id,
-    email: updated.email,
-    role: updated.role,
-    createdAt: updated.createdAt,
+    const updated = users[index];
+    return Response.json({
+      id: updated.id,
+      email: updated.email,
+      role: updated.role,
+      createdAt: updated.createdAt,
+    });
   });
 }
 
@@ -110,22 +125,23 @@ export async function handleDeleteUser(
   const forbidden = requireOwner(authUser, request);
   if (forbidden) return forbidden;
 
-  const usersData = await data.loadUsers();
-  const index = usersData.users.findIndex((user) => user.id === id);
-  if (index === -1)
-    return request
-      ? localizedJsonError(request, 'errors.notFound', 404)
-      : jsonError('Not found', 404);
+  return data.mutateUsers((users) => {
+    // Existence and the last-owner rule are evaluated against the in-lock list (#135, ADR-0030).
+    const index = users.findIndex((user) => user.id === id);
+    if (index === -1)
+      return request
+        ? localizedJsonError(request, 'errors.notFound', 404)
+        : jsonError('Not found', 404);
 
-  const target = usersData.users[index];
-  const ownerCount = usersData.users.filter((user) => user.role === 'owner').length;
-  if (target.role === 'owner' && ownerCount <= 1) {
-    return request
-      ? localizedJsonError(request, 'errors.cannotDeleteLastOwner', 400)
-      : jsonError('Cannot delete the only owner.', 400);
-  }
+    const target = users[index];
+    const ownerCount = users.filter((user) => user.role === 'owner').length;
+    if (target.role === 'owner' && ownerCount <= 1) {
+      return request
+        ? localizedJsonError(request, 'errors.cannotDeleteLastOwner', 400)
+        : jsonError('Cannot delete the only owner.', 400);
+    }
 
-  usersData.users.splice(index, 1);
-  await data.saveUsers(usersData);
-  return new Response(null, { status: 204 });
+    users.splice(index, 1);
+    return new Response(null, { status: 204 });
+  });
 }
