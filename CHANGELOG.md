@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.0.4] - 2026-07-20
+
+### Title
+
+Repeated failed logins are slowed down
+
+### Fixed
+
+- **The admin login had no defense against password guessing.** Nothing limited how many attempts an unauthenticated caller could make against the owner account: password hashing made each guess expensive, but nothing bounded the number of guesses. Repeated failures for the same email now wait progressively longer — the first few attempts are answered immediately, then the delay doubles up to a few seconds — which takes a sustained attacker from thousands of guesses per minute to roughly seven. A correct password clears the delay instantly, and it is forgotten entirely after fifteen minutes of no attempts, so an owner who mistypes their password is never locked out or made to wait on their next visit. (#125)
+
+  Two details worth knowing when planning a deployment. The delay is tracked **in memory per server process**, so it does not survive a restart and is not shared between instances — a rate limit at your reverse proxy or edge is still the layer that bounds request volume, and this is defense in depth beneath it. And it is keyed by **email address only, never by client IP**: behind a proxy the address the application sees belongs to the proxy, and the forwarded-for header is set by the caller, so neither is a value this package can trust. See the new *Login throttling* section in the README.
+
+  A throttled attempt is deliberately indistinguishable from any other failed login — same response, same status — and the delay builds the same way for email addresses that have no account, so the protection never reveals which addresses are registered.
+
 ## [4.0.3] - 2026-07-20
 
 ### Title
