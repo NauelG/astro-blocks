@@ -11,7 +11,9 @@ Licensed under the Business Source License 1.1
 > `tokenversion-boundary-normalization` (2026-07-17), which moved the `tokenVersion` default to the
 > store boundary after a legacy-record lockout; R4/R6 extended and R7 added by
 > `restore-session-revocation` (2026-07-19, #134, ADR-0028), which made restore a revocation trigger
-> so the monotonicity R3 assumes is actually upheld.
+> so the monotonicity R3 assumes is actually upheld; R4/R6 extended and R7 rewritten by
+> `serialize-user-writes` (2026-07-20, #135, ADR-0030), which put every mutation behind one
+> serialized seam and closed the gap R7 had itself declared.
 
 ## Capability
 
@@ -43,7 +45,10 @@ user's `tokenVersion` invalidates all of their live sessions at once ("sign out 
 - **Demotion** → not a rejection: the user stays authenticated, and the fresh store role makes
   `requireOwner` return 403. A role can never go stale in a token because it is never in the token.
 - **Password change** → `tokenVersion` is incremented, revoking every previously-issued token for
-  that user.
+  that user. The increment is applied **inside the users lock, against the freshly re-read record**
+  (R7), so a concurrent write to another user cannot discard it. Losing that increment would report
+  success while leaving the revoked token valid for the remainder of its lifetime — a fail-open
+  reached through a race rather than a stale claim (#135).
 - **Restore of the `users` unit** → every restored record is written at one generation **above the
   high-water mark** of the current store and the archive combined, revoking every session on the
   instance (ADR-0028). A restore replaces `users.json` wholesale, so passing the archive's
@@ -88,28 +93,49 @@ The lock is covered from both sides: with the users lock held, a run that names 
 distinguishes the conditional lock from an unconditional one. Bootstrap (empty store) must still
 apply without deadlocking. Rollback must return the store to its pre-apply generation, unbumped.
 
-**R7 — The restore write is serialized and store-owned.** `restoreUsers` is the **sole** writer of a
-restored user list; `saveUsers` stays a plain writer and the restore path does not call it. The
-archive's generations are normalized (R5) **before** the high-water mark is computed, so a malformed
-value cannot inflate it.
+**The serialization seam is covered under genuine interleave**, not by sequential calls: a password
+change concurrent with an unrelated user write must keep its `tokenVersion` bump, and a token minted
+at the old generation must still be rejected by `getAuth`. Concurrent creates must both persist; a
+concurrent delete and update must not silently discard either. Concurrent demotion and deletion of
+two owners must leave at least one owner — true before the seam existed only as an accident of
+last-writer-wins rewriting the whole list, and required to hold by construction afterwards. A
+mutation must also preserve unknown top-level keys in `users.json`, which no type-driven test can
+catch on its own.
 
-Because the computation reads the current store and then writes it, the import pipeline holds
-`withUsersLock` for any run that can write `users.json` — bootstrap, an explicit selection naming the
-`users` unit, or a selection not yet resolved from the manifest. The lock is non-reentrant, so
-`restoreUsers` never acquires it and must always be called from inside a held lock.
+The interleave is made deterministic by `hashPassword`, which is slow enough relative to the
+surrounding `fs` read that two concurrent password changes always overlap. Weakening these into a
+loop of N attempts would turn a real regression test into a flaky one.
 
-**What this does not yet cover.** `withUsersLock` is held by exactly two paths: `handleLogin`'s
-first-user creation and the import pipeline. The user CRUD handlers (`handlePutUser`,
-`handlePostUsers`, `handleDeleteUser`) each run an unlocked `loadUsers` → mutate → `saveUsers`, so a
-password change concurrent with a restore is still a lost-update race — as are two concurrent
-password changes, independently of restore. That gap predates this requirement and is tracked in
-[#135](https://github.com/NauelG/astro-blocks/issues/135). The invariant established here is that the
-restore write is serialized against every path that *does* hold the lock — not that `users.json` has
-a single writer.
+The bootstrap-import and login-vs-bootstrap suites must stay green: `mutateUsers` acquires a
+non-reentrant lock, so a violation surfaces as a **hung** run rather than a failing assertion.
 
-Rollback from a pre-apply snapshot is **not** a restore: it returns the store to the state it was
-already in, resurrects nothing, and deliberately bypasses `restoreUsers` — bumping generations on a
-run that failed would sign everyone out because an import did *not* happen.
+**R7 — Every mutation of the user store is serialized, and the store owns it.** `users.json` has
+exactly one mutation seam, `mutateUsers` (ADR-0030). It acquires the users lock, re-reads the list
+**inside** the lock, hands it to the mutator, and writes it back. A **mutator** never acquires the
+lock — it is non-reentrant, so reaching for it from inside the mutator would deadlock. The seam is
+not the lock's only client: the import pipeline acquires it directly for the span of a whole run,
+which is why `withUsersLock` stays exported.
+
+The seam has **no abort mechanism**: it writes unconditionally. An error path does not mutate, and
+the unchanged list is rewritten. A `commit()` flag or an `ABORT` sentinel would each add a way to
+discard a real mutation silently — the failure mode the seam exists to remove — in exchange for
+avoiding a redundant write on a rare branch (ADR-0030).
+
+The seam **preserves unknown top-level keys** in `users.json`. `loadUsers` and `restoreUsers` both
+spread the loaded object deliberately, so a field the code does not model survives a read and a
+restore; a mutation must not be the one path that silently drops it.
+
+**Guards are evaluated against the in-lock list**, never against a read taken before it: email
+uniqueness, `ownerCount` for the last-owner rules, and record existence. Serializing the write
+without re-validating would move the lost update while leaving the check-then-act intact.
+
+**Password hashing happens outside the critical section.** `hashPassword` is deliberately slow;
+holding the users lock across it would block every login for its duration. The cost accepted is a
+hash computed on error paths that then discard it.
+
+`restoreUsers` is **not** a seam client: its caller (the import pipeline) already holds the lock, and
+it *replaces* the list rather than mutating it. The rule is every **mutation**, not every write.
+`saveUsers` likewise stays a plain unlocked writer — it is what both are built from.
 
 ## Boundaries & unchanged behaviour
 
