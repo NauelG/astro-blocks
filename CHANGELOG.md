@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.0.3] - 2026-07-20
+
+### Title
+
+The interface-language selector opens again
+
+### Fixed
+
+- **The UI-language selector inside the profile menu did not open.** Clicking it did nothing and reported no error. Introduced in `4.0.2`: the fix that stopped select dropdowns being clipped inside modals repositioned every dropdown against the viewport, and the profile menu animates with a CSS transform — which silently changes what "against the viewport" means for anything inside it. The panel was opening around a thousand pixels off the right edge of the screen. Dropdown panels are now positioned by measuring where they actually land rather than by assuming, so the calculation holds inside any container. Only the admin panel's own selectors were affected; a site's public language switcher never was. (#146)
+
 ## [4.0.2] - 2026-07-20
 
 ### Title
