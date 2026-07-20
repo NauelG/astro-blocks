@@ -563,7 +563,7 @@ Navigate to `/cms/import-export` in the admin panel. The page allows you to:
 - Preview the `manifest.json` inside an uploaded archive before committing.
 - Confirm the destructive replace-all action explicitly.
 
-When the **Users** unit is imported the current session is invalidated and the browser is redirected to the login screen (current-browser-only; other active sessions remain valid because sessions are stateless JWTs).
+When the **Users** unit is imported, **every session on the instance is revoked** — not just the current browser's. The importing browser is redirected to the login screen; every other logged-in user and device is signed out too, and any token issued before the import stops being accepted. This is deliberate: a restore replaces the whole user store, so it is treated as a security event rather than a data operation. Expect to log in again everywhere after importing this unit.
 
 ### Content units
 
@@ -756,7 +756,7 @@ The `<GlobalBlock>` component resolves the correct locale value at render time u
 
 ## Authentication (admin UI)
 
-The admin UI at `/cms` uses stateless JWT sessions. The admin account is created on **first login** — there are no admin credentials to configure in the environment.
+The admin UI at `/cms` authenticates with a JWT carried in a request header, **verified against the user store on every request**. Sessions are therefore revocable, not stateless: each user record holds a session generation, and a token whose generation no longer matches is rejected. Deleting a user, changing a password, or importing the Users unit takes effect immediately on tokens already issued. The admin account is created on **first login** — there are no admin credentials to configure in the environment.
 
 ### Required environment variable
 

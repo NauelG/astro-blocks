@@ -172,7 +172,7 @@ yarn add @astroblocks/astro-blocks @astrojs/node
 
 ## Environment Setup
 
-The admin UI at `/cms` uses stateless JWT sessions. The admin account is created on **first login** — there are no admin username/password variables to configure.
+The admin UI at `/cms` authenticates with a JWT carried in a request header, verified against the user store on every request — so sessions are revocable, not stateless. Deleting a user or changing a password signs them out everywhere immediately, even though their token has not expired. The admin account is created on **first login** — there are no admin username/password variables to configure.
 
 | Variable | Required | Description |
 | --- | --- | --- |
@@ -583,6 +583,8 @@ The Import / Export admin page (`/cms/import-export`, owner only) backs up and r
 | Configuration | `data/configs.json`, `data/site.json`, `data/languages.json`, `data/menus.json`, `data/redirects.json` |
 
 Export streams a single `.zip` (selected data files + a `manifest.json` recording the schema version, timestamp and per-file SHA-256 checksums). Import validates structure and checksums before applying, then replaces selected units **in full** — a pre-replace snapshot is written to `data/_backups/` automatically (retention: 5). When an instance has no users yet, the login screen offers a bootstrap import to seed an initial data set with no admin account required. The underlying REST endpoints (`GET /cms/api/export`, `POST /cms/api/import`, `POST /cms/api/import/bootstrap`) and their auth rules are documented in [AGENTS.consumer.md → Import / Export](./AGENTS.consumer.md#import--export-backup-and-restore).
+
+**Importing the Users unit signs everyone out.** Every session on the instance is revoked — not only the browser performing the import — and every token issued beforehand stops being accepted. A restore replaces the whole user store, so it is treated as a security event rather than a data operation: plan to log in again on every device afterwards. The other four units do not affect sessions.
 
 Three environment variables control import size limits (defaults: `ASTRO_BLOCKS_MAX_IMPORT_FILE_BYTES` = 50 MB, `ASTRO_BLOCKS_MAX_IMPORT_TOTAL_BYTES` = 500 MB, `ASTRO_BLOCKS_MAX_IMPORT_COMPRESSED_BYTES` = 1 GB).
 
