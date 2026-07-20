@@ -511,7 +511,6 @@ test('B2: unexpected throw → 500 with generic message, no path/err text leaked
     });
 
     // Patch arrayBuffer on this specific request instance to throw with sensitive message.
-    const origArrayBuffer = poisonedRequest.arrayBuffer.bind(poisonedRequest);
     let called = false;
     Object.defineProperty(poisonedRequest, 'arrayBuffer', {
       value: async () => {

@@ -18,7 +18,7 @@ Licensed under the Business Source License 1.1
  * run on the same thread and are fully compatible with the Node.js ESM build.
  */
 
-import { Zip, ZipDeflate, Unzip, UnzipInflate } from 'fflate';
+import { Zip, Unzip, UnzipInflate } from 'fflate';
 import type { AsyncFlateStreamHandler } from 'fflate';
 
 /**

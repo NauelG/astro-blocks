@@ -9,7 +9,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ensureDefaultFiles, loadMedia } from '../dist/api/data.js';
+import { ensureDefaultFiles } from '../dist/api/data.js';
 import { generateAndPersistVariants } from '../dist/utils/variant-generator.js';
 
 /**

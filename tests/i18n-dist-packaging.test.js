@@ -192,7 +192,6 @@ test('createT: per-key en fallback when key absent from es (REQ-5.4)', () => {
 });
 
 test('t() interpolation from built dist: {name} placeholder replaced', () => {
-  const translate = createT('en');
   // Use a catalog key that has {count} or {name} interpolation
   // Try errors namespace which uses {field} or {count}
   const enCatalog = catalogs.en;

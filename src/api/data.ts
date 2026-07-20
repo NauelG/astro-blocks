@@ -28,7 +28,6 @@ import type {
   ConfigEntry,
   User,
   ConfigsData,
-  ContentLanguage,
   GlobalBlockEntry,
   GlobalBlocksData,
   LanguagesData,

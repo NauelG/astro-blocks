@@ -313,7 +313,7 @@ async function pickerLoadPage(
 }
 
 export async function openPickerDialog(
-  triggerBtn: HTMLButtonElement,
+  _triggerBtn: HTMLButtonElement,
   inputId: string,
   mode: 'image' | 'file' = 'image',
   effectiveAccept: string[] = [],

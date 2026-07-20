@@ -12,7 +12,6 @@ import type {
   PrimitivePropType,
   PropDef,
 } from '../types/index.js';
-import { isEmptyImageValue } from './image-value.js';
 
 const PRIMITIVE_TYPES = new Set<PrimitivePropType>([
   'string',

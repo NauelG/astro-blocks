@@ -99,7 +99,7 @@ test('cache invalidation — re-reads after mtime changes', async () => {
 });
 
 test('missing registry → returns status:none, no throw', async () => {
-  await withTempProject(async (tempRoot) => {
+  await withTempProject(async (_tempRoot) => {
     // Delete the media.json that ensureDefaultFiles created
     const { getDataPath } = await import('../dist/utils/paths.js');
     await fs.rm(getDataPath('media.json'), { force: true });

@@ -61,10 +61,7 @@ test('t: param with number value is interpolated', () => {
 
 test('t: SCENARIO-12 first case — key missing from es returns English value', () => {
   // Simulate a key absent from es but present in en
-  const partialEs = { ...catalogs.es };
-  const missingKey = 'nav.dashboard';
   // Use createT with a patched catalog
-  const tFn = createT('es');
   // Since es has nav.dashboard, we test the mechanism with a dummy catalog
   const esOnly = { 'only.en': undefined };
   const enCatalog = { 'only.en': 'English fallback' };
@@ -110,9 +107,6 @@ test('createT(es): returns Spanish value for known key', () => {
 test('createT: missing key in es falls back to en', () => {
   // We test with a real key that must exist in en
   const tFnEs = createT('es');
-  // nav.dashboard must exist in en (and in es). As a sanity check:
-  const tFnEn = createT('en');
-  const enVal = tFnEn('nav.dashboard');
   // es result must also be non-empty (either es translation or en fallback)
   const esVal = tFnEs('nav.dashboard');
   assert.ok(esVal.length > 0);
