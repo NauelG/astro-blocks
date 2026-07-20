@@ -47,6 +47,10 @@ en `resize`.
   de foco del `<dialog>`.
 - Si no cabe bajo el disparador **y arriba hay más sitio**, vuelca hacia arriba. Con `fixed` un panel
   bajo se saldría de la pantalla, y cambiar un recorte por un desbordamiento no es arreglarlo.
+- Si **no cabe en ninguno de los dos lados**, se **encoge** al espacio disponible (con un mínimo por
+  debajo del cual deja de ser usable) en lugar de recolocarse. Fijar la posición al borde de la
+  pantalla haría que el panel tapara el propio campo que se está editando — que es peor que una lista
+  más corta, y el motivo por el que se descartó "pegar al viewport".
 - Sin rama condicional: **todos** los selects mejorados usan el mismo camino, incluidos los que hoy no
   están recortados. Dos modos de posicionamiento significan una rama que solo se ejercita en el caso
   raro, que es justo la que nadie prueba hasta que falla.
