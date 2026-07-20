@@ -215,7 +215,6 @@ test('C-2: validateStagedImport fails with /structural/ message on invalid user 
     // To test structural, we need: valid manifest + valid checksums + invalid structure.
     // We can do this by creating a manifest whose checksums match our "bad role" file.
     const { sha256Hex } = await import('../dist/api/manifest.js');
-    const { DATA_SCHEMA_VERSION: SV } = await import('../dist/api/schema-version.js');
     const { buildManifest } = await import('../dist/api/manifest.js');
 
     const badUsersData = JSON.stringify({
@@ -493,9 +492,9 @@ test('C-5: handleImport returns 400 for corrupt zip data', async () => {
 });
 
 test('C-5: handleImport returns 422 for schemaVersion mismatch', async () => {
-  await withTempProject(async (tempRoot) => {
+  await withTempProject(async (_tempRoot) => {
     // Build a zip with wrong schemaVersion
-    const { sha256Hex, buildManifest } = await import('../dist/api/manifest.js');
+    const { sha256Hex } = await import('../dist/api/manifest.js');
     const { DATA_SCHEMA_VERSION: SV } = await import('../dist/api/schema-version.js');
 
     const pagesJson = JSON.stringify({ pages: [] });
@@ -521,12 +520,9 @@ test('C-5: handleImport returns 422 for schemaVersion mismatch', async () => {
 });
 
 test('C-5: handleImport returns 422 for checksum mismatch', async () => {
-  await withTempProject(async (tempRoot) => {
-    const zipBody = await buildZipBody(['pages'], tempRoot);
-
+  await withTempProject(async (_tempRoot) => {
     // Extract, tamper, repack — but we can simulate this differently:
     // Build a zip with a manifest pointing to a wrong checksum
-    const { sha256Hex } = await import('../dist/api/manifest.js');
     const { DATA_SCHEMA_VERSION: SV } = await import('../dist/api/schema-version.js');
 
     const pagesJson = JSON.stringify({ pages: [] });
@@ -669,7 +665,6 @@ test('FIX-1: validateManifest rejects checksums key outside allowlist (not data/
 test('FIX-1: validateStagedImport detects injected file in staging (not in manifest → checksum fail)', async () => {
   await withTempProject(async (tempRoot) => {
     const { sha256Hex, buildManifest } = await import('../dist/api/manifest.js');
-    const { DATA_SCHEMA_VERSION: SV } = await import('../dist/api/schema-version.js');
 
     // Build a staging dir where pages.json exists with a valid manifest,
     // but also contains an extra injected file unknown to the manifest.
@@ -1310,7 +1305,6 @@ test('GAP-3: concurrent runImportPipeline calls serialize — live data is a com
     };
 
     const { sha256Hex, buildManifest } = await import('../dist/api/manifest.js');
-    const { DATA_SCHEMA_VERSION: SV } = await import('../dist/api/schema-version.js');
 
     function makeZip(pages) {
       const pagesJson = JSON.stringify({ pages });

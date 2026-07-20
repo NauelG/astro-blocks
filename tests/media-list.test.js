@@ -14,7 +14,6 @@ import {
   ensureDefaultFiles,
   loadMedia,
   replaceMedia,
-  appendMediaEntry,
   generateId,
 } from '../dist/api/data.js';
 import { handleGetMedia } from '../dist/api/handlers.js';

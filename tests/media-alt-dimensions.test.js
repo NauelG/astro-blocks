@@ -75,17 +75,6 @@ const MINIMAL_PNG_1x1 = Buffer.from(
   'hex',
 );
 
-// Real minimal JPEG (with valid JPEG SOF0 dimensions 1×1)
-// SOI + APP0 + SOF0 declaring 1×1 + EOI
-const MINIMAL_JPEG_1x1 = Buffer.from(
-  'ffd8ffe000104a46494600010100000100010000' + // SOI + APP0
-    'ffdb0043000102020201020202030303030403040505040404050a07070605' +
-    '0a0b0a0b0b0a0a0b0a0b0a0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b' +
-    '0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b' +
-    'ffc000110800010001030111000211010311010fffd9',
-  'hex',
-);
-
 // SVG without viewBox — image-size should throw / return no dims
 const SVG_NO_VIEWBOX = Buffer.from(
   '<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>',
@@ -172,7 +161,7 @@ test('handleUpload — SVG with viewBox — captures dimensions (SC-4.2)', async
 // ─── PATCH /cms/api/media/{id} tests ─────────────────────────────────────────
 
 test('T-12: PATCH /cms/api/media — updates alt, returns 200 (SC-5.1)', async () => {
-  await withTempProject(async (tempRoot) => {
+  await withTempProject(async (_tempRoot) => {
     // Upload something first to get an entry id
     const uploadReq = makeUploadRequest(
       Buffer.from([0xff, 0xd8, 0xff, 0xe0]),

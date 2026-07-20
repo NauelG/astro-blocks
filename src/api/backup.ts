@@ -239,7 +239,7 @@ export async function extractToStaging(
   zipBody: Buffer | Uint8Array,
   stagingDir: string,
   ceilings: CeilingLimits,
-  projectRoot: string,
+  _projectRoot: string,
 ): Promise<void> {
   await fs.mkdir(stagingDir, { recursive: true });
 

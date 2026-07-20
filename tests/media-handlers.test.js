@@ -13,7 +13,6 @@ import {
   ensureDefaultFiles,
   loadMedia,
   savePages,
-  loadLanguages,
   markMediaVariantsReady,
   markMediaVariantsFailed,
   appendMediaEntry,
@@ -423,7 +422,7 @@ test('T1.2: legacy entry (no status/variants) loads without error', async () => 
 
 test('T1.2: invalid status coerced to undefined', async () => {
   await withTempProject(async () => {
-    const { replaceMedia, loadMedia: reloadMedia } = await import('../dist/api/data.js');
+    const { loadMedia: reloadMedia } = await import('../dist/api/data.js');
     const invalidEntry = {
       id: 'bad-status',
       url: '/uploads/2026/01/bad.jpg',
@@ -643,7 +642,7 @@ test('T4.2: delete cascade — original + all variant files gone, entry pruned',
 });
 
 test('T4.2: delete with missing variant files is idempotent', async () => {
-  await withTempProject(async (tempRoot) => {
+  await withTempProject(async (_tempRoot) => {
     const content = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
     const uploadReq = makeUploadRequest(content, 'photo.jpg', 'image/jpeg');
     const uploadRes = await handleUpload(uploadReq);
@@ -678,16 +677,6 @@ test('T4.2: delete with missing variant files is idempotent', async () => {
  * Targets the replace path directly without auth (T5.1 tests handler internals,
  * auth is tested separately).
  */
-function makeReplaceRequest(content, filename, mimeType) {
-  return new Request(`http://localhost/cms/api/media/PLACEHOLDER/replace`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': mimeType,
-      'x-cms-filename': encodeURIComponent(filename),
-    },
-    body: content,
-  });
-}
 
 test('T5.1: replaceMediaEntryBytes returns { entry, oldVariants } with oldVariants captured under lock', async () => {
   await withTempProject(async () => {
@@ -782,7 +771,7 @@ test('T5.1: handleReplaceUpload — no .tmp file left behind on success (atomic 
     });
 
     // Attach auth cookie same as other tests (handler uses getAuth which reads cookie)
-    const res = await handleReplaceUpload(replaceReq, entryId);
+    await handleReplaceUpload(replaceReq, entryId);
     // Response may be 401 in test env if getAuth fails without a real JWT — that is fine
     // for this test: even a 401 should not leave .tmp files.
     const uploadsDir = path.join(tempRoot, 'public', path.dirname(relativeUrl));
@@ -846,7 +835,7 @@ test('T7.1: reconcile prunes entry and deletes its variants when original is mis
 });
 
 test('T7.1: reconcile tolerates missing orphan variant files', async () => {
-  await withTempProject(async (tempRoot) => {
+  await withTempProject(async (_tempRoot) => {
     // Register an entry with variants but don't create any files on disk
     const url = '/uploads/2026/06/ghost.jpg';
     await appendMediaEntry({
@@ -905,7 +894,7 @@ test('T7.1: reconcile leaves valid variant files untouched', async () => {
 });
 
 test('T7.1: existing reconcile behaviour preserved (entry with no variants still pruned)', async () => {
-  await withTempProject(async (tempRoot) => {
+  await withTempProject(async (_tempRoot) => {
     // Entry with no variants, original file missing
     const url = '/uploads/2026/06/no-variants.jpg';
     await appendMediaEntry({

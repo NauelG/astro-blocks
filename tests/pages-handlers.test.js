@@ -306,14 +306,13 @@ test('handlePutPage returns 404 for non-existent page id', async () => {
 test('handlePutPage returns 400 on duplicate slug during update', async () => {
   await withTempProject(async () => {
     // Create two pages
-    const res1 = await handlePostPages(
+    await handlePostPages(
       new Request('http://localhost/cms/api/pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Page One', slug: '/page-one', blocks: [] }),
       }),
     );
-    const page1 = await res1.json();
 
     const res2 = await handlePostPages(
       new Request('http://localhost/cms/api/pages', {
