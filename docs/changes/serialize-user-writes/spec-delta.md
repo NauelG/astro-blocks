@@ -17,8 +17,14 @@ to "every mutation", since the restore is no longer the only serialized writer.
 
 > **R7 — Every mutation of the user store is serialized, and the store owns it.** `users.json` has
 > exactly one mutation seam, `mutateUsers` (ADR-0030). It acquires the users lock, re-reads the list
-> **inside** the lock, hands it to the mutator, and writes it back. Callers never acquire the lock
-> themselves — it is non-reentrant, so a mutator reaching for it would deadlock.
+> **inside** the lock, hands it to the mutator, and writes it back. A **mutator** never acquires the
+> lock — it is non-reentrant, so reaching for it from inside the mutator would deadlock. The seam is
+> not the lock's only client: the import pipeline acquires it directly for the span of a whole run,
+> which is why `withUsersLock` stays exported.
+>
+> The seam **preserves unknown top-level keys** in `users.json`. `loadUsers` and `restoreUsers` both
+> spread the loaded object deliberately, so a field the code does not model survives a read and a
+> restore; a mutation must not be the one path that silently drops it.
 >
 > The seam has **no abort mechanism**: it writes unconditionally. An error path does not mutate, and
 > the unchanged list is rewritten. A `commit()` flag or an `ABORT` sentinel would each add a way to

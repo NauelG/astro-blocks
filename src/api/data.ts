@@ -440,15 +440,19 @@ export async function saveUsers(usersData: UsersData): Promise<void> {
  * remove — to save a redundant write on a rare branch. If `fn` throws, the exception propagates
  * before the write and nothing is persisted.
  *
- * This is the ONLY way to mutate users.json. Callers must NOT acquire withUsersLock themselves: it
- * is non-reentrant, so a mutator reaching for it would deadlock. Hash passwords before calling —
+ * This is the ONLY way to mutate users.json. `fn` must NOT acquire withUsersLock: the lock is
+ * non-reentrant, so reaching for it from inside the mutator deadlocks. (The import pipeline still
+ * acquires it directly, for the span of a whole run — this seam is not its only client.) Hash passwords before calling —
  * hashPassword is deliberately slow, and holding this lock across it blocks every login.
  */
 export async function mutateUsers<T>(fn: (users: User[]) => Promise<T> | T): Promise<T> {
   return withUsersLock(async () => {
-    const { users } = await loadUsers();
-    const result = await fn(users);
-    await saveUsers({ users });
+    // Spread the loaded object, not just its users: loadUsers preserves unknown top-level keys
+    // (`...data`) and so does restoreUsers (`...restored`). A mutation must not be the one path
+    // that silently drops them.
+    const current = await loadUsers();
+    const result = await fn(current.users);
+    await saveUsers({ ...current, users: current.users });
     return result;
   });
 }

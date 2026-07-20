@@ -9,7 +9,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { ensureDefaultFiles, loadUsers } from '../dist/api/data.js';
+import { ensureDefaultFiles, loadUsers, mutateUsers } from '../dist/api/data.js';
 import {
   handleGetUsers,
   handlePostUsers,
@@ -668,5 +668,34 @@ test('#135: concurrent demotion and deletion leave at least one owner', async ()
     const { users } = await loadUsers();
     const owners = users.filter((u) => u.role === 'owner');
     assert.ok(owners.length >= 1, 'the instance was left with no owner');
+  });
+});
+
+test('#135: mutateUsers preserves unknown top-level keys in users.json', async () => {
+  await withTempProject(async (tempRoot) => {
+    // loadUsers spreads `...data` and restoreUsers spreads `...restored`, both deliberately: an
+    // unknown top-level field survives a read and a restore. A mutation must not be the one path
+    // that silently destroys it.
+    const usersPath = path.join(tempRoot, 'data', 'users.json');
+    await fs.writeFile(
+      usersPath,
+      JSON.stringify({ schemaNote: 'keep me', users: [] }, null, 2),
+      'utf-8',
+    );
+
+    await mutateUsers((users) => {
+      users.push({
+        id: 'u1',
+        email: 'u1@example.com',
+        passwordHash: 'c2FsdA==:aGFzaA==',
+        role: 'owner',
+        tokenVersion: 1,
+        createdAt: new Date().toISOString(),
+      });
+    });
+
+    const raw = JSON.parse(await fs.readFile(usersPath, 'utf-8'));
+    assert.equal(raw.schemaNote, 'keep me', 'an unknown top-level key was dropped by the mutation');
+    assert.equal(raw.users.length, 1, 'the mutation itself must still apply');
   });
 });

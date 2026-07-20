@@ -101,3 +101,29 @@ Tests import from `../dist/…`, so every verify step is `npm run build && npm t
 - No version bump, no `CHANGELOG` entry — those happen only when the human asks to close
   (`AGENTS.md` *Versionado*). At close this is a `patch` with a `### Fixed` entry.
 - **Verify:** `git log -1` shows no agent attribution and a `Reviewed-by` footer.
+
+## Review findings (2026-07-20)
+
+Reviewing the diff against `spec-delta.md` confirmed the code claims — no `saveUsers` survives in
+any handler, hashing happens before every `mutateUsers` call, and all five guards (email uniqueness,
+two existence checks, two last-owner rules) are evaluated against the in-lock array. It also found
+one real defect, introduced by this change.
+
+- **`mutateUsers` silently dropped unknown top-level keys in `users.json`.** It wrote
+  `saveUsers({ users })`, discarding everything else in the object. Both neighbouring functions
+  preserve those keys on purpose — `loadUsers` spreads `...data`, `restoreUsers` spreads
+  `...restored` — and the handlers it replaced did too, by passing the whole loaded object back to
+  `saveUsers`. The seam was therefore the single path that destroyed them, on the first mutation of
+  any user. Low impact today (nothing writes extra keys except a restored foreign archive) but it is
+  silent data loss and it broke a convention two sibling functions establish. Fixed, with a
+  regression test that writes a `schemaNote` key and asserts it survives a mutation.
+- **`spec-delta.md` R7 said "callers never acquire the lock themselves".** Imprecise: in context it
+  means the *mutator*, but read standalone it claims nothing anywhere acquires `withUsersLock` — and
+  the import pipeline does (`backup.ts:927`). That is the kind of sentence someone later cites as
+  permission to delete that acquisition. Reworded in the delta and in the seam's doc comment, both of
+  which now say which client is which.
+
+**Worth naming:** the dropped-keys bug passed every gate. 1290 unit tests, typecheck, e2e, the five
+new concurrency tests — none of them look at a field the type system does not model. It was found by
+reading the diff beside the two functions it sits between and noticing they did something this one
+did not.
