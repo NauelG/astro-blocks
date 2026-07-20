@@ -72,7 +72,11 @@ Licensed under the Business Source License 1.1
   /* Focus ring — unified, primary-tinted */
   --cms-focus-ring: color-mix(in srgb, var(--cms-primary, #333) 18%, transparent);
   /* Legacy alias tokens — kept for backward compatibility */
-  --cms-gradient-primary: linear-gradient(145deg, var(--cms-primary, #333) 0%, var(--cms-secondary, #555) 100%);
+  --cms-gradient-primary: linear-gradient(
+    145deg,
+    var(--cms-primary, #333) 0%,
+    var(--cms-secondary, #555) 100%
+  );
   --cms-gradient-bg: var(--cms-bg);
   --cms-gradient-sidebar: var(--cms-sidebar-bg, #fff);
   --cms-gradient-card: var(--cms-card-bg);
@@ -370,7 +374,9 @@ Licensed under the Business Source License 1.1
   border: 1px solid var(--cms-border);
   border-radius: var(--cms-radius-base);
   font-size: 0.8125rem;
-  transition: border-color var(--cms-transition), box-shadow var(--cms-transition);
+  transition:
+    border-color var(--cms-transition),
+    box-shadow var(--cms-transition);
 }
 
 .cms-input:focus {
@@ -395,7 +401,12 @@ Licensed under the Business Source License 1.1
   cursor: pointer;
   box-sizing: border-box;
   outline: none;
-  transition: background var(--cms-transition), border-color var(--cms-transition), box-shadow var(--cms-transition), filter var(--cms-transition), transform 0.08s ease;
+  transition:
+    background var(--cms-transition),
+    border-color var(--cms-transition),
+    box-shadow var(--cms-transition),
+    filter var(--cms-transition),
+    transform 0.08s ease;
   margin-bottom: 0;
   white-space: nowrap;
 }
@@ -525,7 +536,9 @@ Licensed under the Business Source License 1.1
 
 .cms-table tbody tr {
   background: var(--cms-surface, #fff) !important;
-  transition: background var(--cms-transition), box-shadow var(--cms-transition);
+  transition:
+    background var(--cms-transition),
+    box-shadow var(--cms-transition);
 }
 
 .cms-table tbody tr:hover {
@@ -584,7 +597,11 @@ Licensed under the Business Source License 1.1
   background: var(--cms-surface-alt);
   color: #4b5563;
   cursor: pointer;
-  transition: background var(--cms-transition), border-color var(--cms-transition), color var(--cms-transition), box-shadow var(--cms-transition);
+  transition:
+    background var(--cms-transition),
+    border-color var(--cms-transition),
+    color var(--cms-transition),
+    box-shadow var(--cms-transition);
   vertical-align: middle;
   margin-bottom: 0;
 }
@@ -760,7 +777,9 @@ Licensed under the Business Source License 1.1
   border-radius: var(--cms-radius-base);
   font-size: 0.71875rem;
   line-height: 1.3;
-  transition: border-color var(--cms-transition), box-shadow var(--cms-transition);
+  transition:
+    border-color var(--cms-transition),
+    box-shadow var(--cms-transition);
 }
 
 .cms-field input:focus,
@@ -802,7 +821,10 @@ Licensed under the Business Source License 1.1
   line-height: 1.3;
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--cms-transition), box-shadow var(--cms-transition), background var(--cms-transition);
+  transition:
+    border-color var(--cms-transition),
+    box-shadow var(--cms-transition),
+    background var(--cms-transition);
 }
 
 .cms-select-trigger:focus-visible {
@@ -867,7 +889,10 @@ Licensed under the Business Source License 1.1
   opacity: 0;
   visibility: hidden;
   transform: translateY(-3px);
-  transition: opacity var(--cms-transition), transform var(--cms-transition), visibility var(--cms-transition);
+  transition:
+    opacity var(--cms-transition),
+    transform var(--cms-transition),
+    visibility var(--cms-transition);
   z-index: 1400;
   pointer-events: none;
 }
@@ -891,7 +916,9 @@ Licensed under the Business Source License 1.1
   line-height: 1.2;
   text-align: left;
   cursor: pointer;
-  transition: background var(--cms-transition), color var(--cms-transition);
+  transition:
+    background var(--cms-transition),
+    color var(--cms-transition);
 }
 
 .cms-select-option:hover {
@@ -1372,7 +1399,9 @@ Licensed under the Business Source License 1.1
   padding: 2rem;
   text-align: center;
   background: var(--cms-surface-alt);
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .cms-dropzone:hover,
@@ -1446,7 +1475,11 @@ Licensed under the Business Source License 1.1
   background: var(--cms-surface, #fff);
   color: #4b5563;
   cursor: pointer;
-  transition: background var(--cms-transition), border-color var(--cms-transition), color var(--cms-transition), box-shadow var(--cms-transition);
+  transition:
+    background var(--cms-transition),
+    border-color var(--cms-transition),
+    color var(--cms-transition),
+    box-shadow var(--cms-transition);
   padding: 0;
   line-height: 0;
   flex-shrink: 0;
@@ -1489,7 +1522,10 @@ Licensed under the Business Source License 1.1
   visibility: hidden;
   opacity: 0;
   transform: translateY(-6px) scale(0.98);
-  transition: visibility var(--cms-transition), opacity var(--cms-transition), transform var(--cms-transition);
+  transition:
+    visibility var(--cms-transition),
+    opacity var(--cms-transition),
+    transform var(--cms-transition);
   z-index: 1200;
   isolation: isolate;
 }
@@ -1515,7 +1551,9 @@ Licensed under the Business Source License 1.1
   border: none;
   border-radius: var(--cms-radius-base);
   cursor: pointer;
-  transition: background var(--cms-transition), color var(--cms-transition);
+  transition:
+    background var(--cms-transition),
+    color var(--cms-transition);
   position: relative;
   z-index: 1;
   pointer-events: auto;
@@ -1921,10 +1959,18 @@ Licensed under the Business Source License 1.1
     display: contents;
   }
 
-  .cms-dashboard-stats   { order: 1; }
-  .cms-dashboard-quick   { order: 2; }
-  .cms-dashboard-recent  { order: 3; }
-  .cms-dashboard-site-link { order: 4; }
+  .cms-dashboard-stats {
+    order: 1;
+  }
+  .cms-dashboard-quick {
+    order: 2;
+  }
+  .cms-dashboard-recent {
+    order: 3;
+  }
+  .cms-dashboard-site-link {
+    order: 4;
+  }
 }
 
 /* --- Block header (title + "ver todas" link inside a card) --- */
@@ -2173,7 +2219,9 @@ Licensed under the Business Source License 1.1
   border-radius: 0;
   outline: none;
   box-shadow: none;
-  transition: color var(--cms-transition), border-color var(--cms-transition);
+  transition:
+    color var(--cms-transition),
+    border-color var(--cms-transition);
 }
 
 .cms-page-detail-tab:hover {
@@ -2357,7 +2405,10 @@ Licensed under the Business Source License 1.1
   background: var(--cms-surface, #fff);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   margin-bottom: 0.5rem;
-  transition: border-color var(--cms-transition), box-shadow var(--cms-transition), background var(--cms-transition);
+  transition:
+    border-color var(--cms-transition),
+    box-shadow var(--cms-transition),
+    background var(--cms-transition);
 }
 
 .cms-blocks-select-item:last-child {
@@ -2385,7 +2436,11 @@ Licensed under the Business Source License 1.1
   --cms-shadow-floating: 0 20px 40px rgba(15, 23, 42, 0.12);
   --cms-content-max: 1380px;
   background:
-    radial-gradient(circle at top left, color-mix(in srgb, var(--cms-primary, #333) 10%, transparent) 0, transparent 28%),
+    radial-gradient(
+      circle at top left,
+      color-mix(in srgb, var(--cms-primary, #333) 10%, transparent) 0,
+      transparent 28%
+    ),
     linear-gradient(180deg, #f9fbfd 0%, var(--cms-app-bg) 18%, #eef2f7 100%);
 }
 
@@ -2399,7 +2454,7 @@ Licensed under the Business Source License 1.1
 }
 
 .cms-panel::before {
-  content: '';
+  content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -2422,7 +2477,9 @@ Licensed under the Business Source License 1.1
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   border-bottom: 1px solid var(--cms-shell-border);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.75), 0 10px 24px rgba(15, 23, 42, 0.04);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.75),
+    0 10px 24px rgba(15, 23, 42, 0.04);
   z-index: 1100;
 }
 
@@ -2874,7 +2931,12 @@ Licensed under the Business Source License 1.1
   max-width: 13.5rem;
 }
 
-.cms-toolbar :is(.cms-toolbar-search input[type="search"], .cms-toolbar-group select, .cms-toolbar-group .cms-select-trigger) {
+.cms-toolbar
+  :is(
+    .cms-toolbar-search input[type="search"],
+    .cms-toolbar-group select,
+    .cms-toolbar-group .cms-select-trigger
+  ) {
   margin: 0 !important;
   vertical-align: middle;
   display: block;
@@ -3073,7 +3135,11 @@ Licensed under the Business Source License 1.1
   min-height: auto;
   padding: 0.85rem;
   background:
-    radial-gradient(circle at top right, color-mix(in srgb, var(--cms-primary, #333) 13%, transparent), transparent 32%),
+    radial-gradient(
+      circle at top right,
+      color-mix(in srgb, var(--cms-primary, #333) 13%, transparent),
+      transparent 32%
+    ),
     linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.96) 100%);
 }
 
@@ -3169,8 +3235,7 @@ Licensed under the Business Source License 1.1
   padding: 0.75rem;
   border-radius: var(--cms-radius-base);
   border: 1px solid var(--cms-border);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
 }
 
 .cms-dashboard-stat-value {
@@ -3193,7 +3258,10 @@ Licensed under the Business Source License 1.1
   background: rgba(255, 255, 255, 0.95);
   text-decoration: none;
   color: inherit;
-  transition: transform var(--cms-transition), border-color var(--cms-transition), box-shadow var(--cms-transition);
+  transition:
+    transform var(--cms-transition),
+    border-color var(--cms-transition),
+    box-shadow var(--cms-transition);
 }
 
 .cms-dashboard-action-card:hover {
@@ -3283,7 +3351,11 @@ Licensed under the Business Source License 1.1
 
 .cms-login-wrap {
   background:
-    radial-gradient(circle at top center, color-mix(in srgb, var(--cms-primary, #333) 10%, transparent), transparent 34%),
+    radial-gradient(
+      circle at top center,
+      color-mix(in srgb, var(--cms-primary, #333) 10%, transparent),
+      transparent 34%
+    ),
     linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
 }
 
@@ -3321,7 +3393,9 @@ Licensed under the Business Source License 1.1
   box-shadow: var(--cms-shadow-floating);
   transform: translateY(10px);
   opacity: 0;
-  transition: transform 160ms ease, opacity 160ms ease;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease;
 }
 
 .cms-toast--visible {
@@ -4532,7 +4606,7 @@ Licensed under the Business Source License 1.1
   background: transparent;
 }
 #cms-media-picker::backdrop {
-  background: rgba(0,0,0,0.4);
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
 }
@@ -4546,7 +4620,7 @@ Licensed under the Business Source License 1.1
   background: var(--cms-surface, #fff);
   border: 1px solid var(--cms-border, #e3e8f0);
   border-radius: var(--cms-radius-base, 0.5rem);
-  box-shadow: var(--cms-shadow-lg, 0 8px 24px rgba(0,0,0,0.09), 0 3px 8px rgba(0,0,0,0.06));
+  box-shadow: var(--cms-shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.09), 0 3px 8px rgba(0, 0, 0, 0.06));
 }
 .cms-media-picker-header {
   display: flex;
@@ -4578,17 +4652,18 @@ Licensed under the Business Source License 1.1
   background: var(--cms-surface-alt, #f7f8fc);
   color: var(--cms-text-muted, #6b7280);
   cursor: pointer;
-  transition: background var(--cms-transition, 120ms ease),
+  transition:
+    background var(--cms-transition, 120ms ease),
     border-color var(--cms-transition, 120ms ease),
     color var(--cms-transition, 120ms ease);
 }
 .cms-media-picker-close:hover {
-  background: color-mix(in srgb, var(--cms-primary, #2C53B8) 8%, var(--cms-surface-alt, #f7f8fc));
+  background: color-mix(in srgb, var(--cms-primary, #2c53b8) 8%, var(--cms-surface-alt, #f7f8fc));
   border-color: var(--cms-border-strong, #c5cedd);
   color: var(--cms-text-strong, #111827);
 }
 .cms-media-picker-close:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--cms-primary, #2C53B8) 50%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--cms-primary, #2c53b8) 50%, transparent);
   outline-offset: 1px;
 }
 .cms-media-picker-body {
@@ -4611,20 +4686,21 @@ Licensed under the Business Source License 1.1
   border-radius: var(--cms-radius-base, 0.5rem);
   overflow: hidden;
   background: var(--cms-surface-alt, #f7f8fc);
-  transition: border-color var(--cms-transition, 120ms ease),
+  transition:
+    border-color var(--cms-transition, 120ms ease),
     box-shadow var(--cms-transition, 120ms ease);
   padding: 0;
   text-align: left;
 }
 .cms-media-picker-item:hover,
 .cms-media-picker-item:focus-visible {
-  border-color: var(--cms-primary, #2C53B8);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cms-primary, #2C53B8) 18%, transparent);
+  border-color: var(--cms-primary, #2c53b8);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cms-primary, #2c53b8) 18%, transparent);
   outline: none;
 }
 .cms-media-picker-img {
   width: 100%;
-  aspect-ratio: 1/1;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
   display: block;
   background: var(--cms-surface-alt, #f7f8fc);
@@ -4729,7 +4805,9 @@ Licensed under the Business Source License 1.1
   border-radius: var(--cms-radius-base);
   box-shadow: var(--cms-shadow-sm);
   overflow: hidden;
-  transition: box-shadow var(--cms-transition), border-color var(--cms-transition);
+  transition:
+    box-shadow var(--cms-transition),
+    border-color var(--cms-transition);
 }
 
 .cms-media-card:hover {
@@ -4808,8 +4886,11 @@ Licensed under the Business Source License 1.1
   color: #b91c1c;
   cursor: pointer;
   opacity: 0;
-  transition: opacity var(--cms-transition), background var(--cms-transition),
-    border-color var(--cms-transition), color var(--cms-transition),
+  transition:
+    opacity var(--cms-transition),
+    background var(--cms-transition),
+    border-color var(--cms-transition),
+    color var(--cms-transition),
     box-shadow var(--cms-transition);
 }
 
@@ -4861,8 +4942,11 @@ Licensed under the Business Source License 1.1
   border: 1px solid transparent;
   cursor: pointer;
   opacity: 0;
-  transition: opacity var(--cms-transition), background var(--cms-transition),
-    border-color var(--cms-transition), color var(--cms-transition),
+  transition:
+    opacity var(--cms-transition),
+    background var(--cms-transition),
+    border-color var(--cms-transition),
+    color var(--cms-transition),
     box-shadow var(--cms-transition);
 }
 
@@ -4949,7 +5033,9 @@ Licensed under the Business Source License 1.1
   border-radius: var(--cms-radius-sm, 0.3rem);
   background: var(--cms-surface-alt, #f7f8fc);
   color: var(--cms-text-main, #374151);
-  transition: border-color var(--cms-transition), box-shadow var(--cms-transition);
+  transition:
+    border-color var(--cms-transition),
+    box-shadow var(--cms-transition);
 }
 
 .cms-media-card-alt::placeholder {

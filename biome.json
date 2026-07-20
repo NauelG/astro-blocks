@@ -6,15 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": [
-      "src/**",
-      "scripts/**",
-      "tests/**",
-      "e2e/**",
-      "!**/*.astro",
-      "!src/styles/**",
-      "!**/dist"
-    ]
+    "includes": ["src/**", "scripts/**", "tests/**", "e2e/**", "!**/*.astro", "!**/dist"]
   },
   "formatter": {
     "enabled": true,
@@ -38,5 +30,17 @@
   },
   "assist": {
     "enabled": false
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/styles/**"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noImportantStyles": "off"
+          }
+        }
+      }
+    }
+  ]
 }

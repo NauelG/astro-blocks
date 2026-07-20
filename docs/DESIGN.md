@@ -57,6 +57,12 @@ El panel debe seguir siempre estos principios visuales:
 
 `cms-admin.css` es la fuente de verdad del design system del panel. Las mejoras visuales del admin deben implementarse preferentemente aquí.
 
+**Linting.** Este fichero está bajo el gate de Biome (`npm run check`). Antes no lo estaba: la exclusión `!src/styles/**` venía del reorg de `src/`, y dos correcciones de UI publicadas el 2026-07-20 (`4.0.0` y `4.0.2`) lo modificaron sin que ninguna puerta las mirase (#95).
+
+La regla **`noImportantStyles` está desactivada** para `src/styles/**`, a propósito y con motivo: esta hoja se carga **después de Pico CSS** precisamente para que sus overrides ganen (§1), y usa `!important` en clases utilitarias como `.cms-hidden`. La regla asume que controlas toda la cascada; aquí no es cierto. **No la reactives sin quitar antes los `!important` deliberados** — hay 38, ninguno comentado, y varios sostienen el tema white-label.
+
+`noDescendingSpecificity` **sí está activa** (8 avisos hoy). Son señal real sobre el orden de la cascada, se dejan visibles a propósito, y forman parte del ratchet de #65. El recuento global de warnings pasa de 62 a 69: +8 del CSS y −1 de `useBiomeIgnoreFolder`, que Biome levantaba sobre la propia exclusión eliminada.
+
 Clases base del sistema:
 
 - **Layout:** `.cms-wrap`, `.cms-sidebar`, `.cms-main`, `.cms-nav`, `.cms-topbar`, `.cms-footer`, `.cms-login-wrap`
