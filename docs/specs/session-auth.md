@@ -13,7 +13,8 @@ Licensed under the Business Source License 1.1
 > `restore-session-revocation` (2026-07-19, #134, ADR-0028), which made restore a revocation trigger
 > so the monotonicity R3 assumes is actually upheld; R4/R6 extended and R7 rewritten by
 > `serialize-user-writes` (2026-07-20, #135, ADR-0030), which put every mutation behind one
-> serialized seam and closed the gap R7 had itself declared.
+> serialized seam and closed the gap R7 had itself declared; R8 added by `login-attempt-backoff`
+> (2026-07-20, #125, ADR-0032), which bounded how often a token may be *asked for*.
 
 ## Capability
 
@@ -137,6 +138,60 @@ hash computed on error paths that then discard it.
 it *replaces* the list rather than mutating it. The rule is every **mutation**, not every write.
 `saveUsers` likewise stays a plain unlocked writer — it is what both are built from.
 
+**R8 — Failed logins are progressively delayed, keyed by email.** Repeated credential failures for
+the same email address accrue a growing delay: `FREE_ATTEMPTS` (3) accrued failures owe nothing,
+then the debt doubles from `BASE_DELAY_MS` (500 ms) to `MAX_DELAY_MS` (8 s), where it pins. A
+successful login clears the key; an entry idle beyond `ATTEMPT_TTL_MS` (15 min) is forgotten, so a
+returning owner starts clean.
+
+The debt accrued by N failures is paid by the **N+1th** attempt, not by the request that incurs it —
+the wait runs before credentials are checked, so it can only reflect what is already recorded.
+`FREE_ATTEMPTS` (3) therefore means **four** attempts are answered with no delay; the fifth is the
+first to wait. Describing it as "three free attempts" is off by one.
+
+**The key is the normalized email, and nothing else.** The client address is deliberately excluded
+(ADR-0032): Astro resolves it as `x-forwarded-for || socket.remoteAddress`, which is either
+unspoofable but shared by every caller behind a proxy, or attacker-controlled — and a distributable
+package cannot tell which of the two it holds. Keying on it would let an attacker rotate the header
+for unlimited attempts, and forge a victim's address to throttle a third party.
+
+**The delay is the only observable.** A throttled attempt returns the same
+`401 errors.invalidCredentials` as any other failure, with no `Retry-After` and no distinct status,
+and accrues identically whether or not the email exists. This preserves R1's single failure
+response: a lockout status appearing only for real accounts would enumerate them.
+
+**It is a delay, not a lockout.** The CMS has a single owner; denying that account after N failures
+would let any unauthenticated caller make the instance unadministrable. Backoff never shuts the
+owner out — it only makes sequences of guesses slow.
+
+**The attempt store is bounded, and evicts by failure count rather than recency.** It is in-process
+memory keyed by an attacker-controlled value, so it is capped (`MAX_TRACKED_KEYS`, 1 024). Eviction
+drops expired entries first, then those with the **fewest** failures. Least-recently-used eviction
+would be a bypass: flooding the store with junk keys would evict the entry tracking the account
+under attack. A sweep also reclaims a **batch** rather than the bare excess — evicting one entry per
+insertion would sort the whole store on every failed login past the cap, making the defense a CPU
+amplifier under precisely the flood it exists to survive. Both are security properties of the
+eviction path, not housekeeping.
+
+**What this does and does not bound.** Backoff bounds the rate a key sustains **over time**. It does
+not bound a burst of concurrent requests arriving before any counter increments; there, the
+per-guess cost of scrypt limits throughput. The two compose and neither is sufficient alone. The
+counter does not survive a restart and does not span instances — a reverse-proxy rate limit remains
+the expected production layer, and this is defense in depth.
+
+**Regression coverage.** The delay schedule is pure and covered directly: free attempts, doubling,
+the cap, and absurd inputs that must not overflow past it. Through `handleLogin`: repeated failures
+grow the delay and a success resets it; an **unknown email is throttled indistinguishably from a
+known one** in both status and body; bootstrap on an empty store is unaffected. Eviction is covered
+by the case that separates it from LRU — a high-failure key must survive a flood of single-failure
+keys. Exactly one test touches the clock, asserting a **lower** bound on elapsed time; a timer may
+fire late on a loaded runner, never early, so an upper-bound assertion would be flaky rather than
+meaningful.
+
+The `jwtSecretMisconfigured` 503 is **not** covered by test and cannot be: `JWT_SECRET_STATUS` is
+evaluated once at module import, so reaching that branch requires the environment set before the
+import. Its ordering is structural instead — the guard returns before the throttle is reachable.
+
 ## Boundaries & unchanged behaviour
 
 - `jwtSecretMisconfigured` fail-closed behaviour (production refuses the built-in fallback secret),
@@ -144,6 +199,11 @@ it *replaces* the list rather than mutating it. The rule is every **mutation**, 
 - `requireOwner` is unchanged — it simply receives the fresh store role.
 - Revocation is **per-user**, not per-session: there is no `jti` and no per-device sign-out. An
   explicit "sign out everywhere" endpoint is not yet exposed (the mechanism is in place).
+- Login throttling (R8) is **per email, per process, in memory**. It does not persist across restart,
+  does not coordinate across instances, and is applied to no endpoint other than login. No other
+  unauthenticated surface is rate limited. The first-user bootstrap path is not throttled and needs
+  no counter: with an empty store any credentials succeed, so no credential failure is reachable
+  there.
 - `tokenVersion` normalization is **read-only and per-record**; it never writes, and it never moves a
   counter *backwards* in the store. Neither does a restore: the counter is **monotonic**, without
   qualification (R4, R7, ADR-0028). The price is that restoring the `users` unit signs every user
