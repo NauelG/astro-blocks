@@ -32,28 +32,40 @@ returns to `absolute`.
 `openMenu` currently only toggles a class; all geometry came from CSS. It now measures:
 
 ```ts
+const MENU_GAP = 4;          // px — matches the 0.28rem the absolute rule used
+const MENU_MIN_HEIGHT = 96;  // px — below this a shrunken panel stops being usable
+
 function positionMenu(entry: ManagedSelect): void {
-  const r = entry.trigger.getBoundingClientRect();
-  const gap = 4; // matches the 0.28rem the absolute rule used
+  const rect = entry.trigger.getBoundingClientRect();
   const menu = entry.menu;
 
-  // Width and horizontal position come from the trigger, replacing `left: 0; right: 0`.
-  menu.style.left = `${r.left}px`;
-  menu.style.width = `${r.width}px`;
+  menu.style.left = `${rect.left}px`;
+  menu.style.width = `${rect.width}px`;
+  menu.style.maxHeight = '';   // clear a cap from a previous open, or it shrinks every time
 
-  // Measure the panel before deciding: max-height caps it, contents may be shorter.
-  menu.style.top = '0px';
+  const natural = menu.offsetHeight;
+  const below = window.innerHeight - rect.bottom - MENU_GAP;
+  const above = rect.top - MENU_GAP;
+
+  // Flip only when it does not fit below AND there is genuinely more room above.
+  const flip = natural > below && above > below;
+  const space = flip ? above : below;
+
+  // If it does not fit on the chosen side either, SHRINK rather than overlap the trigger.
+  // Clamping the position instead would cover the field being edited.
+  if (natural > space) menu.style.maxHeight = `${Math.max(MENU_MIN_HEIGHT, space)}px`;
+
   const height = menu.offsetHeight;
-
-  const below = window.innerHeight - r.bottom - gap;
-  const above = r.top - gap;
-  // Flip only when it does not fit below AND there is genuinely more room above; otherwise a
-  // panel near the middle would flip for no reason.
-  const flip = height > below && above > below;
-
-  menu.style.top = flip ? `${Math.max(gap, r.top - gap - height)}px` : `${r.bottom + gap}px`;
+  menu.style.top = flip
+    ? `${Math.max(MENU_GAP, rect.top - MENU_GAP - height)}px`
+    : `${rect.bottom + MENU_GAP}px`;
 }
 ```
+
+> **Added during execution.** The first implementation had no `maxHeight` handling and clamped the
+> flipped `top` to the viewport instead. Exercising the flip branch showed the panel then **covering
+> its own trigger** when the space above was also insufficient — which is the "clamp to viewport"
+> behaviour rejected at grilling, arrived at by accident. Shrinking is the correct response.
 
 Called from `openMenu` after the shell gets `cms-select--open` — the panel must be laid out before
 `offsetHeight` means anything.

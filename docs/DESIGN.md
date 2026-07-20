@@ -167,7 +167,9 @@ Clases base del sistema:
   responder al click. Quedándose en su sitio conserva gratis el descarte por `shell.contains()`, el
   orden de tabulación y la contención de foco del diálogo. Si no cabe bajo el disparador y arriba hay
   más sitio, **vuelca hacia arriba**: con `fixed`, cambiar un recorte por un desbordamiento de
-  pantalla no es arreglarlo. (ADR-0031, #138)
+  pantalla no es arreglarlo. Y si no cabe en ninguno de los dos lados, **encógelo** al espacio
+  disponible en vez de recolocarlo: pegarlo al borde de la pantalla acaba tapando el campo que se
+  está editando. (ADR-0031, #138)
 - **Celdas técnicas:** usar `.cms-table-cell-monospace` para slugs o valores similares.
 - **Indicador indexable:** usar `.cms-indexable-dot`.
 - **Densidad:** la tabla compacta es la referencia. Si en el futuro se quiere soportar una variante más cómoda, debe hacerse como extensión explícita (por ejemplo, clase de densidad), manteniendo la compacta como default.

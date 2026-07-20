@@ -118,3 +118,27 @@ positioning logic is what was under test, not the option data.
 **Measured, not eyeballed:** with the menu open, `scrollHeight === clientHeight` on the modal body
 (no inflation) and `menuEscapesBody === true` (the panel extends past the body's bottom edge, which
 was impossible under `absolute`).
+
+## Review findings (2026-07-20)
+
+Reviewing the diff against `spec-delta.md` confirmed the routing claims — no living spec changed, the
+rule is in `DESIGN.md`, the reasoning is in ADR-0031 — and found two real gaps.
+
+- **Two of the four visual checks in `design.md` §5 were never performed.** The screenshot spec used
+  `.click().catch(() => {})` on the users-modal trigger, so when the selector did not match, the test
+  **passed having verified nothing**. `ls` on the output directory showed only the redirects images in
+  both the before and after runs. The user edit modal is one of the two surfaces #138 reports, and the
+  topbar selects were the stated regression check. Both verified afterwards with assertions and no
+  `catch`: users modal → `fixed`, no inflation, panel bottom 524 vs body bottom 467 (escapes the clip
+  by 57px, far clearer than the redirects case); topbar → opens downwards, left-aligned and
+  same-width as its trigger within 1px, exactly what `left: 0; right: 0` produced.
+
+  This is the same failure mode this change's own header warns about, committed inside the tool built
+  to check it: a swallowed error is indistinguishable from a passing check.
+
+- **`design.md`, ADR-0031 and the `DESIGN.md` rule all described an implementation that was not
+  shipped.** The shrink-to-fit behaviour was added during T3 after exercising the flip branch, and
+  none of the three documents mentioned it — `design.md` §2 still showed the original `positionMenu`
+  with a position clamp and no `maxHeight`. Documents written before execution describe intent; if
+  execution changes the design, they become confident fiction. All three updated, with the reason for
+  the change recorded rather than silently overwritten.
