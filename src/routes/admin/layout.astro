@@ -713,11 +713,55 @@ const t = createT(uiLocale);
           if (openSelect === entry) openSelect = null;
         }
 
+        // The menu is position: fixed so no ancestor's overflow can clip it (#138, ADR-0031). That
+        // costs it the geometry `left: 0; right: 0` used to give it against the shell, so the
+        // coordinates are measured here instead. No reposition loop is needed: scroll (capture) and
+        // resize both close the open menu further down, so a fixed panel never outlives its
+        // trigger's position.
+        const MENU_GAP = 4; // px — matches the 0.28rem the absolute rule used
+
+        const MENU_MIN_HEIGHT = 96; // px — below this a shrunken panel stops being usable
+
+        function positionMenu(entry: ManagedSelect): void {
+          const rect = entry.trigger.getBoundingClientRect();
+          const menu = entry.menu;
+
+          menu.style.left = `${rect.left}px`;
+          menu.style.width = `${rect.width}px`;
+          // Clear a cap left by a previous open, or the panel would shrink further every time.
+          menu.style.maxHeight = '';
+
+          // Measure after the panel is laid out; the stylesheet's max-height caps it, but the
+          // content may be shorter.
+          const natural = menu.offsetHeight;
+          const below = window.innerHeight - rect.bottom - MENU_GAP;
+          const above = rect.top - MENU_GAP;
+
+          // Flip only when it genuinely does not fit below AND there is more room above, so a
+          // trigger near the middle of the viewport keeps opening downwards.
+          const flip = natural > below && above > below;
+          const space = flip ? above : below;
+
+          // If it does not fit on the chosen side either, SHRINK it rather than let it overlap the
+          // trigger. Clamping the position instead would cover the field being edited — worse than
+          // a shorter list, and the reason "clamp to viewport" was rejected at design time.
+          if (natural > space) {
+            menu.style.maxHeight = `${Math.max(MENU_MIN_HEIGHT, space)}px`;
+          }
+
+          const height = menu.offsetHeight;
+          menu.style.top = flip
+            ? `${Math.max(MENU_GAP, rect.top - MENU_GAP - height)}px`
+            : `${rect.bottom + MENU_GAP}px`;
+        }
+
         function openMenu(entry: ManagedSelect): void {
           if (entry.select.disabled) return;
           if (openSelect && openSelect !== entry) closeMenu(openSelect);
           entry.shell.classList.add('cms-select--open');
           entry.trigger.setAttribute('aria-expanded', 'true');
+          // After the class: offsetHeight is meaningless while the panel is still hidden.
+          positionMenu(entry);
           openSelect = entry;
         }
 

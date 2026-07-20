@@ -157,6 +157,17 @@ Clases base del sistema:
   Un `gap` sin `display: flex` es una declaración muerta, y `.cms-field label` (0,1,1) gana a una
   clase suelta (0,1,0) — comprueba el `getComputedStyle` real, no que la propiedad esté escrita.
   (#55, corregido en `2b52f59`.)
+- **Paneles flotantes (menús de select, popovers):** usan **`position: fixed`** y calculan
+  `top` / `left` / `width` en JS desde el rect de su disparador. **Nunca `position: absolute`**: lo
+  recorta el primer ancestro con `overflow` distinto de `visible` —el body y el panel de los modales
+  lo son— y además suma altura desplazable, lo que hace aparecer una barra de scroll y agranda el
+  modal. **No lo saques del DOM:** portalearlo a `document.body` es el reflejo habitual y aquí es
+  **incorrecto**, porque los modales son `<dialog>` nativos abiertos con `showModal()`, que renderiza
+  en el *top layer* y deja **inerte** todo lo de fuera — el panel quedaría tras el backdrop y sin
+  responder al click. Quedándose en su sitio conserva gratis el descarte por `shell.contains()`, el
+  orden de tabulación y la contención de foco del diálogo. Si no cabe bajo el disparador y arriba hay
+  más sitio, **vuelca hacia arriba**: con `fixed`, cambiar un recorte por un desbordamiento de
+  pantalla no es arreglarlo. (ADR-0031, #138)
 - **Celdas técnicas:** usar `.cms-table-cell-monospace` para slugs o valores similares.
 - **Indicador indexable:** usar `.cms-indexable-dot`.
 - **Densidad:** la tabla compacta es la referencia. Si en el futuro se quiere soportar una variante más cómoda, debe hacerse como extensión explícita (por ejemplo, clase de densidad), manteniendo la compacta como default.

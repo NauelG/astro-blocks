@@ -845,11 +845,18 @@ Licensed under the Business Source License 1.1
   stroke-linejoin: round;
 }
 
+/* fixed, not absolute (#138, ADR-0031). An absolutely-positioned panel is clipped by the nearest
+   ancestor with overflow != visible — both .cms-detail-modal-panel and .cms-detail-modal-body are
+   overflow-y: auto — and it also contributes to that ancestor's scrollable height, which is what
+   made modals grow a spurious scrollbar. A fixed panel is clipped by neither; there is no
+   containing-block trap on the path, since the only filter-family declarations are backdrop-filter
+   on ::backdrop, a pseudo-element.
+   top / left / width are set by openMenu from the trigger's rect: `left: 0; right: 0` against the
+   shell no longer applies once the panel leaves the flow of its ancestors. Do NOT portal this to
+   document.body — the modals are native <dialog> opened with showModal(), which renders in the top
+   layer and makes everything outside it inert. See ADR-0031. */
 .cms-select-menu {
-  position: absolute;
-  top: calc(100% + 0.28rem);
-  left: 0;
-  right: 0;
+  position: fixed;
   max-height: 14rem;
   padding: 0.22rem;
   background: var(--cms-surface, #fff);
