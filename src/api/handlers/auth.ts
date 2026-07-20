@@ -6,6 +6,7 @@ Licensed under the Business Source License 1.1
 import type { AuthUser, User } from '../../types/index.js';
 import * as data from '../data.js';
 import { createToken, hashPassword, jwtSecretMisconfigured, verifyPassword } from './auth-core.js';
+import { applyLoginBackoff, clearLoginFailures, recordLoginFailure } from './login-throttle.js';
 import { jsonError, localizedJsonError, parseJsonBody } from './shared.js';
 
 export async function handleLogin(request: Request): Promise<Response> {
@@ -23,6 +24,11 @@ export async function handleLogin(request: Request): Promise<Response> {
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const password = typeof body.password === 'string' ? body.password : '';
   if (!email || !password) return localizedJsonError(request, 'errors.emailPasswordRequired');
+
+  // Pay any backoff owed by this email BEFORE reading the store or checking credentials, so the
+  // caller learns nothing until it has waited (#125, ADR-0032). Keyed by email alone — the client
+  // address is deliberately not part of it; see login-throttle.ts.
+  await applyLoginBackoff(email);
 
   const usersData = await data.loadUsers();
   let users = usersData.users || [];
@@ -48,6 +54,7 @@ export async function handleLogin(request: Request): Promise<Response> {
     });
 
     if (result.kind === 'created') {
+      clearLoginFailures(email);
       const token = await createToken(result.user);
       return Response.json({
         token,
@@ -62,9 +69,13 @@ export async function handleLogin(request: Request): Promise<Response> {
 
   const user = users.find((entry) => entry.email === email);
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    // Both failure modes converge here, and the counter is grown for both. Recording only when the
+    // account exists would make the backoff itself enumerate registered emails.
+    recordLoginFailure(email);
     return localizedJsonError(request, 'errors.invalidCredentials', 401);
   }
 
+  clearLoginFailures(email);
   const token = await createToken(user);
   return Response.json({ token, user: { id: user.id, email: user.email, role: user.role } });
 }

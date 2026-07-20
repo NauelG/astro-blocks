@@ -19,6 +19,12 @@ import {
   handleGetUsers,
   getAuth,
 } from '../dist/api/handlers.js';
+import {
+  BASE_DELAY_MS,
+  FREE_ATTEMPTS,
+  pendingBackoffMs,
+  resetLoginThrottle,
+} from '../dist/api/handlers/login-throttle.js';
 
 // The dev/test fallback signing secret (auth-core.ts INSECURE_JWT_FALLBACK). getAuth verifies
 // with it when ASTRO_BLOCKS_JWT_SECRET is unset, so tokens forged here round-trip through it.
@@ -48,6 +54,12 @@ async function withTempProject(fn) {
 
   process.env.ASTRO_BLOCKS_PROJECT_ROOT = tempRoot;
   await ensureDefaultFiles();
+
+  // The login throttle is module-level state that outlives a single test, and this file drives
+  // handleLogin with bad passwords repeatedly. Without this reset the failures accumulate across
+  // unrelated tests and the suite starts sleeping for real — which presents as "the suite got
+  // slow", not as a failure.
+  resetLoginThrottle();
 
   try {
     await fn(tempRoot);
@@ -216,6 +228,113 @@ test('handleLogin: email is normalized to lowercase', async () => {
     );
 
     assert.equal(response.status, 200);
+  });
+});
+
+// ─── handleLogin: failed-attempt backoff (#125, ADR-0032) ────────────────────
+
+async function seedOwner(email = 'admin@example.com', password = 'secret123') {
+  await handleLogin(
+    new Request('http://localhost/cms/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    }),
+  );
+}
+
+function loginRequest(email, password) {
+  return new Request('http://localhost/cms/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+test('handleLogin: repeated wrong passwords grow the backoff, a success resets it', async () => {
+  await withTempProject(async () => {
+    await seedOwner();
+    assert.equal(pendingBackoffMs('admin@example.com'), 0);
+
+    for (let i = 0; i < FREE_ATTEMPTS; i++) {
+      const res = await handleLogin(loginRequest('admin@example.com', 'wrong'));
+      assert.equal(res.status, 401);
+    }
+    assert.equal(pendingBackoffMs('admin@example.com'), 0, 'the free attempts must not be delayed');
+
+    await handleLogin(loginRequest('admin@example.com', 'wrong'));
+    assert.equal(pendingBackoffMs('admin@example.com'), BASE_DELAY_MS);
+
+    // A correct password clears the key outright.
+    const ok = await handleLogin(loginRequest('admin@example.com', 'secret123'));
+    assert.equal(ok.status, 200);
+    assert.equal(pendingBackoffMs('admin@example.com'), 0);
+  });
+});
+
+test('handleLogin: an unknown email is throttled exactly like a known one', async () => {
+  await withTempProject(async () => {
+    await seedOwner();
+
+    // Compare the responses first, while both keys are still inside the free attempts, so this
+    // assertion costs no wall-clock time. The delay is the only thing that ever differs, and it is
+    // identical by the accrual assertion below.
+    const known = await handleLogin(loginRequest('admin@example.com', 'wrong'));
+    const unknown = await handleLogin(loginRequest('ghost@example.com', 'wrong'));
+    assert.equal(known.status, unknown.status);
+    assert.deepEqual(await known.json(), await unknown.json());
+
+    // Then accrue past the free attempts on both keys and compare what each owes. Purely read, so
+    // no backoff is ever sat through here.
+    for (let i = 0; i < FREE_ATTEMPTS; i++) {
+      await handleLogin(loginRequest('admin@example.com', 'wrong'));
+      await handleLogin(loginRequest('ghost@example.com', 'wrong'));
+    }
+
+    // The counter must not be skipped when the user does not exist, or the difference would
+    // enumerate which emails are registered.
+    assert.ok(pendingBackoffMs('admin@example.com') > 0, 'the known account must have accrued');
+    assert.equal(
+      pendingBackoffMs('ghost@example.com'),
+      pendingBackoffMs('admin@example.com'),
+      'a non-existent account must accrue backoff identically',
+    );
+  });
+});
+
+test('handleLogin: the owed backoff is actually waited out', async () => {
+  await withTempProject(async () => {
+    await seedOwner();
+
+    for (let i = 0; i < FREE_ATTEMPTS + 1; i++) {
+      await handleLogin(loginRequest('admin@example.com', 'wrong'));
+    }
+    assert.equal(pendingBackoffMs('admin@example.com'), BASE_DELAY_MS);
+
+    const startedAt = Date.now();
+    await handleLogin(loginRequest('admin@example.com', 'wrong'));
+    const elapsed = Date.now() - startedAt;
+
+    // Lower bound only. A timer may fire late on a loaded runner, never early; asserting an upper
+    // bound here would be a flaky test rather than a fast one.
+    assert.ok(
+      elapsed >= BASE_DELAY_MS,
+      `expected at least ${BASE_DELAY_MS}ms of backoff, waited ${elapsed}ms`,
+    );
+  });
+});
+
+test('handleLogin: bootstrap on an empty store is never delayed', async () => {
+  await withTempProject(async () => {
+    // No credential failure is reachable with an empty store — any email and password create the
+    // owner — so nothing can accrue.
+    const startedAt = Date.now();
+    const res = await handleLogin(loginRequest('admin@example.com', 'secret123'));
+    const elapsed = Date.now() - startedAt;
+
+    assert.equal(res.status, 200);
+    assert.equal(pendingBackoffMs('admin@example.com'), 0);
+    assert.ok(elapsed < BASE_DELAY_MS, 'bootstrap must not sit through a backoff');
   });
 });
 
