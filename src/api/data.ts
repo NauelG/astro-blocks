@@ -26,6 +26,7 @@ import {
 } from '../utils/localization.js';
 import type {
   ConfigEntry,
+  User,
   ConfigsData,
   ContentLanguage,
   GlobalBlockEntry,
@@ -425,6 +426,31 @@ export async function loadUsers(): Promise<UsersData> {
 
 export async function saveUsers(usersData: UsersData): Promise<void> {
   await writeJson(getDataPath('users.json'), usersData);
+}
+
+/**
+ * Run a mutation against the user list under the users lock (#135, ADR-0030).
+ *
+ * The list is re-read INSIDE the lock and handed to `fn` as a mutable array; whatever `fn` returns
+ * is returned to the caller, and the list is then written back.
+ *
+ * The write is UNCONDITIONAL by design, not by oversight. An error path simply does not mutate, and
+ * rewriting the unchanged list is a cheap atomic no-op. A commit() flag or an ABORT sentinel would
+ * each add a way to discard a real mutation silently — the exact failure mode this seam exists to
+ * remove — to save a redundant write on a rare branch. If `fn` throws, the exception propagates
+ * before the write and nothing is persisted.
+ *
+ * This is the ONLY way to mutate users.json. Callers must NOT acquire withUsersLock themselves: it
+ * is non-reentrant, so a mutator reaching for it would deadlock. Hash passwords before calling —
+ * hashPassword is deliberately slow, and holding this lock across it blocks every login.
+ */
+export async function mutateUsers<T>(fn: (users: User[]) => Promise<T> | T): Promise<T> {
+  return withUsersLock(async () => {
+    const { users } = await loadUsers();
+    const result = await fn(users);
+    await saveUsers({ users });
+    return result;
+  });
 }
 
 /**

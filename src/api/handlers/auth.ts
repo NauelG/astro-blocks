@@ -29,19 +29,21 @@ export async function handleLogin(request: Request): Promise<Response> {
 
   if (users.length === 0) {
     // First-user creation races against a concurrent bootstrap import
-    // (GitHub #25): serialize via withUsersLock and re-check INSIDE the
-    // lock (check-and-write atomic) so neither path silently overwrites
-    // the owner the other one just created/applied.
-    const result = await data.withUsersLock(async () => {
-      const fresh = await data.loadUsers();
-      if ((fresh.users?.length ?? 0) !== 0) {
-        return { kind: 'raced' as const, users: fresh.users || [] };
+    // (GitHub #25): mutateUsers serializes on the users lock and re-reads
+    // INSIDE it (check-and-write atomic), so neither path silently
+    // overwrites the owner the other one just created/applied.
+    // Hashed BEFORE the lock (#135, ADR-0030): hashPassword is deliberately slow, and this lock
+    // is the one every login contends for. A raced bootstrap discards the work.
+    const passwordHash = await hashPassword(password);
+
+    const result = await data.mutateUsers((fresh) => {
+      if (fresh.length !== 0) {
+        return { kind: 'raced' as const, users: [...fresh] };
       }
       const id = data.generateId();
       const createdAt = new Date().toISOString();
-      const passwordHash = await hashPassword(password);
       const newUser: User = { id, email, passwordHash, role: 'owner', tokenVersion: 1, createdAt };
-      await data.saveUsers({ users: [newUser] });
+      fresh.push(newUser);
       return { kind: 'created' as const, user: newUser };
     });
 
