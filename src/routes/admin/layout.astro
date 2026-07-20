@@ -726,10 +726,25 @@ const t = createT(uiLocale);
           const rect = entry.trigger.getBoundingClientRect();
           const menu = entry.menu;
 
-          menu.style.left = `${rect.left}px`;
-          menu.style.width = `${rect.width}px`;
           // Clear a cap left by a previous open, or the panel would shrink further every time.
           menu.style.maxHeight = '';
+
+          // A `fixed` element resolves against the viewport ONLY while no ancestor establishes a
+          // containing block — transform, filter, backdrop-filter, will-change and contain all do.
+          // .cms-topbar-dropdown animates with a transform, so the UI-locale select inside it had
+          // its viewport coordinates reinterpreted relative to the dropdown and landed ~1000px
+          // off-screen: open, invisible, no error.
+          //
+          // Rather than enumerate the properties that trap it — enumerating is exactly what went
+          // wrong when this was written (#138) — park the panel at 0,0 and measure where that
+          // lands. `origin` is the containing block's offset in viewport coordinates, whatever
+          // created it, so subtracting it makes the maths correct for cases nobody has thought of.
+          menu.style.left = '0px';
+          menu.style.top = '0px';
+          const origin = menu.getBoundingClientRect();
+
+          menu.style.left = `${rect.left - origin.left}px`;
+          menu.style.width = `${rect.width}px`;
 
           // Measure after the panel is laid out; the stylesheet's max-height caps it, but the
           // content may be shorter.
@@ -750,9 +765,11 @@ const t = createT(uiLocale);
           }
 
           const height = menu.offsetHeight;
-          menu.style.top = flip
-            ? `${Math.max(MENU_GAP, rect.top - MENU_GAP - height)}px`
-            : `${rect.bottom + MENU_GAP}px`;
+          const top = flip
+            ? Math.max(MENU_GAP, rect.top - MENU_GAP - height)
+            : rect.bottom + MENU_GAP;
+          // Same correction as `left`: `top` is a viewport coordinate, the style property is not.
+          menu.style.top = `${top - origin.top}px`;
         }
 
         function openMenu(entry: ManagedSelect): void {
