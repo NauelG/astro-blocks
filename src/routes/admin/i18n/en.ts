@@ -3,6 +3,7 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
+import { BLOCK_VALIDATION_MESSAGES } from '../../../utils/block-validation-messages.js';
 import type { Catalog } from './types.js';
 
 /**
@@ -11,6 +12,12 @@ import type { Catalog } from './types.js';
  * Keys use flat dot-namespaced format (e.g. 'nav.dashboard', 'errors.loginRequired').
  */
 export const en = {
+  // The blockValidation.* keys come from a single isomorphic source, spread here so the admin can
+  // localize them (#40, ADR-0034). The validator (utils/block-validation.ts) shares that source —
+  // do NOT re-list these inline, and do NOT annotate the source as Record<string,string> (it must
+  // stay `as const`, or the catalog parity in es.ts silently breaks).
+  ...BLOCK_VALIDATION_MESSAGES,
+
   // ─── Auth ─────────────────────────────────────────────────────────────────
   'auth.loading': 'Loading…',
   'auth.signIn': 'Sign in with your email and password.',
@@ -586,41 +593,7 @@ export const en = {
   'dialog.defaultOkLabel': 'OK',
   'dialog.defaultErrorTitle': 'Error',
 
-  // ─── Block validation (user-facing, localized via messageKey + params) ────────
-  'blockValidation.fieldRequired':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
-  'blockValidation.fieldMustBeImage':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" must be an image object.',
-  'blockValidation.fieldImageNeedsUrl':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" requires a valid URL.',
-  'blockValidation.fieldCannotBeEmpty':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" cannot be empty.',
-  'blockValidation.fieldAltMustBeText':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" — alt must be text.',
-  'blockValidation.fieldCaptionMustBeText':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" — caption must be text.',
-  'blockValidation.fieldDimInvalid':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" — {dim} must be a positive integer (> 0).',
-  'blockValidation.fieldMustBeText':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" must be text.',
-  'blockValidation.fieldInvalidOption':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" has an invalid option.',
-  'blockValidation.fieldMustBeNumber':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" must be a valid number.',
-  'blockValidation.fieldMustBeBoolean':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" must be a boolean.',
-  'blockValidation.arrayMustContainObjects':
-    'Block "{blockName}" (index {blockIndex}): "{label}" must contain valid objects.',
-  'blockValidation.arrayRequired':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
-  'blockValidation.arrayMustBeArray':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" must be an array.',
-  'blockValidation.arrayMinItems':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
-  'blockValidation.arrayMaxItems':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" allows at most {max} item(s).',
-  'blockValidation.arrayIsRequired':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
+  // Block validation (blockValidation.*) is spread from BLOCK_VALIDATION_MESSAGES at the top.
 
   // ─── API Errors ───────────────────────────────────────────────────────────
   'errors.invalidBody': 'Invalid request body.',

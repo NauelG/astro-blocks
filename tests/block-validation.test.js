@@ -12,6 +12,8 @@ import {
   validateBlockPropsAgainstSchema,
 } from '../dist/utils/block-validation.js';
 import { buildSchemaMap, resolveBlockEntries, validateBlocks } from '../dist/utils/blocks.js';
+import { createT } from '../dist/routes/admin/i18n/t.js';
+import { BLOCK_VALIDATION_MESSAGES } from '../dist/utils/block-validation-messages.js';
 
 test('validateSchemaItemsDefinition rejects invalid array object summaryField', () => {
   const message = validateSchemaItemsDefinition(
@@ -346,3 +348,59 @@ test('C1-piece3: required null file value fails validation', () => {
   });
   assert.ok(issue !== null, 'null on required file prop must fail');
 });
+
+// ─── #40: file-field validation messages resolve in the catalog, not as the raw key ──────────
+//
+// The validator emits `blockValidation.fieldMustBeFile` / `fieldFileNeedsUrl` as messageKeys, but
+// they had drifted out of en.ts / es.ts. The admin renders a validation issue via
+// ct(issue.messageKey, ...), and t() falls back to the raw key as a visible sentinel — so a
+// file-field error showed the literal "blockValidation.fieldMustBeFile" in both languages. These
+// fail on main (keys absent) and are the regression guard.
+
+const enT = createT('en');
+const esT = createT('es');
+
+test('#40: a non-object file value resolves fieldMustBeFile in both languages, not the raw key', () => {
+  const issue = validateBlockPropsAgainstSchema('Download', 0, FILE_SCHEMA_REQUIRED, {
+    brochure: 'not-an-object',
+  });
+  assert.ok(issue !== null, 'a non-object file value must fail');
+  assert.equal(issue.messageKey, 'blockValidation.fieldMustBeFile');
+
+  const en = enT(issue.messageKey, issue.params);
+  const es = esT(issue.messageKey, issue.params);
+  assert.notEqual(en, issue.messageKey, 'en must resolve to a real message, not the raw key');
+  assert.notEqual(es, issue.messageKey, 'es must resolve to a real message, not the raw key');
+  assert.notEqual(en, es, 'en and es must differ (both translated, not both the raw key)');
+});
+
+test('#40: a file object without a URL resolves fieldFileNeedsUrl in both languages, not the raw key', () => {
+  const issue = validateBlockPropsAgainstSchema('Download', 0, FILE_SCHEMA_REQUIRED, {
+    brochure: {},
+  });
+  assert.ok(issue !== null, 'a file object without a url must fail');
+  assert.equal(issue.messageKey, 'blockValidation.fieldFileNeedsUrl');
+
+  const en = enT(issue.messageKey, issue.params);
+  const es = esT(issue.messageKey, issue.params);
+  assert.notEqual(en, issue.messageKey, 'en must resolve to a real message, not the raw key');
+  assert.notEqual(es, issue.messageKey, 'es must resolve to a real message, not the raw key');
+  assert.notEqual(en, es, 'en and es must differ');
+});
+
+// ─── #40: every validation messageKey resolves in every catalog (R7, ADR-0034) ───────────────
+//
+// The single source (BLOCK_VALIDATION_MESSAGES) is what the validator emits AND what en.ts spreads
+// into the catalog, so iterating its keys is iterating "every messageKey the validator can produce".
+// This executably documents R7: none of them may fall to the raw-key sentinel, in either language.
+// It is not a source grep — it iterates the shipped data.
+
+for (const messageKey of Object.keys(BLOCK_VALIDATION_MESSAGES)) {
+  test(`#40: ${messageKey} resolves in both en and es, never the raw key`, () => {
+    const params = { blockName: 'B', blockIndex: 0, label: 'L', dim: 'width', min: 1, max: 3 };
+    const en = createT('en')(messageKey, params);
+    const es = createT('es')(messageKey, params);
+    assert.notEqual(en, messageKey, `en must localize ${messageKey}, not echo the raw key`);
+    assert.notEqual(es, messageKey, `es must localize ${messageKey}, not echo the raw key`);
+  });
+}

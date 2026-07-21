@@ -3,12 +3,12 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-import type { Catalog } from './types.js';
-import type { en } from './en.js';
+import type { CatalogKey } from './catalog-key.js';
 
 /**
  * Spanish catalog.
- * Must contain exactly the same keys as en.ts — missing/extra keys fail typecheck.
+ * Must contain exactly the same keys as en.ts — a missing OR extra key fails typecheck
+ * (satisfies Record<CatalogKey, string>: TS1360 for missing, TS2353 for extra). See ADR-0034.
  */
 export const es = {
   // ─── Auth ─────────────────────────────────────────────────────────────────
@@ -620,6 +620,10 @@ export const es = {
     'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser un número válido.',
   'blockValidation.fieldMustBeBoolean':
     'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser booleano.',
+  'blockValidation.fieldMustBeFile':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" debe ser un objeto de archivo.',
+  'blockValidation.fieldFileNeedsUrl':
+    'Bloque "{blockName}" (índice {blockIndex}): el campo "{label}" requiere una URL válida.',
   'blockValidation.arrayMustContainObjects':
     'Bloque "{blockName}" (índice {blockIndex}): "{label}" debe contener objetos válidos.',
   'blockValidation.arrayRequired':
@@ -686,4 +690,4 @@ export const es = {
   'errors.blockTypeMissing': 'Bloque en el índice {n}: tipo faltante o inválido.',
   'errors.blockTypeUnknown': 'Bloque en el índice {n}: tipo desconocido "{type}".',
   'pageEditor.defaultTitle': 'Sin título',
-} satisfies Catalog & { [K in keyof typeof en]: string };
+} satisfies Record<CatalogKey, string>;

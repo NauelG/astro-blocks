@@ -1,6 +1,11 @@
 /**
- * Tests for catalog completeness and structure.
- * Verifies: en + es have same keys, no empty values, catalog shape.
+ * Tests for catalog VALUE quality and shape.
+ *
+ * Key parity (en ≡ es) is NOT tested here — it is compiler-enforced bidirectionally by
+ * `es satisfies Record<CatalogKey, string>` (a missing key is TS1360, an extra key is TS2353;
+ * #40, ADR-0034). Re-checking it at runtime would only duplicate the compiler and invite a reader
+ * to stop trusting it. What the type system does NOT cover lives here: no empty values, all values
+ * are strings, es is actually translated, expected namespaces exist.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -21,20 +26,8 @@ test('es catalog is a non-empty object', () => {
   assert.ok(Object.keys(catalogs.es).length > 0, 'es catalog must not be empty');
 });
 
-test('en and es catalogs have same keys (completeness: REQ-5.2)', () => {
-  const enKeys = Object.keys(catalogs.en).sort();
-  const esKeys = Object.keys(catalogs.es).sort();
-
-  const missingFromEs = enKeys.filter((k) => !(k in catalogs.es));
-  const missingFromEn = esKeys.filter((k) => !(k in catalogs.en));
-
-  if (missingFromEs.length > 0) {
-    assert.fail(`Keys in en but missing/empty in es: ${missingFromEs.slice(0, 10).join(', ')}`);
-  }
-  if (missingFromEn.length > 0) {
-    assert.fail(`Keys in es but missing/empty in en: ${missingFromEn.slice(0, 10).join(', ')}`);
-  }
-});
+// Key parity (en ≡ es, both directions) is compiler-enforced — see the file header. The former
+// runtime parity test that lived here was removed as redundant with tsc (#40, ADR-0034).
 
 test('no key maps to an empty string in en catalog', () => {
   const empties = Object.entries(catalogs.en)
