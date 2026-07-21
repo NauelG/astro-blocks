@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.0.8] - 2026-07-21
+
+### Title
+
+Legible modal errors, and a shared controller for the list pages
+
+### Fixed
+
+- **A failed validation in a detail modal was barely visible.** The inline error message under the configs, redirects, menus and global-block modals rendered in muted grey instead of red, so a validation failure was easy to miss. The error element carried two conflicting colour classes and the muted grey one happened to win the cascade; the contradictory class is removed, so the error now shows in the intended red. (#117)
+
+### Changed
+
+- **Internal: the configs and redirects list pages share one controller.** Their near-identical list machinery (fetch, render, row binding, delete-confirm, search) is now a single `createListEditor` with a typed, escape-by-construction cell model, and the row renderer is a pure function covered by unit tests rather than only end-to-end. No consumer-visible behaviour change. (#117)
+
 ## [4.0.7] - 2026-07-21
 
 ### Title
