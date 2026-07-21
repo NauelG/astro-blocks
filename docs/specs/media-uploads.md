@@ -65,6 +65,17 @@ hardcoded constants, and are now answered by one table.
   and lowercased. An explicitly empty array is accepted (every upload is rejected; a warning is
   emitted).
 
+  **The server and the admin decode the allowlist through one shared validator** (`decodeAllowlist`,
+  consumed via `readBakedConfig` — ADR-0033). The two admin readers (`media.astro`, the block-form
+  picker) previously required `length > 0` and fell back to the full default catalog, and cast the
+  parsed value `as string[]`; they now share the server's decoder, so they cannot drift and a
+  non-string element (`[123]`) is rejected instead of reaching the `accept` attribute uncoerced. The
+  upload `accept` attribute is a **picker hint, never the gate** — the server enforces the allowlist
+  (`getAllowedFileTypes`). One consequence for the empty allowlist: the resolved list is `[]`, so
+  `accept` renders empty, which HTML treats as *accept-anything* at the file dialog; the picker cannot
+  express "offer nothing" for this config. That is cosmetic — every selected file is still rejected by
+  the server.
+
 - **R8 — An unsupported MIME fails the build.** At `astro:config:setup`, a MIME in `allowedFileTypes`
   that appears in neither the builtin catalog nor `customFileTypes` **throws**, naming the MIME,
   listing the supported types, and pointing at `customFileTypes`.
