@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.0.7] - 2026-07-21
+
+### Title
+
+File-field validation errors are now translated
+
+### Fixed
+
+- **A validation error on a file field showed a raw internal key instead of a message.** When a block's file field failed validation — the value was not a file object, or a file had no URL — the admin editor displayed the literal text `blockValidation.fieldMustBeFile` (or `…fieldFileNeedsUrl`) instead of a readable sentence, in both English and Spanish. Two message keys had drifted out of the translation catalogs while remaining in the validator. Both are now present and translated, so file-field errors read like every other validation message. (#40)
+
+### Changed
+
+- **Internal: the admin translation catalogs and the block-validation messages are now checked by the compiler.** Catalog parity between English and Spanish, and the single source for validation-message text, were previously kept aligned by hand and by a comment — which is how the bug above shipped unnoticed. They are now enforced at build time, so this class of drift cannot recur silently. No consumer-visible behaviour change beyond the fix above. (#40)
+
 ## [4.0.6] - 2026-07-21
 
 ### Title
