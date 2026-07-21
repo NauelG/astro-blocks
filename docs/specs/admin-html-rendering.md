@@ -52,6 +52,29 @@ encoded so the panel cannot be turned into a stored-XSS vector.
   `/cms/languages`, `/cms/users`, and one unrelated admin page (the layout's content-locale selector
   renders language data on **every** page).
 
+  Where a renderer adopts the R6 cell model, that partial-escaping gap is closed at compile time and
+  the behavioural coverage becomes a backstop rather than the only guard. Hand-written renderers that
+  do not use the cell model remain covered only behaviourally — R5 still holds for them.
+
+- **R6 — A typed cell model makes the escaped path the only path.** The shared list renderer
+  (`renderRows` in `client/list-editor.ts`, driven by `createListEditor`) accepts columns whose cells
+  are typed descriptors — `{ text }` → `escapeHtml`, `{ attr }` → `escapeAttr`, `{ html: RawHtml }` →
+  verbatim — and `RawHtml` is a branded type produced **only** by `raw(trusted: string)`. Passing a
+  bare `string` where markup is expected is a compile error. For any editor built on this renderer,
+  partial escaping (R5's gap) is therefore impossible by construction: the only unescaped path is
+  `raw()`, a named, greppable, small and audited surface (the two row-action icons, and badges whose
+  dynamic text is escaped *inside* the `raw(...)`).
+
+  `renderRows` is a **pure function** (no `document`, no `fetch`) with a `node:test`, so an XSS
+  payload in a cell's text renders escaped under `node --test` — not only in a browser. It lives in
+  the **same file as the `.innerHTML` sink it feeds**: R4's guard verifies escaping by lexically
+  scanning the file that holds the sink, so the renderer and the sink must be co-located, and the sink
+  stays a visible `.innerHTML =` (never a `set:html` the guard cannot see — media-tile.ts, ADR-0035).
+  `RawHtml` is defense **on top of** the guard, not a replacement — the guard cannot tell escaped HTML
+  from raw (it rejected a no-concat rule for that reason), so the type layer is what makes the escaped
+  path the only path. Applies today to the two editors on the renderer (`configs`, `redirects`); it is
+  the landing pad the rest adopt as they migrate.
+
 ## Scenarios
 
 - **S1 — Malicious language label.** An owner creates a language with
