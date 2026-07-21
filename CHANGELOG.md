@@ -9,6 +9,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.0.6] - 2026-07-21
+
+### Title
+
+The upload picker and the server agree on the allowed file types
+
+### Fixed
+
+- **The admin upload picker could offer file types the server would reject.** The allowed-file-type list was decoded in three places — the upload endpoint and two admin surfaces (the media page and the block-form file picker) — and the three did not agree. The two admin surfaces required a non-empty list and, for anything they considered invalid, quietly fell back to the full default catalog; the server did not. So a project that configured `allowedFileTypes` narrowly (or to an empty list, which rejects everything) could see the picker advertise types the server then refused on upload. All three now share a single decoder, so what the picker offers cannot drift from what the server accepts, and a malformed entry is rejected rather than passed through to the picker uncoerced. The `accept` attribute remains a picker hint only — the server has always been the enforcement point. (#116)
+
+### Changed
+
+- **Internal: the build-time "bake" is now a single module.** The mechanism that carries configuration and runtime registries into the server bundle (double-encoding on write, guarded decoding on read) was previously reimplemented at every reader — the source of several past resolution bugs. It now lives in one place. No consumer-visible behaviour change beyond the allowlist fix above. (#116)
+
 ## [4.0.5] - 2026-07-20
 
 ### Title
