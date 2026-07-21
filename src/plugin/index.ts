@@ -8,6 +8,7 @@ import fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import type { AstroIntegration } from 'astro';
+import { defineBakedValue } from '../utils/baked.js';
 import { buildSchemaMap, resolveBlockEntries } from '../utils/blocks.js';
 import { COMPONENT_PATH_KEY } from '../contract/index.js';
 import type {
@@ -577,45 +578,33 @@ export default function astroBlocks(options: AstroBlocksOptions): AstroIntegrati
         vite.define['import.meta.env.ASTRO_BLOCKS_ROUTING_STRATEGY'] = JSON.stringify(
           resolvedOptions.i18n.routingStrategy,
         );
-        // DOUBLE-encode. vite.define splices its value in as raw SOURCE, so a single
-        // JSON.stringify(array) becomes an array LITERAL in the bundle — and the consumer of
-        // this bridge (getAllowedFileTypes) guards with `typeof raw === 'string'`, so it
-        // silently rejected the array and fell back to DEFAULT_ALLOWED_FILE_TYPES. The
-        // consequence: allowedFileTypes never reached the server, in any released version.
+        // The structured bake values. defineBakedValue owns the double-encode (vite.define splices
+        // its value in as raw source, so structured values are stringified twice — see baked.ts for
+        // why, and for the video/mp4 415 this exact asymmetry once shipped). Each key's meaning:
         //
-        // That, not the missing MIME_TO_EXT row, is what produced the reported video/mp4 415:
-        // the upload was refused by the ALLOWLIST gate, because the allowlist was always the
-        // shipped default. The outer JSON.stringify emits a string literal the runtime parses
-        // back with JSON.parse — the same pattern GLOBAL_BLOCKS_REGISTRY below already used.
-        vite.define['import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES'] = JSON.stringify(
-          JSON.stringify(resolvedOptions.allowedFileTypes),
+        //   ALLOWED_FILE_TYPES / CUSTOM_FILE_TYPES / MAX_UPLOAD_BYTES_BY_CATEGORY — media config,
+        //     baked so the precompiled route sees it. (The runtime ops ceiling MAX_UPLOAD_BYTES is
+        //     NOT baked: it is read from process.env at boot so it can be lowered without a rebuild.)
+        //   GLOBAL_BLOCKS_REGISTRY / SCHEMA_MAP — runtime artifacts baked so the precompiled admin
+        //     API resolves them without reading gitignored .astro-blocks/*.mjs from disk, the absent
+        //     artifact that 404'd global blocks (ADR-0009) and 500'd schema resolution (ADR-0025).
+        defineBakedValue(
+          vite.define,
+          'ASTRO_BLOCKS_ALLOWED_FILE_TYPES',
+          resolvedOptions.allowedFileTypes,
         );
-        // Consumer-registered file types and the per-category size policy travel to the
-        // runtime the same way the allowlist does: baked in at build time. The runtime ops
-        // ceiling (ASTRO_BLOCKS_MAX_UPLOAD_BYTES) deliberately does NOT — it is read from
-        // process.env at server boot so it can be lowered without a rebuild.
-        vite.define['import.meta.env.ASTRO_BLOCKS_CUSTOM_FILE_TYPES'] = JSON.stringify(
-          JSON.stringify(resolvedOptions.customFileTypes),
+        defineBakedValue(
+          vite.define,
+          'ASTRO_BLOCKS_CUSTOM_FILE_TYPES',
+          resolvedOptions.customFileTypes,
         );
-        vite.define['import.meta.env.ASTRO_BLOCKS_MAX_UPLOAD_BYTES_BY_CATEGORY'] = JSON.stringify(
-          JSON.stringify(resolvedOptions.maxUploadBytes),
+        defineBakedValue(
+          vite.define,
+          'ASTRO_BLOCKS_MAX_UPLOAD_BYTES_BY_CATEGORY',
+          resolvedOptions.maxUploadBytes,
         );
-        // Bake the global-block registry into the bundle so the precompiled admin API
-        // (catchall.js) resolves declarations without reading .astro-blocks/runtime.mjs
-        // from disk — that gitignored artifact is often absent in deployed servers,
-        // which 404'd every global-block open/edit. Double-encode: the outer JSON.stringify
-        // emits a string literal that the route parses back with JSON.parse.
-        vite.define['import.meta.env.ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY'] = JSON.stringify(
-          JSON.stringify(globalBlocksRegistry),
-        );
-        // The registry's twin. schema-map.mjs was the ONLY registry the precompiled route
-        // resolved from disk alone — the exact ADR-0009 failure mode, one artifact over: the
-        // gitignored file is absent on a deployed server, so block validation and the block
-        // picker died there while rendering worked. Baking it is what makes .astro-blocks/
-        // unnecessary at request time. See ADR-0025. Double-encode, as above.
-        vite.define['import.meta.env.ASTRO_BLOCKS_SCHEMA_MAP'] = JSON.stringify(
-          JSON.stringify(schemaMap),
-        );
+        defineBakedValue(vite.define, 'ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY', globalBlocksRegistry);
+        defineBakedValue(vite.define, 'ASTRO_BLOCKS_SCHEMA_MAP', schemaMap);
 
         const existingNoExternal = vite.ssr?.noExternal ?? [];
         const cmsNoExternal = ['animate.css', '@picocss/pico'];

@@ -33,6 +33,7 @@ Licensed under the Business Source License 1.1
  */
 
 import type { FileCategory } from '../types/index.js';
+import { readBakedConfig } from './baked.js';
 
 /**
  * Re-exported for callers that reason about the catalog. Defined in types/ because it is a
@@ -251,31 +252,26 @@ let _catalogCache: FileTypeRow[] | null = null;
 export function resolveCatalog(): FileTypeRow[] {
   if (_catalogCache !== null) return _catalogCache;
 
-  // biome-ignore lint/suspicious/noExplicitAny: import.meta.env is untyped at this call site; narrowed immediately below
-  const raw: string =
-    (((import.meta as any).env as Record<string, unknown> | undefined)
-      ?.ASTRO_BLOCKS_CUSTOM_FILE_TYPES as string) ?? '';
-
-  const custom: FileTypeRow[] = [];
-  if (typeof raw === 'string' && raw.trim().length > 0) {
-    try {
-      const decoded = JSON.parse(raw);
-      if (Array.isArray(decoded)) {
-        for (const entry of decoded) {
-          if (
-            entry &&
-            typeof entry.mime === 'string' &&
-            typeof entry.ext === 'string' &&
-            typeof entry.category === 'string'
-          ) {
-            custom.push(toCatalogRow(entry as CustomFileTypeSpec));
-          }
+  const custom = readBakedConfig('ASTRO_BLOCKS_CUSTOM_FILE_TYPES', {
+    // A malformed bake falls back to no custom rows; the config validator already threw at build
+    // time for anything real. Individual invalid entries are skipped, matching prior behaviour.
+    decode: (parsed) => {
+      if (!Array.isArray(parsed)) return null;
+      const rows: FileTypeRow[] = [];
+      for (const entry of parsed) {
+        if (
+          entry &&
+          typeof entry.mime === 'string' &&
+          typeof entry.ext === 'string' &&
+          typeof entry.category === 'string'
+        ) {
+          rows.push(toCatalogRow(entry as CustomFileTypeSpec));
         }
       }
-    } catch {
-      // Malformed env — the config validator already threw at build time for anything real.
-    }
-  }
+      return rows;
+    },
+    fallback: [],
+  });
 
   _catalogCache = [...BUILTIN_FILE_TYPES, ...custom];
   return _catalogCache;
@@ -325,4 +321,21 @@ export function isRaster(
 export function intersectAccept(accept: string[] | undefined, allowlist: string[]): string[] {
   if (!accept || accept.length === 0) return allowlist;
   return accept.map((m) => m.toLowerCase()).filter((m) => allowlist.includes(m));
+}
+
+/**
+ * The single validator every `ASTRO_BLOCKS_ALLOWED_FILE_TYPES` reader shares (#116). Pass it as the
+ * `decode` for `readBakedConfig`. Returns the normalized allowlist, or `null` to reject a malformed
+ * bake so the caller falls back to `DEFAULT_ALLOWED_FILE_TYPES`.
+ *
+ * An **empty array is a valid allowlist** (`[]`), not a rejection — `allowedFileTypes: []` is a
+ * supported config that rejects every upload, and the admin must honour it identically to the
+ * server. The two admin readers previously required `length > 0` and fell back to the full catalog,
+ * so the picker offered types the server would refuse. Rejecting non-string elements here (rather
+ * than casting `as string[]`) is what stops `[123]` reaching the `accept` attribute uncoerced.
+ */
+export function decodeAllowlist(parsed: unknown): string[] | null {
+  if (!Array.isArray(parsed)) return null;
+  if (!parsed.every((v) => typeof v === 'string' && v.trim().length > 0)) return null;
+  return [...new Set(parsed.map((v) => v.toLowerCase().trim()))];
 }

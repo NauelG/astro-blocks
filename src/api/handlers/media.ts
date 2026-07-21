@@ -9,7 +9,12 @@ import path from 'node:path';
 import { imageSize } from 'image-size';
 import { getUploadsDir, resolveUploadPath } from '../../utils/paths.js';
 import { spawnVariantGeneration } from '../../utils/variant-generator.js';
-import { DEFAULT_ALLOWED_FILE_TYPES, lookupByMime } from '../../utils/file-catalog.js';
+import { readBakedConfig } from '../../utils/baked.js';
+import {
+  DEFAULT_ALLOWED_FILE_TYPES,
+  decodeAllowlist,
+  lookupByMime,
+} from '../../utils/file-catalog.js';
 import { evaluateUpload } from '../../utils/upload-gate.js';
 import type { FileCategory, MediaEntry } from '../../types/index.js';
 import * as data from '../data.js';
@@ -36,24 +41,10 @@ let _allowedFileTypesCache: Set<string> | null = null;
 function getAllowedFileTypes(): Set<string> {
   if (_allowedFileTypesCache !== null) return _allowedFileTypesCache;
 
-  // biome-ignore lint/suspicious/noExplicitAny: import.meta.env is untyped at this call site; narrowed immediately below
-  const raw: string =
-    (((import.meta as any).env as Record<string, unknown> | undefined)
-      ?.ASTRO_BLOCKS_ALLOWED_FILE_TYPES as string) ?? '';
-  let parsed: string[] | null = null;
-  if (typeof raw === 'string' && raw.trim().length > 0) {
-    try {
-      const decoded = JSON.parse(raw);
-      if (
-        Array.isArray(decoded) &&
-        decoded.every((v) => typeof v === 'string' && v.trim().length > 0)
-      ) {
-        parsed = [...new Set(decoded.map((v: string) => v.toLowerCase().trim()))];
-      }
-    } catch {
-      // Malformed env — fall through to default
-    }
-  }
+  const resolved = readBakedConfig('ASTRO_BLOCKS_ALLOWED_FILE_TYPES', {
+    decode: decodeAllowlist,
+    fallback: DEFAULT_ALLOWED_FILE_TYPES,
+  });
 
   // Belt and braces: intersect with the catalog (ADR-0023).
   //
@@ -63,7 +54,6 @@ function getAllowedFileTypes(): Set<string> {
   // the system cannot name a file for. V4 makes the misconfiguration loud; this makes the bad
   // state impossible, which is what lets handleUpload treat a missing row as a server bug
   // rather than pretending the client sent something unsupported.
-  const resolved = parsed ?? DEFAULT_ALLOWED_FILE_TYPES;
   _allowedFileTypesCache = new Set(resolved.filter((mime) => lookupByMime(mime) !== null));
   return _allowedFileTypesCache;
 }
@@ -111,25 +101,14 @@ let _maxUploadBytesCache: Partial<Record<FileCategory, number>> | null = null;
 function getCategoryPolicy(): Partial<Record<FileCategory, number>> {
   if (_maxUploadBytesCache !== null) return _maxUploadBytesCache;
 
-  // biome-ignore lint/suspicious/noExplicitAny: import.meta.env is untyped at this call site
-  const raw: string =
-    (((import.meta as any).env as Record<string, unknown> | undefined)
-      ?.ASTRO_BLOCKS_MAX_UPLOAD_BYTES_BY_CATEGORY as string) ?? '';
-
-  let parsed: Partial<Record<FileCategory, number>> = {};
-  if (typeof raw === 'string' && raw.trim().length > 0) {
-    try {
-      const decoded = JSON.parse(raw);
-      if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) {
-        parsed = decoded as Partial<Record<FileCategory, number>>;
-      }
-    } catch {
-      // Malformed — fall through to the defaults.
-    }
-  }
-
-  _maxUploadBytesCache = parsed;
-  return parsed;
+  _maxUploadBytesCache = readBakedConfig('ASTRO_BLOCKS_MAX_UPLOAD_BYTES_BY_CATEGORY', {
+    decode: (parsed) =>
+      parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as Partial<Record<FileCategory, number>>)
+        : null,
+    fallback: {},
+  });
+  return _maxUploadBytesCache;
 }
 
 /**

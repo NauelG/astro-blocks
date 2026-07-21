@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import {
   BUILTIN_FILE_TYPES,
   DEFAULT_ALLOWED_FILE_TYPES,
+  decodeAllowlist,
   lookupByMime,
   lookupByExt,
   isRaster,
@@ -170,4 +171,36 @@ test('intersectAccept narrows case-insensitively and never widens', () => {
   const allow = ['image/png', 'application/pdf'];
   assert.deepEqual(intersectAccept(['Application/PDF'], allow), ['application/pdf']);
   assert.deepEqual(intersectAccept(['video/mp4'], allow), []);
+});
+
+// ─── decodeAllowlist — the shared validator all three ALLOWED_FILE_TYPES readers use (#116) ───
+
+test('decodeAllowlist normalizes a valid list: lowercase, trim, dedupe', () => {
+  assert.deepEqual(decodeAllowlist(['image/png']), ['image/png']);
+  assert.deepEqual(decodeAllowlist([' Image/PNG ', 'image/png']), ['image/png']);
+  assert.deepEqual(decodeAllowlist(['application/pdf', 'image/jpeg']), [
+    'application/pdf',
+    'image/jpeg',
+  ]);
+});
+
+test('decodeAllowlist: an empty array is a valid empty allowlist, NOT a fallback signal', () => {
+  // This is the behaviour change (#116): the two admin readers used to require length > 0 and fall
+  // back to the full catalog, disagreeing with the server which honours []. Returning [] here (not
+  // null) is what makes all three agree.
+  assert.deepEqual(decodeAllowlist([]), []);
+});
+
+test('decodeAllowlist rejects non-string elements instead of casting them through', () => {
+  // file-accept.ts / media.astro used `as string[]`, so [123] would have reached the accept
+  // attribute uncoerced. The shared decoder rejects it → caller falls back.
+  assert.equal(decodeAllowlist([123]), null);
+  assert.equal(decodeAllowlist(['image/png', 42]), null);
+  assert.equal(decodeAllowlist(['image/png', '']), null);
+});
+
+test('decodeAllowlist rejects a non-array shape', () => {
+  assert.equal(decodeAllowlist('image/png'), null);
+  assert.equal(decodeAllowlist({ 0: 'image/png' }), null);
+  assert.equal(decodeAllowlist(null), null);
 });
