@@ -9,7 +9,12 @@ Licensed under the Business Source License 1.1
  */
 
 import type { PrimitivePropDef } from '../../../../types/index.js';
-import { DEFAULT_ALLOWED_FILE_TYPES, intersectAccept } from '../../../../utils/file-catalog.js';
+import { readBakedConfig } from '../../../../utils/baked.js';
+import {
+  DEFAULT_ALLOWED_FILE_TYPES,
+  decodeAllowlist,
+  intersectAccept,
+} from '../../../../utils/file-catalog.js';
 
 // ─── Global allowlist (for file-prop effectiveAccept) ────────────────────────
 // Read once at module load; falls back to DEFAULT_ALLOWED_FILE_TYPES when the
@@ -18,23 +23,14 @@ let _globalAllowlist: string[] | null = null;
 
 export function getGlobalAllowlist(): string[] {
   if (_globalAllowlist) return _globalAllowlist;
-  // import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES is injected by vite.define at build time.
-  // Casting through unknown avoids TS complaints about the ImportMeta type not having
-  // an index signature — this is safe because vite.define replaces the literal at build time.
-  const metaEnv = (import.meta as unknown as { env?: Record<string, unknown> }).env ?? {};
-  const raw: string = (metaEnv.ASTRO_BLOCKS_ALLOWED_FILE_TYPES as string) ?? '';
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        _globalAllowlist = parsed as string[];
-        return _globalAllowlist;
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-  _globalAllowlist = DEFAULT_ALLOWED_FILE_TYPES;
+  // Decoded through the same shared path (readBakedConfig + decodeAllowlist) the server uses, so the
+  // picker no longer drifts from it and a malformed element is rejected rather than cast through
+  // (#116, ADR-0033). baked.ts is browser-safe by construction. The resulting accept list is only a
+  // picker hint; the server enforces the allowlist (an empty one rejects every upload there).
+  _globalAllowlist = readBakedConfig('ASTRO_BLOCKS_ALLOWED_FILE_TYPES', {
+    decode: decodeAllowlist,
+    fallback: DEFAULT_ALLOWED_FILE_TYPES,
+  });
   return _globalAllowlist;
 }
 

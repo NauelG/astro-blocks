@@ -31,6 +31,7 @@ import * as handlers from './handlers.js';
 import { defineRoute, type RouteDescriptor } from './route-matcher.js';
 import { localizedJsonError } from './handlers/shared.js';
 import type { GlobalBlockRuntimeEntry } from '../types/index.js';
+import { type BakedUnresolved, readBakedArtifact } from '../utils/baked.js';
 
 /**
  * Loads the global-blocks registry (moved here from `routes/api/catchall.ts`
@@ -43,21 +44,14 @@ import type { GlobalBlockRuntimeEntry } from '../types/index.js';
  * 404'd global-block open/edit even though rendering worked via the bundled
  * alias.
  */
-type RegistryResult =
-  | { ok: true; entries: GlobalBlockRuntimeEntry[] }
-  | { ok: false; reason: 'unresolved' };
+type RegistryResult = { ok: true; entries: GlobalBlockRuntimeEntry[] } | BakedUnresolved;
 
 async function loadGlobalBlocksRegistry(): Promise<RegistryResult> {
-  const baked = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env
-    ?.ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY;
-  if (typeof baked === 'string' && baked.length > 0) {
-    try {
-      const parsed = JSON.parse(baked) as GlobalBlockRuntimeEntry[];
-      if (Array.isArray(parsed)) return { ok: true, entries: parsed };
-    } catch {
-      // Malformed bake — fall through to the filesystem read.
-    }
-  }
+  const decoded = readBakedArtifact<GlobalBlockRuntimeEntry[]>(
+    'ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY',
+    (parsed) => (Array.isArray(parsed) ? (parsed as GlobalBlockRuntimeEntry[]) : null),
+  );
+  if (decoded.ok) return { ok: true, entries: decoded.value };
 
   // Fallback: dev/test filesystem read of the generated runtime module.
   const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();

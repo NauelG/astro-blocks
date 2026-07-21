@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { validateBlocks } from '../../utils/blocks.js';
 import { getProjectRoot } from '../../utils/paths.js';
 import type { SchemaMap } from '../../types/index.js';
+import { type BakedUnresolved, readBakedArtifact } from '../../utils/baked.js';
 import { jsonError, localizedJsonError } from './shared.js';
 
 /**
@@ -32,9 +33,7 @@ import { jsonError, localizedJsonError } from './shared.js';
  * that means nothing. Removed. A block whose schema is genuinely absent still surfaces, via
  * `validateBlocks` rejecting it as an unknown type.
  */
-export type SchemaMapResult =
-  | { ok: true; schemaMap: SchemaMap }
-  | { ok: false; reason: 'unresolved' };
+export type SchemaMapResult = { ok: true; schemaMap: SchemaMap } | BakedUnresolved;
 
 /**
  * Resolves the block schema map for the precompiled API route.
@@ -52,16 +51,12 @@ export type SchemaMapResult =
  * `ok: false` therefore means "unresolvable", never "empty".
  */
 export async function loadSchemaMap(): Promise<SchemaMapResult> {
-  const baked = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env
-    ?.ASTRO_BLOCKS_SCHEMA_MAP;
-  if (typeof baked === 'string' && baked.length > 0) {
-    try {
-      const parsed = JSON.parse(baked) as SchemaMap;
-      if (parsed && typeof parsed === 'object') return { ok: true, schemaMap: parsed };
-    } catch {
-      // Malformed bake — fall through to the filesystem read.
-    }
-  }
+  // Matches the prior guard exactly (`parsed && typeof parsed === 'object'`) — no behaviour change
+  // here; the only declared behaviour change in this refactor is the empty-allowlist agreement.
+  const decoded = readBakedArtifact<SchemaMap>('ASTRO_BLOCKS_SCHEMA_MAP', (parsed) =>
+    parsed && typeof parsed === 'object' ? (parsed as SchemaMap) : null,
+  );
+  if (decoded.ok) return { ok: true, schemaMap: decoded.value };
 
   const projectRoot = getProjectRoot();
   const schemaMapPath = path.join(projectRoot, '.astro-blocks', 'schema-map.mjs');

@@ -11,23 +11,20 @@ import { Image as ImageIcon } from '@lucide/astro';
 import { loadMedia, loadSite } from '../../api/data.js';
 import { resolveUiLocale } from './i18n/resolve.js';
 import { createT } from './i18n/t.js';
-import { DEFAULT_ALLOWED_FILE_TYPES } from '../../utils/file-catalog.js';
+import { readBakedConfig } from '../../utils/baked.js';
+import { DEFAULT_ALLOWED_FILE_TYPES, decodeAllowlist } from '../../utils/file-catalog.js';
 import { CATEGORY_ICON, categoryThumbClass, resolveTileCategory } from '../../utils/media-tile.js';
 
-// Build the dynamic accept attribute for the upload dropzone.
-// Reads the global allowlist injected by vite.define at build time;
-// falls back to DEFAULT_ALLOWED_FILE_TYPES when the env var is absent (dev/test).
-const _rawAllowedTypes: string = import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES ?? '';
-const _parsedAllowedTypes: string[] = (() => {
-  if (_rawAllowedTypes) {
-    try {
-      const parsed = JSON.parse(_rawAllowedTypes) as unknown;
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed as string[];
-    } catch { /* ignore */ }
-  }
-  return DEFAULT_ALLOWED_FILE_TYPES;
-})();
-const uploadAccept = _parsedAllowedTypes.join(',');
+// Build the dynamic accept attribute for the upload dropzone. Resolved through the shared bake path
+// (readBakedConfig + decodeAllowlist), the same decoder the server and the block-form picker use, so
+// the readers can no longer drift and a malformed element is rejected rather than cast through
+// (#116, ADR-0033). Note `accept` is only a picker hint — the server enforces the allowlist. For an
+// empty allowlist this renders `accept=""`, which the browser treats as accept-anything; the server
+// still rejects every upload, so it is a cosmetic mismatch, not a hole.
+const uploadAccept = readBakedConfig('ASTRO_BLOCKS_ALLOWED_FILE_TYPES', {
+  decode: decodeAllowlist,
+  fallback: DEFAULT_ALLOWED_FILE_TYPES,
+}).join(',');
 
 const site = await loadSite();
 const mediaData = await loadMedia();
