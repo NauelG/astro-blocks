@@ -3,25 +3,25 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-import type { RedirectRule, RedirectsData } from '../../../types/index.js';
+import type { RedirectRule } from '../../../types/index.js';
 import { normalizeRedirectPath } from '../../../utils/redirects.js';
 import {
   authHeaders,
   closeDialog,
-  fetchJson,
   fetchOk,
   openDialog,
+  setInlineError,
   showAlert,
-  showConfirm,
   showToast,
 } from './common.js';
 import { ct } from '../i18n/client.js';
-import { escapeAttr, escapeHtml } from '../../../utils/html-escape.js';
+import { escapeHtml } from '../../../utils/html-escape.js';
+import { createListEditor, raw } from './list-editor.js';
 
-const pencilSvg =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
-const trashSvg =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+/** Trusted badge markup: the class is a closed choice and the text is escaped inside raw(). */
+function badge(tone: 'success' | 'neutral', text: string): ReturnType<typeof raw> {
+  return raw(`<span class="cms-badge cms-badge-${tone}">${escapeHtml(text)}</span>`);
+}
 
 export function initRedirectsEditor(): void {
   const dialog = document.getElementById('redirect-detail-modal') as HTMLDialogElement | null;
@@ -66,30 +66,56 @@ export function initRedirectsEditor(): void {
   const toField = toInput;
   const statusCodeField = statusCodeInput;
   const enabledField = enabledInput;
-  const redirectsTableBody = redirectsTbody;
 
-  let redirectsState: RedirectRule[] = [];
-
-  function setError(message = ''): void {
-    if (!errorEl) return;
-    errorEl.textContent = message;
-    errorEl.classList.toggle('cms-hidden', !message);
-  }
+  const list = createListEditor<RedirectRule>({
+    endpoint: '/cms/api/redirects',
+    responseKey: 'redirects',
+    tbody: redirectsTbody,
+    rowId: (entry) => entry.id,
+    editLabel: ct('common.edit'),
+    deleteLabel: ct('common.delete'),
+    columns: [
+      { cellClass: 'cms-table-cell-monospace', cell: (entry) => ({ text: entry.from }) },
+      { cellClass: 'cms-table-cell-monospace', cell: (entry) => ({ text: entry.to }) },
+      { cell: (entry) => ({ html: badge('neutral', String(entry.statusCode)) }) },
+      {
+        cell: (entry) => ({
+          html: badge(
+            entry.enabled !== false ? 'success' : 'neutral',
+            entry.enabled !== false ? ct('redirects.statusActive') : ct('redirects.statusInactive'),
+          ),
+        }),
+      },
+    ],
+    onEdit: (entry) => openEdit(entry.id),
+    confirmDelete: (entry) => ({
+      message: ct('redirects.deleteConfirm', { from: entry.from || '', to: entry.to || '' }),
+      confirmLabel: ct('common.delete'),
+    }),
+    deletedToast: ct('redirects.deleted'),
+    countLabel: (count) => ct('redirects.count', { count }),
+    countEl: redirectsCount,
+    emptyEl: redirectsEmpty,
+    searchEl: redirectsSearch,
+    filter: (entry, query) =>
+      entry.from.toLowerCase().includes(query) || entry.to.toLowerCase().includes(query),
+    localeAware: true,
+  });
 
   function setFormTitle(title: string, submitLabel: string): void {
     if (titleEl) titleEl.textContent = title;
     if (submitBtn) submitBtn.textContent = submitLabel;
   }
 
-  function normalizePathInput(raw: string): string {
-    return normalizeRedirectPath(raw || '/');
+  function normalizePathInput(rawPath: string): string {
+    return normalizeRedirectPath(rawPath || '/');
   }
 
   function validatePath(
-    raw: string,
+    rawPath: string,
     fieldKey: 'redirects.labelFrom' | 'redirects.labelTo',
   ): string | null {
-    const value = raw.trim();
+    const value = rawPath.trim();
     const field = ct(fieldKey);
     if (!value) return ct('redirects.pathRequired', { field });
     if (/^https?:\/\//i.test(value)) return ct('redirects.pathMustBeInternal', { field });
@@ -106,9 +132,8 @@ export function initRedirectsEditor(): void {
     const toError = validatePath(toValue, 'redirects.labelTo');
     if (toError) return toError;
 
-    const normalizedFrom = normalizePathInput(fromValue);
-    const normalizedTo = normalizePathInput(toValue);
-    if (normalizedFrom === normalizedTo) return ct('errors.redirectSameFromTo');
+    if (normalizePathInput(fromValue) === normalizePathInput(toValue))
+      return ct('errors.redirectSameFromTo');
     return null;
   }
 
@@ -118,7 +143,7 @@ export function initRedirectsEditor(): void {
     toField.value = '';
     statusCodeField.value = '301';
     enabledField.checked = true;
-    setError('');
+    setInlineError(errorEl);
   }
 
   function openNew(): void {
@@ -129,8 +154,8 @@ export function initRedirectsEditor(): void {
   }
 
   async function openEdit(id: string): Promise<void> {
-    if (redirectsState.length === 0) await refreshRedirects();
-    const entry = redirectsState.find((item) => item.id === id);
+    if (list.getState().length === 0) await list.refresh();
+    const entry = list.getState().find((item) => item.id === id);
     if (!entry) return;
 
     idField.value = entry.id;
@@ -138,100 +163,24 @@ export function initRedirectsEditor(): void {
     toField.value = entry.to || '/';
     statusCodeField.value = String(entry.statusCode || 301);
     enabledField.checked = entry.enabled !== false;
-    setError('');
+    setInlineError(errorEl);
     setFormTitle(ct('redirects.modalTitle'), ct('common.save'));
     openDialog(dialog);
     fromField.focus();
   }
 
-  function filteredRedirects(): RedirectRule[] {
-    const query = redirectsSearch?.value.trim().toLowerCase() || '';
-    if (!query) return redirectsState;
-    return redirectsState.filter((entry) => {
-      return entry.from.toLowerCase().includes(query) || entry.to.toLowerCase().includes(query);
-    });
-  }
-
-  function bindRows(): void {
-    redirectsTableBody.querySelectorAll<HTMLElement>('.cms-redirect-edit').forEach((button) => {
-      button.addEventListener('click', () => {
-        const id = button.dataset.id || '';
-        if (!id) return;
-        openEdit(id).catch((error) =>
-          showAlert(error instanceof Error ? error.message : String(error)),
-        );
-      });
-    });
-
-    redirectsTableBody.querySelectorAll<HTMLElement>('.cms-redirect-delete').forEach((button) => {
-      button.addEventListener('click', async () => {
-        const id = button.dataset.id || '';
-        if (!id) return;
-
-        const entry = redirectsState.find((item) => item.id === id);
-        const confirmed = await showConfirm(
-          ct('redirects.deleteConfirm', { from: entry?.from || '', to: entry?.to || '' }),
-          ct('common.delete'),
-        );
-        if (!confirmed) return;
-
-        try {
-          await fetchOk(`/cms/api/redirects/${encodeURIComponent(id)}`, {
-            method: 'DELETE',
-            headers: authHeaders(false),
-          });
-          showToast(ct('redirects.deleted'), 'success');
-          await refreshRedirects();
-        } catch (error) {
-          await showAlert(error instanceof Error ? error.message : String(error));
-        }
-      });
-    });
-  }
-
-  function renderTable(): void {
-    const list = filteredRedirects();
-    redirectsTableBody.innerHTML = list
-      .map(
-        (entry) =>
-          `<tr data-id="${escapeAttr(entry.id)}">` +
-          `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-redirect-edit" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
-          `<td class="cms-table-cell-monospace">${escapeHtml(entry.from)}</td>` +
-          `<td class="cms-table-cell-monospace">${escapeHtml(entry.to)}</td>` +
-          `<td><span class="cms-badge cms-badge-neutral">${entry.statusCode}</span></td>` +
-          `<td><span class="cms-badge ${entry.enabled !== false ? 'cms-badge-success' : 'cms-badge-neutral'}">${entry.enabled !== false ? ct('redirects.statusActive') : ct('redirects.statusInactive')}</span></td>` +
-          `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-redirect-delete" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
-          '</tr>',
-      )
-      .join('');
-
-    if (redirectsCount) redirectsCount.textContent = ct('redirects.count', { count: list.length });
-    redirectsEmpty?.classList.toggle('cms-hidden', list.length > 0);
-    bindRows();
-  }
-
-  async function refreshRedirects(): Promise<void> {
-    const data = await fetchJson<RedirectsData>('/cms/api/redirects', {
-      headers: authHeaders(false),
-    });
-    redirectsState = Array.isArray(data.redirects) ? data.redirects : [];
-    renderTable();
-  }
-
   async function saveCurrent(): Promise<void> {
     const id = idField.value.trim();
-    const fromRaw = fromField.value;
-    const toRaw = toField.value;
-    const validationError = clientValidation(fromRaw, toRaw);
+    const validationError = clientValidation(fromField.value, toField.value);
     if (validationError) {
-      setError(validationError);
+      setInlineError(errorEl, validationError);
       return;
     }
 
-    setError('');
+    setInlineError(errorEl);
     const payload = {
-      from: normalizePathInput(fromRaw),
-      to: normalizePathInput(toRaw),
+      from: normalizePathInput(fromField.value),
+      to: normalizePathInput(toField.value),
       statusCode: statusCodeField.value === '302' ? 302 : 301,
       enabled: enabledField.checked,
     };
@@ -244,14 +193,14 @@ export function initRedirectsEditor(): void {
 
     closeDialog(dialog);
     showToast(id ? ct('redirects.updated') : ct('redirects.created'), 'success');
-    await refreshRedirects();
+    await list.refresh();
   }
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     saveCurrent().catch(async (error) => {
       const message = error instanceof Error ? error.message : String(error);
-      setError(message);
+      setInlineError(errorEl, message);
       await showAlert(message);
     });
   });
@@ -262,13 +211,8 @@ export function initRedirectsEditor(): void {
 
   newBtn?.addEventListener('click', openNew);
   newEmptyBtn?.addEventListener('click', openNew);
-  redirectsSearch?.addEventListener('input', renderTable);
 
-  window.addEventListener('cms:content-locale-change', () => {
-    refreshRedirects().catch(() => {});
-  });
-
-  refreshRedirects().catch(async (error) => {
+  list.refresh().catch(async (error) => {
     await showAlert(error instanceof Error ? error.message : String(error));
   });
 }

@@ -144,6 +144,16 @@ export function closeDialog(dialog: HTMLDialogElement | null): void {
   dialog?.close();
 }
 
+/**
+ * Show or clear an inline form error. The byte-identical `setError` that every Family-A list editor
+ * carried, deduplicated here (#117). Empty message hides the element.
+ */
+export function setInlineError(el: HTMLElement | null, message = ''): void {
+  if (!el) return;
+  el.textContent = message;
+  el.classList.toggle('cms-hidden', !message);
+}
+
 export function formatDisplayDate(value?: string | null): string {
   if (!value) return ct('common.noDate');
   try {

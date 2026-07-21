@@ -4,7 +4,7 @@ Licensed under the Business Source License 1.1
 */
 
 /**
- * Source-level guard: the four table-editor client modules must consume the
+ * Source-level guard: the table-editor render modules must consume the
  * canonical escapeHtml/escapeAttr pair from src/utils/html-escape.ts for BOTH
  * attribute and text-content escaping, instead of splitting escapeHtml from
  * ./common.js and escapeAttr from the canonical module.
@@ -13,6 +13,13 @@ Licensed under the Business Source License 1.1
  * '../../../utils/html-escape.js' module, and must NOT import `escapeHtml`
  * from './common.js' anymore. This is part of the issue #39 consolidation
  * effort (sub-slice 2c).
+ *
+ * #117 update: the row rendering (and both escapers) for the configs and
+ * redirects list pages moved into the shared `list-editor.ts` (createListEditor).
+ * Those two editors no longer own a table render, so this guard now points at
+ * `list-editor.ts` in their place; `menus-editor.ts` and `page-editor.ts` still
+ * hand-render and remain. The repo-wide `html-escape-guard.test.js` covers the
+ * remaining raw() cells in configs/redirects.
  */
 
 import { test } from 'node:test';
@@ -23,9 +30,8 @@ import { join } from 'node:path';
 const root = process.cwd();
 
 const FILES = [
-  'src/routes/admin/client/configs-editor.ts',
+  'src/routes/admin/client/list-editor.ts',
   'src/routes/admin/client/menus-editor.ts',
-  'src/routes/admin/client/redirects-editor.ts',
   'src/routes/admin/client/page-editor.ts',
 ];
 

@@ -74,7 +74,7 @@ const t = createT(uiLocale);
             {redirects.map((entry) => (
               <tr>
                 <td class="cms-table-actions">
-                  <button type="button" class="cms-table-btn-edit cms-redirect-edit" data-id={entry.id} aria-label={t('common.edit')}>
+                  <button type="button" class="cms-table-btn-edit cms-list-edit" data-id={entry.id} aria-label={t('common.edit')}>
                     <Pencil size={14} />
                   </button>
                 </td>
@@ -89,7 +89,7 @@ const t = createT(uiLocale);
                   </span>
                 </td>
                 <td class="cms-table-actions-delete">
-                  <button type="button" class="cms-table-btn-delete cms-redirect-delete" data-id={entry.id} aria-label={t('common.delete')}>
+                  <button type="button" class="cms-table-btn-delete cms-list-delete" data-id={entry.id} aria-label={t('common.delete')}>
                     <Trash2 size={14} />
                   </button>
                 </td>
