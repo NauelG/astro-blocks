@@ -12,6 +12,7 @@ import type {
   PrimitivePropType,
   PropDef,
 } from '../types/index.js';
+import { BLOCK_VALIDATION_MESSAGES } from './block-validation-messages.js';
 
 const PRIMITIVE_TYPES = new Set<PrimitivePropType>([
   'string',
@@ -234,51 +235,6 @@ export interface BlockValidationIssue {
   fieldName?: string;
 }
 
-/**
- * Minimal English catalog subset used to render the backward-compat `message`.
- * Keep in sync with blockValidation.* keys in routes/admin/i18n/en.ts.
- */
-const EN_BLOCK_MESSAGES: Record<string, string> = {
-  'blockValidation.fieldRequired':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
-  'blockValidation.fieldMustBeImage':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" must be an image object.',
-  'blockValidation.fieldImageNeedsUrl':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" requires a valid URL.',
-  'blockValidation.fieldCannotBeEmpty':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" cannot be empty.',
-  'blockValidation.fieldAltMustBeText':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" — alt must be text.',
-  'blockValidation.fieldCaptionMustBeText':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" — caption must be text.',
-  'blockValidation.fieldDimInvalid':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" — {dim} must be a positive integer (> 0).',
-  'blockValidation.fieldMustBeText':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" must be text.',
-  'blockValidation.fieldInvalidOption':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" has an invalid option.',
-  'blockValidation.fieldMustBeNumber':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" must be a valid number.',
-  'blockValidation.fieldMustBeBoolean':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" must be a boolean.',
-  'blockValidation.fieldMustBeFile':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" must be a file object.',
-  'blockValidation.fieldFileNeedsUrl':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" requires a valid URL.',
-  'blockValidation.arrayMustContainObjects':
-    'Block "{blockName}" (index {blockIndex}): "{label}" must contain valid objects.',
-  'blockValidation.arrayRequired':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
-  'blockValidation.arrayMustBeArray':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" must be an array.',
-  'blockValidation.arrayMinItems':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" requires at least {min} item(s).',
-  'blockValidation.arrayMaxItems':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" allows at most {max} item(s).',
-  'blockValidation.arrayIsRequired':
-    'Block "{blockName}" (index {blockIndex}): field "{label}" is required.',
-};
-
 /** Interpolate a template string with params (same logic as routes/admin/i18n/t.ts). */
 function interpolate(template: string, params: Record<string, string | number>): string {
   return template.replace(/\{([^}]+)\}/g, (_, key: string) => {
@@ -289,7 +245,7 @@ function interpolate(template: string, params: Record<string, string | number>):
 
 /** Build an English message string from the catalog key + params. */
 function enMessage(messageKey: string, params: Record<string, string | number>): string {
-  const template = EN_BLOCK_MESSAGES[messageKey] ?? messageKey;
+  const template = (BLOCK_VALIDATION_MESSAGES as Record<string, string>)[messageKey] ?? messageKey;
   return interpolate(template, params);
 }
 
