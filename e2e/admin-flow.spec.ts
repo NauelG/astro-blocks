@@ -302,4 +302,36 @@ test.describe('Admin panel', () => {
 
     expect(status).toBe(200);
   });
+
+  // Test G — the redirects LIST wiring, migrated to createListEditor (#117). The redirect *modal*
+  // is covered by select-position.spec.ts; the list half (fetch → render → bind → delete, now via
+  // the generic cms-list-edit / cms-list-delete classes) had no e2e before this. Create a redirect,
+  // assert its row renders, delete it, assert the row is gone.
+  test('Test G: createListEditor renders and deletes a redirect row', async ({ page }) => {
+    await login(page);
+    await page.goto('/cms/redirects');
+    await page.locator('#admin-content').waitFor({ state: 'visible', timeout: 20_000 });
+
+    const uniqueFrom = `/from-${Date.now()}`;
+    const tbody = page.locator('#cms-redirects-tbody');
+
+    // Create via the (per-editor) detail modal.
+    await page.locator('#cms-redirect-new-btn').click();
+    await page.locator('#redirect-detail-modal').waitFor({ state: 'visible', timeout: 10_000 });
+    await page.locator('#redirect-detail-from').fill(uniqueFrom);
+    await page.locator('#redirect-detail-to').fill('/to-target');
+    await page.locator('#redirect-detail-submit').click();
+
+    // The row is rendered by createListEditor's renderRows into the shared tbody.
+    const row = tbody.locator(`tr[data-id]:has-text("${uniqueFrom}")`);
+    await expect(row).toBeVisible({ timeout: 10_000 });
+
+    // Delete via the generic action class the controller binds, then confirm.
+    await row.locator('.cms-list-delete').click();
+    await page.locator('#cms-confirm-dialog').waitFor({ state: 'visible', timeout: 10_000 });
+    await page.locator('#cms-confirm-ok').click();
+
+    // The controller re-fetches and re-renders; the row is gone.
+    await expect(row).toHaveCount(0, { timeout: 10_000 });
+  });
 });

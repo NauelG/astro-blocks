@@ -3,24 +3,20 @@ Copyright (c) 2026 Nauel Gómez Gamero
 Licensed under the Business Source License 1.1
 */
 
-import type { ConfigEntry, ConfigsData } from '../../../types/index.js';
+import type { ConfigEntry } from '../../../types/index.js';
 import {
   authHeaders,
   closeDialog,
-  fetchJson,
   fetchOk,
   openDialog,
+  setInlineError,
   showAlert,
-  showConfirm,
   showToast,
 } from './common.js';
 import { ct } from '../i18n/client.js';
 import { escapeAttr, escapeHtml } from '../../../utils/html-escape.js';
+import { createListEditor, raw } from './list-editor.js';
 
-const pencilSvg =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
-const trashSvg =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
 const configKeyRegex = /^[A-Za-z][A-Za-z0-9_.-]*$/;
 
 function maskConfigValue(value: string): string {
@@ -53,15 +49,48 @@ export function initConfigsEditor(): void {
   const keyField = keyInput;
   const valueField = valueInput;
   const descriptionField = descriptionInput;
-  const configsTableBody = tableBody;
 
-  let configsState: ConfigEntry[] = [];
-
-  function setError(message = ''): void {
-    if (!errorEl) return;
-    errorEl.textContent = message;
-    errorEl.classList.toggle('cms-hidden', !message);
-  }
+  const list = createListEditor<ConfigEntry>({
+    endpoint: '/cms/api/configs',
+    responseKey: 'configs',
+    tbody: tableBody,
+    rowId: (entry) => entry.id,
+    editLabel: ct('common.edit'),
+    deleteLabel: ct('common.delete'),
+    columns: [
+      { cellClass: 'cms-table-cell-monospace', cell: (entry) => ({ text: entry.key }) },
+      {
+        cellClass: 'cms-table-cell-monospace cms-configs-value-cell',
+        cell: (entry) => ({ text: maskConfigValue(entry.value || '') }),
+      },
+      {
+        cellClass: 'cms-configs-description-cell',
+        // A raw cell to keep the full-description hover tooltip (the original had title= on the td).
+        // Both the title and the text are escaped INSIDE raw() — the sanctioned hand-escape surface.
+        cell: (entry) => ({
+          html: raw(
+            `<span title="${escapeAttr(entry.description || '')}">${escapeHtml(entry.description || '—')}</span>`,
+          ),
+        }),
+      },
+    ],
+    transform: (rows) =>
+      [...rows].sort((a, b) => a.key.localeCompare(b.key, undefined, { sensitivity: 'base' })),
+    onEdit: (entry) => openEdit(entry.id),
+    confirmDelete: (entry) => ({
+      message: ct('configs.deleteConfirm', { key: entry.key || '' }),
+      confirmLabel: ct('common.delete'),
+    }),
+    deletedToast: ct('configs.deleted'),
+    countLabel: (count) => ct('configs.count', { count }),
+    countEl,
+    emptyEl,
+    searchEl: searchInput,
+    filter: (entry, query) =>
+      entry.key.toLowerCase().includes(query) ||
+      entry.value.toLowerCase().includes(query) ||
+      (entry.description || '').toLowerCase().includes(query),
+  });
 
   function setFormTitle(title: string, submitLabel: string): void {
     if (titleEl) titleEl.textContent = title;
@@ -73,7 +102,7 @@ export function initConfigsEditor(): void {
     keyField.value = '';
     valueField.value = '';
     descriptionField.value = '';
-    setError('');
+    setInlineError(errorEl);
   }
 
   function openNew(): void {
@@ -84,15 +113,15 @@ export function initConfigsEditor(): void {
   }
 
   async function openEdit(id: string): Promise<void> {
-    if (configsState.length === 0) await refreshConfigs();
-    const entry = configsState.find((item) => item.id === id);
+    if (list.getState().length === 0) await list.refresh();
+    const entry = list.getState().find((item) => item.id === id);
     if (!entry) return;
 
     idField.value = entry.id;
     keyField.value = entry.key || '';
     valueField.value = entry.value || '';
     descriptionField.value = entry.description || '';
-    setError('');
+    setInlineError(errorEl);
     setFormTitle(ct('configs.editParamForm'), ct('common.save'));
     openDialog(dialog);
     keyField.focus();
@@ -101,100 +130,14 @@ export function initConfigsEditor(): void {
   function validateForm(): string | null {
     const keyValue = keyField.value.trim();
     if (!keyValue) return ct('errors.configKeyRequired');
-    if (!configKeyRegex.test(keyValue)) {
-      return ct('errors.invalidConfigKey');
-    }
+    if (!configKeyRegex.test(keyValue)) return ct('errors.invalidConfigKey');
     return null;
-  }
-
-  function filteredConfigs(): ConfigEntry[] {
-    const query = searchInput?.value.trim().toLowerCase() || '';
-    if (!query) return configsState;
-
-    return configsState.filter((entry) => {
-      return (
-        entry.key.toLowerCase().includes(query) ||
-        entry.value.toLowerCase().includes(query) ||
-        (entry.description || '').toLowerCase().includes(query)
-      );
-    });
-  }
-
-  function bindRows(): void {
-    configsTableBody.querySelectorAll<HTMLElement>('.cms-config-edit').forEach((button) => {
-      button.addEventListener('click', () => {
-        const id = button.dataset.id || '';
-        if (!id) return;
-        openEdit(id).catch((error) =>
-          showAlert(error instanceof Error ? error.message : String(error)),
-        );
-      });
-    });
-
-    configsTableBody.querySelectorAll<HTMLElement>('.cms-config-delete').forEach((button) => {
-      button.addEventListener('click', async () => {
-        const id = button.dataset.id || '';
-        if (!id) return;
-
-        const entry = configsState.find((item) => item.id === id);
-        const confirmed = await showConfirm(
-          ct('configs.deleteConfirm', { key: entry?.key || '' }),
-          ct('common.delete'),
-        );
-        if (!confirmed) return;
-
-        try {
-          await fetchOk(`/cms/api/configs/${encodeURIComponent(id)}`, {
-            method: 'DELETE',
-            headers: authHeaders(false),
-          });
-          showToast(ct('configs.deleted'), 'success');
-          await refreshConfigs();
-        } catch (error) {
-          await showAlert(error instanceof Error ? error.message : String(error));
-        }
-      });
-    });
-  }
-
-  function renderTable(): void {
-    const list = filteredConfigs();
-    configsTableBody.innerHTML = list
-      .map(
-        (entry) =>
-          `<tr data-id="${escapeAttr(entry.id)}">` +
-          `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-config-edit" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.edit')}">${pencilSvg}</button></td>` +
-          `<td class="cms-table-cell-monospace">${escapeHtml(entry.key)}</td>` +
-          `<td class="cms-table-cell-monospace cms-configs-value-cell">${escapeHtml(maskConfigValue(entry.value || ''))}</td>` +
-          `<td class="cms-configs-description-cell" title="${escapeAttr(entry.description || '')}">${escapeHtml(entry.description || '—')}</td>` +
-          `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-config-delete" data-id="${escapeAttr(entry.id)}" aria-label="${ct('common.delete')}">${trashSvg}</button></td>` +
-          '</tr>',
-      )
-      .join('');
-
-    if (countEl) countEl.textContent = ct('configs.count', { count: list.length });
-    emptyEl?.classList.toggle('cms-hidden', list.length > 0);
-    bindRows();
-  }
-
-  async function refreshConfigs(): Promise<void> {
-    const data = await fetchJson<ConfigsData>('/cms/api/configs', {
-      headers: authHeaders(false),
-    });
-
-    configsState = Array.isArray(data.configs)
-      ? [...data.configs].sort((a, b) =>
-          a.key.localeCompare(b.key, undefined, { sensitivity: 'base' }),
-        )
-      : [];
-
-    renderTable();
   }
 
   async function saveCurrent(): Promise<void> {
     const validationError = validateForm();
     if (validationError) {
-      setError(validationError);
+      setInlineError(errorEl, validationError);
       return;
     }
 
@@ -205,7 +148,7 @@ export function initConfigsEditor(): void {
       description: descriptionField.value.trim(),
     };
 
-    setError('');
+    setInlineError(errorEl);
 
     await fetchOk(id ? `/cms/api/configs/${encodeURIComponent(id)}` : '/cms/api/configs', {
       method: id ? 'PUT' : 'POST',
@@ -215,14 +158,14 @@ export function initConfigsEditor(): void {
 
     closeDialog(dialog);
     showToast(id ? ct('configs.updated') : ct('configs.created'), 'success');
-    await refreshConfigs();
+    await list.refresh();
   }
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     saveCurrent().catch(async (error) => {
       const message = error instanceof Error ? error.message : String(error);
-      setError(message);
+      setInlineError(errorEl, message);
       await showAlert(message);
     });
   });
@@ -236,15 +179,14 @@ export function initConfigsEditor(): void {
     if (!target) return;
     if (target === dialog || target.getAttribute('data-close-modal') === 'config-detail-modal') {
       closeDialog(dialog);
-      setError('');
+      setInlineError(errorEl);
     }
   });
 
   newBtn?.addEventListener('click', openNew);
   newEmptyBtn?.addEventListener('click', openNew);
-  searchInput?.addEventListener('input', renderTable);
 
-  refreshConfigs().catch(async (error) => {
+  list.refresh().catch(async (error) => {
     await showAlert(error instanceof Error ? error.message : String(error));
   });
 }
