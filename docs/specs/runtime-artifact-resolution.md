@@ -46,11 +46,19 @@ public rendering kept working — so the failure looked like an admin bug rather
   (`ASTRO_BLOCKS_GLOBAL_BLOCKS_REGISTRY`) and the schema map (`ASTRO_BLOCKS_SCHEMA_MAP`). No artifact
   the API route depends on may have the filesystem as its only resolution strategy.
 
-- **R4 — Baked values are double-encoded.** `vite.define` splices its value in as raw **source**, so
-  the value is `JSON.stringify`'d **twice**: the outer call emits a string literal that the runtime
-  parses back with `JSON.parse`. A single stringify emits an object/array *literal*, which every
-  reader's `typeof raw === 'string'` guard silently rejects — falling back to a default as if the
-  consumer had configured nothing. That is not hypothetical: it is what shipped the `video/mp4` 415.
+- **R4 — Baked values are double-encoded, and the encode/decode lives in one module.** `vite.define`
+  splices its value in as raw **source**, so a structured value is `JSON.stringify`'d **twice**: the
+  outer call emits a string literal the runtime parses back with `JSON.parse`. A single stringify
+  emits an object/array *literal*, which the `typeof raw === 'string'` guard rejects — falling back to
+  a default as if the consumer had configured nothing (the `video/mp4` 415).
+
+  This asymmetry is not re-implemented per reader. The writer (`defineBakedValue`) owns which keys
+  are structured, and readers decode through one isomorphic module (`src/utils/baked.ts`):
+  `decodeBaked` performs the guard + `JSON.parse` + a caller-supplied validator and never throws (a
+  malformed bake is `{ ok: false }`, not an exception). The module carries **no** `node:*` import and
+  **no** i18n import, so the two readers that run in the browser (the admin block-form island,
+  `media.astro`) can use it without pulling server code into the client bundle. A test asserts the
+  isomorphism.
 
 - **R5 — The filesystem read is a fallback, never the mechanism.** `.astro-blocks/` is a gitignored
   build artifact, routinely **absent** on a deployed server. Its absence must not break any request
@@ -64,12 +72,15 @@ public rendering kept working — so the failure looked like an admin bug rather
   an empty registry, substitute `null` for the map, or discard the underlying error. Failures are
   logged with the artifact name and the remedy.
 
-- **R8 — The failure is unignorable by construction.** Both loaders return a discriminated union —
-  `{ ok: true; schemaMap } | { ok: false; reason: 'unresolved' }` for the schema map, and
-  `{ ok: true; entries } | { ok: false; reason: 'unresolved' }` for the global-blocks registry — so the
-  type checker rejects any call site that reads either without branching on the failure. A convention
-  each caller must remember is not a guarantee; this is the same stance `defineRoute<A>` already takes
-  on authorization.
+- **R8 — The failure is unignorable by construction, via one shared union.** Both artifact loaders
+  read through `readBakedArtifact`, which returns `BakedResolution<T> = { ok: true; value } | { ok:
+  false; reason: 'unresolved' }`. The failure arm (`BakedUnresolved`) is defined **once** in
+  `src/utils/baked.ts` and imported — `SchemaMapResult` and `RegistryResult` reuse it rather than each
+  re-declaring `{ ok: false; reason: 'unresolved' }`. The type checker still rejects any call site
+  that reads either without branching on the failure; this is the same stance `defineRoute<A>` takes
+  on authorization. The module owns *how you know* a value is unresolved; the caller still owns *what
+  unresolved means* — for an artifact, a dev/test filesystem read and, only if that also fails, a 500
+  (R9). That `Response` is built at the server call site, never inside the module.
 
 - **R9 — Unresolvable registry ⇒ 500, on every path, including reads.** The eight schema-map call sites
   fail with `errors.loadBlockSchemasFailed`; the three global-block routes with
@@ -93,6 +104,22 @@ public rendering kept working — so the failure looked like an admin bug rather
 
   One deliberate exception: the global-block editor's **pre-submit** schema fetch is a courtesy
   validation preflight, and the `PUT` it precedes fails loudly with the real reason.
+
+- **R12 — A baked key is either an artifact or a config, and the reader picks the matching
+  entrypoint.** Absence means different things for different keys, and it is a property of the key,
+  not the call site:
+
+  - **Artifacts** (`GLOBAL_BLOCKS_REGISTRY`, `SCHEMA_MAP`) — absence is a broken deployment. Read via
+    `readBakedArtifact`, which returns the union so the caller runs its disk-seam fallback (R5) and
+    then fails loudly (R7–R9). There is no default.
+  - **Configs** (`ALLOWED_FILE_TYPES`, `CUSTOM_FILE_TYPES`, `MAX_UPLOAD_BYTES_BY_CATEGORY`) — absence
+    means dev/test, where a documented default is correct. Read via `readBakedConfig`, which returns
+    the default on `{ ok: false }`.
+
+  No single entrypoint takes both a `fallback` and a hard-fail callback: that would return to the call
+  site the decision the classes exist to settle (ADR-0033). An empty structured value is still a
+  value, not a failure (R6): `"{}"` and `"[]"` decode successfully, so an empty allowlist resolves to
+  empty rather than falling back.
 
 ---
 
@@ -137,10 +164,12 @@ public rendering kept working — so the failure looked like an admin bug rather
   the defect wearing test scaffolding, and it is why this class of bug survived a green suite. **It
   must not be reintroduced.**
 - `e2e/schema-map-failure.spec.ts` — S-8, S-9 (R11), forced by intercepting the endpoint.
-- `tests/schema-map-bake-guard.test.js` — R3, R4. Deliberately guards only the *plugin* side: two
-  reader-side source-greps were written and both proved incapable of failing (one matched the
-  identifier inside the loader's own log message), so they were dropped rather than kept as green
-  lights that mean nothing. The reader side is proven behaviourally by S-1.
+- `tests/baked.test.js` — R4, R8. The double-encode round trip as an executable assertion:
+  `defineBakedValue` → simulated vite substitution → `decodeBaked` returns the value, and a
+  *single*-encoded value (an array literal) resolves to `{ ok: false }` — the `video/mp4` shape. Also
+  asserts the module's isomorphism (no `node:` / i18n import in `dist/utils/baked.js`). This replaced
+  `schema-map-bake-guard.test.js`, a plugin-side source-grep whose own tail comment conceded a source
+  grep "cannot fail" reliably; the reader side is still proven behaviourally by S-1.
 - `tests/registry-resolution.test.js` — R6 for both registries: unresolvable is a 500, genuinely empty
   is a 200.
 - `tests/pages-handlers.test.js`, `tests/global-blocks-handlers.test.js`, `tests/languages-handlers.test.js`
