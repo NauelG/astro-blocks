@@ -658,3 +658,152 @@ test('P4-q-filters-reconciled-set: q filters AFTER reconcile (orphan match exclu
     assert.ok(!filenames.includes('banner.jpg'), 'non-matching entry excluded by q');
   });
 });
+
+// ─── R7: ?accept type filter (ADR-0036, #104) ────────────────────────────────
+//
+// The picker used to filter by MIME in the browser, AFTER the server's slice, so a page could
+// render "0 shown of N total" while matching files sat on later pages and the pager counted the
+// unfiltered set. The filter now runs server-side, beside q and BEFORE total.
+
+async function getMedia(query = '') {
+  const token = await makeAuthToken();
+  const req = new Request(`http://localhost/cms/api/media${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const res = await handleGetMedia(req);
+  return { res, body: await res.json() };
+}
+
+/** n png entries + m pdf entries, all with real files on disk so reconcile keeps them. */
+async function seedMixed(tempRoot, pngCount, pdfCount) {
+  const entries = [];
+  for (let i = 0; i < pngCount; i++) {
+    entries.push(
+      await createRealEntry(
+        tempRoot,
+        '2026/06',
+        `img-${String(i).padStart(2, '0')}.png`,
+        'image/png',
+      ),
+    );
+  }
+  for (let i = 0; i < pdfCount; i++) {
+    entries.push(await createRealEntry(tempRoot, '2026/06', `doc-${i}.pdf`, 'application/pdf'));
+  }
+  await replaceMedia({ uploads: entries });
+  return entries;
+}
+
+test('ML-R7-filter: accept=application/pdf returns only the pdf entries', async () => {
+  await withTempProject(async (tempRoot) => {
+    await seedMixed(tempRoot, 3, 2);
+
+    const { res, body } = await getMedia('?accept=application/pdf');
+    assert.equal(res.status, 200);
+    assert.equal(body.total, 2, 'total counts only the accepted set');
+    assert.equal(body.uploads.length, 2);
+    assert.ok(
+      body.uploads.every((u) => u.mimeType === 'application/pdf'),
+      'every returned entry matches the accept list',
+    );
+  });
+});
+
+test('ML-R7-before-slice: accept filters BEFORE the slice, so total is the filtered count', async () => {
+  await withTempProject(async (tempRoot) => {
+    // 30 png + 5 pdf. With the old client-side filter, page 1 was 24 png of which 0 survived,
+    // over an unfiltered total of 35. This is the defect #104 reports.
+    await seedMixed(tempRoot, 30, 5);
+
+    const { body } = await getMedia('?accept=application/pdf&limit=24');
+    assert.equal(body.total, 5, 'total must be the filtered count, not 35');
+    assert.equal(body.uploads.length, 5, 'all 5 fit on page 1');
+  });
+});
+
+test('ML-R7-absent: no accept param leaves the envelope unchanged', async () => {
+  await withTempProject(async (tempRoot) => {
+    await seedMixed(tempRoot, 3, 2);
+
+    const { body } = await getMedia();
+    assert.equal(body.total, 5, 'no filter applied');
+    assert.equal(body.uploads.length, 5);
+  });
+});
+
+test('ML-R7-empty: an empty or all-blank accept applies no filter', async () => {
+  await withTempProject(async (tempRoot) => {
+    await seedMixed(tempRoot, 3, 2);
+
+    const empty = await getMedia('?accept=');
+    assert.equal(empty.body.total, 5, 'accept= is treated as absent');
+
+    const blanks = await getMedia('?accept=,,');
+    assert.equal(blanks.body.total, 5, 'accept=,, is treated as absent');
+  });
+});
+
+test('ML-R7-unknown: an unknown MIME matches nothing and is still a 200', async () => {
+  await withTempProject(async (tempRoot) => {
+    await seedMixed(tempRoot, 3, 2);
+
+    const { res, body } = await getMedia('?accept=application/x-nope');
+    assert.equal(res.status, 200, 'an unknown type is an empty page, not an error');
+    assert.equal(body.total, 0);
+    assert.deepEqual(body.uploads, []);
+  });
+});
+
+test('ML-R7-ci: matching is case-insensitive on both sides', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entry = await createRealEntry(tempRoot, '2026/06', 'shout.png', 'IMAGE/PNG');
+    await replaceMedia({ uploads: [entry] });
+
+    const { body } = await getMedia('?accept=image/png');
+    assert.equal(body.total, 1, 'a stored uppercase MIME matches a lowercase query');
+
+    const upper = await getMedia('?accept=IMAGE/PNG');
+    assert.equal(upper.body.total, 1, 'and an uppercase query matches too');
+  });
+});
+
+test('ML-R7-multi: a comma-separated list is a union', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entries = await seedMixed(tempRoot, 2, 2);
+    entries.push(await createRealEntry(tempRoot, '2026/06', 'clip.mp4', 'video/mp4'));
+    await replaceMedia({ uploads: entries });
+
+    const { body } = await getMedia('?accept=image/png,application/pdf');
+    assert.equal(body.total, 4, 'both types, and not the video');
+    assert.ok(!body.uploads.some((u) => u.mimeType === 'video/mp4'));
+  });
+});
+
+test('ML-R7-not-allowlisted: a MIME outside allowedFileTypes is still listed', async () => {
+  await withTempProject(async (tempRoot) => {
+    // video/mp4 is in the catalog but NOT in DEFAULT_ALLOWED_FILE_TYPES. This endpoint reads
+    // files that are already on disk; the allowlist is the UPLOAD gate. Narrowing it must never
+    // hide an asset that published pages still reference. (ADR-0036)
+    const entry = await createRealEntry(tempRoot, '2026/06', 'clip.mp4', 'video/mp4');
+    await replaceMedia({ uploads: [entry] });
+
+    const { body } = await getMedia('?accept=video/mp4');
+    assert.equal(body.total, 1, 'the read endpoint never consults the allowlist');
+    assert.equal(body.uploads[0].mimeType, 'video/mp4');
+  });
+});
+
+test('ML-R7-with-q: q and accept compose, and total is the intersection', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entries = [
+      await createRealEntry(tempRoot, '2026/06', 'hero-a.png', 'image/png'),
+      await createRealEntry(tempRoot, '2026/06', 'hero-b.pdf', 'application/pdf'),
+      await createRealEntry(tempRoot, '2026/06', 'other.png', 'image/png'),
+    ];
+    await replaceMedia({ uploads: entries });
+
+    const { body } = await getMedia('?q=hero&accept=image/png');
+    assert.equal(body.total, 1, 'only hero-a.png satisfies both');
+    assert.equal(body.uploads[0].filename, 'hero-a.png');
+  });
+});
