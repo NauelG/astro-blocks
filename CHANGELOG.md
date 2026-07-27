@@ -9,6 +9,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.0.9] - 2026-07-27
+
+### Title
+
+The media picker stops offering the wrong files, and the library stops shipping itself twice
+
+### Fixed
+
+- **The image picker offered documents and video as selectable.** Opening the picker for an image field listed PDFs, MP4s and any other uploaded file, and choosing one wrote that file's URL into the image field. The picker only ever filtered in file mode; it now filters in both, on the server. (#104)
+- **A narrower `allowedFileTypes` made the picker show more, not less.** A block prop declaring `accept: ['application/pdf']` on a site that had since removed `application/pdf` from `allowedFileTypes` ended up with an empty filter — which switched filtering off entirely and offered the whole library. The two lists are now separate: what a field may upload still respects the allowlist, what it may pick from already-uploaded assets does not, so assets your published pages reference stay selectable after you narrow the allowlist. (#104)
+- **The picker's count and pager disagreed with what it showed.** Type filtering ran in the browser after the server had already cut the page, so the picker could report "0 of 37" while matching files sat on later pages, and the pager counted files it was not showing. Filtering now happens before the page is cut, so both numbers describe the same set. (#104)
+- **The media library page sent the entire asset registry in its initial HTML.** Every upload's filename, URL, size, dimensions and date was server-rendered on first paint and then immediately thrown away and re-fetched by the browser, which also made the grid visibly reorder itself. The page now ships an empty shell and the grid is rendered once. (#104)
+
+### Changed
+
+- **`GET /cms/api/media` accepts an `accept` parameter** to filter the listing by MIME type. This is the internal API the admin UI uses; it is not part of the public consumer surface. (#104)
+
 ## [4.0.8] - 2026-07-21
 
 ### Title

@@ -124,11 +124,11 @@
     {
       "id": "media-search",
       "title": "Media search and metadata",
-      "summary": "Server-side search, pagination and per-asset metadata (dimensions, size, variant status) in the media library.",
+      "summary": "Server-side search, pagination and type filtering, plus per-asset metadata (dimensions, size, variant status), in the media library. The block picker filters by MIME on the server too, so its count and pager stay coherent.",
       "category": "media",
       "status": "alpha",
       "sinceVersion": "3.0.0",
-      "updatedIn": "3.0.0",
+      "updatedIn": "4.0.9",
       "docsPath": "#media-library-and-responsive-images"
     },
     {
