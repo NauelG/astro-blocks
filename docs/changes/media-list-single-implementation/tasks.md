@@ -256,12 +256,12 @@ Finding 7: the list travels as a DOM attribute. Both must, or the picker cannot 
 
 ### T15 — Full verification
 
-- [ ] `npm run typecheck && npm test && npx biome ci .` — the four-check gate.
-- [ ] `npm run features:validate`.
-- [ ] `npm run build:playground && npm run e2e`.
-- [ ] `grep -rn "activePickerAccept\|computeEffectiveAccept" src/` → **zero** hits.
-- [ ] `grep -rn "uploads.map\|loadMedia" src/routes/admin/media.astro` → **zero** hits.
-- [ ] Confirm no incidental changes under `playgrounds/` or `data/`.
+- [x] `npm run typecheck && npm test && npx biome ci .` — the four-check gate.
+- [x] `npm run features:validate`.
+- [x] `npm run build:playground && npm run e2e`.
+- [x] `grep -rn "activePickerAccept\|computeEffectiveAccept" src/` → **zero** hits.
+- [x] `grep -rn "uploads.map\|loadMedia" src/routes/admin/media.astro` → **zero** hits.
+- [x] Confirm no incidental changes under `playgrounds/` or `data/`.
 
 ### Not in this change
 
