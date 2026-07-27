@@ -15,9 +15,14 @@ Licensed under the Business Source License 1.1
  *   S-B  Localized image map     { es: { url: target }, en: { url: other } }
  *   S-C  Array of image items    [{ url: target }, { url: other }]
  *   S-D  Legacy bare string      prop = target
- *   S-E  seo.image plain string  { image: target }
- *   S-F  seo.image localized map { image: { es: target, en: other } }
+ *   S-E  Plain string in a map   { image: target }
+ *   S-F  Localized string map    { image: { es: target, en: other } }
  *   S-G  False-positive guard    { url: other } → 0 matches
+ *
+ * NOTE on `page.seo.image`: this walker does NOT scan it. findMediaUsages (api/data.ts) checks that
+ * field directly, because normalizePage has already reduced it to a locale map — a legacy bare
+ * string on disk arrives here as { [locale]: string } via withLegacyLocale. S-E/S-F above describe
+ * shapes found in BLOCK PROPS, not a seo path this module handles.
  */
 
 export interface WalkerMatch {

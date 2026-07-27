@@ -217,18 +217,18 @@ Finding 7: the list travels as a DOM attribute. Both must, or the picker cannot 
 
 ### T13 — FMU-03 exercises the real legacy shape
 
-- [ ] **File:** `tests/media-usage.test.js` — FMU-03 (`:140-161`) is titled *"seo.image plain string"*
+- [x] **File:** `tests/media-usage.test.js` — FMU-03 (`:140-161`) is titled *"seo.image plain string"*
   but its fixture is `seo: { image: { en: TARGET } }`, a map. Change the fixture to
   `seo: { image: TARGET }` — the actual on-disk legacy shape. Assertions unchanged (`count: 1`,
   `source: 'seo'`, `propName: 'seo.image'`): normalization is what makes them pass, and the test now
   fails if `withLegacyLocale` ever stops covering the seo path.
   - Add a comment naming `data.ts:200-204` as the reason it passes, so the next reader does not
     re-file #103.
-- [ ] **File:** `src/utils/image-url-scan.ts` — correct the S-E line (`:18`): the walker emits that
+- [x] **File:** `src/utils/image-url-scan.ts` — correct the S-E line (`:18`): the walker emits that
   shape for **block props**; `findMediaUsages` handles `seo.image` directly because `normalizePage`
   has already reduced it to a locale map.
 - **Verify:** `npm test` — FMU-03 green against the legacy fixture.
-- [ ] Commit: `test(media): exercise the legacy string seo.image shape in the usage scan`
+- [x] Commit: `test(media): exercise the legacy string seo.image shape in the usage scan`
   - Body: #103 reported a blind spot that does not exist — `withLegacyLocale` normalises before
     `findMediaUsages` runs, and `normalizePageSeo` admits no other shape. The real gap was the test
     that claimed to cover the legacy shape and did not. Closes #103.
@@ -239,7 +239,7 @@ Finding 7: the list travels as a DOM attribute. Both must, or the picker cannot 
 
 ### T14 — Glossary
 
-- [ ] **File:** `docs/CONTEXT.md` §3 — one row after **Allowlist vs catalog** (`:110`), which it
+- [x] **File:** `docs/CONTEXT.md` §3 — one row after **Allowlist vs catalog** (`:110`), which it
   refines:
 
   > **`uploadAccept` vs `browseAccept`** — a media-bearing prop has two accept lists, and they are
