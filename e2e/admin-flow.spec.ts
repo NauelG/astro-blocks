@@ -334,4 +334,58 @@ test.describe('Admin panel', () => {
     // The controller re-fetches and re-renders; the row is gone.
     await expect(row).toHaveCount(0, { timeout: 10_000 });
   });
+
+  // Regression (#104, ADR-0036): the picker used to filter by MIME in the browser, and only in
+  // 'file' mode — so the IMAGE picker listed documents and video as selectable, and picking one
+  // wrote a PDF's URL into an image field. Filtering is now server-side via ?accept, for both
+  // modes. This is an absence in the browser; no handler test can prove it.
+  test('Test H: the image picker does not offer a PDF', async ({ page }) => {
+    await login(page);
+
+    // Put a PDF in the library, through the file field that accepts one.
+    await openNewPageWithBlock(page, 'Download Button');
+    const fileBody = page.locator('#page-detail-blocks-list .cms-block-item-body').first();
+    const chooseFile = fileBody.locator('.cms-file-field-choose').first();
+    await chooseFile.waitFor({ state: 'visible', timeout: 10_000 });
+    await chooseFile.click();
+    await page.locator('#cms-media-picker').waitFor({ state: 'visible', timeout: 10_000 });
+
+    const uploadResponse = await uploadThroughPicker(page, {
+      name: `e2e-picker-${Date.now()}.pdf`,
+      mimeType: 'application/pdf',
+      buffer: PDF_MIN,
+    });
+    expect(uploadResponse.status()).toBe(200);
+    await page.locator('#cms-media-picker').waitFor({ state: 'hidden', timeout: 10_000 });
+
+    // Seed an image too, through the image field's own picker. Test H must not depend on Test C
+    // having run: in isolation the library would hold only the PDF, and an "is the PDF absent"
+    // assertion against an empty grid proves nothing.
+    await openNewPageWithBlock(page, 'Media Showcase');
+    const imageBody = page.locator('#page-detail-blocks-list .cms-block-item-body').first();
+    const chooseImage = imageBody.locator('.cms-image-field-choose').first();
+    await chooseImage.waitFor({ state: 'visible', timeout: 10_000 });
+    await chooseImage.click();
+
+    const picker = page.locator('#cms-media-picker');
+    await picker.waitFor({ state: 'visible', timeout: 10_000 });
+    const imageResponse = await uploadThroughPicker(page, {
+      name: `e2e-picker-${Date.now()}.png`,
+      mimeType: 'image/png',
+      buffer: PNG_1x1,
+    });
+    expect(imageResponse.status()).toBe(200);
+    await picker.waitFor({ state: 'hidden', timeout: 10_000 });
+
+    // Reopen the picker. The library now demonstrably holds both an image and a PDF.
+    await chooseImage.click();
+    await picker.waitFor({ state: 'visible', timeout: 10_000 });
+
+    // Wait for the grid to actually render items before asserting an absence, or the assertion
+    // would pass against a still-loading (or empty) picker and prove nothing.
+    await expect(picker.locator('[data-picker-url]').first()).toBeVisible({ timeout: 10_000 });
+
+    await expect(picker.locator('[data-picker-mime="application/pdf"]')).toHaveCount(0);
+    await expect(picker.locator('[data-picker-url$=".pdf"]')).toHaveCount(0);
+  });
 });

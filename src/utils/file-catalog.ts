@@ -295,6 +295,21 @@ export function lookupByExt(
   return catalog.find((r) => r.ext === key) ?? null;
 }
 
+/**
+ * Every MIME in the catalog belonging to a category.
+ *
+ * This is the picker's `browseAccept` for a prop that declares no `accept` of its own: an `image`
+ * prop may pick any image the system can handle. Derived from the rows rather than kept as a second
+ * list, so a `customFileTypes` row registered as `category: 'image'` is pickable in image fields
+ * without anyone remembering to update the picker. (ADR-0036)
+ */
+export function mimesForCategory(
+  category: FileCategory,
+  catalog: readonly FileTypeRow[] = resolveCatalog(),
+): string[] {
+  return catalog.filter((r) => r.category === category).map((r) => r.mime);
+}
+
 /** Whether a MIME goes through sharp. Replaces the standalone RASTER_MIME set. */
 export function isRaster(
   mime: string,

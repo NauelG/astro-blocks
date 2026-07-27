@@ -94,24 +94,24 @@ verify step is plain `npm test` unless noted.
 
 ### T4 — `mimesForCategory` (test-first)
 
-- [ ] **File:** `tests/file-catalog.test.js` — `mimesForCategory('image')` returns the six builtin
+- [x] **File:** `tests/file-catalog.test.js` — `mimesForCategory('image')` returns the six builtin
   image MIMEs and none of the pdf/video/audio rows; `mimesForCategory('video')` returns the two video
   rows. (Red first.)
-- [ ] **File:** `src/utils/file-catalog.ts` — export
+- [x] **File:** `src/utils/file-catalog.ts` — export
   `mimesForCategory(category: FileCategory): string[]`, derived from `resolveCatalog()` so custom
   rows registered in a category are included and there is no second list to sync.
 - **Verify:** `npm test` — new tests green.
 
 ### T5 — `computeUploadAccept` / `computeBrowseAccept`
 
-- [ ] **File:** `tests/file-accept.test.js` (new if absent, else extend) —
+- [x] **File:** `tests/file-accept.test.js` (new if absent, else extend) —
   - `computeUploadAccept({ accept: ['application/pdf'] })` with pdf **absent** from the allowlist → `[]`.
   - `computeBrowseAccept({ accept: ['application/pdf'] }, 'file')` in that same state →
     `['application/pdf']` — **the bug that made a stricter allowlist yield a more permissive picker.**
   - `computeBrowseAccept({}, 'image')` → the catalog's image MIMEs.
   - `computeBrowseAccept({}, 'file')` → `[]` (no filter = the whole library).
   - Mixed case in `def.accept` is lowercased by both.
-- [ ] **File:** `src/routes/admin/client/block-form/file-accept.ts` — rename
+- [x] **File:** `src/routes/admin/client/block-form/file-accept.ts` — rename
   `computeEffectiveAccept` → `computeUploadAccept` (body unchanged) and add `computeBrowseAccept(def,
   mode)` per `design.md` §2. Both doc-commented with which question they answer and why only one
   intersects the allowlist.
@@ -121,15 +121,15 @@ verify step is plain `npm test` unless noted.
 
 Finding 7: the list travels as a DOM attribute. Both must, or the picker cannot know one of them.
 
-- [ ] **File:** `src/routes/admin/client/block-form/field-renderers.ts` — `:197` computes **both**;
+- [x] **File:** `src/routes/admin/client/block-form/field-renderers.ts` — `:197` computes **both**;
   `fileFieldHtml` (`:131`, `:154`) emits `data-file-accept` (upload, unchanged — the file input reads
   it) **plus** `data-file-browse-accept`.
-- [ ] **File:** `src/routes/admin/client/block-form/mount.ts` — the file branch (`:331-348`) parses
+- [x] **File:** `src/routes/admin/client/block-form/mount.ts` — the file branch (`:331-348`) parses
   both attributes; the image branch (`:303-311`) passes `{ upload: [], browse: mimesForCategory('image') }`.
   Both call `openPickerDialog(btn, inputId, mode, accepts)` with the 4th argument now an object
   `{ upload: string[]; browse: string[] }` — an object rather than a 5th positional, so a future
   reader cannot swap them silently.
-- [ ] **File:** `src/routes/admin/client/block-form/picker-dialog.ts` —
+- [x] **File:** `src/routes/admin/client/block-form/picker-dialog.ts` —
   - `openPickerDialog` (`:315`) stores both; the upload input's `accept` (`:377`) reads `upload`
     (behaviour unchanged), and `pickerLoadPage` (`:292`) sends `browse` as `accept` to `fetchMedia`.
   - **Delete** `activePickerAccept` (`:54`, `:326`) and the `visibleItems` filter (`:212-215`).
@@ -137,7 +137,7 @@ Finding 7: the list travels as a DOM attribute. Both must, or the picker cannot 
     `items.length` and the envelope `total`, which now describe the same set.
   - Update the `renderPickerGrid` doc comment (`:203-206`) — it currently documents the client-side
     filter that this task deletes.
-- [ ] **File:** `src/routes/admin/client/media-fetch.ts` — `fetchMedia` takes `accept?: string[]` and
+- [x] **File:** `src/routes/admin/client/media-fetch.ts` — `fetchMedia` takes `accept?: string[]` and
   sets the param only when non-empty, matching the existing "only send what was supplied" rule
   (`:49-51`).
 - **Verify:** `npm test && npm run typecheck && npx biome ci .` — no suite regresses; grep confirms
@@ -145,7 +145,7 @@ Finding 7: the list travels as a DOM attribute. Both must, or the picker cannot 
 
 ### T7 — e2e: the image picker does not offer non-images
 
-- [ ] **File:** `e2e/admin-flow.spec.ts` — logged in, with a PDF uploaded to the library, open an
+- [x] **File:** `e2e/admin-flow.spec.ts` — logged in, with a PDF uploaded to the library, open an
   **image** prop's picker and assert no picker item carries the PDF's URL. Reuse the file's `login`
   helper (`:31`) and its existing picker-upload helper (`:77`).
   - This is the assertion that proves the latent defect is gone; it cannot be proven from the handler.
@@ -153,7 +153,7 @@ Finding 7: the list travels as a DOM attribute. Both must, or the picker cannot 
 
 ### T8 — Commit B
 
-- [ ] `fix(admin): filter the media picker server-side by browse accept`
+- [x] `fix(admin): filter the media picker server-side by browse accept`
   - Body: splits `uploadAccept` (allowlist-intersected, drives the upload input) from `browseAccept`
     (as declared, drives `?accept`); fixes the image picker offering documents and video, and the
     empty-intersection guard that made a stricter allowlist show *everything*. Refs #104, ADR-0036.

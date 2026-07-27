@@ -22,6 +22,7 @@ import {
   isRaster,
   toCatalogRow,
   intersectAccept,
+  mimesForCategory,
 } from '../dist/utils/file-catalog.js';
 
 const CATALOG = BUILTIN_FILE_TYPES;
@@ -203,4 +204,37 @@ test('decodeAllowlist rejects a non-array shape', () => {
   assert.equal(decodeAllowlist('image/png'), null);
   assert.equal(decodeAllowlist({ 0: 'image/png' }), null);
   assert.equal(decodeAllowlist(null), null);
+});
+
+// ─── mimesForCategory (ADR-0036, #104) ───────────────────────────────────────
+//
+// The image picker's browseAccept is derived from the catalog rather than kept as a second list,
+// so registering a custom image type makes it pickable without touching the picker.
+
+test('mimesForCategory("image") returns every image row and nothing else', () => {
+  const images = mimesForCategory('image');
+  assert.deepEqual([...images].sort(), [
+    'image/avif',
+    'image/gif',
+    'image/jpeg',
+    'image/png',
+    'image/svg+xml',
+    'image/webp',
+  ]);
+  assert.ok(!images.includes('application/pdf'), 'a document is not an image');
+  assert.ok(!images.includes('video/mp4'), 'a video is not an image');
+  assert.ok(!images.includes('audio/mpeg'), 'audio is not an image');
+});
+
+test('mimesForCategory("video") returns the video rows', () => {
+  assert.deepEqual([...mimesForCategory('video')].sort(), ['video/mp4', 'video/webm']);
+});
+
+test('mimesForCategory is derived from the catalog, not a hardcoded list', () => {
+  // Every returned MIME must resolve to a row whose category is the one asked for.
+  for (const category of ['image', 'video', 'audio', 'document']) {
+    for (const mime of mimesForCategory(category)) {
+      assert.equal(lookupByMime(mime)?.category, category, `${mime} should be ${category}`);
+    }
+  }
 });

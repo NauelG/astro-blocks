@@ -41,6 +41,7 @@ export async function fetchMedia(params?: {
   q?: string;
   page?: number;
   limit?: number;
+  accept?: string[];
 }): Promise<MediaListEnvelope> {
   const safeDefault: MediaListEnvelope = { uploads: [], total: 0, page: 1, limit: 24 };
 
@@ -49,6 +50,9 @@ export async function fetchMedia(params?: {
     if (params?.q !== undefined && params.q !== '') qs.set('q', params.q);
     if (params?.page !== undefined) qs.set('page', String(params.page));
     if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+    // An empty accept means "no type filter" (the whole library), so it is simply not sent.
+    if (params?.accept !== undefined && params.accept.length > 0)
+      qs.set('accept', params.accept.join(','));
 
     const queryString = qs.toString();
     const url = `/cms/api/media${queryString ? `?${queryString}` : ''}`;

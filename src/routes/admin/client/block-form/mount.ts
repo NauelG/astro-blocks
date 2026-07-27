@@ -33,6 +33,7 @@ Licensed under the Business Source License 1.1
 import Sortable, { type SortableEvent } from 'sortablejs';
 import type { FileFieldValue, PrimitivePropDef, PropDef } from '../../../../types/index.js';
 import { isObjectArrayItemDef } from '../../../../utils/block-validation.js';
+import { mimesForCategory } from '../../../../utils/file-catalog.js';
 import { parseImageValue } from '../../../../utils/image-value.js';
 import { checkArrayLimitReached } from './array-limits.js';
 import type { ArrayLimitInfo } from './array-limits.js';
@@ -45,6 +46,19 @@ import {
 } from './field-dom-sync.js';
 import { renderArrayField, renderPrimitiveField } from './field-renderers.js';
 import { openPickerDialog } from './picker-dialog.js';
+
+/**
+ * Recover an accept list from a data attribute written by fileFieldHtml. A malformed or absent
+ * value yields [] — for browseAccept that means "no type filter", the pre-existing behaviour.
+ */
+function parseAcceptAttr(raw: string | undefined): string[] {
+  try {
+    const parsed = JSON.parse(raw ?? '[]') as unknown;
+    return Array.isArray(parsed) ? (parsed as string[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 // Field-level change context passed as second arg to onChange.
 // Callers that don't need it (e.g. global-blocks-editor) may ignore the argument.
@@ -304,7 +318,13 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
       btn.addEventListener('click', () => {
         const inputId = btn.dataset.pickerFor;
         if (!inputId) return;
-        openPickerDialog(btn, inputId, 'image', []).catch(() => {
+        // An image prop declares no accept — its type is the constraint — so browseAccept comes
+        // from the catalog's image rows. Without it the picker offered documents and video as
+        // selectable, writing a PDF's URL into an image field (ADR-0036).
+        openPickerDialog(btn, inputId, 'image', {
+          upload: [],
+          browse: mimesForCategory('image'),
+        }).catch(() => {
           /* no-op */
         });
       });
@@ -333,16 +353,11 @@ export function mountBlockForm(options: BlockFormOptions): BlockFormHandle {
       btn.addEventListener('click', () => {
         const inputId = btn.dataset.filePickerFor;
         if (!inputId) return;
-        // Recover effectiveAccept from the data-file-accept attribute (set at render time)
-        let effectiveAccept: string[] = [];
-        try {
-          const raw = btn.dataset.fileAccept ?? '[]';
-          const parsed = JSON.parse(raw) as unknown;
-          if (Array.isArray(parsed)) effectiveAccept = parsed as string[];
-        } catch {
-          /* ignore */
-        }
-        openPickerDialog(btn, inputId, 'file', effectiveAccept).catch(() => {
+        // Recover both accept lists from the data attributes set at render time.
+        openPickerDialog(btn, inputId, 'file', {
+          upload: parseAcceptAttr(btn.dataset.fileAccept),
+          browse: parseAcceptAttr(btn.dataset.fileBrowseAccept),
+        }).catch(() => {
           /* no-op */
         });
       });
