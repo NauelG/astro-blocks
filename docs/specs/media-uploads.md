@@ -8,7 +8,8 @@ Licensed under the Business Source License 1.1
 > Living specification. Describes which file types AstroBlocks accepts, how they are stored, and how
 > they are served back. Changed via the cycle's `spec-delta.md` mechanism (see `AGENTS.md`).
 > History: inaugurated by change `file-type-catalog` (#111); admin-surface vocabulary (R31–R34)
-> added by change `media-surface-vocabulary` (#114).
+> added by change `media-surface-vocabulary` (#114); listing ownership and the two accept lists
+> (R35–R37) added by change `media-list-single-implementation` (#104).
 
 ## Capability
 
@@ -70,8 +71,10 @@ hardcoded constants, and are now answered by one table.
   picker) previously required `length > 0` and fell back to the full default catalog, and cast the
   parsed value `as string[]`; they now share the server's decoder, so they cannot drift and a
   non-string element (`[123]`) is rejected instead of reaching the `accept` attribute uncoerced. The
-  upload `accept` attribute is a **picker hint, never the gate** — the server enforces the allowlist
-  (`getAllowedFileTypes`). One consequence for the empty allowlist: the resolved list is `[]`, so
+  upload `accept` attribute — **`uploadAccept`** (R37) — is a **picker hint, never the gate**; the
+  server enforces the allowlist (`getAllowedFileTypes`). This statement is about uploading only: the
+  opposite rule governs the listing filter (R36). One consequence for the empty allowlist: the
+  resolved list is `[]`, so
   `accept` renders empty, which HTML treats as *accept-anything* at the file dialog; the picker cannot
   express "offer nothing" for this config. That is cosmetic — every selected file is still rejected by
   the server.
@@ -181,10 +184,11 @@ hardcoded constants, and are now answered by one table.
 
 ## Admin
 
-- **R30 — One tile rule for every grid.** The media library, the client-side media grid and the block
-  picker all resolve the tile from `fileCategory` through `src/utils/media-tile.ts`. `image` renders
-  an `<img>`; `document`, `video` and `audio` render a category icon on a shared surface. No `<video>`
-  element in the grid: no bytes are fetched to paint it.
+- **R30 — One tile rule for every grid.** The client-side media grid and the block picker both
+  resolve the tile from `fileCategory` through `src/utils/media-tile.ts`. `image` renders an `<img>`;
+  `document`, `video` and `audio` render a category icon on a shared surface. No `<video>` element in
+  the grid: no bytes are fetched to paint it. (There was a third, server-rendered grid until R35 made
+  that page a shell — the rule is unchanged, with one fewer place to apply it.)
 
 - **R31 — The picker titles itself by prop type.** The block-form media picker is opened for a prop
   whose type is `image` or `file`. In `image` mode it presents as an image chooser; in `file` mode as
@@ -211,6 +215,51 @@ hardcoded constants, and are now answered by one table.
 
 ---
 
+## Listing
+
+- **R35 — One implementation of the media listing.** `handleGetMedia` is the only implementation of
+  *which media entries are listed, in what order*. No consumer sorts, filters or slices the library
+  on its own; a consumer that needs a different set says so with a query parameter — `q`, `page`,
+  `limit`, `accept` — and renders the envelope as received.
+
+  The admin media page therefore **renders no media cards server-side**: its grid container ships a
+  localized `role="status"` loading line, and `client/media.ts` fetches page 1 and renders it. This
+  is not a performance trade. `initMediaPage()` has always replaced the server-rendered grid
+  unconditionally, and the toolbar stayed hidden until it did, so the SSR grid was built, shipped
+  and discarded on every visit while being unusable in the interim.
+
+  One consequence is load-bearing: **`client/media.ts:renderCard` is the only card renderer**. There
+  is no second implementation for first paint and re-render to disagree about. (ADR-0036)
+
+- **R36 — `accept` filters the listing, and does not consult the allowlist.** `GET /cms/api/media`
+  accepts `?accept=<comma-separated MIME list>`. Values are trimmed, lowercased and blanks dropped;
+  an entry matches on **exact equality** with its `mimeType`, never a prefix or a wildcard. The
+  filter runs **beside `q` and before `total`**, so `total`, `page` and `limit` all describe the same
+  filtered set and the pager cannot lie. Absent, empty or all-blank = no filter. A MIME the catalog
+  does not know matches nothing: an empty page, **200**, not an error.
+
+  **The filter is not intersected with `allowedFileTypes`.** The allowlist is the *upload* gate (R7,
+  R16); this is a *read* over files already on disk. Narrowing `allowedFileTypes` must never hide an
+  asset that published pages still reference, nor strand an owner who cannot re-select it. (ADR-0036)
+
+- **R37 — `uploadAccept` and `browseAccept` are different questions.** A media-bearing prop has two
+  accept lists, and they are not the same list.
+
+  - **`uploadAccept` = `def.accept ∩ allowedFileTypes`** — what the field may **upload**; drives the
+    file input's `accept` attribute. Intersecting is right here: offering to upload what the server
+    will reject is a lie. This is the list R7 calls a picker hint.
+  - **`browseAccept` = `def.accept` as declared**, or — when the prop declares none — every catalog
+    row of the picker mode's category, or empty for an unrestricted `file` prop. It is what the field
+    may **pick from what already exists**, and it is what travels in `?accept`. Not
+    allowlist-intersected, per R36.
+
+  Collapsing the two produced two defects, fixed by the split rather than patched: an `image`-mode
+  picker offered documents and video as selectable, and a prop whose declared `accept` had been
+  dropped from the allowlist produced an **empty** intersection that disabled filtering entirely —
+  so a stricter allowlist yielded a *more permissive* picker.
+
+---
+
 ## Scenarios
 
 - **S1.** `allowedFileTypes: ['video/mp4']`, upload an MP4 → **200**, stored `.mp4`,
@@ -233,6 +282,20 @@ hardcoded constants, and are now answered by one table.
   bytes. *(Safari's probe.)*
 - **S11.** `GET` an `.avif` variant → **`Content-Type: image/avif`**.
 - **S12.** `GET` an `.svg` → `Content-Disposition: attachment`.
+- **S13.** A prop declares `accept: ['application/pdf']`; the library holds 30 images and 5 PDFs. Open
+  the picker → **5 assets, `total: 5`**, one page, no "load more". *(Previously: page 1 was 24 images,
+  of which 0 survived the client filter, over a `total` of 35.)*
+- **S14.** An `image` prop's picker, in a library holding a PDF and an MP4 → **neither is offered**.
+  *(Previously: both were offered, and picking one wrote its URL into the image field.)*
+- **S15.** `allowedFileTypes` no longer contains `application/pdf`; a prop still declares
+  `accept: ['application/pdf']`. Open the picker → **the already-uploaded PDFs, and only those**.
+  *(Previously: the intersection was `[]`, the guard disabled filtering, and the picker showed
+  everything.)*
+- **S16.** `GET /cms/api/media?accept=application/x-nope` → **200**, `total: 0`, `uploads: []`.
+- **S17.** `GET /cms/api/media?q=hero&accept=image/png&limit=10` → `total` counts entries matching
+  **both**, and the returned page is a slice of that set.
+- **S18.** Load `/cms/media` and read the raw HTML → **no `.cms-media-card`**, one `role="status"`
+  loading line. The rendered page shows the newest 24 assets once the client fetch lands.
 
 ---
 
@@ -242,4 +305,6 @@ hardcoded constants, and are now answered by one table.
 `docs/adr/0024-streaming-ingest-and-range-serving.md` · `docs/adr/0017` (variants) ·
 `docs/adr/0016` (image field value) ·
 `docs/adr/0026-media-user-facing-vocabulary.md` (media/asset/file/image vocabulary) ·
+`docs/adr/0036-el-handler-es-la-unica-implementacion-del-listado-de-media.md` (listing ownership,
+`?accept`, uploadAccept vs browseAccept) · `docs/adr/0020` (server-side search + pagination) ·
 `docs/media.md` (consumer guide)
