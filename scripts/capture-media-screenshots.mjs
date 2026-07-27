@@ -46,6 +46,7 @@ import { chromium } from 'playwright';
 
 const ROOT = process.cwd();
 const PLAYGROUND_DIR = path.join(ROOT, 'playgrounds', 'basic');
+const USERS_PATH = path.join(PLAYGROUND_DIR, 'data', 'users.json');
 
 const IMG_DIR = path.join(ROOT, 'src', 'img');
 const MEDIA_LIBRARY_PATH = path.join(IMG_DIR, 'media-library.png');
@@ -64,12 +65,6 @@ const VERSIONED_DEMO_PATHS = [
 // This secret must match CMS_JWT_SECRET passed to the dev server below.
 // capture-readme-screenshots.mjs uses the same value — keep them in sync.
 const JWT_SECRET = 'astro-blocks-readme-screenshots';
-
-const SCREENSHOT_USER = {
-  id: 'readme-screenshots',
-  email: 'screenshots@astroblocks.local',
-  role: 'owner',
-};
 
 // ── Server config ─────────────────────────────────────────────────────────────
 
@@ -173,9 +168,35 @@ async function closeDevServer(child) {
 // STEP 3 — Auth
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function createAuthToken() {
-  return new SignJWT({ email: SCREENSHOT_USER.email, role: SCREENSHOT_USER.role })
-    .setSubject(SCREENSHOT_USER.id)
+/**
+ * Resolve the user the screenshot token will speak for.
+ *
+ * getAuth reads the user fresh from the store on every request and rejects a token whose `sub` is
+ * unknown or whose `tokenVersion` has moved (ADR-0027), so the token must name a user that really
+ * exists. This script used to mint an id out of thin air and still worked, because the admin pages
+ * server-rendered their data without authenticating — the media grid is client-rendered now
+ * (ADR-0036), so the token has to be genuine. Read the owner from the playground's versioned store
+ * rather than hardcoding an id that can drift out of it.
+ */
+async function resolveScreenshotUser() {
+  const raw = JSON.parse(await fs.readFile(USERS_PATH, 'utf-8'));
+  const users = Array.isArray(raw.users) ? raw.users : [];
+  const owner = users.find((u) => u.role === 'owner') ?? users[0];
+  if (!owner?.id) {
+    throw new Error(`No user in ${USERS_PATH} to sign a screenshot token for.`);
+  }
+  return {
+    id: owner.id,
+    email: owner.email ?? 'owner@astroblocks.local',
+    role: owner.role ?? 'owner',
+    // Absent or malformed tokenVersion reads as 1 at the store boundary (ADR-0027).
+    tokenVersion: typeof owner.tokenVersion === 'number' ? owner.tokenVersion : 1,
+  };
+}
+
+async function createAuthToken(user) {
+  return new SignJWT({ email: user.email, role: user.role, tokenVersion: user.tokenVersion })
+    .setSubject(user.id)
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('7d')
     .sign(new TextEncoder().encode(JWT_SECRET));
@@ -191,7 +212,7 @@ async function openCmsPage(page, url) {
   await page.waitForSelector('.cms-topbar', { timeout: 15000 });
 }
 
-async function captureScreenshots(baseUrl, token) {
+async function captureScreenshots(baseUrl, token, screenshotUser) {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
@@ -226,7 +247,7 @@ async function captureScreenshots(baseUrl, token) {
       sessionStorage.setItem('cms-token', authToken);
       sessionStorage.setItem('cms-user', JSON.stringify(user));
     },
-    { authToken: token, user: SCREENSHOT_USER },
+    { authToken: token, user: screenshotUser },
   );
 
   const page = await context.newPage();
@@ -407,12 +428,13 @@ async function main() {
 
       // ── Step 3: Auth ──────────────────────────────────────────────────────
       console.log('[media-screenshots] Creating auth token...');
-      const token = await createAuthToken();
+      const screenshotUser = await resolveScreenshotUser();
+      const token = await createAuthToken(screenshotUser);
 
       // ── Step 4: Playwright ────────────────────────────────────────────────
       console.log('[media-screenshots] Capturing screenshots...');
       await fs.mkdir(IMG_DIR, { recursive: true });
-      await captureScreenshots(baseUrl, token);
+      await captureScreenshots(baseUrl, token, screenshotUser);
     } catch (err) {
       if (String(err).includes("Executable doesn't exist")) {
         console.error('[media-screenshots] Chromium is not installed.');

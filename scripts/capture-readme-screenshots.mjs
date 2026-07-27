@@ -16,6 +16,7 @@ import { chromium } from 'playwright';
 
 const ROOT = process.cwd();
 const PLAYGROUND_DIR = path.join(ROOT, 'playgrounds', 'basic');
+const USERS_PATH = path.join(PLAYGROUND_DIR, 'data', 'users.json');
 const PLAYGROUND_REDIRECTS_PATH = path.join(PLAYGROUND_DIR, 'data', 'redirects.json');
 const DASHBOARD_PATH = path.join(ROOT, 'src', 'img', 'dashboard.jpg');
 const PAGE_EDITOR_PATH = path.join(ROOT, 'src', 'img', 'page_editor.jpg');
@@ -24,12 +25,6 @@ const IMPORT_EXPORT_PATH = path.join(ROOT, 'src', 'img', 'import-export.jpg');
 const HOST = '127.0.0.1';
 const DEFAULT_PORT = 4327;
 const JWT_SECRET = 'astro-blocks-readme-screenshots';
-const SCREENSHOT_USER = {
-  id: 'readme-screenshots',
-  email: 'screenshots@astroblocks.local',
-  role: 'owner',
-};
-
 function runCommand(command, args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -81,9 +76,34 @@ async function waitForServer(baseUrl, timeoutMs = 120000) {
   throw new Error(`Timeout waiting for playground server at ${baseUrl}: ${String(lastError)}`);
 }
 
-async function createAuthToken(secret) {
-  return new SignJWT({ email: SCREENSHOT_USER.email, role: SCREENSHOT_USER.role })
-    .setSubject(SCREENSHOT_USER.id)
+/**
+ * Resolve the user the screenshot token will speak for.
+ *
+ * getAuth reads the user fresh from the store on every request and rejects a token whose `sub` is
+ * unknown or whose `tokenVersion` has moved (ADR-0027), so the token must name a user that really
+ * exists. These scripts used to mint an id out of thin air and still worked, because the admin
+ * pages server-render their data without authenticating — anything client-rendered needs a genuine
+ * token. Read the owner from the playground's versioned store rather than hardcoding an id.
+ */
+async function resolveScreenshotUser() {
+  const raw = JSON.parse(await fs.readFile(USERS_PATH, 'utf-8'));
+  const users = Array.isArray(raw.users) ? raw.users : [];
+  const owner = users.find((u) => u.role === 'owner') ?? users[0];
+  if (!owner?.id) {
+    throw new Error(`No user in ${USERS_PATH} to sign a screenshot token for.`);
+  }
+  return {
+    id: owner.id,
+    email: owner.email ?? 'owner@astroblocks.local',
+    role: owner.role ?? 'owner',
+    // Absent or malformed tokenVersion reads as 1 at the store boundary (ADR-0027).
+    tokenVersion: typeof owner.tokenVersion === 'number' ? owner.tokenVersion : 1,
+  };
+}
+
+async function createAuthToken(secret, user) {
+  return new SignJWT({ email: user.email, role: user.role, tokenVersion: user.tokenVersion })
+    .setSubject(user.id)
     .setProtectedHeader({ alg: 'HS256' })
     .setExpirationTime('7d')
     .sign(new TextEncoder().encode(secret));
@@ -95,7 +115,7 @@ async function openCmsPage(page, url) {
   await page.waitForSelector('.cms-topbar', { timeout: 15000 });
 }
 
-async function captureReadmeScreenshots(baseUrl, token) {
+async function captureReadmeScreenshots(baseUrl, token, screenshotUser) {
   const browser = await chromium.launch();
   const context = await browser.newContext({
     viewport: { width: 1720, height: 1100 },
@@ -128,7 +148,7 @@ async function captureReadmeScreenshots(baseUrl, token) {
       sessionStorage.setItem('cms-token', authToken);
       sessionStorage.setItem('cms-user', JSON.stringify(user));
     },
-    { authToken: token, user: SCREENSHOT_USER },
+    { authToken: token, user: screenshotUser },
   );
 
   const page = await context.newPage();
@@ -204,9 +224,10 @@ async function main() {
 
   try {
     await waitForServer(baseUrl);
-    const token = await createAuthToken(JWT_SECRET);
+    const screenshotUser = await resolveScreenshotUser();
+    const token = await createAuthToken(JWT_SECRET, screenshotUser);
     console.log('[screenshots] Capturing README images...');
-    await captureReadmeScreenshots(baseUrl, token);
+    await captureReadmeScreenshots(baseUrl, token, screenshotUser);
     console.log(`[screenshots] Updated ${path.relative(ROOT, DASHBOARD_PATH)}`);
     console.log(`[screenshots] Updated ${path.relative(ROOT, PAGE_EDITOR_PATH)}`);
     console.log(`[screenshots] Updated ${path.relative(ROOT, IMPORT_EXPORT_PATH)}`);
