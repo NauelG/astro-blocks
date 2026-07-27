@@ -512,6 +512,7 @@ export const es = {
   'media.prevBtn': 'Ant.',
   'media.nextBtn': 'Sig.',
   'media.libraryAriaLabel': 'Biblioteca de recursos',
+  'media.loading': 'Cargando recursos…',
   'media.metaAriaLabel': 'Metadatos del recurso',
   'media.empty.title': 'Aún no hay recursos subidos',
   'media.empty.text': 'Sube tu primer recurso usando el área de arriba.',

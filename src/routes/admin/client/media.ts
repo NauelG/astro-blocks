@@ -65,9 +65,8 @@ function renderCard(entry: MediaEntry): string {
   const deleteLbl = escapeAttr(`${ct('media.deleteLabel')} ${entry.filename}`);
   const altPlaceholder = escapeAttr(ct('media.altPlaceholder'));
 
-  // The category is resolved by the shared rule (utils/media-tile.ts), not re-derived here.
-  // This grid and the server-rendered one in media.astro must agree, or the same file gets two
-  // different tiles depending on whether you arrived by first paint or by a fetch.
+  // The category is resolved by the shared rule (utils/media-tile.ts), not re-derived here — the
+  // same rule the block picker uses, so a file gets the same tile wherever it is drawn.
   const category = resolveTileCategory(entry);
 
   // Thumbnail: <img> for images, an accessible icon tile for everything else.

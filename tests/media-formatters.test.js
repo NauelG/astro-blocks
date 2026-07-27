@@ -6,16 +6,14 @@ Licensed under the Business Source License 1.1
 /**
  * media-formatters.test.js — FIX B: formatter cohesion.
  *
- * formatBytes / formatDimensions / formatMediaDate are intentionally duplicated
- * between src/routes/admin/client/media-fetch.ts (client re-render) and the inlined
- * SSR copy in routes/admin/media.astro (first paint). SSR cannot import the
- * client module, so the copies live separately — but they MUST produce identical
- * output for the same inputs, or a card's server first-paint and client
- * re-render would disagree (e.g. "0×0" vs "—", or different date formats).
+ * formatBytes / formatDimensions / formatMediaDate used to exist twice: in
+ * src/routes/admin/client/media-fetch.ts and inlined in routes/admin/media.astro, because SSR
+ * cannot import a client module. The two had to produce identical output or a card's first paint
+ * and its client re-render would disagree ("0×0" vs "—", different date formats).
  *
- * The .astro frontmatter cannot be imported here. Instead we import the client
- * copy and snapshot the EXACT strings the (now-aligned) SSR copy also produces.
- * These expected values are the single agreed contract both copies satisfy.
+ * The SSR copy is gone (ADR-0036, #104): media.astro renders no cards, so media-fetch.ts is the
+ * only implementation. These snapshots stay as the formatters' contract — they are what the media
+ * grid and the block picker both render, and a change here is a visible change to both.
  */
 
 import test from 'node:test';

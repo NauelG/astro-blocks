@@ -51,7 +51,7 @@ let activePickerInputId: string | null = null;
 let activePickerMode: 'image' | 'file' = 'image';
 // When picker mode is 'file', the effective MIME types the picker grid should
 // show. An empty array means "no restriction" (show all). Set on open.
-let activePickerAccept: string[] = [];
+let activePickerBrowseAccept: string[] = [];
 
 // Re-alias the imported type so existing picker code can use 'MediaEntry' name unchanged
 type MediaEntry = MediaFetchEntry;
@@ -200,34 +200,28 @@ function renderPickerItem(entry: MediaEntry): string {
  * that this function does NOT touch — preventing the "search goes dead"
  * bug where innerHTML-replacement destroyed the bound event listener.
  *
- * In 'file' picker mode, entries are filtered to those whose mimeType is in
- * activePickerAccept (the effectiveAccept for the field). In 'image' mode all
- * entries are shown (existing behavior — no change).
+ * The entries are rendered AS RECEIVED. Type filtering happens server-side via ?accept, before the
+ * slice, so `items` and `total` describe the same set (ADR-0036). This function used to re-filter
+ * the server's page in the browser, which meant the count could read "0 shown of N" while matching
+ * files sat on later pages, and the pager counted the unfiltered library.
  */
 function renderPickerGrid(gridContainer: HTMLElement, uploadSection: string): void {
   const { items, total } = pickerState;
 
-  // Filter entries for file-mode picks: only show entries whose mimeType is in effectiveAccept.
-  // Image-mode shows all entries (existing behavior unchanged).
-  const visibleItems =
-    activePickerMode === 'file' && activePickerAccept.length > 0
-      ? items.filter((e) => activePickerAccept.includes(e.mimeType.toLowerCase()))
-      : items;
-
   const allLoaded = items.length >= total;
   const countText =
     total > 0
-      ? ct('blockForm.pickerCountOf', { shown: String(visibleItems.length), total: String(total) })
+      ? ct('blockForm.pickerCountOf', { shown: String(items.length), total: String(total) })
       : ct('blockForm.pickerCount0');
 
   const countRegion = `<p role="status" aria-live="polite" class="cms-media-picker-count cms-muted">${escapeHtml(countText)}</p>`;
 
-  if (visibleItems.length === 0) {
+  if (items.length === 0) {
     gridContainer.innerHTML = `${countRegion}<p class="cms-muted cms-media-picker-empty">${escapeHtml(ct('blockForm.pickerEmpty'))}</p>`;
     return;
   }
 
-  const gridItems = visibleItems.map(renderPickerItem).join('');
+  const gridItems = items.map(renderPickerItem).join('');
   const loadMoreBtn = allLoaded
     ? ''
     : `<button type="button" id="cms-picker-load-more" class="cms-btn cms-btn-secondary cms-media-picker-load-more">${escapeHtml(ct('blockForm.pickerLoadMore'))}</button>`;
@@ -299,6 +293,7 @@ async function pickerLoadPage(
     q: pickerState.q || undefined,
     page: pickerState.page,
     limit: pickerState.limit,
+    accept: activePickerBrowseAccept,
   });
   if (seq !== pickerReqSeq) return; // stale response guard
 
@@ -316,14 +311,14 @@ export async function openPickerDialog(
   _triggerBtn: HTMLButtonElement,
   inputId: string,
   mode: 'image' | 'file' = 'image',
-  effectiveAccept: string[] = [],
+  accepts: { upload: string[]; browse: string[] } = { upload: [], browse: [] },
 ): Promise<void> {
   if (!pickerDialog) mountPickerDialog();
   if (!pickerDialog) return;
 
   activePickerInputId = inputId;
   activePickerMode = mode;
-  activePickerAccept = effectiveAccept;
+  activePickerBrowseAccept = accepts.browse;
 
   // Title the dialog for the prop type it was opened for: 'image' keeps "image"
   // (it acts on an image prop, §3); 'file' reads as "media" (holds any asset).
@@ -370,11 +365,12 @@ export async function openPickerDialog(
     </div>
   `;
 
-  // Determine the accept attribute for the upload input inside the picker.
+  // Determine the accept attribute for the upload input inside the picker. This is uploadAccept —
+  // the allowlist-intersected list — never browseAccept (ADR-0036).
   // Image mode: restrict to image/* (existing behavior).
-  // File mode: use the effectiveAccept for this field (joined MIME list) or fall back to '*/*'.
+  // File mode: the field's uploadAccept as a joined MIME list, or '*/*' when it is empty.
   const pickerUploadAccept =
-    mode === 'file' ? (effectiveAccept.length > 0 ? effectiveAccept.join(',') : '*/*') : 'image/*';
+    mode === 'file' ? (accepts.upload.length > 0 ? accepts.upload.join(',') : '*/*') : 'image/*';
 
   // Render upload section into its stable zone
   uploadContainer.innerHTML = `

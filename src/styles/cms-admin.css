@@ -4997,6 +4997,15 @@ Licensed under the Business Source License 1.1
   right: auto;
 }
 
+/* First paint of the media library: the grid card ships only this line until client/media.ts
+   renders page 1 (ADR-0036). The card is .cms-card--no-padding, so the padding lives here or the
+   text sits flush against the border. Mirrors the empty state's centring, without its icon
+   stack — deliberately no skeleton and no animation: the admin has no such pattern. */
+.cms-media-loading {
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
 .cms-media-empty-state {
   display: flex;
   flex-direction: column;

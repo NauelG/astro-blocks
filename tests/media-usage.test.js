@@ -136,6 +136,15 @@ test('FMU-02: global block ref → count:1, source:globalBlock', async () => {
 });
 
 // ─── FMU-03: seo.image plain string → source:seo ─────────────────────────────
+//
+// The fixture is a BARE STRING, which is the legacy on-disk shape — not { en: TARGET }. It used to
+// be the localized map, so despite its name this test never exercised the legacy shape at all.
+//
+// It passes because normalizePage runs first: withLegacyLocale (api/data.ts:200-204) wraps any
+// non-object into { [LEGACY_FALLBACK_LOCALE]: value }, so findMediaUsages only ever sees a locale
+// map and its typeof === 'object' guard always holds. #103 reported this as a blind spot; it is
+// not one, and normalizePageSeo (api/handlers/pages.ts) admits no other shape either. This test is
+// the guard that keeps it true: remove withLegacyLocale from the seo path and it fails.
 
 test('FMU-03: seo.image plain string → count:1, source:seo', async () => {
   await withTempProject(async (tempRoot) => {
@@ -147,7 +156,7 @@ test('FMU-03: seo.image plain string → count:1, source:seo', async () => {
           title: { en: 'SEO Page' },
           slug: { en: '/seo-page' },
           status: { en: 'published' },
-          seo: { image: { en: TARGET } },
+          seo: { image: TARGET },
           blocks: [],
         },
       ],

@@ -38,7 +38,7 @@ import {
   imagePickerIconSvg,
   withLocaleHint,
 } from './field-helpers.js';
-import { computeEffectiveAccept } from './file-accept.js';
+import { computeBrowseAccept, computeUploadAccept } from './file-accept.js';
 
 // SVG icons (same as page-editor.ts and global-blocks-editor.ts)
 const trashIconSvg =
@@ -125,14 +125,18 @@ const filePickerIconSvg =
  * Render a file field as a compact horizontal control (mirrors imageFieldHtml).
  *
  * The hidden input carries the full JSON-serialized FileFieldValue.
- * Data attributes on the choose button carry the effectiveAccept so the
- * openPickerDialog call can enforce the accept ∩ allowlist at render time.
+ *
+ * Data attributes on the choose button carry BOTH accept lists (ADR-0036), because they answer
+ * different questions and the picker needs each for a different job: `uploadAccept` becomes the
+ * file input's accept attribute, `browseAccept` becomes the ?accept query parameter that filters
+ * the library server-side.
  */
 function fileFieldHtml(
   id: string,
   attrs: string,
   value: FileFieldValue,
-  effectiveAccept: string[],
+  uploadAccept: string[],
+  browseAccept: string[],
 ): string {
   const hasValue = !isEmptyFileValue(value);
   const displayName = hasValue ? (value.filename ?? imageFilenameFromUrl(value.url)) : '';
@@ -141,9 +145,10 @@ function fileFieldHtml(
     ? `<span class="cms-file-field-name" title="${escapeAttr(displayName)}">${escapeHtml(displayName)}</span>`
     : `<span class="cms-file-field-name cms-file-field-name--empty">${escapeHtml(ct('blockForm.noFileSelected'))}</span>`;
   const chooseLabel = hasValue ? ct('blockForm.replaceFile') : ct('blockForm.chooseFile');
-  // Serialize effectiveAccept as a JSON string in a data attribute so the picker
-  // click handler can recover it without keeping additional module-level state per field.
-  const acceptAttr = escapeAttr(JSON.stringify(effectiveAccept));
+  // Serialize both lists as JSON in data attributes so the picker click handler can recover them
+  // without keeping additional module-level state per field.
+  const acceptAttr = escapeAttr(JSON.stringify(uploadAccept));
+  const browseAttr = escapeAttr(JSON.stringify(browseAccept));
 
   return (
     `<div class="cms-file-field${stateClass}" data-file-field="${escapeAttr(id)}">` +
@@ -151,7 +156,7 @@ function fileFieldHtml(
     `<div class="cms-file-field-detail">` +
     nameHtml +
     `<div class="cms-file-field-actions">` +
-    `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-choose" data-file-picker-for="${escapeAttr(id)}" data-file-accept="${acceptAttr}" aria-label="${escapeAttr(ct('blockForm.chooseFile'))}">${filePickerIconSvg}<span data-file-choose-label>${escapeHtml(chooseLabel)}</span></button>` +
+    `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-choose" data-file-picker-for="${escapeAttr(id)}" data-file-accept="${acceptAttr}" data-file-browse-accept="${browseAttr}" aria-label="${escapeAttr(ct('blockForm.chooseFile'))}">${filePickerIconSvg}<span data-file-choose-label>${escapeHtml(chooseLabel)}</span></button>` +
     `<button type="button" class="cms-btn cms-btn-secondary cms-file-field-clear" data-file-picker-clear="${escapeAttr(id)}" aria-label="${escapeAttr(ct('blockForm.clearFile'))}">${escapeHtml(ct('blockForm.clearFile'))}</button>` +
     `</div>` +
     `</div>` +
@@ -193,10 +198,15 @@ function primitiveInputHtml(
   }
   if (def.type === 'file') {
     // ADDITIVE branch — does NOT touch the image path above.
-    // Compute effectiveAccept: def.accept ∩ globalAllowlist (or full global if omitted).
-    const effectiveAccept = computeEffectiveAccept(def);
+    // Two accept lists, two questions (ADR-0036): what may be uploaded vs what may be picked.
     const fileValue = toFileValue(value);
-    return fileFieldHtml(id, attrs, fileValue, effectiveAccept);
+    return fileFieldHtml(
+      id,
+      attrs,
+      fileValue,
+      computeUploadAccept(def),
+      computeBrowseAccept(def, 'file'),
+    );
   }
   const textValue = typeof value === 'string' ? value : String(value ?? '');
   return `<input type="text" id="${id}" ${attrs} class="cms-input" value="${escapeAttr(textValue)}">`;

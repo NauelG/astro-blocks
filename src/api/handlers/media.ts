@@ -428,9 +428,16 @@ export async function handleGetMedia(request: Request): Promise<Response> {
   const auth = await getAuth(request);
   if (!auth) return localizedJsonError(request, 'errors.unauthorized', 401);
 
-  // Parse query parameters: q, page, limit
+  // Parse query parameters: q, accept, page, limit
   const url = new URL(request.url);
   const q = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+
+  // `accept` narrows the listing to a set of MIME types — the picker's browseAccept (ADR-0036).
+  // Absent, empty, or all-blank means no filter.
+  const accept = (url.searchParams.get('accept') ?? '')
+    .split(',')
+    .map((mime) => mime.trim().toLowerCase())
+    .filter((mime) => mime !== '');
 
   let page = parseInt(url.searchParams.get('page') ?? '', 10);
   if (Number.isNaN(page) || page < 1) page = 1;
@@ -440,7 +447,7 @@ export async function handleGetMedia(request: Request): Promise<Response> {
   if (Number.isNaN(limit)) limit = 24;
   limit = Math.min(100, Math.max(1, limit));
 
-  // Pipeline: reconcile → sort newest-first → filter(q) → count total → slice page
+  // Pipeline: reconcile → sort newest-first → filter(q) → filter(accept) → count total → slice page
   const reconciled = await data.reconcileMedia();
 
   const sorted = [...reconciled.uploads].sort((a, b) => {
@@ -450,8 +457,21 @@ export async function handleGetMedia(request: Request): Promise<Response> {
   // Filter by filename substring (case-insensitive) if q is non-empty
   const filtered = q ? sorted.filter((entry) => entry.filename.toLowerCase().includes(q)) : sorted;
 
-  const total = filtered.length;
-  const uploads = filtered.slice((page - 1) * limit, page * limit);
+  // Filter by MIME type. EXACT equality, never a prefix or wildcard: 'image/sv' must not match
+  // 'image/svg+xml'. Both sides are lowercased so a stored 'IMAGE/PNG' is comparable.
+  //
+  // Deliberately NOT intersected with getAllowedFileTypes(). The allowlist is the UPLOAD gate
+  // (spec R7, R16); this reads files that are already on disk. Intersecting here would mean that
+  // narrowing allowedFileTypes hides assets published pages still reference, with no way for the
+  // owner to select them again — hardening in appearance, deferred data loss in practice. An
+  // unknown MIME therefore matches nothing: an empty page, not an error. (ADR-0036)
+  const typed =
+    accept.length > 0
+      ? filtered.filter((entry) => accept.includes(entry.mimeType.toLowerCase()))
+      : filtered;
+
+  const total = typed.length;
+  const uploads = typed.slice((page - 1) * limit, page * limit);
 
   return Response.json({ uploads, total, page, limit });
 }
