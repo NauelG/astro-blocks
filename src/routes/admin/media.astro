@@ -8,12 +8,11 @@ export const prerender = false;
 
 import AdminLayout from './layout.astro';
 import { Image as ImageIcon } from '@lucide/astro';
-import { loadMedia, loadSite } from '../../api/data.js';
+import { loadSite } from '../../api/data.js';
 import { resolveUiLocale } from './i18n/resolve.js';
 import { createT } from './i18n/t.js';
 import { readBakedConfig } from '../../utils/baked.js';
 import { DEFAULT_ALLOWED_FILE_TYPES, decodeAllowlist } from '../../utils/file-catalog.js';
-import { CATEGORY_ICON, categoryThumbClass, resolveTileCategory } from '../../utils/media-tile.js';
 
 // Build the dynamic accept attribute for the upload dropzone. Resolved through the shared bake path
 // (readBakedConfig + decodeAllowlist), the same decoder the server and the block-form picker use, so
@@ -27,40 +26,12 @@ const uploadAccept = readBakedConfig('ASTRO_BLOCKS_ALLOWED_FILE_TYPES', {
 }).join(',');
 
 const site = await loadSite();
-const mediaData = await loadMedia();
-const uploads = mediaData.uploads;
 const uiLocale = resolveUiLocale({
   cookie: Astro.request.headers.get('cookie'),
   acceptLanguage: Astro.request.headers.get('accept-language'),
 });
 const t = createT(uiLocale);
 
-// NOTE: formatBytes, formatDimensions and formatMediaDate are intentionally
-// duplicated from routes/admin/client/media-fetch.ts. SSR (Astro frontmatter)
-// cannot import client-only ES modules, so the three functions are inlined here.
-// The copies MUST stay byte-for-byte equivalent in behavior: this page renders
-// the initial card metadata server-side, and media-fetch.ts re-renders the SAME
-// cards client-side after a fetch. Any divergence would make first-paint and
-// re-render disagree (e.g. "0×0" vs "—", or different date formats).
-// tests/media-formatters.test.js asserts both copies produce identical output.
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDimensions(width?: number, height?: number): string {
-  if (width !== undefined && height !== undefined && width > 0 && height > 0) {
-    return `${width}×${height}`;
-  }
-  return '—';
-}
-
-function formatMediaDate(isoString: string): string {
-  const d = new Date(isoString);
-  if (Number.isNaN(d.getTime())) return isoString;
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
 ---
 
 <AdminLayout site={site} title={t('media.title')}>
@@ -129,93 +100,17 @@ function formatMediaDate(isoString: string): string {
       <p role="status" aria-live="polite" id="cms-media-count" class="cms-media-count cms-muted"></p>
     </div>
 
-    <!-- Media grid -->
+    <!-- Media grid.
+         Deliberately renders NO cards. handleGetMedia is the only implementation of "which media
+         entries are listed, in what order" (ADR-0036); client/media.ts fetches page 1 and renders
+         it. This is not a perf trade: initMediaPage() replaced the server-rendered grid on every
+         load anyway, and the toolbar stayed hidden until it did, so the SSR grid was built,
+         shipped and discarded while being unusable in the interim.
+         The id is load-bearing — renderGrid() targets it. -->
     <div class="cms-card cms-card--no-padding" id="cms-media-grid-card">
-      {uploads.length === 0 ? (
-        <div id="cms-media-empty-state" class="cms-media-empty-state">
-          <ImageIcon size={40} aria-hidden="true" class="cms-media-empty-icon" />
-          <p class="cms-media-empty-title">{t('media.empty.title')}</p>
-          <p class="cms-muted">{t('media.empty.text')}</p>
-        </div>
-      ) : (
-        <div id="cms-media-grid" class="cms-media-grid" aria-label={t('media.libraryAriaLabel')} role="list">
-          {uploads.map((entry) => {
-            // The category is resolved once, in one place, for all three grids that draw media
-            // (this one, client/media.ts and client/block-form.ts). See utils/media-tile.ts.
-            const category = resolveTileCategory(entry);
-            return (
-            <div class="cms-media-card" role="listitem" data-media-url={entry.url} data-media-id={entry.id}>
-              {category !== 'image' ? (
-                <div
-                  class={`cms-media-card-thumb ${categoryThumbClass(category)}`}
-                  role="img"
-                  aria-label={`${entry.filename} (${entry.mimeType} ${category})`}
-                >
-                  {/* Rendered from CATEGORY_ICON geometry, not from an SVG string — no set:html,
-                      so this file introduces no HTML sink that ADR-0022's guard cannot see. */}
-                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="cms-media-doc-icon">
-                    {CATEGORY_ICON[category].map((s) => (
-                      s.kind === 'path' ? <path d={s.d} />
-                      : s.kind === 'rect' ? <rect x={s.x} y={s.y} width={s.width} height={s.height} rx={s.rx} />
-                      : s.kind === 'circle' ? <circle cx={s.cx} cy={s.cy} r={s.r} />
-                      : s.kind === 'line' ? <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} />
-                      : <polyline points={s.points} />
-                    ))}
-                  </svg>
-                </div>
-              ) : (
-                <div class="cms-media-card-thumb">
-                  <img
-                    src={entry.url}
-                    alt={entry.filename}
-                    class="cms-media-card-img"
-                    loading="lazy"
-                  />
-                </div>
-              )}
-              <div class="cms-media-card-info">
-                <span class="cms-media-card-name" title={entry.filename}>{entry.filename}</span>
-                <div class="cms-media-card-meta cms-muted" aria-label={t('media.metaAriaLabel')}>
-                  {formatDimensions(entry.width, entry.height) !== '—' && (
-                    <>
-                      <span class="cms-media-card-meta-dim">{formatDimensions(entry.width, entry.height)}</span>
-                      <span class="cms-media-card-meta-sep" aria-hidden="true">·</span>
-                    </>
-                  )}
-                  <span class="cms-media-card-meta-size">{formatBytes(entry.size)}</span>
-                  <span class="cms-media-card-meta-sep" aria-hidden="true">·</span>
-                  <span class="cms-media-card-meta-type">{entry.mimeType}</span>
-                  <span class="cms-media-card-meta-sep" aria-hidden="true">·</span>
-                  <span class="cms-media-card-meta-date">{formatMediaDate(entry.createdAt)}</span>
-                </div>
-              </div>
-              <div class="cms-media-card-actions">
-                <button
-                  type="button"
-                  class="cms-media-card-replace cms-btn-icon"
-                  aria-label={`${t('media.replaceLabel')} ${entry.filename}`}
-                  data-replace-id={entry.id}
-                  data-replace-filename={entry.filename}
-                  data-replace-mime={entry.mimeType}
-                  title={`${t('media.replaceLabel')} ${entry.filename}`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-                </button>
-                <button
-                  type="button"
-                  class="cms-media-card-delete cms-btn-icon"
-                  aria-label={`${t('media.deleteLabel')} ${entry.filename}`}
-                  data-delete-url={entry.url}
-                  data-delete-filename={entry.filename}
-                  data-delete-id={entry.id}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                </button>
-              </div>
-            </div>
-          ); })}
-        </div>
-      )}
+      <p id="cms-media-loading" class="cms-muted cms-media-loading" role="status" aria-live="polite">
+        {t('media.loading')}
+      </p>
     </div>
   </div>
 

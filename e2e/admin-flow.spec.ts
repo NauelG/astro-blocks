@@ -388,4 +388,38 @@ test.describe('Admin panel', () => {
     await expect(picker.locator('[data-picker-mime="application/pdf"]')).toHaveCount(0);
     await expect(picker.locator('[data-picker-url$=".pdf"]')).toHaveCount(0);
   });
+
+  // Regression (#104, ADR-0036): the media page used to server-render the ENTIRE registry, then
+  // initMediaPage() discarded it and re-rendered page 1. Assert on the RAW response rather than the
+  // rendered page — the point is what the server emits, not what the client later paints over it.
+  test('Test I: the media page first paint carries no cards', async ({ page, request }) => {
+    await login(page);
+
+    // Put at least one asset in the library, so "no cards" cannot pass trivially.
+    await openNewPageWithBlock(page, 'Media Showcase');
+    const blockBody = page.locator('#page-detail-blocks-list .cms-block-item-body').first();
+    const chooseImage = blockBody.locator('.cms-image-field-choose').first();
+    await chooseImage.waitFor({ state: 'visible', timeout: 10_000 });
+    await chooseImage.click();
+    await page.locator('#cms-media-picker').waitFor({ state: 'visible', timeout: 10_000 });
+    const uploadResponse = await uploadThroughPicker(page, {
+      name: `e2e-paint-${Date.now()}.png`,
+      mimeType: 'image/png',
+      buffer: PNG_1x1,
+    });
+    expect(uploadResponse.status()).toBe(200);
+    await page.locator('#cms-media-picker').waitFor({ state: 'hidden', timeout: 10_000 });
+
+    // The server's own output for /cms/media.
+    const raw = await request.get('/cms/media');
+    expect(raw.status()).toBe(200);
+    const html = await raw.text();
+    expect(html).not.toContain('cms-media-card');
+    expect(html).toContain('cms-media-loading');
+
+    // And the client does render the library once its fetch lands.
+    await page.goto('/cms/media');
+    await page.locator('#admin-content').waitFor({ state: 'visible', timeout: 20_000 });
+    await expect(page.locator('.cms-media-card').first()).toBeVisible({ timeout: 10_000 });
+  });
 });

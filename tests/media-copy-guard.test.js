@@ -129,6 +129,7 @@ test('media library container keys do not say "image"', () => {
     'media.searchLabel',
     'media.searchAriaLabel',
     'media.libraryAriaLabel',
+    'media.loading',
     'media.metaAriaLabel',
     'media.empty.title',
     'media.empty.text',

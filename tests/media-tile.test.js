@@ -6,10 +6,10 @@ Licensed under the Business Source License 1.1
 /**
  * The shared media-tile rule.
  *
- * Three grids draw media entries — the server-rendered one in media.astro, the client one in
- * client/media.ts, and the block picker in client/block-form.ts — and each used to decide the
- * tile for itself. The picker's copy did not even consult fileCategory; it parsed the MIME
- * string. Three copies of a rule are three chances to disagree.
+ * Two grids draw media entries — the client one in client/media.ts and the block picker in
+ * client/block-form/ — and each used to decide the tile for itself. The picker's copy did not
+ * even consult fileCategory; it parsed the MIME string. Copies of a rule are chances to disagree.
+ * (There was a third, server-rendered in media.astro, until ADR-0036 made that page a shell.)
  */
 
 import test from 'node:test';

@@ -509,6 +509,9 @@ export const en = {
   'media.prevBtn': 'Prev',
   'media.nextBtn': 'Next',
   'media.libraryAriaLabel': 'Asset library',
+  // Mirrors blockForm.pickerLoading verbatim: the picker and the library grid are both loading
+  // the same list, so they must not word it differently.
+  'media.loading': 'Loading assets…',
   'media.metaAriaLabel': 'Asset metadata',
   'media.empty.title': 'No assets uploaded yet',
   'media.empty.text': 'Upload your first asset using the area above.',

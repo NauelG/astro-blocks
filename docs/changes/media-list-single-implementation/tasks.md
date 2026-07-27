@@ -164,15 +164,15 @@ Finding 7: the list travels as a DOM attribute. Both must, or the picker cannot 
 
 ### T9 — i18n key + copy guard
 
-- [ ] **Files:** `src/routes/admin/i18n/en.ts`, `es.ts` — add `media.loading`, mirroring
+- [x] **Files:** `src/routes/admin/i18n/en.ts`, `es.ts` — add `media.loading`, mirroring
   `blockForm.pickerLoading` verbatim (finding 2): `'Loading assets…'` / `'Cargando recursos…'`.
-- [ ] **File:** `tests/media-copy-guard.test.js` — add `media.loading` to §4's `containerKeys`
+- [x] **File:** `tests/media-copy-guard.test.js` — add `media.loading` to §4's `containerKeys`
   (finding 3), so the "container surfaces never say image" guard covers it.
 - **Verify:** `npm test && npm run typecheck` — TS1360 would fire if either catalog were missed.
 
 ### T10 — The shell
 
-- [ ] **File:** `src/routes/admin/media.astro` —
+- [x] **File:** `src/routes/admin/media.astro` —
   - Delete: `loadMedia` from the `:11` import and its call (`:30-31`); the `ImageIcon` import (`:10`)
     and the `CATEGORY_ICON` / `categoryThumbClass` / `resolveTileCategory` import (`:16`); the three
     local formatters (`:38-64`) with their NOTE comment; the empty-state and `uploads.map(...)`
@@ -182,9 +182,9 @@ Finding 7: the list travels as a DOM attribute. Both must, or the picker cannot 
     `cms-media-grid-card` (`:133`) — `renderGrid` targets it.
   - `#cms-media-grid-card` now holds one line:
     `<p id="cms-media-loading" class="cms-muted" role="status" aria-live="polite">{t('media.loading')}</p>`.
-- [ ] **File:** `src/routes/admin/client/media.ts` — delete the `:70-71` comment ("This grid and the
+- [x] **File:** `src/routes/admin/client/media.ts` — delete the `:70-71` comment ("This grid and the
   server-rendered one in media.astro must agree…"): the condition it warns about no longer exists.
-- [ ] **Files:** `tests/media-formatters.test.js` (`:8-19`) and `tests/media-tile.test.js` (`:9-13`) —
+- [x] **Files:** `tests/media-formatters.test.js` (`:8-19`) and `tests/media-tile.test.js` (`:9-13`) —
   correct the stale headers (finding 4). Formatters: one copy, in `media-fetch.ts`; tile rule: **two**
   grids, not three. No assertions change.
 - **Verify:** `npm test && npm run typecheck && npx biome ci .` — all green, including
@@ -193,7 +193,7 @@ Finding 7: the list travels as a DOM attribute. Both must, or the picker cannot 
 
 ### T11 — e2e: first paint carries no cards
 
-- [ ] **File:** `e2e/admin-flow.spec.ts` — with at least one asset uploaded, `request.get('/cms/media')`
+- [x] **File:** `e2e/admin-flow.spec.ts` — with at least one asset uploaded, `request.get('/cms/media')`
   and assert the returned HTML contains **no** `cms-media-card`; then load the page normally and
   assert cards do appear once the client fetch lands.
   - Asserting on the **raw response**, not the rendered page, is the point: it tests the server's
@@ -206,7 +206,7 @@ Finding 7: the list travels as a DOM attribute. Both must, or the picker cannot 
 
 ### T12 — Commit C
 
-- [ ] `fix(admin): stop rendering the whole media registry on first paint`
+- [x] `fix(admin): stop rendering the whole media registry on first paint`
   - Body: the SSR grid was built, shipped and unconditionally discarded by `initMediaPage()`, and was
     unusable while it existed (toolbar hidden); the page now ships a shell and the client renders
     page 1. Leaves one card renderer. Refs #104, ADR-0036.
