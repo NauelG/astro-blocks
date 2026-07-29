@@ -801,6 +801,25 @@ export async function markMediaVariantsFailed(id: string): Promise<void> {
 const VARIANT_FILE_REGEX = /^.+-\d+\.(webp|avif)$/;
 
 /**
+ * How old a variant file must be before the orphan scan may treat it as an orphan.
+ *
+ * Absence from the registry is NOT proof of orphanhood. `generateAndPersistVariants` writes variant
+ * files WITHOUT holding the media lock and registers them only afterwards, so between the first
+ * encode and markMediaVariantsReady the filesystem holds real files the registry does not know
+ * about. The admin client re-fetches the media list right after an upload, so the request that would
+ * delete them is the upload's own refresh — the ordinary path, not an edge case.
+ *
+ * Deleting one is silent data loss: the entry still ends up `ready`, recording variants whose files
+ * are gone, and the srcset 404s on the public site with nothing to signal it.
+ *
+ * Five minutes is far longer than any plausible encode (four breakpoints x two formats, a large
+ * image, a loaded server) and costs nothing — an orphan surviving five extra minutes harms no one.
+ * The asymmetry between the two errors sets the number, not a measurement of how long sharp takes.
+ * (ADR-0038)
+ */
+const ORPHAN_MIN_AGE_MS = 5 * 60 * 1000;
+
+/**
  * Unlink a file, tolerating ENOENT (idempotent).
  */
 async function safeUnlink(filePath: string): Promise<void> {
@@ -858,7 +877,9 @@ export async function reconcileMedia(): Promise<MediaData> {
       }
     }
 
-    // Scan all subdirectories under public/uploads for orphan variant files
+    // Scan all subdirectories under public/uploads for orphan variant files.
+    // Sampled ONCE: a slow walk must not judge later files against a moving line.
+    const now = Date.now();
     const uploadsDir = path.join(projectRoot, 'public', 'uploads');
     try {
       const yearDirs = await fs.readdir(uploadsDir);
@@ -888,11 +909,21 @@ export async function reconcileMedia(): Promise<MediaData> {
             if (!VARIANT_FILE_REGEX.test(filename)) continue;
             // Reconstruct the URL for this file
             const fileUrl = `/uploads/${yearDir}/${monthDir}/${filename}`;
-            if (!validVariantUrls.has(fileUrl)) {
-              // Orphan variant file — unlink
-              await safeUnlink(path.join(monthPath, filename));
-              changed = true;
+            if (validVariantUrls.has(fileUrl)) continue;
+
+            // Not in the registry — which alone does not make it an orphan (ADR-0038). A file
+            // written moments ago may be a variant whose job has not registered it yet.
+            const candidatePath = path.join(monthPath, filename);
+            let candidateStat: Awaited<ReturnType<typeof fs.stat>>;
+            try {
+              candidateStat = await fs.stat(candidatePath);
+            } catch {
+              continue; // vanished between readdir and stat — nothing to collect
             }
+            if (now - candidateStat.mtimeMs < ORPHAN_MIN_AGE_MS) continue;
+
+            await safeUnlink(candidatePath);
+            changed = true;
           }
         }
       }
