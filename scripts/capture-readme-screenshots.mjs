@@ -8,7 +8,6 @@ import net from 'node:net';
 import process from 'node:process';
 import fs from 'node:fs/promises';
 import { spawn } from 'node:child_process';
-import { once } from 'node:events';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { TextEncoder } from 'node:util';
 import { SignJWT } from 'jose';
@@ -192,13 +191,77 @@ async function captureReadmeScreenshots(baseUrl, token, screenshotUser) {
   }
 }
 
-async function closeDevServer(child) {
-  if (!child || child.killed) return;
-  child.kill('SIGTERM');
-  const timeout = sleep(5000).then(() => {
-    if (!child.killed) child.kill('SIGKILL');
+/**
+ * Run an `astro` subcommand in the playground and resolve its combined output.
+ *
+ * Not `run()`: these are expected to be uneventful (there may be no server to stop), and their
+ * result is information here, not a failure.
+ */
+function astroCommand(args) {
+  return new Promise((resolve) => {
+    const child = spawn('npx', ['astro', ...args], {
+      cwd: PLAYGROUND_DIR,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let out = '';
+    child.stdout.on('data', (chunk) => {
+      out += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      out += chunk;
+    });
+    child.on('exit', () => resolve(out));
+    child.on('error', () => resolve(''));
   });
-  await Promise.race([once(child, 'exit'), timeout]);
+}
+
+/**
+ * Whether a dev server currently holds the playground's lock.
+ *
+ * Read from the OUTPUT, not the exit code: `astro dev status` exits 0 either way — it reports
+ * "No dev server is running." just as successfully as it reports a running one. Matching the
+ * positive signal means an unrecognised output format lets the run proceed rather than blocking
+ * every invocation on a false alarm.
+ */
+async function isDevServerRunning() {
+  return /Dev server running at/.test(await astroCommand(['dev', 'status']));
+}
+
+/**
+ * Stop the dev server through Astro's own command, not by signalling the child we spawned.
+ *
+ * `spawn('npx', ['astro', 'dev', …])` produces TWO processes: npx, and the astro server it
+ * launches. npx exits almost immediately, so signalling our child hits a process that is already
+ * gone — `child.killed` stays false and the real server keeps running, orphaned. The scripts used
+ * to print "Stopping dev server..." and believe it.
+ *
+ * That alone was survivable while ports differed. Astro's dev-server lock is per PROJECT, so a
+ * surviving server makes the next `astro dev` for the same project refuse to start — it reports the
+ * address of the running one and the caller then polls the port it asked for until it times out.
+ * `npm version` chains screenshots:readme && screenshots:media, so the second always failed.
+ *
+ * `astro dev stop` stops the process and clears the lock, which is what the next run needs.
+ */
+/**
+ * Refuse to run while another dev server owns the playground.
+ *
+ * We would otherwise stop it in the teardown — and if that server is the developer's own, running
+ * for their own work, killing it silently is a nasty surprise. Failing here also replaces the
+ * failure this used to produce: `astro dev` would report the running server's address, this script
+ * would poll the port it asked for instead, and die on an opaque timeout that mentioned neither
+ * the lock nor the other server.
+ */
+async function assertNoDevServerRunning(label) {
+  if (!(await isDevServerRunning())) return;
+  throw new Error(
+    `${label} a dev server is already running for playgrounds/basic, and this script will not stop ` +
+      "one it did not start. Astro's lock is per project, so no second server can start while it " +
+      'holds it. Stop it first:\n\n  cd playgrounds/basic && npx astro dev stop\n',
+  );
+}
+
+async function closeDevServer() {
+  await astroCommand(['dev', 'stop']);
 }
 
 async function main() {
@@ -213,6 +276,10 @@ async function main() {
   await runCommand('npm', ['run', 'prepare:playground'], { cwd: ROOT, env: process.env });
 
   console.log(`[screenshots] Starting playground at ${baseUrl}...`);
+  await assertNoDevServerRunning('[screenshots]');
+
+  // Not bound: the teardown goes through `astro dev stop`, not through this handle. Signalling it
+  // would hit npx, which exits immediately, leaving the real server orphaned.
   const devServer = spawn('npx', ['astro', 'dev', '--host', HOST, '--port', String(port)], {
     cwd: PLAYGROUND_DIR,
     env: {
@@ -221,6 +288,7 @@ async function main() {
     },
     stdio: 'inherit',
   });
+  devServer.on('error', (err) => console.error('[screenshots] failed to spawn astro dev:', err));
 
   try {
     await waitForServer(baseUrl);
@@ -238,7 +306,7 @@ async function main() {
     }
     throw error;
   } finally {
-    await closeDevServer(devServer);
+    await closeDevServer();
     if (!redirectsFileExistedBefore) {
       await fs.rm(PLAYGROUND_REDIRECTS_PATH, { force: true }).catch(() => {});
     }
