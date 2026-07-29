@@ -1065,8 +1065,8 @@ export function initPageEditor(): void {
     void submitForm();
   });
 
-  // The table is SSR-rendered by pages.astro, so a failure here does not blank the screen —
-  // it silently leaves the client's pagesState empty, which is what later makes Edit do
-  // nothing. Report it at the point it happens, not three clicks later.
+  // This is the only path that fills the table: pages.astro ships a loading row and no data
+  // (ADR-0037). A swallowed failure would leave the page loading forever, so report it here,
+  // at the point it happens, rather than three clicks later when Edit does nothing.
   void refreshPages().catch(reportFailure);
 }

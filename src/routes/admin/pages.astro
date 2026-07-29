@@ -7,20 +7,10 @@ Licensed under the Business Source License 1.1
 export const prerender = false;
 import AdminLayout from './layout.astro';
 import DetailModal from './components/DetailModal.astro';
-import { Pencil, Trash2 } from '@lucide/astro';
-import { getDefaultLocale, getPageLocaleView, loadLanguages, loadPages, loadSite } from '../../api/data.js';
+import { loadSite } from '../../api/data.js';
 import { resolveUiLocale } from './i18n/resolve.js';
 import { createT } from './i18n/t.js';
 const site = await loadSite();
-const pagesData = await loadPages();
-const languagesData = await loadLanguages();
-const defaultLocale = getDefaultLocale(languagesData);
-const pages = (pagesData.pages || []).map((page) => getPageLocaleView(page, defaultLocale, defaultLocale));
-const publishedCount = pages.filter((page) => page.status === 'published').length;
-function slugStr(p: { slug?: string | string[] }) {
-  if (p.slug === '/' || (Array.isArray(p.slug) && !p.slug.length)) return '/';
-  return Array.isArray(p.slug) ? '/' + p.slug.join('/') : p.slug;
-}
 const uiLocale = resolveUiLocale({
   cookie: Astro.request.headers.get('cookie'),
   acceptLanguage: Astro.request.headers.get('accept-language'),
@@ -58,7 +48,7 @@ const t = createT(uiLocale);
         </div>
       </div>
       <div class="cms-toolbar-meta">
-        <span class="cms-results-count" id="cms-pages-count">{t('pages.count', { count: String(pages.length), published: String(publishedCount) })}</span>
+        <span class="cms-results-count" id="cms-pages-count"></span>
       </div>
     </div>
     <div class="cms-card cms-card--no-padding">
@@ -75,38 +65,13 @@ const t = createT(uiLocale);
             </tr>
           </thead>
           <tbody id="cms-pages-tbody">
-            {pages.map((p: { id: string; title: string; slug?: string | string[]; status: string; indexable?: boolean }) => (
-              <tr>
-                <td class="cms-table-actions">
-                  <button type="button" class="cms-table-btn-edit cms-page-edit" data-id={p.id} aria-label={t('common.edit')}>
-                    <Pencil size={14} />
-                  </button>
-                </td>
-                <td>{p.title}</td>
-                <td class="cms-table-cell-monospace">{slugStr(p)}</td>
-                <td>
-                  <span class={p.status === 'published' ? 'cms-badge cms-badge-success' : 'cms-badge cms-badge-neutral'}>
-                    {p.status === 'published' ? t('status.published') : t('status.draft')}
-                  </span>
-                </td>
-                <td>
-                  <span
-                    class={'cms-indexable-dot cms-indexable-dot--' + (p.indexable !== false ? 'yes' : 'no')}
-                    aria-label={p.indexable !== false ? t('status.indexable') : t('status.notIndexable')}
-                    role="img"
-                  />
-                </td>
-                <td class="cms-table-actions-delete">
-                  <button type="button" class="cms-table-btn-delete cms-page-delete" data-id={p.id} aria-label={t('common.delete')}>
-                    <Trash2 size={14} />
-                  </button>
-                </td>
-              </tr>
-            ))}
+            <tr class="cms-table-loading-row">
+              <td colspan="6" role="status" aria-live="polite">{t('common.loading')}</td>
+            </tr>
           </tbody>
         </table>
       </div>
-      <div id="cms-pages-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', pages.length > 0 && 'cms-hidden']}>
+      <div id="cms-pages-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', 'cms-hidden']}>
         <p class="cms-empty-state-title">{t('pages.empty.title')}</p>
         <p class="cms-empty-state-text">{t('pages.empty.text')}</p>
         <div class="cms-empty-state-actions">

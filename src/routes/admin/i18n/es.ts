@@ -673,6 +673,7 @@ export const es = {
   'errors.blockSchemaMissing': 'Esquema de bloque faltante.',
   'errors.loadBlockSchemasFailed': 'Error al cargar los esquemas de bloques.',
   'errors.loadGlobalBlocksRegistryFailed': 'Error al cargar el registro de bloques globales.',
+  'errors.loadMenusFailed': 'No se pudieron cargar los menús.',
   'errors.loadPagesFailed': 'Error al cargar las páginas.',
   'errors.fileTooLarge': 'Archivo demasiado grande. El tamaño máximo es {limitMb} MB.',
   'errors.unsupportedFileType':
