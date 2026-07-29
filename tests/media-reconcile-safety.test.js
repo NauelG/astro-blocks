@@ -32,6 +32,7 @@ import {
   generateId,
   loadMedia,
   reconcileMedia,
+  replaceMedia,
 } from '../dist/api/data.js';
 import { generateAndPersistVariants } from '../dist/utils/variant-generator.js';
 
@@ -184,5 +185,73 @@ test('RC-3: an unregistered variant file older than the threshold is deleted', a
       () => fs.access(stale),
       'a genuine orphan past the threshold is still collected',
     );
+  });
+});
+
+// ─── RC-6: the narrowing must not lose a concurrent append ───────────────────
+
+test('RC-6: an entry appended while reconcile runs is not lost', async () => {
+  await withTempProject(async (tempRoot) => {
+    const dir = uploadsDir(tempRoot);
+    await fs.mkdir(dir, { recursive: true });
+
+    // Enough entries that reconcile's UNLOCKED inspection (one fs.access each, plus the directory
+    // walk) is still running a few milliseconds in. Without a real workload the append finishes
+    // before reconcile reaches its commit, the window never opens, and this test passes against a
+    // broken implementation — which is exactly what it must not do.
+    const seeded = [];
+    for (let i = 0; i < 300; i++) {
+      const filename = `bulk-${String(i).padStart(3, '0')}.jpg`;
+      await fs.writeFile(path.join(dir, filename), 'original');
+      seeded.push({
+        id: generateId(),
+        url: `/uploads/${SUBDIR}/${filename}`,
+        filename,
+        size: 8,
+        mimeType: 'image/jpeg',
+        createdAt: new Date().toISOString(),
+        status: 'ready',
+        variants: [],
+      });
+    }
+    // One entry whose file is missing, so reconcile actually prunes and therefore WRITES. Without a
+    // write there is nothing to clobber, and a snapshot implementation would pass this test.
+    seeded.push({
+      id: generateId(),
+      url: `/uploads/${SUBDIR}/ghost.jpg`,
+      filename: 'ghost.jpg',
+      size: 8,
+      mimeType: 'image/jpeg',
+      createdAt: new Date().toISOString(),
+      status: 'ready',
+      variants: [],
+    });
+    await replaceMedia({ uploads: seeded });
+
+    // The upload that lands mid-reconcile. Its file exists, so reconcile has no reason to prune it:
+    // the only way to lose it is to commit a set computed before the lock was taken.
+    await fs.writeFile(path.join(dir, 'racing.jpg'), 'original');
+    const racing = {
+      id: generateId(),
+      url: `/uploads/${SUBDIR}/racing.jpg`,
+      filename: 'racing.jpg',
+      size: 8,
+      mimeType: 'image/jpeg',
+      createdAt: new Date().toISOString(),
+      status: 'ready',
+      variants: [],
+    };
+
+    const reconciling = reconcileMedia();
+    await new Promise((resolve) => setTimeout(resolve, 5)); // reconcile is now mid-inspection
+    await appendMediaEntry(racing);
+    await reconciling;
+
+    const after = await loadMedia();
+    assert.ok(
+      after.uploads.some((u) => u.id === racing.id),
+      'an entry appended during reconcile must survive: the commit applies a filter, never a snapshot',
+    );
+    assert.equal(after.uploads.length, seeded.length, 'the ghost is pruned, the racer survives');
   });
 });

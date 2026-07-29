@@ -833,112 +833,103 @@ async function safeUnlink(filePath: string): Promise<void> {
 }
 
 export async function reconcileMedia(): Promise<MediaData> {
-  return withFileLock(mediaLockKey(), async () => {
-    const media = await loadMedia();
-    const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
-    const valid: MediaEntry[] = [];
-    const pruned: MediaEntry[] = [];
-    let changed = false;
+  const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
+  const publicPathFor = (url: string): string =>
+    path.join(projectRoot, 'public', url.startsWith('/') ? url.slice(1) : url);
 
-    for (const entry of media.uploads) {
-      // Resolve the public file path from the URL (strip leading slash)
-      const urlPath = entry.url.startsWith('/') ? entry.url.slice(1) : entry.url;
-      const filePath = path.join(projectRoot, 'public', urlPath);
-      try {
-        await fs.access(filePath);
-        valid.push(entry);
-      } catch {
-        // File not on disk — prune entry and schedule variant cleanup
-        pruned.push(entry);
-        changed = true;
-      }
-    }
+  // ── Phase 1: inspect, WITHOUT the lock ──────────────────────────────────────
+  // Every step here is read-only. Holding the media write lock across a directory walk made a
+  // listing read block every write — including markMediaVariantsReady, so typing in the search box
+  // delayed the variant persistence of an in-flight upload (#164).
+  const media = await loadMedia();
+  const prunedUrls = new Set<string>();
+  const filesToUnlink: string[] = [];
+  const survivors: MediaEntry[] = [];
 
-    // Delete variant files for pruned entries
-    for (const entry of pruned) {
-      if (entry.variants && entry.variants.length > 0) {
-        for (const variant of entry.variants) {
-          const variantUrlPath = variant.url.startsWith('/') ? variant.url.slice(1) : variant.url;
-          const variantFilePath = path.join(projectRoot, 'public', variantUrlPath);
-          await safeUnlink(variantFilePath);
-        }
-      }
-    }
-
-    // Orphan scan: enumerate variant files in uploads directories and check they
-    // belong to a surviving entry. Only delete files matching VARIANT_FILE_REGEX.
-    // Build a set of all valid variant URLs for quick lookup.
-    const validVariantUrls = new Set<string>();
-    for (const entry of valid) {
-      if (entry.variants) {
-        for (const variant of entry.variants) {
-          validVariantUrls.add(variant.url);
-        }
-      }
-    }
-
-    // Scan all subdirectories under public/uploads for orphan variant files.
-    // Sampled ONCE: a slow walk must not judge later files against a moving line.
-    const now = Date.now();
-    const uploadsDir = path.join(projectRoot, 'public', 'uploads');
+  for (const entry of media.uploads) {
     try {
-      const yearDirs = await fs.readdir(uploadsDir);
-      for (const yearDir of yearDirs) {
-        const yearPath = path.join(uploadsDir, yearDir);
-        let yearStat: Awaited<ReturnType<typeof fs.stat>>;
-        try {
-          yearStat = await fs.stat(yearPath);
-        } catch {
-          continue;
-        }
-        if (!yearStat.isDirectory()) continue;
+      await fs.access(publicPathFor(entry.url));
+      survivors.push(entry);
+    } catch {
+      // Original gone — the entry goes, and its variant files with it. Those are provable orphans
+      // by a different proof than ORPHAN_MIN_AGE_MS: the entry that owned them no longer exists.
+      prunedUrls.add(entry.url);
+      for (const variant of entry.variants ?? []) filesToUnlink.push(publicPathFor(variant.url));
+    }
+  }
 
-        const monthDirs = await fs.readdir(yearPath);
-        for (const monthDir of monthDirs) {
-          const monthPath = path.join(yearPath, monthDir);
-          let monthStat: Awaited<ReturnType<typeof fs.stat>>;
+  // Orphan scan: variant files on disk that no surviving entry claims.
+  const validVariantUrls = new Set<string>();
+  for (const entry of survivors) {
+    for (const variant of entry.variants ?? []) validVariantUrls.add(variant.url);
+  }
+
+  // Sampled ONCE: a slow walk must not judge later files against a moving line.
+  const now = Date.now();
+  const uploadsDir = path.join(projectRoot, 'public', 'uploads');
+  try {
+    for (const yearDir of await fs.readdir(uploadsDir)) {
+      const yearPath = path.join(uploadsDir, yearDir);
+      if (!(await isDirectory(yearPath))) continue;
+
+      for (const monthDir of await fs.readdir(yearPath)) {
+        const monthPath = path.join(yearPath, monthDir);
+        if (!(await isDirectory(monthPath))) continue;
+
+        for (const filename of await fs.readdir(monthPath)) {
+          if (!VARIANT_FILE_REGEX.test(filename)) continue;
+          const fileUrl = `/uploads/${yearDir}/${monthDir}/${filename}`;
+          if (validVariantUrls.has(fileUrl)) continue;
+
+          // Not in the registry — which alone does not make it an orphan (ADR-0038). A file written
+          // moments ago may be a variant whose job has not registered it yet.
+          const candidatePath = path.join(monthPath, filename);
+          let candidateStat: Awaited<ReturnType<typeof fs.stat>>;
           try {
-            monthStat = await fs.stat(monthPath);
+            candidateStat = await fs.stat(candidatePath);
           } catch {
-            continue;
+            continue; // vanished between readdir and stat — nothing to collect
           }
-          if (!monthStat.isDirectory()) continue;
+          if (now - candidateStat.mtimeMs < ORPHAN_MIN_AGE_MS) continue;
 
-          const files = await fs.readdir(monthPath);
-          for (const filename of files) {
-            if (!VARIANT_FILE_REGEX.test(filename)) continue;
-            // Reconstruct the URL for this file
-            const fileUrl = `/uploads/${yearDir}/${monthDir}/${filename}`;
-            if (validVariantUrls.has(fileUrl)) continue;
-
-            // Not in the registry — which alone does not make it an orphan (ADR-0038). A file
-            // written moments ago may be a variant whose job has not registered it yet.
-            const candidatePath = path.join(monthPath, filename);
-            let candidateStat: Awaited<ReturnType<typeof fs.stat>>;
-            try {
-              candidateStat = await fs.stat(candidatePath);
-            } catch {
-              continue; // vanished between readdir and stat — nothing to collect
-            }
-            if (now - candidateStat.mtimeMs < ORPHAN_MIN_AGE_MS) continue;
-
-            await safeUnlink(candidatePath);
-            changed = true;
-          }
+          filesToUnlink.push(candidatePath);
         }
       }
-    } catch {
-      // Uploads dir may not exist (first run, test environment) — skip scan
     }
+  } catch {
+    // Uploads dir may not exist (first run, test environment) — skip the scan.
+  }
 
-    if (changed) {
-      const reconciled: MediaData = { uploads: valid };
+  // ── Phase 2: unlink, WITHOUT the lock ───────────────────────────────────────
+  // safeUnlink tolerates ENOENT, which is what makes this safe to race a concurrent delete.
+  for (const filePath of filesToUnlink) await safeUnlink(filePath);
+
+  // ── Phase 3: commit, UNDER the lock ─────────────────────────────────────────
+  // Re-reading is not an optimisation. Writing back `survivors` — computed before the lock was
+  // taken — would discard any entry appended in between, which is exactly the loss this lock exists
+  // to prevent. So the commit applies a FILTER to whatever the registry holds now; entries added
+  // meanwhile are not in prunedUrls and simply survive.
+  return withFileLock(mediaLockKey(), async () => {
+    const current = await loadMedia();
+    const uploads = current.uploads.filter((entry) => !prunedUrls.has(entry.url));
+
+    if (uploads.length !== current.uploads.length) {
+      const reconciled: MediaData = { uploads };
       await saveMedia(reconciled);
       return reconciled;
     }
 
-    return { uploads: valid };
+    return { uploads };
   });
+}
+
+/** Whether a path exists and is a directory. Any stat failure reads as "not a directory". */
+async function isDirectory(candidate: string): Promise<boolean> {
+  try {
+    return (await fs.stat(candidate)).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 export function getDefaultLocale(languagesData: LanguagesData): string {
