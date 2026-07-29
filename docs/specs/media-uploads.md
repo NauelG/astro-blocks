@@ -9,7 +9,8 @@ Licensed under the Business Source License 1.1
 > they are served back. Changed via the cycle's `spec-delta.md` mechanism (see `AGENTS.md`).
 > History: inaugurated by change `file-type-catalog` (#111); admin-surface vocabulary (R31–R34)
 > added by change `media-surface-vocabulary` (#114); listing ownership and the two accept lists
-> (R35–R37) added by change `media-list-single-implementation` (#104).
+> (R35–R37) added by change `media-list-single-implementation` (#104); reconciliation (R38–R40)
+> added by change `orphan-variant-scan-safety` (#164).
 
 ## Capability
 
@@ -148,6 +149,10 @@ hardcoded constants, and are now answered by one table.
 - **R22 — Only `raster: true` rows go through `sharp`** (ADR-0017). Everything else reaches
   `status: 'ready'` with an empty `variants` array.
 
+  Variant files are written **outside the media lock** and registered afterwards, so between the
+  first encode and `markMediaVariantsReady` the filesystem holds real files the registry does not
+  list. R38 is what stops that window becoming data loss.
+
 - **R23 — `fileCategory` is declared, not parsed.** It is read from the catalog row at upload time,
   never derived from `mimeType.startsWith('image/')`. Entries written before the field existed
   resolve through the catalog on load, defaulting to `'document'`.
@@ -260,6 +265,42 @@ hardcoded constants, and are now answered by one table.
 
 ---
 
+## Reconciliation
+
+- **R38 — Absence from the registry is not proof of orphanhood.** A variant file that is not recorded
+  may be an orphan — or a file being written *right now* by a generation job that has not registered
+  yet (R22). Those are indistinguishable from the registry alone, and the window is on the ordinary
+  path: the admin client re-fetches the media list immediately after an upload, and that read runs
+  the scan.
+
+  A file is therefore a deletion candidate only when its `mtime` is older than `ORPHAN_MIN_AGE_MS`
+  (5 minutes). The clock is sampled once per scan, so a slow walk cannot judge later files against a
+  moved line. The gate covers **only** the orphan scan: variant files belonging to a pruned entry are
+  still deleted regardless of age — provable orphans by a different proof, since the entry that owned
+  them is gone. (ADR-0038)
+
+- **R39 — Reconcile inspects unlocked and commits a filter, not a snapshot.** The `fs.access` sweep
+  and the directory walk are read-only and run without the media lock. The lock covers only: re-read,
+  drop the pruned entries, drop the phantom variant records, save.
+
+  The **re-read is required**, not an optimisation. Writing back a set computed before the lock was
+  acquired would discard any entry appended in between — the loss the media lock exists to prevent.
+  A listing read therefore no longer holds the write lock while walking the uploads tree, so it can
+  no longer delay an upload, a delete, or the variant persistence that follows an upload.
+
+- **R40 — A registry entry may not claim a variant file that does not exist.** Reconcile drops
+  variant records whose file is absent, for entries whose `status` is `ready`. Entries with status
+  `processing` are left untouched: their recorded variants may legitimately not exist yet, and
+  repairing one would delete records the running job is about to fulfil.
+
+  This is repair, not prevention: instances that uploaded images while R38 was unenforced already
+  hold entries pointing at deleted files. The repair happens on the next listing read, with no
+  migration and no owner action. Reconcile does **not** regenerate the lost variants — the original
+  is intact, so the image still renders with fewer responsive alternatives, and triggering
+  regeneration from a read path is the class of surprise R38 exists to remove.
+
+---
+
 ## Scenarios
 
 - **S1.** `allowedFileTypes: ['video/mp4']`, upload an MP4 → **200**, stored `.mp4`,
@@ -294,6 +335,14 @@ hardcoded constants, and are now answered by one table.
 - **S16.** `GET /cms/api/media?accept=application/x-nope` → **200**, `total: 0`, `uploads: []`.
 - **S17.** `GET /cms/api/media?q=hero&accept=image/png&limit=10` → `total` counts entries matching
   **both**, and the returned page is a slice of that set.
+- **S19.** Upload an image; the admin client immediately re-fetches the media list, running reconcile
+  while variant generation is still writing. Every variant the registry ends up recording **exists on
+  disk**. *(Previously: the scan deleted the variants written so far, and the entry was then marked
+  `ready` recording all of them — five of eight missing in the reproduction.)*
+- **S20.** A variant file with no registry entry and an `mtime` older than five minutes → deleted by
+  the next scan, as before.
+- **S21.** A `ready` entry records a variant whose file is gone → the next listing read drops that
+  record; the entry keeps its remaining variants and its original.
 - **S18.** Load `/cms/media` and read the raw HTML → **no `.cms-media-card`**, one `role="status"`
   loading line. The rendered page shows the newest 24 assets once the client fetch lands.
 
@@ -305,6 +354,8 @@ hardcoded constants, and are now answered by one table.
 `docs/adr/0024-streaming-ingest-and-range-serving.md` · `docs/adr/0017` (variants) ·
 `docs/adr/0016` (image field value) ·
 `docs/adr/0026-media-user-facing-vocabulary.md` (media/asset/file/image vocabulary) ·
+`docs/adr/0038-el-escaneo-solo-borra-lo-que-puede-demostrar-que-es-huerfano.md` (what reconcile
+may delete, and why age is the proof) ·
 `docs/adr/0036-el-handler-es-la-unica-implementacion-del-listado-de-media.md` (listing ownership,
 `?accept`, uploadAccept vs browseAccept) · `docs/adr/0020` (server-side search + pagination) ·
 `docs/media.md` (consumer guide)
