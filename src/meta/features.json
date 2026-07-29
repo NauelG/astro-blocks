@@ -4,11 +4,11 @@
     {
       "id": "admin-dashboard",
       "title": "Admin dashboard",
-      "summary": "Compact CMS dashboard with project status, quick actions and recent activity.",
+      "summary": "Compact CMS dashboard with project status, quick actions and recent activity, rendered from the authenticated API rather than the server.",
       "category": "admin",
       "status": "alpha",
       "sinceVersion": "0.7.0",
-      "updatedIn": "0.11.0-alpha.1",
+      "updatedIn": "4.1.0",
       "docsPath": "#why-astroblocks"
     },
     {

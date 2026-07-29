@@ -9,6 +9,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.1.0] - 2026-07-29
+
+### Title
+
+The admin panel no longer puts your content in the page it serves
+
+### Fixed
+
+- **Admin pages server-rendered their content into HTML that is not access-controlled.** `/cms/pages` emitted every page's title, slug and status — drafts included; the dashboard emitted the counts and the five most recently edited pages; `/cms/configs`, `/cms/redirects`, `/cms/languages` and `/cms/menus` each emitted their full list. All of it now arrives through `/cms/api/*`, which authenticates every request. Nothing about your data's access rules changed; there is simply no longer any content in the initial HTML. Config **values** were already masked and user emails were never server-rendered.
+- **The dashboard's file counter always showed 0.** It counted files in the top level of the uploads directory, but uploads are stored under `uploads/YYYY/MM`. It now reports the real number of assets.
+- **A failed load on the menus page said nothing.** The page silently kept whatever it had; it now reports the failure like every other admin page.
+
+### Changed
+
+- **Six admin pages now render their contents in the browser instead of the server**: pages, configs, redirects, languages, menus and the dashboard. Each shows a brief loading row while its data arrives — the media library already worked this way. No configuration, API or data change; if you only consume the integration, nothing on your side changes.
+
 ## [4.0.9] - 2026-07-27
 
 ### Title
