@@ -64,6 +64,7 @@ export const es = {
   'common.save': 'Guardar',
   'common.cancel': 'Cancelar',
   'common.create': 'Crear',
+  'common.loading': 'Cargando…',
   'common.edit': 'Editar',
   'common.delete': 'Eliminar',
   'common.publish': 'Publicar',

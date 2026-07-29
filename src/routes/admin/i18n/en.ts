@@ -70,6 +70,7 @@ export const en = {
   'common.save': 'Save',
   'common.cancel': 'Cancel',
   'common.create': 'Create',
+  'common.loading': 'Loading…',
   'common.edit': 'Edit',
   'common.delete': 'Delete',
   'common.publish': 'Publish',
