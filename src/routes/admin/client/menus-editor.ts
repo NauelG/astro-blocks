@@ -414,6 +414,19 @@ export function initMenusEditor(): void {
     return locale ? `?locale=${encodeURIComponent(locale)}` : '';
   }
 
+  /**
+   * Surface a failed load. Mirrors page-editor's reportFailure: with no server-rendered rows to
+   * fall back on (ADR-0037), a swallowed failure would leave the table on its loading row forever
+   * with nothing said.
+   */
+  function reportFailure(error: unknown): void {
+    showToast(
+      error instanceof Error && error.message ? error.message : ct('errors.loadMenusFailed'),
+      'error',
+      ct('nav.menus'),
+    );
+  }
+
   async function refreshMenus(): Promise<void> {
     const data = await fetchJson<MenusData>(`/cms/api/menus${localeQuery()}`, {
       headers: authHeaders(false),
@@ -531,9 +544,9 @@ export function initMenusEditor(): void {
   dialog.addEventListener('cancel', () => closeDialog(dialog));
 
   window.addEventListener('cms:content-locale-change', () => {
-    void refreshMenus();
+    void refreshMenus().catch(reportFailure);
   });
 
   renderBuilder();
-  void refreshMenus();
+  void refreshMenus().catch(reportFailure);
 }

@@ -8,14 +8,12 @@ export const prerender = false;
 
 import AdminLayout from './layout.astro';
 import DetailModal from './components/DetailModal.astro';
-import { Pencil, Trash2, Lightbulb } from '@lucide/astro';
-import { loadRedirects, loadSite } from '../../api/data.js';
+import { Lightbulb } from '@lucide/astro';
+import { loadSite } from '../../api/data.js';
 import { resolveUiLocale } from './i18n/resolve.js';
 import { createT } from './i18n/t.js';
 
 const site = await loadSite();
-const redirectsData = await loadRedirects();
-const redirects = redirectsData.redirects || [];
 const uiLocale = resolveUiLocale({
   cookie: Astro.request.headers.get('cookie'),
   acceptLanguage: Astro.request.headers.get('accept-language'),
@@ -54,7 +52,7 @@ const t = createT(uiLocale);
         </div>
       </div>
       <div class="cms-toolbar-meta">
-        <span class="cms-results-count" id="cms-redirects-count">{t('redirects.count', { count: String(redirects.length) })}</span>
+        <span class="cms-results-count" id="cms-redirects-count"></span>
       </div>
     </div>
     <div class="cms-card cms-card--no-padding">
@@ -71,34 +69,13 @@ const t = createT(uiLocale);
             </tr>
           </thead>
           <tbody id="cms-redirects-tbody">
-            {redirects.map((entry) => (
-              <tr>
-                <td class="cms-table-actions">
-                  <button type="button" class="cms-table-btn-edit cms-list-edit" data-id={entry.id} aria-label={t('common.edit')}>
-                    <Pencil size={14} />
-                  </button>
-                </td>
-                <td class="cms-table-cell-monospace">{entry.from}</td>
-                <td class="cms-table-cell-monospace">{entry.to}</td>
-                <td>
-                  <span class="cms-badge cms-badge-neutral">{entry.statusCode}</span>
-                </td>
-                <td>
-                  <span class={entry.enabled !== false ? 'cms-badge cms-badge-success' : 'cms-badge cms-badge-neutral'}>
-                    {entry.enabled !== false ? t('redirects.statusActive') : t('redirects.statusInactive')}
-                  </span>
-                </td>
-                <td class="cms-table-actions-delete">
-                  <button type="button" class="cms-table-btn-delete cms-list-delete" data-id={entry.id} aria-label={t('common.delete')}>
-                    <Trash2 size={14} />
-                  </button>
-                </td>
-              </tr>
-            ))}
+            <tr class="cms-table-loading-row">
+              <td colspan="6" role="status" aria-live="polite">{t('common.loading')}</td>
+            </tr>
           </tbody>
         </table>
       </div>
-      <div id="cms-redirects-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', redirects.length > 0 && 'cms-hidden']}>
+      <div id="cms-redirects-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', 'cms-hidden']}>
         <p class="cms-empty-state-title">{t('redirects.empty.title')}</p>
         <p class="cms-empty-state-text">{t('redirects.empty.text')}</p>
         <div class="cms-empty-state-actions">

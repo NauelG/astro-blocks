@@ -8,17 +8,12 @@ export const prerender = false;
 
 import AdminLayout from './layout.astro';
 import DetailModal from './components/DetailModal.astro';
-import { Pencil, Trash2, Lightbulb } from '@lucide/astro';
-import { loadConfigs, loadSite } from '../../api/data.js';
+import { Lightbulb } from '@lucide/astro';
+import { loadSite } from '../../api/data.js';
 import { resolveUiLocale } from './i18n/resolve.js';
 import { createT } from './i18n/t.js';
 
 const site = await loadSite();
-const configsData = await loadConfigs();
-const configs = configsData.configs || [];
-function maskConfigValue(value: string | undefined): string {
-  return value ? '••••••••' : '—';
-}
 const uiLocale = resolveUiLocale({
   cookie: Astro.request.headers.get('cookie'),
   acceptLanguage: Astro.request.headers.get('accept-language'),
@@ -59,7 +54,7 @@ const t = createT(uiLocale);
         </div>
       </div>
       <div class="cms-toolbar-meta">
-        <span class="cms-results-count" id="cms-configs-count">{t('configs.count', { count: String(configs.length) })}</span>
+        <span class="cms-results-count" id="cms-configs-count"></span>
       </div>
     </div>
 
@@ -76,27 +71,13 @@ const t = createT(uiLocale);
             </tr>
           </thead>
           <tbody id="cms-configs-tbody">
-            {configs.map((entry) => (
-              <tr>
-                <td class="cms-table-actions">
-                  <button type="button" class="cms-table-btn-edit cms-list-edit" data-id={entry.id} aria-label={t('common.edit')}>
-                    <Pencil size={14} />
-                  </button>
-                </td>
-                <td class="cms-table-cell-monospace">{entry.key}</td>
-                <td class="cms-table-cell-monospace cms-configs-value-cell">{maskConfigValue(entry.value)}</td>
-                <td class="cms-configs-description-cell" title={entry.description || ''}>{entry.description || '—'}</td>
-                <td class="cms-table-actions-delete">
-                  <button type="button" class="cms-table-btn-delete cms-list-delete" data-id={entry.id} aria-label={t('common.delete')}>
-                    <Trash2 size={14} />
-                  </button>
-                </td>
-              </tr>
-            ))}
+            <tr class="cms-table-loading-row">
+              <td colspan="5" role="status" aria-live="polite">{t('common.loading')}</td>
+            </tr>
           </tbody>
         </table>
       </div>
-      <div id="cms-configs-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', configs.length > 0 && 'cms-hidden']}>
+      <div id="cms-configs-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', 'cms-hidden']}>
         <p class="cms-empty-state-title">{t('configs.empty.title')}</p>
         <p class="cms-empty-state-text">{t('configs.empty.text')}</p>
         <div class="cms-empty-state-actions">

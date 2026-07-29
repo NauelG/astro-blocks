@@ -7,13 +7,11 @@ Licensed under the Business Source License 1.1
 export const prerender = false;
 import AdminLayout from './layout.astro';
 import DetailModal from './components/DetailModal.astro';
-import { Pencil, Trash2, Lightbulb } from '@lucide/astro';
-import { loadLanguages, loadSite } from '../../api/data.js';
+import { Lightbulb } from '@lucide/astro';
+import { loadSite } from '../../api/data.js';
 import { resolveUiLocale } from './i18n/resolve.js';
 import { createT } from './i18n/t.js';
 const site = await loadSite();
-const languagesData = await loadLanguages();
-const languages = languagesData.languages || [];
 const uiLocale = resolveUiLocale({
   cookie: Astro.request.headers.get('cookie'),
   acceptLanguage: Astro.request.headers.get('accept-language'),
@@ -80,32 +78,13 @@ const languagesI18n = {
             </tr>
           </thead>
           <tbody id="cms-languages-tbody">
-            {languages.map((language) => (
-              <tr>
-                <td class="cms-table-actions">
-                  <button type="button" class="cms-table-btn-edit cms-language-edit" data-code={language.code} aria-label={t('common.edit')}>
-                    <Pencil size={14} />
-                  </button>
-                </td>
-                <td class="cms-table-cell-monospace">{language.code}</td>
-                <td>{language.label}</td>
-                <td>
-                  <span class={language.enabled !== false ? 'cms-badge cms-badge-success' : 'cms-badge cms-badge-neutral'}>
-                    {language.enabled !== false ? t('languages.statusActive') : t('languages.statusDisabled')}
-                  </span>
-                </td>
-                <td>{language.isDefault ? t('languages.isDefaultYes') : '—'}</td>
-                <td class="cms-table-actions-delete">
-                  <button type="button" class="cms-table-btn-delete cms-language-delete" data-code={language.code} aria-label={t('languages.deleteLabel')}>
-                    <Trash2 size={14} />
-                  </button>
-                </td>
-              </tr>
-            ))}
+            <tr class="cms-table-loading-row">
+              <td colspan="6" role="status" aria-live="polite">{t('common.loading')}</td>
+            </tr>
           </tbody>
         </table>
       </div>
-      <div id="cms-languages-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', languages.length > 0 && 'cms-hidden']}>
+      <div id="cms-languages-empty" class:list={['cms-empty-state', 'cms-empty-state--inset', 'cms-hidden']}>
         <p class="cms-empty-state-title">{t('languages.empty.title')}</p>
         <p class="cms-empty-state-text">{t('languages.empty.text')}</p>
       </div>

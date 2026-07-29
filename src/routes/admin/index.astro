@@ -5,47 +5,13 @@ Licensed under the Business Source License 1.1
 */
 
 export const prerender = false;
-import fs from 'node:fs/promises';
 import AdminLayout from './layout.astro';
 import { Globe, FileText, Menu, Languages, Upload, Plus, Settings, RefreshCw, ExternalLink, ShieldCheck, Clock3 } from '@lucide/astro';
-import { loadSite, loadPages, getDefaultLocale, getPageIndexable, getPageLocaleView, getPageStatus, getPublishedPages, loadLanguages, loadMenus } from '../../api/data.js';
-import { getUploadsDir } from '../../utils/paths.js';
-import { slugToPath } from '../../utils/slug.js';
+import { loadSite } from '../../api/data.js';
 import { resolveUiLocale } from './i18n/resolve.js';
 import { createT } from './i18n/t.js';
 
 const site = await loadSite();
-const pagesData = await loadPages();
-const menusData = await loadMenus();
-const languagesData = await loadLanguages();
-const defaultLocale = getDefaultLocale(languagesData);
-
-const allPages = pagesData.pages || [];
-const published = getPublishedPages(pagesData, defaultLocale, defaultLocale);
-const drafts = allPages.filter((p) => getPageStatus(p, defaultLocale, defaultLocale) === 'draft');
-const indexablePages = allPages.filter((p) => getPageIndexable(p, defaultLocale, defaultLocale) !== false).length;
-const menus = menusData.menus || [];
-const enabledLanguagesCount = (languagesData.languages || []).filter((language) => language.enabled !== false).length;
-
-const uploadCount = await (async () => {
-  try {
-    const entries = await fs.readdir(getUploadsDir(), { withFileTypes: true });
-    return entries.filter((e) => e.isFile()).length;
-  } catch {
-    return 0;
-  }
-})();
-
-const recentPages = [...allPages]
-  .sort((a, b) => {
-    const da = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-    const db = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-    return db - da;
-  })
-  .slice(0, 5)
-  .map((page) => getPageLocaleView(page, defaultLocale, defaultLocale));
-
-const lastUpdatedPage = recentPages[0];
 
 const uiLocale = resolveUiLocale({
   cookie: Astro.request.headers.get('cookie'),
@@ -94,11 +60,11 @@ const t = createT(uiLocale);
             <div class="cms-dashboard-meta">
               <span class="cms-dashboard-meta-pill">
                 <ShieldCheck size={12} />
-                <span>{indexablePages} indexables</span>
+                <span id="cms-dash-indexables">—</span>
               </span>
               <span class="cms-dashboard-meta-pill">
                 <Clock3 size={12} />
-                <span>{lastUpdatedPage ? t('dashboard.lastEdit', { title: lastUpdatedPage.title }) : t('dashboard.noRecentActivity')}</span>
+                <span id="cms-dash-last-edit">—</span>
               </span>
             </div>
           </div>
@@ -109,35 +75,35 @@ const t = createT(uiLocale);
             <div class="cms-stat-icon-wrap">
               <Globe size={14} />
             </div>
-            <p class="cms-stat-value cms-stat-value--primary">{published.length}</p>
+            <p class="cms-stat-value cms-stat-value--primary" id="cms-dash-published">—</p>
             <p class="cms-stat-label">{t('dashboard.published')}</p>
           </div>
           <div class="cms-card cms-dashboard-stat">
             <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
               <FileText size={14} />
             </div>
-            <p class="cms-stat-value">{drafts.length}</p>
+            <p class="cms-stat-value" id="cms-dash-drafts">—</p>
             <p class="cms-stat-label">{t('dashboard.drafts')}</p>
           </div>
           <div class="cms-card cms-dashboard-stat">
             <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
               <Menu size={14} />
             </div>
-            <p class="cms-stat-value">{menus.length}</p>
+            <p class="cms-stat-value" id="cms-dash-menus">—</p>
             <p class="cms-stat-label">{t('dashboard.menus')}</p>
           </div>
           <div class="cms-card cms-dashboard-stat">
             <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
               <Languages size={14} />
             </div>
-            <p class="cms-stat-value">{enabledLanguagesCount}</p>
+            <p class="cms-stat-value" id="cms-dash-languages">—</p>
             <p class="cms-stat-label">{t('dashboard.languages')}</p>
           </div>
           <div class="cms-card cms-dashboard-stat">
             <div class="cms-stat-icon-wrap cms-stat-icon-wrap--neutral">
               <Upload size={14} />
             </div>
-            <p class="cms-stat-value">{uploadCount}</p>
+            <p class="cms-stat-value" id="cms-dash-files">—</p>
             <p class="cms-stat-label">{t('dashboard.files')}</p>
           </div>
         </div>
@@ -147,31 +113,20 @@ const t = createT(uiLocale);
             <span class="cms-dashboard-block-title">{t('dashboard.recentActivity')}</span>
             <a href="/cms/pages" class="cms-dashboard-block-link">{t('dashboard.goToPages')}</a>
           </div>
-          {recentPages.length === 0 ? (
-            <div class="cms-empty-state cms-empty-state--inset">
-              <p class="cms-empty-state-title">{t('dashboard.noPages.title')}</p>
-              <p class="cms-empty-state-text">{t('dashboard.noPages.text')}</p>
-              <div class="cms-empty-state-actions">
-                <a href="/cms/pages" class="cms-btn cms-btn-primary">{t('dashboard.createFirstPage')}</a>
-              </div>
+          <div id="cms-dash-recent-empty" class="cms-empty-state cms-empty-state--inset cms-hidden">
+            <p class="cms-empty-state-title">{t('dashboard.noPages.title')}</p>
+            <p class="cms-empty-state-text">{t('dashboard.noPages.text')}</p>
+            <div class="cms-empty-state-actions">
+              <a href="/cms/pages" class="cms-btn cms-btn-primary">{t('dashboard.createFirstPage')}</a>
             </div>
-          ) : (
-            <table class="cms-table cms-dashboard-recent-table">
-              <tbody>
-                {recentPages.map((page) => (
-                  <tr>
-                    <td class="cms-dashboard-recent-title">{page.title || t('dashboard.noTitle')}</td>
-                    <td class="cms-table-cell-monospace cms-dashboard-recent-slug">{slugToPath(page.slug)}</td>
-                    <td class="cms-dashboard-recent-status">
-                      <span class={`cms-badge ${page.status === 'published' ? 'cms-badge-success' : 'cms-badge-neutral'}`}>
-                        {page.status === 'published' ? t('status.published') : t('status.draft')}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          </div>
+          <table class="cms-table cms-dashboard-recent-table" id="cms-dash-recent-table">
+            <tbody id="cms-dash-recent-tbody">
+              <tr class="cms-table-loading-row">
+                <td colspan="3" role="status" aria-live="polite">{t('common.loading')}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -230,4 +185,9 @@ const t = createT(uiLocale);
       </div>
     </div>
   </div>
+
+  <script>
+    import { initDashboard } from './client/dashboard.js';
+    initDashboard();
+  </script>
 </AdminLayout>

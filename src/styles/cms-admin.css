@@ -4997,13 +4997,22 @@ Licensed under the Business Source License 1.1
   right: auto;
 }
 
-/* First paint of the media library: the grid card ships only this line until client/media.ts
-   renders page 1 (ADR-0036). The card is .cms-card--no-padding, so the padding lives here or the
-   text sits flush against the border. Mirrors the empty state's centring, without its icon
-   stack — deliberately no skeleton and no animation: the admin has no such pattern. */
-.cms-media-loading {
+/* The panel's one loading affordance: a muted, centred line where content will appear, shown until
+   the client's fetch lands (ADR-0036, ADR-0037). Cards using it are .cms-card--no-padding, so the
+   padding lives here or the text sits flush against the border. Mirrors the empty state's centring
+   without its icon stack — deliberately no skeleton and no animation: the admin has no such
+   pattern, and adding one is a design decision, not a side effect of a fix. */
+.cms-loading-state {
   padding: 3rem 1.5rem;
   text-align: center;
+}
+
+/* Same affordance inside a table. The <thead> is kept so column widths are settled before the real
+   rows arrive; this row only fills the body until they do. */
+.cms-table-loading-row td {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--cms-text-muted);
 }
 
 .cms-media-empty-state {
