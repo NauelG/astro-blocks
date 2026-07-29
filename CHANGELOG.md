@@ -9,6 +9,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.1.1] - 2026-07-29
+
+### Title
+
+Uploading an image no longer deletes the responsive versions it just made
+
+### Fixed
+
+- **Uploading an image could leave it with responsive versions that do not exist.** The variants are generated in the background and registered when they finish, but the media list refreshes the moment the upload completes — and that refresh ran a cleanup that deleted any variant file it did not yet recognise. The entry was then recorded as ready, listing sizes whose files had just been removed, so the `srcset` on your published pages pointed at missing files while the panel showed nothing wrong. Cleanup now only removes variant files older than five minutes, which no in-progress generation can be. (#164)
+- **Media libraries already affected repair themselves.** If an upload lost variants this way, the next time the media list loads, the stale entries are dropped from the registry. The image keeps its original and any surviving sizes, so it still renders — there are simply fewer responsive alternatives. Nothing to run, nothing to migrate. (#164)
+- **Searching the media library no longer delays uploads.** Every keystroke in the media or picker search issues a request, and each one used to hold the media write lock while scanning the uploads folder — blocking uploads, deletions and the variant generation of a file being processed. The scan now runs without the lock. (#164)
+
 ## [4.1.0] - 2026-07-29
 
 ### Title
