@@ -96,6 +96,7 @@ export const es = {
     'Todo el contenido, la navegación y el branding del proyecto desde un panel compacto y fácil de escanear.',
   'dashboard.lastEdit': 'Última edición: {title}',
   'dashboard.noRecentActivity': 'Sin actividad reciente',
+  'dashboard.indexables': '{count} indexables',
   'dashboard.published': 'Publicadas',
   'dashboard.drafts': 'Borradores',
   'dashboard.menus': 'Menús',
@@ -674,6 +675,7 @@ export const es = {
   'errors.loadBlockSchemasFailed': 'Error al cargar los esquemas de bloques.',
   'errors.loadGlobalBlocksRegistryFailed': 'Error al cargar el registro de bloques globales.',
   'errors.loadMenusFailed': 'No se pudieron cargar los menús.',
+  'errors.loadDashboardFailed': 'No se pudo cargar el panel.',
   'errors.loadPagesFailed': 'Error al cargar las páginas.',
   'errors.fileTooLarge': 'Archivo demasiado grande. El tamaño máximo es {limitMb} MB.',
   'errors.unsupportedFileType':
