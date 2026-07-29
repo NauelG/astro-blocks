@@ -845,11 +845,27 @@ export async function reconcileMedia(): Promise<MediaData> {
   const prunedUrls = new Set<string>();
   const filesToUnlink: string[] = [];
   const survivors: MediaEntry[] = [];
+  // Variant records whose file is gone. Repair, not prevention: the orphan scan shipped without
+  // ORPHAN_MIN_AGE_MS, so registries in the wild already claim variants it deleted, and their srcset
+  // URLs 404 on the public site. Fixing only the race would leave those broken forever (ADR-0038).
+  const missingVariantUrls = new Set<string>();
 
   for (const entry of media.uploads) {
     try {
       await fs.access(publicPathFor(entry.url));
       survivors.push(entry);
+
+      // `ready` only. A `processing` entry is mid-generation: its recorded variants may legitimately
+      // not exist yet, and "repairing" it would delete records the running job is about to fulfil.
+      if (entry.status === 'ready') {
+        for (const variant of entry.variants ?? []) {
+          try {
+            await fs.access(publicPathFor(variant.url));
+          } catch {
+            missingVariantUrls.add(variant.url);
+          }
+        }
+      }
     } catch {
       // Original gone — the entry goes, and its variant files with it. Those are provable orphans
       // by a different proof than ORPHAN_MIN_AGE_MS: the entry that owned them no longer exists.
@@ -911,9 +927,27 @@ export async function reconcileMedia(): Promise<MediaData> {
   // meanwhile are not in prunedUrls and simply survive.
   return withFileLock(mediaLockKey(), async () => {
     const current = await loadMedia();
-    const uploads = current.uploads.filter((entry) => !prunedUrls.has(entry.url));
+    let changed = false;
 
-    if (uploads.length !== current.uploads.length) {
+    const uploads = current.uploads
+      .filter((entry) => {
+        if (!prunedUrls.has(entry.url)) return true;
+        changed = true;
+        return false;
+      })
+      .map((entry) => {
+        if (!entry.variants?.some((variant) => missingVariantUrls.has(variant.url))) return entry;
+        changed = true;
+        // The entry keeps its original and its surviving variants — the lost sizes are not
+        // regenerated here. The original renders; there are simply fewer responsive alternatives,
+        // and regenerating from a read path is the surprise this change removes.
+        return {
+          ...entry,
+          variants: entry.variants.filter((variant) => !missingVariantUrls.has(variant.url)),
+        };
+      });
+
+    if (changed) {
       const reconciled: MediaData = { uploads };
       await saveMedia(reconciled);
       return reconciled;

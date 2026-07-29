@@ -255,3 +255,64 @@ test('RC-6: an entry appended while reconcile runs is not lost', async () => {
     assert.equal(after.uploads.length, seeded.length, 'the ghost is pruned, the racer survives');
   });
 });
+
+// ─── RC-4 / RC-5: repairing registries already damaged ───────────────────────
+
+/** An entry whose original exists but which records a variant with no file behind it. */
+async function seedPhantomVariant(tempRoot, status) {
+  const dir = uploadsDir(tempRoot);
+  await fs.mkdir(dir, { recursive: true });
+  const filename = `damaged-${status}.jpg`;
+  await fs.writeFile(path.join(dir, filename), 'original');
+
+  const realVariant = `damaged-${status}-480.webp`;
+  await fs.writeFile(path.join(dir, realVariant), 'a variant that does exist');
+
+  const entry = {
+    id: generateId(),
+    url: `/uploads/${SUBDIR}/${filename}`,
+    filename,
+    size: 8,
+    mimeType: 'image/jpeg',
+    createdAt: new Date().toISOString(),
+    status,
+    variants: [
+      { format: 'webp', width: 480, url: `/uploads/${SUBDIR}/${realVariant}` },
+      // Recorded, never on disk — what the old orphan scan left behind.
+      { format: 'avif', width: 480, url: `/uploads/${SUBDIR}/damaged-${status}-480.avif` },
+    ],
+  };
+  await appendMediaEntry(entry);
+  return entry;
+}
+
+test('RC-4: a ready entry recording a variant with no file has that record dropped', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entry = await seedPhantomVariant(tempRoot, 'ready');
+
+    await reconcileMedia();
+
+    const stored = (await loadMedia()).uploads.find((u) => u.id === entry.id);
+    assert.ok(stored, 'the entry itself survives — its original is intact');
+    assert.deepEqual(
+      stored.variants.map((v) => v.format),
+      ['webp'],
+      'the phantom avif record is dropped, the real webp record is kept',
+    );
+  });
+});
+
+test('RC-5: a processing entry keeps variant records whose files do not exist yet', async () => {
+  await withTempProject(async (tempRoot) => {
+    const entry = await seedPhantomVariant(tempRoot, 'processing');
+
+    await reconcileMedia();
+
+    const stored = (await loadMedia()).uploads.find((u) => u.id === entry.id);
+    assert.equal(
+      stored.variants.length,
+      2,
+      'a processing entry is mid-generation: repairing it would delete records the job is about to fulfil',
+    );
+  });
+});
