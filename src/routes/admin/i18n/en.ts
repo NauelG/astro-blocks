@@ -613,7 +613,8 @@ export const en = {
   'errors.cannotDeleteLastOwner': 'Cannot delete the only owner.',
   'errors.languageCodeRequired': 'Language code is required.',
   'errors.invalidLanguageCode': 'Invalid language code. Use format like "es" or "pt-br".',
-  'errors.invalidLanguageLabel': 'Invalid language label. Use a single line of up to 80 characters.',
+  'errors.invalidLanguageLabel':
+    'Invalid language label. Use a single line of up to 80 characters.',
   'errors.languageCodeExists': 'A language with that code already exists.',
   'errors.mustHaveEnabledLanguage': 'At least one enabled language must exist.',
   'errors.cannotDeleteLastLanguage': 'Cannot delete the last language.',

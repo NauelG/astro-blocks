@@ -4,11 +4,7 @@ Licensed under the Business Source License 1.1
 */
 
 import type { ExportUnit } from '../types/index.js';
-import {
-  isValidEmail,
-  isValidLanguageCode,
-  isValidLanguageLabel,
-} from '../utils/field-grammar.js';
+import { isValidEmail, isValidLanguageCode, isValidLanguageLabel } from '../utils/field-grammar.js';
 
 type ValidationResult = { ok: boolean; reason?: string };
 

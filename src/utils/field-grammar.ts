@@ -18,6 +18,7 @@ const EMAIL_RE =
 const EMAIL_MAX_LENGTH = 254;
 
 // C0 controls, DEL, and C1 controls — none belong in a one-line name.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: detecting control characters is this regex's purpose
 const CONTROL_CHARS_RE = /[\u0000-\u001F\u007F-\u009F]/;
 
 const LABEL_MAX_LENGTH = 80;
