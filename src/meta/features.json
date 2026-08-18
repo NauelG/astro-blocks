@@ -148,7 +148,7 @@
       "category": "auth",
       "status": "alpha",
       "sinceVersion": "0.3.0",
-      "updatedIn": "4.0.4",
+      "updatedIn": "4.1.2",
       "docsPath": "#cms-routes"
     },
     {
@@ -158,7 +158,7 @@
       "category": "i18n",
       "status": "alpha",
       "sinceVersion": "0.11.0-alpha.1",
-      "updatedIn": "0.11.0-alpha.1",
+      "updatedIn": "4.1.2",
       "docsPath": "#languages-in-your-site"
     },
     {
@@ -258,7 +258,7 @@
       "category": "admin",
       "status": "alpha",
       "sinceVersion": "3.3.0",
-      "updatedIn": "3.3.0",
+      "updatedIn": "4.1.2",
       "docsPath": "#cms-routes"
     }
   ]

@@ -9,6 +9,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.1.2] - 2026-08-18
+
+### Title
+
+Emails and language labels now have to look like emails and labels
+
+### Fixed
+
+- **A user's email now has to be an email.** Creating a user accepted any non-empty text as the email — including HTML markup — and stored it verbatim. The address is now validated against the same grammar your browser's email field uses (so the form and the server always agree), capped at 254 characters. Existing accounts are untouched and can always log in: the rule gates entry, it never re-judges stored data. (#108)
+- **Language labels are now one-line names.** A language's display label accepted arbitrary text of any length. It must now be a single line of up to 80 characters — any alphabet welcome, control characters not. Leaving the label empty still names the language after its code, as before. (#108)
+- **Import archives play by the same rules.** A backup zip could bring in emails, language labels — even language codes — that the admin panel would have rejected. Staged imports now validate all three with the exact same grammars, and an archive that breaks them is refused whole before anything is written. (#108)
+
 ## [4.1.1] - 2026-07-29
 
 ### Title
