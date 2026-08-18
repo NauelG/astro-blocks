@@ -653,6 +653,7 @@ export const es = {
   'errors.cannotDeleteLastOwner': 'No se puede eliminar al único propietario.',
   'errors.languageCodeRequired': 'El código de idioma es obligatorio.',
   'errors.invalidLanguageCode': 'Código de idioma no válido. Usa formato como "es" o "pt-br".',
+  'errors.invalidLanguageLabel': 'Etiqueta de idioma no válida. Usa una sola línea de hasta 80 caracteres.',
   'errors.languageCodeExists': 'Ya existe un idioma con ese código.',
   'errors.mustHaveEnabledLanguage': 'Debe existir al menos un idioma habilitado.',
   'errors.cannotDeleteLastLanguage': 'No se puede eliminar el último idioma.',

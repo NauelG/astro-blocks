@@ -203,6 +203,78 @@ test('handlePostLanguages rejects invalid code format', async () => {
   });
 });
 
+test('handlePostLanguages rejects an invalid label, localized', async () => {
+  await withTempProject(async () => {
+    const twoLines = 'two\nlines';
+    const response = await handlePostLanguages(
+      new Request('http://localhost/cms/api/languages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: 'fr', label: twoLines }),
+      }),
+    );
+
+    assert.equal(response.status, 400);
+    const body = await response.json();
+    assert.equal(body.error, 'Invalid language label. Use a single line of up to 80 characters.');
+
+    const oversized = await handlePostLanguages(
+      new Request('http://localhost/cms/api/languages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept-Language': 'es',
+        },
+        body: JSON.stringify({ code: 'fr', label: 'x'.repeat(81) }),
+      }),
+    );
+
+    assert.equal(oversized.status, 400);
+    const oversizedBody = await oversized.json();
+    assert.equal(
+      oversizedBody.error,
+      'Etiqueta de idioma no válida. Usa una sola línea de hasta 80 caracteres.',
+    );
+  });
+});
+
+test('handlePostLanguages still falls back to code when label is empty', async () => {
+  await withTempProject(async () => {
+    const response = await handlePostLanguages(
+      new Request('http://localhost/cms/api/languages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: 'fr', label: '   ' }),
+      }),
+    );
+
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.label, 'fr');
+  });
+});
+
+test('handlePutLanguage rejects an invalid label and keeps the stored one', async () => {
+  await withTempProject(async () => {
+    const response = await handlePutLanguage(
+      'es',
+      new Request('http://localhost/cms/api/languages/es', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: 'tab\there' }),
+      }),
+    );
+
+    assert.equal(response.status, 400);
+    const body = await response.json();
+    assert.equal(body.error, 'Invalid language label. Use a single line of up to 80 characters.');
+
+    const list = await (await handleGetLanguages()).json();
+    const es = list.languages.find((language) => language.code === 'es');
+    assert.notEqual(es.label, 'tab\there');
+  });
+});
+
 test('handlePostLanguages rejects duplicate language code', async () => {
   await withTempProject(async () => {
     // 'es' is already in the default data

@@ -4,6 +4,7 @@ Licensed under the Business Source License 1.1
 */
 
 import { normalizeLanguageCode, getLanguageLocaleKeys } from '../../utils/language-locales.js';
+import { isValidLanguageCode, isValidLanguageLabel } from '../../utils/field-grammar.js';
 import { removeLocaleFromPage } from '../../utils/locale-projection.js';
 import type { ContentLanguage, Menu, Page } from '../../types/index.js';
 import * as data from '../data.js';
@@ -58,8 +59,12 @@ export async function handlePostLanguages(
   const isDefault = body.isDefault === true;
 
   if (!code) return localizedJsonError(request, 'errors.languageCodeRequired');
-  if (!/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(code)) {
+  if (!isValidLanguageCode(code)) {
     return localizedJsonError(request, 'errors.invalidLanguageCode');
+  }
+  // Only a provided non-empty label is validated — the label → code fallback is deliberate.
+  if (typeof body.label === 'string' && body.label.trim() && !isValidLanguageLabel(label)) {
+    return localizedJsonError(request, 'errors.invalidLanguageLabel');
   }
 
   if (languagesData.languages.some((language) => normalizeLanguageCode(language.code) === code)) {
@@ -100,6 +105,13 @@ export async function handlePutLanguage(
   if (index === -1) return localizedJsonError(request, 'errors.notFound', 404);
 
   const current = languagesData.languages[index];
+  if (
+    typeof body.label === 'string' &&
+    body.label.trim() &&
+    !isValidLanguageLabel(body.label.trim())
+  ) {
+    return localizedJsonError(request, 'errors.invalidLanguageLabel');
+  }
   const next: ContentLanguage = {
     ...current,
     label: typeof body.label === 'string' && body.label.trim() ? body.label.trim() : current.label,
