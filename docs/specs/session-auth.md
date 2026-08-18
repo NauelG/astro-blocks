@@ -134,6 +134,11 @@ without re-validating would move the lost update while leaving the check-then-ac
 holding the users lock across it would block every login for its duration. The cost accepted is a
 hash computed on error paths that then discard it.
 
+**User creation has a format precondition.** `handlePostUsers` rejects an email failing the shared
+grammar (`field-validation.md` R1) with the localized `errors.invalidEmail` body, before the hash
+and before the lock. Login and token verification never format-validate — an already-stored legacy
+value cannot be locked out (#108).
+
 `restoreUsers` is **not** a seam client: its caller (the import pipeline) already holds the lock, and
 it *replaces* the list rather than mutating it. The rule is every **mutation**, not every write.
 `saveUsers` likewise stays a plain unlocked writer — it is what both are built from.
