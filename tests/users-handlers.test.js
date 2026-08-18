@@ -186,6 +186,66 @@ test('handlePostUsers: missing email/password returns 400', async () => {
   });
 });
 
+test('handlePostUsers: malformed email returns 400, localized', async () => {
+  await withTempProject(async () => {
+    const owner = await seedOwner();
+
+    const response = await handlePostUsers(
+      new Request('http://localhost/cms/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: '<img src=x onerror=alert(1)>', password: 'pass456' }),
+      }),
+      owner,
+    );
+
+    assert.equal(response.status, 400);
+    const body = await response.json();
+    assert.equal(body.error, 'Invalid email address.');
+
+    const spanish = await handlePostUsers(
+      new Request('http://localhost/cms/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept-Language': 'es',
+        },
+        body: JSON.stringify({ email: 'not-an-email', password: 'pass456' }),
+      }),
+      owner,
+    );
+
+    assert.equal(spanish.status, 400);
+    const spanishBody = await spanish.json();
+    assert.equal(spanishBody.error, 'Dirección de email no válida.');
+
+    // Nothing was stored.
+    const usersData = await loadUsers();
+    assert.equal(usersData.users.length, 1);
+  });
+});
+
+test('handlePostUsers: email over 254 characters returns 400', async () => {
+  await withTempProject(async () => {
+    const owner = await seedOwner();
+    const email = `${'a'.repeat(64)}@${'b'.repeat(61)}.${'c'.repeat(61)}.${'d'.repeat(61)}.example.com`;
+    assert.ok(email.length > 254);
+
+    const response = await handlePostUsers(
+      new Request('http://localhost/cms/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: 'pass456' }),
+      }),
+      owner,
+    );
+
+    assert.equal(response.status, 400);
+    const body = await response.json();
+    assert.equal(body.error, 'Invalid email address.');
+  });
+});
+
 test('handlePostUsers: unknown role defaults to "user"', async () => {
   await withTempProject(async () => {
     const owner = await seedOwner();

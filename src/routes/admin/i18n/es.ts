@@ -646,6 +646,7 @@ export const es = {
   'errors.forbidden': 'Acceso denegado.',
   'errors.unauthorized': 'No autorizado.',
   'errors.emailPasswordRequired': 'Email y contraseña son obligatorios.',
+  'errors.invalidEmail': 'Dirección de email no válida.',
   'errors.invalidCredentials': 'Credenciales inválidas.',
   'errors.emailExists': 'El email ya existe.',
   'errors.cannotRemoveLastOwner': 'No se puede quitar el único propietario.',

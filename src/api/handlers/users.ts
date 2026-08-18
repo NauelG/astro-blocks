@@ -4,6 +4,7 @@ Licensed under the Business Source License 1.1
 */
 
 import type { AuthUser, User } from '../../types/index.js';
+import { isValidEmail } from '../../utils/field-grammar.js';
 import * as data from '../data.js';
 import { hashPassword, requireOwner } from './auth-core.js';
 import { jsonError, localizedJsonError, parseJsonBody } from './shared.js';
@@ -36,6 +37,8 @@ export async function handlePostUsers(
   const password = typeof body.password === 'string' ? body.password : '';
   const role = body.role === 'owner' ? 'owner' : 'user';
   if (!email || !password) return localizedJsonError(request, 'errors.emailPasswordRequired');
+  // Grammar check before hashPassword — no point paying the slow hash for a rejected payload.
+  if (!isValidEmail(email)) return localizedJsonError(request, 'errors.invalidEmail');
 
   // Hash BEFORE the lock (#135, ADR-0030): hashPassword is deliberately slow, and holding the
   // users lock across it would block every login. A duplicate email discards this work — that is

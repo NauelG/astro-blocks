@@ -606,6 +606,7 @@ export const en = {
   'errors.forbidden': 'Forbidden.',
   'errors.unauthorized': 'Unauthorized.',
   'errors.emailPasswordRequired': 'Email and password are required.',
+  'errors.invalidEmail': 'Invalid email address.',
   'errors.invalidCredentials': 'Invalid credentials.',
   'errors.emailExists': 'Email already exists.',
   'errors.cannotRemoveLastOwner': 'Cannot remove the only owner.',
