@@ -4,6 +4,11 @@ Licensed under the Business Source License 1.1
 */
 
 import type { ExportUnit } from '../types/index.js';
+import {
+  isValidEmail,
+  isValidLanguageCode,
+  isValidLanguageLabel,
+} from '../utils/field-grammar.js';
 
 type ValidationResult = { ok: boolean; reason?: string };
 
@@ -31,6 +36,9 @@ export function validateUsersUnit(data: unknown): ValidationResult {
     }
     if (typeof u['email'] !== 'string' || u['email'] === '') {
       return { ok: false, reason: 'each user must have a non-empty string "email"' };
+    }
+    if (!isValidEmail(u['email'])) {
+      return { ok: false, reason: `user "${u['id']}": invalid email format` };
     }
     if (typeof u['passwordHash'] !== 'string' || u['passwordHash'] === '') {
       return { ok: false, reason: 'each user must have a non-empty string "passwordHash"' };
@@ -106,6 +114,48 @@ export function validateGlobalBlocksUnit(data: unknown): ValidationResult {
   }
   return { ok: true };
 }
+
+/**
+ * Validates the languages data file. Same grammars as the HTTP handlers
+ * (utils/field-grammar.ts) — the import pipeline is not a back door past them
+ * (ADR-0015, #108). Lenient about keys beyond code/label.
+ */
+export function validateLanguagesFile(data: unknown): ValidationResult {
+  if (typeof data !== 'object' || data === null) {
+    return { ok: false, reason: 'languages data must be a non-null object' };
+  }
+  const d = data as Record<string, unknown>;
+  if (!Array.isArray(d['languages'])) {
+    return { ok: false, reason: 'languages data must have a "languages" array' };
+  }
+  for (const language of d['languages'] as unknown[]) {
+    if (typeof language !== 'object' || language === null) {
+      return { ok: false, reason: 'each language must be an object' };
+    }
+    const l = language as Record<string, unknown>;
+    if (typeof l['code'] !== 'string' || !isValidLanguageCode(l['code'])) {
+      return { ok: false, reason: `invalid language code "${l['code']}"` };
+    }
+    if (l['label'] !== undefined) {
+      if (typeof l['label'] !== 'string' || !isValidLanguageLabel(l['label'])) {
+        return {
+          ok: false,
+          reason: `language "${l['code']}": invalid label (one line, max 80 characters)`,
+        };
+      }
+    }
+  }
+  return { ok: true };
+}
+
+/**
+ * Per-file validators, consulted by validateStagedImport in addition to the
+ * unit validator. The file path is the discriminator — the configuration unit
+ * spans five files and its unit validator cannot know which one it is seeing.
+ */
+export const fileValidators: Record<string, (data: unknown) => ValidationResult> = {
+  'data/languages.json': validateLanguagesFile,
+};
 
 /**
  * Unified validator map keyed by ExportUnit.

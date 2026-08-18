@@ -13,6 +13,8 @@ import {
   validateConfigurationUnit,
   validateGlobalBlocksUnit,
   unitValidators,
+  validateLanguagesFile,
+  fileValidators,
 } from '../dist/api/import-validate.js';
 
 // A-5: validateUsersUnit
@@ -148,4 +150,59 @@ test('A-5: unitValidators has all 5 ExportUnit keys', () => {
 test('A-5: unitValidators.users delegates to validateUsersUnit', () => {
   assert.equal(unitValidators['users']({ users: [] }).ok, true);
   assert.equal(unitValidators['users']({ users: [{ role: 'superadmin' }] }).ok, false);
+});
+
+// #108: field grammars at the import door
+
+test('#108: validateUsersUnit rejects a markup email, naming the user id', () => {
+  const result = validateUsersUnit({
+    users: [{ id: 'u1', email: '<img src=x onerror=alert(1)>', passwordHash: 'x', role: 'user' }],
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /u1/);
+  assert.match(result.reason, /email/);
+});
+
+test('#108: validateUsersUnit still accepts a valid email', () => {
+  const result = validateUsersUnit({
+    users: [{ id: 'u1', email: 'a@b.co', passwordHash: 'x', role: 'user' }],
+  });
+  assert.deepEqual(result, { ok: true });
+});
+
+test('#108: validateLanguagesFile requires a languages array', () => {
+  assert.equal(validateLanguagesFile(null).ok, false);
+  assert.equal(validateLanguagesFile({}).ok, false);
+  assert.equal(validateLanguagesFile({ languages: 'nope' }).ok, false);
+});
+
+test('#108: validateLanguagesFile rejects a code failing the grammar', () => {
+  const result = validateLanguagesFile({ languages: [{ code: '<script>', label: 'Bad' }] });
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /code/);
+});
+
+test('#108: validateLanguagesFile rejects a label failing the grammar', () => {
+  const twoLines = ['two', 'lines'].join(String.fromCharCode(10));
+  const result = validateLanguagesFile({ languages: [{ code: 'es', label: twoLines }] });
+  assert.equal(result.ok, false);
+  assert.match(result.reason, /label/);
+
+  const oversized = validateLanguagesFile({ languages: [{ code: 'es', label: 'x'.repeat(81) }] });
+  assert.equal(oversized.ok, false);
+});
+
+test('#108: validateLanguagesFile accepts valid entries, extra keys, and absent labels', () => {
+  const result = validateLanguagesFile({
+    languages: [
+      { code: 'es', label: 'Español', enabled: true, isDefault: true, extra: 'ignored' },
+      { code: 'pt-br' },
+    ],
+  });
+  assert.deepEqual(result, { ok: true });
+});
+
+test('#108: fileValidators wires data/languages.json to validateLanguagesFile', () => {
+  assert.equal(typeof fileValidators['data/languages.json'], 'function');
+  assert.equal(fileValidators['data/languages.json']({ languages: [] }).ok, true);
 });

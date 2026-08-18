@@ -31,7 +31,7 @@ import {
   verifyChecksums,
 } from './manifest.js';
 import type { ExportUnit, BackupManifest } from './manifest.js';
-import { unitValidators } from './import-validate.js';
+import { fileValidators, unitValidators } from './import-validate.js';
 import type { CeilingLimits } from './import-utils.js';
 import { CeilingExceededError, selectBackupsToPrune } from './import-utils.js';
 import * as data from './data.js';
@@ -471,6 +471,18 @@ export async function validateStagedImport(
           ok: false,
           reason: `structural validation failed for unit "${unit}": ${result.reason}`,
         };
+      }
+      // Units spanning several files run one lenient validator over all of them;
+      // per-file validators carry the rules only one specific file can state (#108).
+      const fileValidator = fileValidators[dataFile];
+      if (fileValidator) {
+        const fileResult = fileValidator(parsed);
+        if (!fileResult.ok) {
+          return {
+            ok: false,
+            reason: `structural validation failed for "${dataFile}": ${fileResult.reason}`,
+          };
+        }
       }
     }
   }

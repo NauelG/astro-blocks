@@ -238,6 +238,61 @@ test('C-2: validateStagedImport fails with /structural/ message on invalid user 
   });
 });
 
+test('#108: validateStagedImport rejects a languages.json with an invalid code', async () => {
+  await withTempProject(async (tempRoot) => {
+    const { sha256Hex, buildManifest } = await import('../dist/api/manifest.js');
+
+    const badLanguagesData = JSON.stringify({
+      languages: [{ code: '<script>', label: 'Bad', enabled: true, isDefault: true }],
+    });
+    const checksum = sha256Hex(Buffer.from(badLanguagesData, 'utf-8'));
+
+    const manifest = buildManifest(
+      ['configuration'],
+      { configuration: 1 },
+      { 'data/languages.json': checksum },
+    );
+    const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-badlang-'));
+    await fs.mkdir(path.join(stagingDir, 'data'), { recursive: true });
+    await fs.writeFile(path.join(stagingDir, 'manifest.json'), JSON.stringify(manifest));
+    await fs.writeFile(path.join(stagingDir, 'data', 'languages.json'), badLanguagesData);
+    try {
+      const result = await validateStagedImport(stagingDir, ['configuration'], tempRoot);
+      assert.equal(result.ok, false, 'expected ok:false for invalid language code');
+      assert.match(result.reason ?? '', /language/i);
+    } finally {
+      await fs.rm(stagingDir, { recursive: true, force: true });
+    }
+  });
+});
+
+test('#108: validateStagedImport accepts a valid languages.json', async () => {
+  await withTempProject(async (tempRoot) => {
+    const { sha256Hex, buildManifest } = await import('../dist/api/manifest.js');
+
+    const languagesData = JSON.stringify({
+      languages: [{ code: 'es', label: 'Español', enabled: true, isDefault: true }],
+    });
+    const checksum = sha256Hex(Buffer.from(languagesData, 'utf-8'));
+
+    const manifest = buildManifest(
+      ['configuration'],
+      { configuration: 1 },
+      { 'data/languages.json': checksum },
+    );
+    const stagingDir = await fs.mkdtemp(path.join(os.tmpdir(), 'astro-staging-goodlang-'));
+    await fs.mkdir(path.join(stagingDir, 'data'), { recursive: true });
+    await fs.writeFile(path.join(stagingDir, 'manifest.json'), JSON.stringify(manifest));
+    await fs.writeFile(path.join(stagingDir, 'data', 'languages.json'), languagesData);
+    try {
+      const result = await validateStagedImport(stagingDir, ['configuration'], tempRoot);
+      assert.equal(result.ok, true, result.reason);
+    } finally {
+      await fs.rm(stagingDir, { recursive: true, force: true });
+    }
+  });
+});
+
 // ---------------------------------------------------------------------------
 // C-3: createBackupSnapshot
 // ---------------------------------------------------------------------------
