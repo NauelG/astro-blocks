@@ -11,34 +11,13 @@ Licensed under the Business Source License 1.1
  * innerHTML from unescaped API data (stored XSS). Here, every API-sourced value
  * passes escapeHtml (text) / escapeAttr (attribute) at the sink.
  *
- * i18n strings arrive via the two-script bridge (window.__cmsLanguagesI18n), set by
- * the define:vars script in languages.astro — same pattern as import-export.astro.
+ * Client-side strings resolve through ct(), against the same UI locale that the
+ * layout resolved for SSR.
  */
 
 import { getCmsWindow, getCmsToken } from './common.js';
 import { escapeAttr, escapeHtml } from '../../../utils/html-escape.js';
-
-type LanguagesI18n = {
-  statusActive: string;
-  statusDisabled: string;
-  isDefaultYes: string;
-  editLabel: string;
-  deleteLabel: string;
-  newForm: string;
-  editForm: string;
-  createBtn: string;
-  saveBtn: string;
-  loadError: string;
-  deleteError: string;
-  saveError: string;
-  validationTitle: string;
-  codeObligatory: string;
-  deleted: string;
-  created: string;
-  updated: string;
-  dialogTitle: string;
-  deleteConfirmTemplate: string;
-};
+import { ct } from '../i18n/client.js';
 
 type ContentLanguage = {
   code: string;
@@ -53,11 +32,6 @@ const PENCIL_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
 const TRASH_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
-
-function getI18n(): LanguagesI18n {
-  return (getCmsWindow() as unknown as { __cmsLanguagesI18n?: LanguagesI18n })
-    .__cmsLanguagesI18n as LanguagesI18n;
-}
 
 function getCmsUser(): CmsUser {
   const win = getCmsWindow() as unknown as { getCmsUser?: () => CmsUser };
@@ -104,7 +78,6 @@ export function initLanguagesEditor(): void {
 }
 
 function initPage(token: string): void {
-  const i18n = getI18n();
   const win = getCmsWindow();
 
   const tbody = document.getElementById('cms-languages-tbody');
@@ -168,7 +141,7 @@ function initPage(token: string): void {
     labelInput.value = '';
     enabledInput.checked = true;
     defaultInput.checked = false;
-    setModalTitle(i18n.newForm, i18n.createBtn);
+    setModalTitle(ct('languages.newForm'), ct('languages.createBtn'));
   };
 
   const openNew = (): void => {
@@ -186,7 +159,7 @@ function initPage(token: string): void {
     labelInput.value = language.label || language.code;
     enabledInput.checked = language.enabled !== false;
     defaultInput.checked = language.isDefault === true;
-    setModalTitle(i18n.editForm, i18n.saveBtn);
+    setModalTitle(ct('languages.editForm'), ct('common.save'));
     openModal();
   };
 
@@ -199,12 +172,12 @@ function initPage(token: string): void {
         const label = escapeHtml(language.label || language.code);
         return (
           '<tr>' +
-          `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-language-edit" data-code="${codeAttr}" aria-label="${escapeAttr(i18n.editLabel)}">${PENCIL_SVG}</button></td>` +
+          `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-language-edit" data-code="${codeAttr}" aria-label="${escapeAttr(ct('common.edit'))}">${PENCIL_SVG}</button></td>` +
           `<td class="cms-table-cell-monospace">${code}</td>` +
           `<td>${label}</td>` +
-          `<td><span class="cms-badge ${active ? 'cms-badge-success' : 'cms-badge-neutral'}">${escapeHtml(active ? i18n.statusActive : i18n.statusDisabled)}</span></td>` +
-          `<td>${language.isDefault ? escapeHtml(i18n.isDefaultYes) : '—'}</td>` +
-          `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-language-delete" data-code="${codeAttr}" aria-label="${escapeAttr(i18n.deleteLabel)}">${TRASH_SVG}</button></td>` +
+          `<td><span class="cms-badge ${active ? 'cms-badge-success' : 'cms-badge-neutral'}">${escapeHtml(active ? ct('languages.statusActive') : ct('languages.statusDisabled'))}</span></td>` +
+          `<td>${language.isDefault ? escapeHtml(ct('languages.isDefaultYes')) : '—'}</td>` +
+          `<td class="cms-table-actions-delete"><button type="button" class="cms-table-btn-delete cms-language-delete" data-code="${codeAttr}" aria-label="${escapeAttr(ct('languages.deleteLabel'))}">${TRASH_SVG}</button></td>` +
           '</tr>'
         );
       })
@@ -230,7 +203,7 @@ function initPage(token: string): void {
   const refreshLanguages = (): Promise<void> =>
     fetch('/cms/api/languages', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => {
-        if (!r.ok) throw new Error(i18n.loadError);
+        if (!r.ok) throw new Error(ct('languages.loadError'));
         return r.json();
       })
       .then((payload) => {
@@ -238,7 +211,10 @@ function initPage(token: string): void {
         renderRows();
       })
       .catch((err) => {
-        win.cmsAlert?.({ title: i18n.dialogTitle, message: err.message || i18n.loadError });
+        win.cmsAlert?.({
+          title: ct('languages.modalTitle'),
+          message: err.message || ct('languages.loadError'),
+        });
       });
 
   const getCascadeCounts = async (code: string): Promise<{ pages: number; menus: number }> => {
@@ -259,11 +235,12 @@ function initPage(token: string): void {
   async function deleteLanguage(code: string): Promise<void> {
     try {
       const counts = await getCascadeCounts(code);
-      const message = i18n.deleteConfirmTemplate
-        .replace('{code}', code)
-        .replace('{pages}', String(counts.pages))
-        .replace('{menus}', String(counts.menus));
-      const ok = await win.cmsConfirm?.({ message, confirmLabel: i18n.deleteLabel });
+      const message = ct('languages.deleteConfirm', {
+        code,
+        pages: counts.pages,
+        menus: counts.menus,
+      });
+      const ok = await win.cmsConfirm?.({ message, confirmLabel: ct('languages.deleteLabel') });
       if (!ok) return;
 
       const response = await fetch(`/cms/api/languages/${encodeURIComponent(code)}`, {
@@ -272,16 +249,20 @@ function initPage(token: string): void {
       });
       if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
-        throw new Error(errorBody.error || i18n.deleteError);
+        throw new Error(errorBody.error || ct('languages.deleteError'));
       }
 
-      win.cmsToast?.({ title: i18n.dialogTitle, message: i18n.deleted, tone: 'success' });
+      win.cmsToast?.({
+        title: ct('languages.modalTitle'),
+        message: ct('languages.deleted'),
+        tone: 'success',
+      });
       await refreshLanguages();
       notifyLanguagesUpdated();
     } catch (err) {
       win.cmsAlert?.({
-        title: i18n.dialogTitle,
-        message: (err instanceof Error && err.message) || i18n.deleteError,
+        title: ct('languages.modalTitle'),
+        message: (err instanceof Error && err.message) || ct('languages.deleteError'),
       });
     }
   }
@@ -294,7 +275,10 @@ function initPage(token: string): void {
     const isDefault = defaultInput.checked;
 
     if (!code) {
-      await win.cmsAlert?.({ title: i18n.validationTitle, message: i18n.codeObligatory });
+      await win.cmsAlert?.({
+        title: ct('languages.validationTitle'),
+        message: ct('languages.codeObligatory'),
+      });
       return;
     }
 
@@ -319,15 +303,15 @@ function initPage(token: string): void {
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
-      throw new Error(errorBody.error || i18n.saveError);
+      throw new Error(errorBody.error || ct('languages.saveError'));
     }
 
     closeModal();
     await refreshLanguages();
     notifyLanguagesUpdated();
     win.cmsToast?.({
-      title: i18n.dialogTitle,
-      message: mode === 'create' ? i18n.created : i18n.updated,
+      title: ct('languages.modalTitle'),
+      message: mode === 'create' ? ct('languages.created') : ct('languages.updated'),
       tone: 'success',
     });
   };
@@ -336,7 +320,10 @@ function initPage(token: string): void {
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     submitForm().catch((err) => {
-      win.cmsAlert?.({ title: i18n.dialogTitle, message: err.message || i18n.saveError });
+      win.cmsAlert?.({
+        title: ct('languages.modalTitle'),
+        message: err.message || ct('languages.saveError'),
+      });
     });
   });
 

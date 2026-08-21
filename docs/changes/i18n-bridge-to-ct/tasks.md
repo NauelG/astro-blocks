@@ -99,24 +99,24 @@ del cambio. Mismo catálogo y mismo locale por ambos caminos, así que su verde 
 
 El primero a propósito: 19 propiedades, ninguna trampa conocida. Valida el patrón.
 
-- [ ] **T3.1 — Migrar `src/routes/admin/client/languages-editor.ts`.** Importar `ct` de
+- [x] **T3.1 — Migrar `src/routes/admin/client/languages-editor.ts`.** Importar `ct` de
       `../i18n/client.js` y sustituir cada lectura `i18n.X` por `ct('clave.real')` usando la tabla de
       `design.md` §2. Las cuatro que **no** derivan del nombre:
       `editLabel` → `common.edit` · `saveBtn` → `common.save` · `dialogTitle` → `languages.modalTitle`
       · `deleteConfirmTemplate` → `languages.deleteConfirm`.
       Las otras 15 son `languages.<mismoNombre>`, pero verificar cada una contra el `.astro`.
 
-- [ ] **T3.2 — Borrar el andamiaje**: el tipo `LanguagesI18n`, `getI18n()` (`:57-59`) y los casts
+- [x] **T3.2 — Borrar el andamiaje**: el tipo `LanguagesI18n`, `getI18n()` (`:57-59`) y los casts
       `as unknown as` (`:58`, `:63`). Cero ocurrencias de `__cms` en el fichero.
 
-- [ ] **T3.3 — Limpiar `src/routes/admin/languages.astro`**: el objeto `languagesI18n` (`:21-41`), el
+- [x] **T3.3 — Limpiar `src/routes/admin/languages.astro`**: el objeto `languagesI18n` (`:21-41`), el
       comentario `:20` que miente sobre `is:inline`, el comentario `:122` y el
       `<script define:vars={{ languagesI18n }}>` (`:123-125`).
       **Se quedan**: el `<script>` que importa `./client/languages-editor.js` (`:126-129`) y
       `resolveUiLocale`/`createT`/`t()` del frontmatter — son el SSR del título, eyebrow, lead y
       cabeceras.
 
-- [ ] **T3.4 — Corregir la cabecera del módulo** (`languages-editor.ts:9`, `:14-15`), que documenta el
+- [x] **T3.4 — Corregir la cabecera del módulo** (`languages-editor.ts:9`, `:14-15`), que documenta el
       puente como la vía de entrada de las cadenas.
 
       **Verificación:** `npm run typecheck` · `npm test` · `npm run check` ·

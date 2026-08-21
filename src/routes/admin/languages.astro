@@ -17,28 +17,6 @@ const uiLocale = resolveUiLocale({
   acceptLanguage: Astro.request.headers.get('accept-language'),
 });
 const t = createT(uiLocale);
-// Strings injected into the is:inline script via a define:vars bridge script
-const languagesI18n = {
-  statusActive: t('languages.statusActive'),
-  statusDisabled: t('languages.statusDisabled'),
-  isDefaultYes: t('languages.isDefaultYes'),
-  editLabel: t('common.edit'),
-  deleteLabel: t('languages.deleteLabel'),
-  newForm: t('languages.newForm'),
-  editForm: t('languages.editForm'),
-  createBtn: t('languages.createBtn'),
-  saveBtn: t('common.save'),
-  loadError: t('languages.loadError'),
-  deleteError: t('languages.deleteError'),
-  saveError: t('languages.saveError'),
-  validationTitle: t('languages.validationTitle'),
-  codeObligatory: t('languages.codeObligatory'),
-  deleted: t('languages.deleted'),
-  created: t('languages.created'),
-  updated: t('languages.updated'),
-  dialogTitle: t('languages.modalTitle'),
-  deleteConfirmTemplate: t('languages.deleteConfirm'),
-};
 ---
 
 <AdminLayout site={site} title={t('languages.title')}>
@@ -119,10 +97,6 @@ const languagesI18n = {
     <button type="submit" form="language-detail-form" class="cms-btn cms-btn-primary" id="language-detail-submit" slot="actions-right">{t('common.save')}</button>
   </DetailModal>
 
-  {/* i18n bridge: define:vars publishes the strings; the module script consumes them. */}
-  <script define:vars={{ languagesI18n }}>
-    window.__cmsLanguagesI18n = languagesI18n;
-  </script>
   <script>
     import { initLanguagesEditor } from './client/languages-editor.js';
     initLanguagesEditor();
