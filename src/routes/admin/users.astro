@@ -16,31 +16,6 @@ const uiLocale = resolveUiLocale({
   acceptLanguage: Astro.request.headers.get('accept-language'),
 });
 const t = createT(uiLocale);
-// Strings injected into the is:inline script via a define:vars bridge script
-const usersI18n = {
-  dialogTitle: t('users.modalTitle'),
-  roleOwner: t('users.roleOwner'),
-  roleUser: t('users.roleUser'),
-  editLabel: t('common.edit'),
-  deleteLabel: t('users.deleteLabel'),
-  newForm: t('users.newForm'),
-  editForm: t('users.editForm'),
-  createBtn: t('users.createBtn'),
-  saveBtn: t('common.save'),
-  deleteConfirm: t('users.deleteConfirm'),
-  cannotDeleteLastOwner: t('users.cannotDeleteLastOwner'),
-  emailRequired: t('users.emailRequired'),
-  passwordRequiredNew: t('users.passwordRequiredNew'),
-  loadError: t('users.loadError'),
-  saveError: t('users.saveError'),
-  deleteError: t('users.deleteError'),
-  deleted: t('users.deleted'),
-  updated: t('users.updated'),
-  created: t('users.created'),
-  noDate: t('common.noDate'),
-  countLabel: t('users.count'),
-  loading: t('users.loadingUsers'),
-};
 ---
 
 <AdminLayout site={site} title={t('users.title')}>
@@ -126,10 +101,6 @@ const usersI18n = {
     <button type="submit" form="user-detail-form" class="cms-btn cms-btn-primary" id="user-detail-submit" slot="actions-right">{t('common.save')}</button>
   </DetailModal>
 
-  {/* i18n bridge: define:vars publishes the strings; the module script consumes them. */}
-  <script define:vars={{ usersI18n }}>
-    window.__cmsUsersI18n = usersI18n;
-  </script>
   <script>
     import { initUsersEditor } from './client/users-editor.js';
     initUsersEditor();

@@ -131,22 +131,22 @@ El primero a propósito: 19 propiedades, ninguna trampa conocida. Valida el patr
 
 `refactor(admin): resolve users editor strings through ct (#119)`
 
-- [ ] **T4.1 — Migrar `src/routes/admin/client/users-editor.ts`** contra la tabla de `design.md` §2
+- [x] **T4.1 — Migrar `src/routes/admin/client/users-editor.ts`** contra la tabla de `design.md` §2
       (22 propiedades). Las cinco que no derivan del nombre:
       `dialogTitle` → `users.modalTitle` · `countLabel` → `users.count` · `editLabel` → `common.edit`
       · `saveBtn` → `common.save` · `noDate` → `common.noDate`.
 
-- [ ] **T4.2 — `loading` no se migra: se borra.** Es código muerto — el estado de carga se conmuta con
+- [x] **T4.2 — `loading` no se migra: se borra.** Es código muerto — el estado de carga se conmuta con
       `cms-hidden`, el texto no se reescribe nunca. Confirmarlo antes de borrar:
       `rg 'loading' src/routes/admin/client/users-editor.ts` solo debe devolver la declaración del tipo
       y manejo de elementos DOM, ninguna lectura de texto.
       La clave `users.loadingUsers` **permanece en los catálogos**: la usa el marcado SSR.
 
-- [ ] **T4.3 — Borrar el andamiaje**: tipo `UsersI18n`, `getI18n()` (`:55`), casts (`:55`, `:59`). En
+- [x] **T4.3 — Borrar el andamiaje**: tipo `UsersI18n`, `getI18n()` (`:55`), casts (`:55`, `:59`). En
       `users.astro`: objeto `usersI18n` (`:20-43`), comentario `:19`, puente (`:129-132`).
       Conservar el `<script>` del módulo (`:133-136`) y el `t()` del frontmatter.
 
-- [ ] **T4.4 — Corregir la cabecera** de `users-editor.ts` (`:9`, `:14-15`).
+- [x] **T4.4 — Corregir la cabecera** de `users-editor.ts` (`:9`, `:14-15`).
 
       **Verificación:** igual que T3.4. Manual en español: crear, editar y borrar usuario, con atención
       al recuento (`users.count`, interpolado) y al aviso de último owner.

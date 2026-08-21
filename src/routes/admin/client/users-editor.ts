@@ -11,37 +11,13 @@ Licensed under the Business Source License 1.1
  * unescaped API data (stored XSS via u.email / u.id). Here, every API-sourced value
  * passes escapeHtml (text) / escapeAttr (attribute) at the sink.
  *
- * i18n strings arrive via the two-script bridge (window.__cmsUsersI18n), set by the
- * define:vars script in users.astro — same pattern as import-export.astro.
+ * Client-side strings resolve through ct(), against the same UI locale that the
+ * layout resolved for SSR.
  */
 
 import { getCmsWindow, getCmsToken } from './common.js';
 import { escapeAttr, escapeHtml } from '../../../utils/html-escape.js';
-
-type UsersI18n = {
-  dialogTitle: string;
-  roleOwner: string;
-  roleUser: string;
-  editLabel: string;
-  deleteLabel: string;
-  newForm: string;
-  editForm: string;
-  createBtn: string;
-  saveBtn: string;
-  deleteConfirm: string;
-  cannotDeleteLastOwner: string;
-  emailRequired: string;
-  passwordRequiredNew: string;
-  loadError: string;
-  saveError: string;
-  deleteError: string;
-  deleted: string;
-  updated: string;
-  created: string;
-  noDate: string;
-  countLabel: string;
-  loading: string;
-};
+import { ct } from '../i18n/client.js';
 
 type AdminUser = { id: string; email?: string; role?: string; createdAt?: string };
 type CmsUser = { id: string; email: string; role: string } | null;
@@ -50,10 +26,6 @@ const PENCIL_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
 const TRASH_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
-
-function getI18n(): UsersI18n {
-  return (getCmsWindow() as unknown as { __cmsUsersI18n?: UsersI18n }).__cmsUsersI18n as UsersI18n;
-}
 
 function getCmsUser(): CmsUser {
   const win = getCmsWindow() as unknown as { getCmsUser?: () => CmsUser };
@@ -94,7 +66,6 @@ export function initUsersEditor(): void {
 }
 
 function initPage(token: string): void {
-  const i18n = getI18n();
   const win = getCmsWindow();
   const headers = (): HeadersInit => ({
     'Content-Type': 'application/json',
@@ -129,7 +100,7 @@ function initPage(token: string): void {
   };
 
   const formatDate = (iso?: string): string => {
-    if (!iso) return i18n.noDate;
+    if (!iso) return ct('common.noDate');
     try {
       return new Date(iso).toLocaleDateString(undefined, {
         day: '2-digit',
@@ -160,7 +131,7 @@ function initPage(token: string): void {
   };
 
   const updateMeta = (list: AdminUser[]): void => {
-    if (countEl) countEl.textContent = i18n.countLabel.replace('{count}', String(list.length));
+    if (countEl) countEl.textContent = ct('users.count', { count: list.length });
     if (emptyEl) emptyEl.classList.toggle('cms-hidden', list.length > 0);
   };
 
@@ -176,7 +147,7 @@ function initPage(token: string): void {
     }
     if (passwordWrap) passwordWrap.style.display = '';
     if (roleSelect) roleSelect.value = 'user';
-    setFormTitle(i18n.newForm, i18n.createBtn);
+    setFormTitle(ct('users.newForm'), ct('users.createBtn'));
     openModal();
   };
 
@@ -193,7 +164,7 @@ function initPage(token: string): void {
     }
     if (passwordWrap) passwordWrap.style.display = '';
     if (roleSelect) roleSelect.value = u.role || 'user';
-    setFormTitle(i18n.editForm, i18n.saveBtn);
+    setFormTitle(ct('users.editForm'), ct('common.save'));
     openModal();
   };
 
@@ -208,15 +179,15 @@ function initPage(token: string): void {
       const tr = document.createElement('tr');
       const canDelete = u.role !== 'owner' || ownerCount > 1;
       const idAttr = escapeAttr(u.id);
-      const editLabel = escapeAttr(i18n.editLabel);
-      const deleteLabel = escapeAttr(i18n.deleteLabel);
+      const editLabel = escapeAttr(ct('common.edit'));
+      const deleteLabel = escapeAttr(ct('users.deleteLabel'));
       const deleteBtn = canDelete
         ? `<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="${idAttr}" aria-label="${deleteLabel}">${TRASH_SVG}</button>`
-        : `<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="${idAttr}" disabled aria-label="${deleteLabel}" title="${escapeAttr(i18n.cannotDeleteLastOwner)}">${TRASH_SVG}</button>`;
+        : `<button type="button" class="cms-table-btn-delete cms-user-delete" data-id="${idAttr}" disabled aria-label="${deleteLabel}" title="${escapeAttr(ct('users.cannotDeleteLastOwner'))}">${TRASH_SVG}</button>`;
       tr.innerHTML =
         `<td class="cms-table-actions"><button type="button" class="cms-table-btn-edit cms-user-edit" data-id="${idAttr}" aria-label="${editLabel}">${PENCIL_SVG}</button></td>` +
         `<td>${escapeHtml(u.email || '')}</td>` +
-        `<td><span class="cms-badge ${u.role === 'owner' ? 'cms-badge-success' : 'cms-badge-neutral'}">${escapeHtml(u.role === 'owner' ? i18n.roleOwner : i18n.roleUser)}</span></td>` +
+        `<td><span class="cms-badge ${u.role === 'owner' ? 'cms-badge-success' : 'cms-badge-neutral'}">${escapeHtml(u.role === 'owner' ? ct('users.roleOwner') : ct('users.roleUser'))}</span></td>` +
         `<td>${escapeHtml(formatDate(u.createdAt))}</td>` +
         `<td class="cms-table-actions-delete">${deleteBtn}</td>`;
       tbody.appendChild(tr);
@@ -236,7 +207,7 @@ function initPage(token: string): void {
           window.location.href = '/cms';
           return null;
         }
-        if (!r.ok) throw new Error(i18n.loadError);
+        if (!r.ok) throw new Error(ct('users.loadError'));
         return r.json();
       })
       .then((data) => {
@@ -247,28 +218,34 @@ function initPage(token: string): void {
       })
       .catch((err) => {
         if (loadingEl) loadingEl.classList.add('cms-hidden');
-        setError(err.message || i18n.loadError);
+        setError(err.message || ct('users.loadError'));
       });
   };
 
   function deleteUser(id: string): void {
     if (!id) return;
-    win.cmsConfirm?.({ message: i18n.deleteConfirm, confirmLabel: i18n.deleteLabel }).then((ok) => {
-      if (!ok) return;
-      setError('');
-      fetch(`/cms/api/users/${id}`, { method: 'DELETE', headers: headers() })
-        .then((r) => {
-          if (r.status === 204) {
-            win.cmsToast?.({ title: i18n.dialogTitle, message: i18n.deleted, tone: 'success' });
-            loadUsers();
-            return;
-          }
-          return r.json().then((data) => {
-            throw new Error(data.error || i18n.deleteError);
-          });
-        })
-        .catch((err) => setError(err.message || i18n.deleteError));
-    });
+    win
+      .cmsConfirm?.({ message: ct('users.deleteConfirm'), confirmLabel: ct('users.deleteLabel') })
+      .then((ok) => {
+        if (!ok) return;
+        setError('');
+        fetch(`/cms/api/users/${id}`, { method: 'DELETE', headers: headers() })
+          .then((r) => {
+            if (r.status === 204) {
+              win.cmsToast?.({
+                title: ct('users.modalTitle'),
+                message: ct('users.deleted'),
+                tone: 'success',
+              });
+              loadUsers();
+              return;
+            }
+            return r.json().then((data) => {
+              throw new Error(data.error || ct('users.deleteError'));
+            });
+          })
+          .catch((err) => setError(err.message || ct('users.deleteError')));
+      });
   }
 
   document.getElementById('cms-users-add-btn')?.addEventListener('click', openNew);
@@ -292,11 +269,11 @@ function initPage(token: string): void {
     const password = passwordInput?.value ? passwordInput.value : '';
     const role = roleSelect?.value ? roleSelect.value : 'user';
     if (!email) {
-      setError(i18n.emailRequired);
+      setError(ct('users.emailRequired'));
       return;
     }
     if (!id && !password) {
-      setError(i18n.passwordRequiredNew);
+      setError(ct('users.passwordRequiredNew'));
       return;
     }
     setError('');
@@ -310,12 +287,16 @@ function initPage(token: string): void {
       })
         .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
         .then((res) => {
-          if (!res.ok) throw new Error(res.data.error || i18n.saveError);
+          if (!res.ok) throw new Error(res.data.error || ct('users.saveError'));
           closeModal();
-          win.cmsToast?.({ title: i18n.dialogTitle, message: i18n.updated, tone: 'success' });
+          win.cmsToast?.({
+            title: ct('users.modalTitle'),
+            message: ct('users.updated'),
+            tone: 'success',
+          });
           loadUsers();
         })
-        .catch((err) => setError(err.message || i18n.saveError));
+        .catch((err) => setError(err.message || ct('users.saveError')));
     } else {
       fetch('/cms/api/users', {
         method: 'POST',
@@ -324,12 +305,16 @@ function initPage(token: string): void {
       })
         .then((r) => r.json().then((d) => ({ ok: r.ok, data: d })))
         .then((res) => {
-          if (!res.ok) throw new Error(res.data.error || i18n.saveError);
+          if (!res.ok) throw new Error(res.data.error || ct('users.saveError'));
           closeModal();
-          win.cmsToast?.({ title: i18n.dialogTitle, message: i18n.created, tone: 'success' });
+          win.cmsToast?.({
+            title: ct('users.modalTitle'),
+            message: ct('users.created'),
+            tone: 'success',
+          });
           loadUsers();
         })
-        .catch((err) => setError(err.message || i18n.saveError));
+        .catch((err) => setError(err.message || ct('users.saveError')));
     }
   });
 
