@@ -159,25 +159,25 @@ El primero a propósito: 19 propiedades, ninguna trampa conocida. Valida el patr
 
 El último a propósito: el objeto más grande, el desajuste conocido y los tests que pinnean el puente.
 
-- [ ] **T5.1 — Migrar `src/routes/admin/client/import-export-editor.ts`** contra la tabla de
+- [x] **T5.1 — Migrar `src/routes/admin/client/import-export-editor.ts`** contra la tabla de
       `design.md` §2 (22 propiedades). Aquí **las siete de estado** llevan clave anidada:
       `statusIdle` → `importExport.status.idle`, `statusExporting` → `importExport.status.exporting`,
       y así hasta `statusError`.
 
-- [ ] **T5.2 — Recuperar `confirmUnavailable`.** En `:311`, `ct('importExport.confirmUnavailable')`
+- [x] **T5.2 — Recuperar `confirmUnavailable`.** En `:311`, `ct('importExport.confirmUnavailable')`
       **sin `||`**. Ese literal inglés era la única razón de que el desajuste tipo↔puente no se viera;
       dejarlo lo volvería a esconder. La clave existe en `en.ts:355` y `es.ts:353`.
 
-- [ ] **T5.3 — Retirar los demás `|| 'literal inglés'`.** `getI18n()` devolvía
+- [x] **T5.3 — Retirar los demás `|| 'literal inglés'`.** `getI18n()` devolvía
       `({} as ImportExportI18n)` (`:72`), así que cada campo tenía su fallback; con `ct` todos son
       código muerto. Si alguno protege algo que **no** es una cadena de catálogo, dejarlo y anotarlo.
 
-- [ ] **T5.4 — Borrar el andamiaje**: tipo `ImportExportI18n` (`:30-54`), `getI18n()` (`:72`). En
+- [x] **T5.4 — Borrar el andamiaje**: tipo `ImportExportI18n` (`:30-54`), `getI18n()` (`:72`). En
       `import-export.astro`: objeto `ieI18n` (`:22-45`), comentarios `:20-21` y `:175`, puente
       (`:179-181`). Conservar el `<script>` del módulo (`:182-185`) y todo el `t()` del frontmatter,
       **incluido `exportUnits` (`:47-53`)**, que es SSR.
 
-- [ ] **T5.5 — Invertir las dos assertions** de `tests/import-export-admin-ui.test.js` que exigen el
+- [x] **T5.5 — Invertir las dos assertions** de `tests/import-export-admin-ui.test.js` que exigen el
       puente: `:227-236` (el `define:vars` existe y asigna `__cmsImportExportI18n`) y `:457-464`
       (*"client must read from the bridge"*). Pasan a exigir lo contrario: los tres módulos usan `ct(`,
       y **ninguno** contiene `__cms` ni `as unknown as` en contexto i18n. Cubrir los tres, no solo
@@ -185,7 +185,7 @@ El último a propósito: el objeto más grande, el desajuste conocido y los test
       **No tocar** la lista de 39 claves `importExport.*` (`:47-92`), la paridad en→es (`:94-101`) ni
       los valores no vacíos (`:103-112`): verifican el catálogo, no el mecanismo.
 
-- [ ] **T5.6 — Barrido de frontera.** `rg '__cms\w+I18n' src/routes/admin/client/` no devuelve nada.
+- [x] **T5.6 — Barrido de frontera.** `rg '__cms\w+I18n' src/routes/admin/client/` no devuelve nada.
       `rg '__cms' src/routes/admin/layout.astro` **sigue** devolviendo `__cmsAuthI18n` y
       `__cmsLayoutI18n` intactos: son de #106, y que sigan ahí es el criterio de que no nos hemos
       pasado de alcance.

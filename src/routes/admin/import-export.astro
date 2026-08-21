@@ -17,33 +17,6 @@ const uiLocale = resolveUiLocale({
 });
 const t = createT(uiLocale);
 
-// i18n bridge: pure scalar JS object — NO TypeScript, NO undefined values.
-// Every key read by import-export-editor.ts MUST appear here.
-const ieI18n = {
-  statusIdle: t('importExport.status.idle'),
-  statusExporting: t('importExport.status.exporting'),
-  statusUploading: t('importExport.status.uploading'),
-  statusValidating: t('importExport.status.validating'),
-  statusImporting: t('importExport.status.importing'),
-  statusDone: t('importExport.status.done'),
-  statusError: t('importExport.status.error'),
-  noUnitsSelected: t('importExport.noUnitsSelected'),
-  noFileSelected: t('importExport.noFileSelected'),
-  importNetworkError: t('importExport.importNetworkError'),
-  exportNetworkError: t('importExport.exportNetworkError'),
-  confirmReplace: t('importExport.confirmReplace'),
-  confirmReplaceWarning: t('importExport.confirmReplaceWarning'),
-  usersSessionWarning: t('importExport.usersSessionWarning'),
-  confirmTitle: t('importExport.confirmTitle'),
-  confirmBtn: t('importExport.confirmBtn'),
-  download: t('importExport.download'),
-  upload: t('importExport.upload'),
-  manifestTitle: t('importExport.manifestTitle'),
-  manifestVersion: t('importExport.manifestVersion'),
-  manifestExportedAt: t('importExport.manifestExportedAt'),
-  manifestCount: t('importExport.manifestCount'),
-};
-
 const exportUnits = [
   { value: 'pages',         label: t('importExport.unitPages') },
   { value: 'media',         label: t('importExport.unitMedia') },
@@ -171,14 +144,6 @@ const exportUnits = [
     </section>
   </div>
 
-  <!--
-    i18n bridge: define:vars MUST be on the SAME script that consumes the values.
-    All values are scalar strings (no TypeScript, no undefined).
-    The client module reads window.__cmsImportExportI18n after this script sets it.
-  -->
-  <script define:vars={{ ieI18n }}>
-    window.__cmsImportExportI18n = ieI18n;
-  </script>
   <script>
     import { initImportExportEditor } from './client/import-export-editor.js';
     initImportExportEditor();

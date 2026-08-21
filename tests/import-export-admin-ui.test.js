@@ -224,14 +224,12 @@ test('E-2: import-export.astro has ie-manifest-preview element', () => {
   assert.match(src, /id="ie-manifest-preview"/, 'page must have manifest preview element');
 });
 
-test('E-2: import-export.astro define:vars bridge is NOT empty (contains ieI18n assignment)', () => {
+test('E-2: import-export.astro does not publish translated strings through a window bridge', () => {
   const src = fs.readFileSync(path.join(ADMIN_DIR, 'import-export.astro'), 'utf8');
-  // Must have define:vars AND a non-empty body that sets window.__cmsImportExportI18n
-  assert.match(src, /define:vars=\{\{/, 'page must have a define:vars bridge script');
-  assert.match(
+  assert.doesNotMatch(
     src,
     /__cmsImportExportI18n/,
-    'define:vars bridge must assign window.__cmsImportExportI18n',
+    'client strings must resolve through ct(), not a window bridge',
   );
 });
 
@@ -454,13 +452,17 @@ test('E-3: client module does not use innerHTML with untrusted content (uses saf
   assert.match(src, /\.textContent\s*=/, 'must use .textContent for safe text assignment');
 });
 
-test('E-3: client module uses window.__cmsImportExportI18n for i18n (bridge)', () => {
-  const src = fs.readFileSync(path.join(ADMIN_DIR, 'client', 'import-export-editor.ts'), 'utf8');
-  assert.match(
-    src,
-    /__cmsImportExportI18n/,
-    'client must read from window.__cmsImportExportI18n bridge',
-  );
+test('E-3: client editors resolve strings through ct(), never a window i18n bridge', () => {
+  for (const editor of ['languages-editor.ts', 'users-editor.ts', 'import-export-editor.ts']) {
+    const src = fs.readFileSync(path.join(ADMIN_DIR, 'client', editor), 'utf8');
+    assert.match(src, /import\s+\{\s*ct\s*\}/, `${editor} must import ct()`);
+    assert.doesNotMatch(src, /__cms\w+I18n/, `${editor} must not read a window i18n bridge`);
+    assert.doesNotMatch(
+      src,
+      /as unknown as\s+\{\s*__cms/,
+      `${editor} must not hide an i18n bridge cast`,
+    );
+  }
 });
 
 // ─── E-4: nav link ────────────────────────────────────────────────────────────

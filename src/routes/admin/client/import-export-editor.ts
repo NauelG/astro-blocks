@@ -22,40 +22,15 @@ Licensed under the Business Source License 1.1
  *   6. If response has usersReplaced === true → session close (ADR-7).
  *
  * Aria-live status announcements are made via the #ie-status region.
- * All strings come from the i18n bridge object (window.__cmsImportExportI18n).
+ * Client-side strings resolve through ct(), against the same UI locale that the
+ * layout resolved for SSR.
  */
 
 import { getCmsToken, showToast } from './common.js';
-
-type ImportExportI18n = {
-  statusIdle: string;
-  statusExporting: string;
-  statusUploading: string;
-  statusValidating: string;
-  statusImporting: string;
-  statusDone: string;
-  statusError: string;
-  noUnitsSelected: string;
-  noFileSelected: string;
-  importNetworkError: string;
-  exportNetworkError: string;
-  confirmReplace: string;
-  confirmReplaceWarning: string;
-  usersSessionWarning: string;
-  confirmTitle: string;
-  confirmBtn: string;
-  confirmUnavailable: string;
-  download: string;
-  upload: string;
-  manifestTitle: string;
-  manifestVersion: string;
-  manifestExportedAt: string;
-  manifestCount: string;
-};
+import { ct } from '../i18n/client.js';
 
 type CmsWindow = Window &
   typeof globalThis & {
-    __cmsImportExportI18n?: ImportExportI18n;
     cmsConfirm?: (opts: {
       message: string;
       title?: string;
@@ -67,16 +42,6 @@ type CmsWindow = Window &
       tone?: 'success' | 'error' | 'info';
     }) => void;
   };
-
-function getI18n(): ImportExportI18n {
-  return (window as CmsWindow).__cmsImportExportI18n || ({} as ImportExportI18n);
-}
-
-function interpolate(template: string, params: Record<string, string | number>): string {
-  return template.replace(/\{(\w+)\}/g, (match, key) =>
-    key in params ? String(params[key]) : match,
-  );
-}
 
 // ─── Status region ────────────────────────────────────────────────────────────
 
@@ -104,15 +69,14 @@ async function handleExport(
   exportBtn: HTMLButtonElement | null,
   statusEl: HTMLElement | null,
 ): Promise<void> {
-  const i18n = getI18n();
   const units = getCheckedUnits(exportFieldset);
   if (units.length === 0) {
-    setStatus(statusEl, i18n.noUnitsSelected || 'Select at least one unit.');
+    setStatus(statusEl, ct('importExport.noUnitsSelected'));
     return;
   }
 
   if (exportBtn) exportBtn.disabled = true;
-  setStatus(statusEl, i18n.statusExporting || 'Preparing export…');
+  setStatus(statusEl, ct('importExport.status.exporting'));
 
   try {
     const token = getCmsToken();
@@ -125,7 +89,7 @@ async function handleExport(
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ error: String(res.status) }));
       const detail = (errData as { error?: string }).error || String(res.status);
-      setStatus(statusEl, interpolate(i18n.statusError || 'Error: {detail}', { detail }));
+      setStatus(statusEl, ct('importExport.status.error', { detail }));
       return;
     }
 
@@ -146,10 +110,10 @@ async function handleExport(
     // Revoke after a short delay to let the browser initiate the download.
     setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
 
-    setStatus(statusEl, i18n.statusDone || 'Done.');
-    showToast(i18n.statusDone || 'Done.', 'success', i18n.download || 'Download backup');
+    setStatus(statusEl, ct('importExport.status.done'));
+    showToast(ct('importExport.status.done'), 'success', ct('importExport.download'));
   } catch (_err) {
-    setStatus(statusEl, i18n.exportNetworkError || 'Export failed. Please try again.');
+    setStatus(statusEl, ct('importExport.exportNetworkError'));
   } finally {
     if (exportBtn) exportBtn.disabled = false;
   }
@@ -187,8 +151,6 @@ function renderManifestPreview(
   previewEl: HTMLElement | null,
   importUnitFieldset: HTMLFieldSetElement | null,
 ): void {
-  const i18n = getI18n();
-
   if (!previewEl) return;
 
   if (!manifest) {
@@ -197,11 +159,11 @@ function renderManifestPreview(
   }
 
   // Render summary.
-  const versionText = interpolate(i18n.manifestVersion || 'Schema version: {version}', {
+  const versionText = ct('importExport.manifestVersion', {
     version: manifest.schemaVersion,
   });
   const dateText = manifest.exportedAt
-    ? interpolate(i18n.manifestExportedAt || 'Exported: {date}', {
+    ? ct('importExport.manifestExportedAt', {
         date: new Date(manifest.exportedAt).toLocaleString(),
       })
     : '';
@@ -211,7 +173,7 @@ function renderManifestPreview(
 
   const titleP = document.createElement('p');
   titleP.className = 'cms-settings-section-title';
-  titleP.textContent = i18n.manifestTitle || 'Backup contents';
+  titleP.textContent = ct('importExport.manifestTitle');
   previewEl.appendChild(titleP);
 
   const versionP = document.createElement('p');
@@ -235,7 +197,7 @@ function renderManifestPreview(
     li.appendChild(strong);
     const count = counts[unit];
     if (count !== undefined) {
-      const countStr = interpolate(i18n.manifestCount || '{count} item(s)', { count });
+      const countStr = ct('importExport.manifestCount', { count });
       li.appendChild(document.createTextNode(': ' + countStr));
     }
     ul.appendChild(li);
@@ -276,17 +238,15 @@ async function handleImport(
   fileInput: HTMLInputElement | null,
   statusEl: HTMLElement | null,
 ): Promise<void> {
-  const i18n = getI18n();
-
   const file = fileInput?.files?.[0];
   if (!file) {
-    setStatus(statusEl, i18n.noFileSelected || 'Select a .zip backup file first.');
+    setStatus(statusEl, ct('importExport.noFileSelected'));
     return;
   }
 
   const units = getCheckedUnits(importUnitFieldset);
   if (units.length === 0) {
-    setStatus(statusEl, i18n.noUnitsSelected || 'Select at least one unit.');
+    setStatus(statusEl, ct('importExport.noUnitsSelected'));
     return;
   }
 
@@ -294,21 +254,14 @@ async function handleImport(
 
   // Build confirm message — concatenate replace warning and optional session warning.
   let confirmMsg =
-    (i18n.confirmReplace || 'Replace all selected data with the imported backup?') +
-    '\n\n' +
-    (i18n.confirmReplaceWarning ||
-      'This action replaces existing content permanently. A backup snapshot will be created before proceeding.');
+    ct('importExport.confirmReplace') + '\n\n' + ct('importExport.confirmReplaceWarning');
   if (hasUsers) {
-    confirmMsg +=
-      '\n\n' +
-      (i18n.usersSessionWarning ||
-        'Importing the Users unit will replace all user accounts. Your current session will end immediately after the import completes.');
+    confirmMsg += '\n\n' + ct('importExport.usersSessionWarning');
   }
 
   const cmsConfirm = (window as CmsWindow).cmsConfirm;
   if (!cmsConfirm) {
-    const msg =
-      i18n.confirmUnavailable || 'Confirm dialog is not available. Please reload the page.';
+    const msg = ct('importExport.confirmUnavailable');
     setStatus(statusEl, msg);
     showToast(msg, 'error');
     return;
@@ -316,13 +269,13 @@ async function handleImport(
 
   const confirmed = await cmsConfirm({
     message: confirmMsg,
-    title: i18n.confirmTitle || 'Confirm data replacement',
-    confirmLabel: i18n.confirmBtn || 'Replace data',
+    title: ct('importExport.confirmTitle'),
+    confirmLabel: ct('importExport.confirmBtn'),
   });
 
   if (!confirmed) return;
 
-  setStatus(statusEl, i18n.statusUploading || 'Uploading…');
+  setStatus(statusEl, ct('importExport.status.uploading'));
 
   try {
     const token = getCmsToken();
@@ -338,7 +291,7 @@ async function handleImport(
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ error: String(res.status) }));
       const detail = (errData as { error?: string }).error || String(res.status);
-      setStatus(statusEl, interpolate(i18n.statusError || 'Error: {detail}', { detail }));
+      setStatus(statusEl, ct('importExport.status.error', { detail }));
       return;
     }
 
@@ -347,8 +300,8 @@ async function handleImport(
       usersReplaced?: boolean;
     };
 
-    setStatus(statusEl, i18n.statusDone || 'Done.');
-    showToast(i18n.statusDone || 'Done.', 'success', i18n.upload || 'Import backup');
+    setStatus(statusEl, ct('importExport.status.done'));
+    showToast(ct('importExport.status.done'), 'success', ct('importExport.upload'));
 
     // ADR-7: if users were replaced, the current session is invalid.
     // Clear sessionStorage and redirect to login immediately.
@@ -356,7 +309,7 @@ async function handleImport(
       closeSessionAndRedirect();
     }
   } catch (_err) {
-    setStatus(statusEl, i18n.importNetworkError || 'Network error. Please try again.');
+    setStatus(statusEl, ct('importExport.importNetworkError'));
   }
 }
 
@@ -376,8 +329,7 @@ export function initImportExportEditor(): void {
   const manifestPreview = document.getElementById('ie-manifest-preview') as HTMLElement | null;
 
   // Set initial idle status.
-  const i18n = getI18n();
-  setStatus(statusEl, i18n.statusIdle || 'Ready.');
+  setStatus(statusEl, ct('importExport.status.idle'));
 
   // Wire styled file select button — opens the hidden native input.
   fileSelectBtn?.addEventListener('click', () => {
@@ -403,11 +355,11 @@ export function initImportExportEditor(): void {
       if (manifestPreview) manifestPreview.hidden = true;
       return;
     }
-    setStatus(statusEl, i18n.statusValidating || 'Validating…');
+    setStatus(statusEl, ct('importExport.status.validating'));
     const manifest = await parseManifestFromZip(file);
     renderManifestPreview(manifest, manifestPreview, importUnitFieldset);
     clearStatus(statusEl);
-    setStatus(statusEl, i18n.statusIdle || 'Ready.');
+    setStatus(statusEl, ct('importExport.status.idle'));
   });
 
   // Wire import button.
