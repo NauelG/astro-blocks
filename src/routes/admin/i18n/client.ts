@@ -123,7 +123,12 @@ export function getCatalog(): Catalog {
  */
 export function ct(key: string, params?: Record<string, string | number>): string {
   const tFn: TranslateFn = createT(getUiLocale());
-  return tFn(key, params);
+  const value = tFn(key, params);
+  const viteEnv = (import.meta as unknown as { env?: { DEV?: boolean } }).env;
+  if (viteEnv?.DEV === true && value === key) {
+    console.warn(`[astro-blocks] i18n key not found: "${key}"`);
+  }
+  return value;
 }
 
 /** Minimal window extension for the UI locale bridge. */

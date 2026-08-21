@@ -130,3 +130,57 @@ test('ct equivalent: catalogs["en"].common.noDate is "No date"', () => {
 test('ct equivalent: catalogs["es"].common.noDate is "Sin fecha"', () => {
   assert.equal(catalogs.es['common.noDate'], 'Sin fecha');
 });
+
+// ─── ct() warns on an unresolved key, in dev only (#119, ADR-0039) ────────────
+//
+// The migration off the i18n bridge removes a loud failure mode: a missing bridge threw a
+// TypeError and the page visibly broke. ct() never throws — it returns the key as text — so the
+// warn is what replaces that signal for a developer.
+//
+// These tests run in plain Node, OFF a Vite build, where `import.meta.env` is undefined. That is
+// the trap this suite exists to pin: a naked `import.meta.env.DEV` read throws
+// "Cannot read properties of undefined" on EVERY ct() call here. The dev branch itself cannot be
+// exercised from Node (there is no bundle to mark as dev); what is asserted is that the guard
+// holds and that the off-bundle path stays silent.
+
+async function captureWarnings(fn) {
+  const { warn } = console;
+  const seen = [];
+  console.warn = (...args) => seen.push(args.join(' '));
+  try {
+    return { result: await fn(), warnings: seen };
+  } finally {
+    console.warn = warn;
+  }
+}
+
+test('ct: an unresolved key still returns the key itself — the t.ts sentinel is unchanged', async () => {
+  const { ct } = await import('../dist/routes/admin/i18n/client.js');
+  assert.equal(ct('nope.definitely.not.a.real.key'), 'nope.definitely.not.a.real.key');
+});
+
+test('ct: an unresolved key does not throw off a Vite build (import.meta.env is undefined)', async () => {
+  const { ct } = await import('../dist/routes/admin/i18n/client.js');
+  assert.doesNotThrow(() => ct('nope.definitely.not.a.real.key'));
+  assert.doesNotThrow(() => ct('common.noDate'));
+});
+
+test('ct: off a Vite build the unresolved-key warning stays silent', async () => {
+  const { ct } = await import('../dist/routes/admin/i18n/client.js');
+  const { result, warnings } = await captureWarnings(() => ct('nope.definitely.not.a.real.key'));
+
+  assert.equal(result, 'nope.definitely.not.a.real.key');
+  assert.deepEqual(
+    warnings,
+    [],
+    'a unit test is not a browser: it must not print i18n diagnostics for the panel',
+  );
+});
+
+test('ct: a resolved key never warns', async () => {
+  const { ct } = await import('../dist/routes/admin/i18n/client.js');
+  const { result, warnings } = await captureWarnings(() => ct('common.noDate'));
+
+  assert.equal(result, 'No date');
+  assert.deepEqual(warnings, []);
+});

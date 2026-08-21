@@ -67,23 +67,26 @@ del cambio. Mismo catálogo y mismo locale por ambos caminos, así que su verde 
 
 `feat(admin): warn in dev when a catalog key does not resolve (#119)`
 
-- [ ] **T2.1 — Test primero** en `tests/i18n-client-editors.test.js`: una clave inexistente sigue
+- [x] **T2.1 — Test primero** en `tests/i18n-client-editors.test.js`: una clave inexistente sigue
       devolviendo la clave cruda (el sentinela de `t.ts:29` **no cambia**) y emite aviso. Cubrir
       también el silencio en producción — es la mitad de la decisión, no un detalle.
 
-- [ ] **T2.2 — Implementar** en `src/routes/admin/i18n/client.ts:124-127`, según `design.md` §3:
+- [x] **T2.2 — Implementar** en `src/routes/admin/i18n/client.ts:124-127`, según `design.md` §3:
 
       ```ts
       const value = tFn(key, params);
-      if (import.meta.env.DEV && value === key) {
+      const viteEnv = (import.meta as unknown as { env?: { DEV?: boolean } }).env;
+      if (viteEnv?.DEV === true && value === key) {
         console.warn(`[astro-blocks] i18n key not found: "${key}"`);
       }
       return value;
       ```
 
       La detección es `value === key`: observa el resultado del fallback de `t.ts`, no duplica su
-      lógica. Verificar que `import.meta.env.DEV` funciona en el bundle del panel — es el discriminante
-      del que depende toda la decisión.
+      lógica. **Corrección del snippet inicial:** `import.meta.env.DEV` directo lanza en los node:test,
+      porque ahí `import.meta.env` es `undefined`; el guard opcional es el patrón existente en
+      `auth-core.ts`. Verificado en Vite dev con Chromium: una clave inexistente devuelve la clave y
+      emite exactamente el aviso. Tras `npm run build`, la cadena del aviso no aparece en `dist/`.
 
       **Verificación:** `npm test` · `npm run typecheck`. Y tras `npm run build`, comprobar que el
       `console.warn` no queda vivo en el `dist/` de producción.
