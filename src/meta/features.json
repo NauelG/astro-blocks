@@ -158,7 +158,7 @@
       "category": "i18n",
       "status": "alpha",
       "sinceVersion": "0.11.0-alpha.1",
-      "updatedIn": "4.1.2",
+      "updatedIn": "4.1.3",
       "docsPath": "#languages-in-your-site"
     },
     {
@@ -228,7 +228,7 @@
       "category": "i18n",
       "status": "alpha",
       "sinceVersion": "3.1.0",
-      "updatedIn": "3.1.0",
+      "updatedIn": "4.1.3",
       "docsPath": "#cms-routes"
     },
     {
@@ -258,7 +258,7 @@
       "category": "admin",
       "status": "alpha",
       "sinceVersion": "3.3.0",
-      "updatedIn": "4.1.2",
+      "updatedIn": "4.1.3",
       "docsPath": "#cms-routes"
     }
   ]

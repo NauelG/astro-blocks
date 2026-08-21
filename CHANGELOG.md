@@ -9,6 +9,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.1.3] - 2026-08-21
+
+### Title
+
+The admin panel now resolves client-side text from one translation source
+
+### Changed
+
+- **The Languages, Users and Import/Export editors now resolve their own translated text.** They no longer receive a second, server-rendered copy of their strings through a browser global. The panel uses the same catalog and locale for server-rendered and interactive text, so the two cannot silently drift apart. There is no configuration or API change for consumers. (#119)
+- **Missing client translation keys are easier to catch during development.** The panel keeps showing the raw key as a visible fallback and now also logs a development-only warning. Production bundles remain silent for end users. (#119)
+
+### Fixed
+
+- **The Import/Export fallback warning could appear in English in a Spanish panel.** Its translation was declared but never sent through the old bridge, so a defensive fallback hard-coded English. The editor now reaches the catalog key directly. (#119)
+
 ## [4.1.2] - 2026-08-18
 
 ### Title
