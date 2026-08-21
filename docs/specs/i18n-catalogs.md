@@ -58,8 +58,28 @@ because the comment version had already failed silently in production.
 - **R7 — Every `messageKey` the validator can emit resolves in every catalog.** Because the validator
   and the catalog share R4's source, a key the validator produces is a key the catalog has, in both
   languages (R2). The admin renders a validation issue via `ct(issue.messageKey, issue.params)`;
-  `t()` falls back to the raw key as a **visible sentinel** when a key is missing, which is the
-  localization bug this spec's change fixed for file-field errors.
+  `t()` falls back to the raw key as a visible sentinel when a key is missing, and `ct()` also emits a
+  development-only warning. This is the localization bug this spec's change fixed for file-field
+  errors.
+
+- **R8 — A client module obtains its strings through `ct`.** Client-side admin text resolves in the
+  browser, by catalog key. No `.astro` page publishes already translated strings to a client module.
+  The key is the only identifier of a string and exists in one place: the catalog. (ADR-0039)
+
+- **R9 — The i18n bridge transports data, never translated strings.** The two-script pattern remains
+  the correct way to pass page data to a client module — `window.getCmsUiLocale()` is its live
+  example and is R8's foundation. It must not carry text resolved by SSR: the `.astro` object and the
+  client type sit on opposite sides of a boundary that `tsc` cannot verify, and hand-maintained key
+  lists can silently diverge.
+
+- **R10 — An unresolved client key is noisy in development.** The raw-key fallback remains visible in
+  every build. `ct()` additionally warns in a Vite development build. It is silent in a consumer
+  production bundle: end-user consoles must not carry diagnostics they cannot act on.
+
+- **R11 — Client and SSR resolve the same UI locale.** `resolveUiLocale` chooses the locale once on
+  the server with precedence cookie → `Accept-Language` → `en`; `layout.astro` publishes that value
+  and `ct()` reads it. A visitor without a cookie and with `Accept-Language: es` sees both SSR and
+  client text in Spanish.
 
 ## Scenarios
 
@@ -72,6 +92,14 @@ because the comment version had already failed silently in production.
 - **S-2 — Drift fails the build.** Removing a key from `es.ts` fails `tsc` (TS1360); adding a key
   `es.ts` has that `en.ts` lacks fails `tsc` (TS2353). Neither can reach a green build.
 
+- **S-3 — An editor resolves Spanish in the browser.** `/cms/languages`, `/cms/users`, and
+  `/cms/import-export` load without a locale cookie under `Accept-Language: es`. Text written by
+  their client modules is Spanish, not a raw key.
+
+- **S-4 — A missing key remains visible and becomes audible in development.** A module calls `ct()`
+  with a key outside the catalog. The UI receives the raw key in every build; Vite development also
+  emits a warning naming it, while a consumer production bundle does not.
+
 ## Coverage
 
 - Compile-time: R1, R2, R5 — proven by a deliberate break during development (TS1360 for a missing
@@ -82,15 +110,22 @@ because the comment version had already failed silently in production.
   plus a guard that iterates `Object.keys(BLOCK_VALIDATION_MESSAGES)` and asserts each resolves
   non-raw in both languages. This iterates the shipped data, not source text, so it is not the
   fragile source-grep class this change retired.
+- `e2e/admin-i18n-es.spec.ts` — R8/R11/S-3: loads the three migrated editors without a locale cookie
+  under Spanish `Accept-Language`, then asserts text written by each client module. This distinguishes
+  a resolved string from a raw key, which the former bridge failure did accidentally by throwing.
+- `tests/import-export-admin-ui.test.js` — R9: the three migrated editors import `ct()` and none may
+  read a `window.__cms*I18n` global or hide an i18n bridge cast.
 
 ## Boundaries & residual
 
 - The R7 guard proves every key in the shared source is localized. It does **not** prove the
   validator never emits a key *outside* the shared source — a brand-new emit site with a mistyped key
-  would still fall to the `t()` sentinel. That residual is inherent (closing it needs a source scan
-  or exhaustive branch invocation, neither cheap nor non-fragile); the exact emit-to-source
-  correspondence was verified once at change time (19 emit sites ↔ 19 keys).
+  falls to the raw-key sentinel and its development warning. That residual is inherent (closing it
+  needs a source scan or exhaustive branch invocation, neither cheap nor non-fragile); the exact
+  emit-to-source correspondence was verified once at change time (19 emit sites ↔ 19 keys).
 - Adding a third locale changes nothing here: the new catalog declares `satisfies Record<CatalogKey,
   string>` like `es` and inherits bidirectional parity. The authority stays `en`.
 - The `t.ts` raw-key fallback is kept deliberately as the last-resort sentinel — R7 makes it
-  unreachable for known keys, and it remains the visible failure mode for any future gap.
+  unreachable for known keys, and it remains the visible failure mode for any future gap. R10 makes
+  it audible during development; it does not make `ct(key: string)` type-safe. That cross-layer type
+  question is tracked separately in #173.

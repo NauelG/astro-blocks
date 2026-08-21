@@ -31,9 +31,10 @@ and **how** untrusted values must be encoded so the panel cannot be turned into 
 - **R3 — Rendering lives in `client/**/*.ts`.** No admin `.astro` file writes a **dynamic** HTML sink;
   it may assign only a static literal. Dynamic rendering belongs in `src/routes/admin/client/`
   modules — including subdirectories such as `client/block-form/` — which Biome lints and the escape
-  guard walks recursively. The `.astro` file is a bootstrap: a `define:vars`
-  script publishing `window.__cmsXI18n`, plus a module script importing `./client/x.js`. R7 names
-  what else belongs there: the **data** as well as the rendering. R7 narrows what a page holds; it
+  guard walks recursively. The `.astro` file is a bootstrap: a module script importing
+  `./client/x.js`. It publishes no translated strings — the module resolves them through `ct`
+  (`i18n-catalogs.md` R8). A `define:vars` script remains correct for page **data** (R9). R7 names
+  what else belongs there: the data as well as the rendering. R7 narrows what a page holds; it
   changes nothing about how a held value must be encoded.
   - **Time-boxed exception:** `src/routes/admin/layout.astro` still hosts rendering logic in bundled
     `<script>` modules. It is exempt from R3 and **not** from R2 — its sinks are escaped. The
@@ -145,4 +146,5 @@ and **how** untrusted values must be encoded so the panel cannot be turned into 
   its `.astro` blind spot) · ADR-0037 (why a page ships no data, and why a guard is not expressible)
   · ADR-0036 (the same principle, first applied to the media listing).
 - Out of scope, tracked separately: input validation of `users.email` / `languages.label` (#108);
-  extraction of `layout.astro` rendering into `client/layout.ts` (#106); Biome over `.astro` (#107).
+  extraction of `layout.astro` rendering into `client/layout.ts` (#106); Biome over `.astro` (#107);
+  type-safe `ct` call sites without an isomorphic-to-admin dependency (#173).
