@@ -19,6 +19,14 @@ import { SUPPORTED_UI_LOCALES } from './types.js';
 import { catalogs } from './catalogs.js';
 import { createT } from './t.js';
 
+declare global {
+  interface ImportMeta {
+    readonly env: {
+      readonly DEV: boolean;
+    };
+  }
+}
+
 /** Cookie name — mirrors the server-side constant in resolve.ts. */
 const UI_LOCALE_COOKIE = 'cms-ui-locale' as const;
 
@@ -124,8 +132,9 @@ export function getCatalog(): Catalog {
 export function ct(key: string, params?: Record<string, string | number>): string {
   const tFn: TranslateFn = createT(getUiLocale());
   const value = tFn(key, params);
-  const viteEnv = (import.meta as unknown as { env?: { DEV?: boolean } }).env;
-  if (viteEnv?.DEV === true && value === key) {
+  // The window guard keeps raw Node imports safe; Vite folds the direct DEV check
+  // away from production bundles.
+  if (typeof window !== 'undefined' && import.meta.env.DEV && value === key) {
     console.warn(`[astro-blocks] i18n key not found: "${key}"`);
   }
   return value;

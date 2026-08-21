@@ -75,8 +75,7 @@ del cambio. Mismo catálogo y mismo locale por ambos caminos, así que su verde 
 
       ```ts
       const value = tFn(key, params);
-      const viteEnv = (import.meta as unknown as { env?: { DEV?: boolean } }).env;
-      if (viteEnv?.DEV === true && value === key) {
+      if (typeof window !== 'undefined' && import.meta.env.DEV && value === key) {
         console.warn(`[astro-blocks] i18n key not found: "${key}"`);
       }
       return value;
@@ -84,12 +83,16 @@ del cambio. Mismo catálogo y mismo locale por ambos caminos, así que su verde 
 
       La detección es `value === key`: observa el resultado del fallback de `t.ts`, no duplica su
       lógica. **Corrección del snippet inicial:** `import.meta.env.DEV` directo lanza en los node:test,
-      porque ahí `import.meta.env` es `undefined`; el guard opcional es el patrón existente en
-      `auth-core.ts`. Verificado en Vite dev con Chromium: una clave inexistente devuelve la clave y
-      emite exactamente el aviso. Tras `npm run build`, la cadena del aviso no aparece en `dist/`.
+      porque ahí `import.meta.env` es `undefined`; `typeof window !== 'undefined'` corta esa lectura
+      fuera de Vite y conserva el `DEV` directo que Vite puede eliminar en producción. Verificado en
+      Vite dev con Chromium: una clave inexistente devuelve la clave y emite exactamente el aviso.
+      Tras `npm run build:playground`, la cadena del aviso no aparece en
+      `playgrounds/basic/dist/`: ese es el bundle Vite de producción. El `dist/` raíz es el espejo
+      TypeScript publicado por el paquete, **no** un bundle Vite, y conserva `import.meta.env.DEV`
+      deliberadamente para que el consumidor lo transforme.
 
-      **Verificación:** `npm test` · `npm run typecheck`. Y tras `npm run build`, comprobar que el
-      `console.warn` no queda vivo en el `dist/` de producción.
+      **Verificación:** `npm test` · `npm run typecheck`. Y tras `npm run build:playground`, comprobar
+      que el `console.warn` no queda vivo en `playgrounds/basic/dist/`.
 
 ---
 

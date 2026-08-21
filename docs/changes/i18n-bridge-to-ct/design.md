@@ -179,7 +179,7 @@ Lo que se añade es voz, y solo en desarrollo:
 export function ct(key: string, params?: Record<string, string | number>): string {
   const tFn: TranslateFn = createT(getUiLocale());
   const value = tFn(key, params);
-  if (import.meta.env.DEV && value === key) {
+  if (typeof window !== 'undefined' && import.meta.env.DEV && value === key) {
     console.warn(`[astro-blocks] i18n key not found: "${key}"`);
   }
   return value;
@@ -190,6 +190,14 @@ export function ct(key: string, params?: Record<string, string | number>): strin
 `t.ts` produce al agotar la cadena de fallback, así que no duplica la lógica de resolución: observa su
 resultado. Un caso patológico —una clave cuyo valor traducido sea idéntico a la clave— daría un falso
 positivo en consola y ningún daño.
+
+**El guard de `window` es load-bearing.** `tests/i18n-client-editors.test.js` importa el `dist/`
+crudo con Node, donde `import.meta.env` es `undefined`; el primer operando corta esa lectura fuera de
+Vite. El segundo queda como una expresión Vite directa, por lo que el build de producción la repliega
+y elimina el aviso entero del **bundle del consumidor**. `dist/` es el espejo TypeScript publicado
+por el paquete, no un bundle Vite: conserva `import.meta.env.DEV` para que el consumidor lo
+transforme. El acceso seguro `import.meta.env?.DEV` parece equivalente, pero impide ese dead-code
+elimination y deja el aviso en el bundle del consumidor.
 
 **Se descartó el sentinela visible en dev** (renderizar `⟦users.deleteLabel⟧`). El arnés e2e levanta
 un **build de producción** (`playwright.config.ts:41`: `dist/server/entry.mjs`), donde ese sentinela no
