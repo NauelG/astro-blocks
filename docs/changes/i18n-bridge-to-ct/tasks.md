@@ -200,23 +200,24 @@ El último a propósito: el objeto más grande, el desajuste conocido y los test
 
 `docs(context): client strings come from ct, not the i18n bridge (#119)`
 
-- [ ] **T6.1 — `docs/CONTEXT.md` §3, línea 127.** Reescribir la entrada **i18n bridge**: describe un
+- [x] **T6.1 — `docs/CONTEXT.md` §3, línea 127.** Reescribir la entrada **i18n bridge**: describe un
       canal de **datos** (`window.getCmsUiLocale` como ejemplo vivo), no de cadenas traducidas. Quitar
       la referencia a `import-export.astro`, que deja de ser ejemplo del patrón.
 
-- [ ] **T6.2 — `docs/CONTEXT.md` §3: entrada nueva para `ct`.** El helper de cliente: resolución por
+- [x] **T6.2 — `docs/CONTEXT.md` §3: entrada nueva para `ct`.** El helper de cliente: resolución por
       clave en el navegador, locale desde el puente de locale, sentinela + warn en dev. Es el término
       que faltaba y la causa raíz de #119. Referenciar ADR-0039.
 
-- [ ] **T6.3 — `docs/CONTEXT.md` §4, convención de escapado.** Cambiar *"Put the logic in a client
+- [x] **T6.3 — `docs/CONTEXT.md` §4, convención de escapado.** Cambiar *"Put the logic in a client
       module (wired via the i18n bridge)"* — esa frase dirige al mecanismo equivocado. El requisito
       real (renderizado en `client/*.ts`, escapado en el sink) no cambia.
 
-- [ ] **T6.4 — `docs/CONTEXT.md` §7, *Admin UI runtime*.** Las tres viñetas de `define:vars` siguen
+- [x] **T6.4 — `docs/CONTEXT.md` §7, *Admin UI runtime*.** Las tres viñetas de `define:vars` siguen
       siendo ciertas como trampas del mecanismo, pero la última remata con *"feed it via the i18n
       bridge"*: reapuntarla a `ct`.
 
-- [ ] **T6.5 — Abrir la issue de seguimiento** para estrechar `ct(key: string)` a `CatalogKey` en los
+- [x] **T6.5 — Abrir la issue de seguimiento** [#173](https://github.com/NauelG/astro-blocks/issues/173)
+      para estrechar `ct(key: string)` a `CatalogKey` en los
       call sites. Cuerpo con los hechos ya establecidos: `messageKey: string` en
       `src/utils/block-validation.ts:227` y `src/utils/blocks.ts:97`, consumido por
       `page-editor.ts:549`/`:940` y por `localizedJsonError` en `global-blocks.ts:153` y

@@ -124,7 +124,8 @@ astro.config  │                        register the `astro-blocks-runtime` Vit
 | **Admin page shell** | An admin `.astro` is a **shell**: markup, plus `loadSite()` branding, plus a script that boots a `client/*.ts` module. It server-renders **no content data** — not rows, not the counts derived from them, not an empty state whose visibility says whether the collection is populated. The data reaches the browser through `/cms/api/*`, which authenticates. Enforced by `tests/admin-ssr-no-data-guard.test.js` (lexical) and `e2e/admin-ssr-no-data.spec.ts` (behavioural). (ADR-0037, spec R7) |
 | **HTML sink** | A DOM property/method that parses a string as markup: `innerHTML`, `outerHTML`, `insertAdjacentHTML`. Any API-sourced value reaching a sink must be escaped by context first. (ADR-0022, #99) |
 | **Canonical escaper** | The single `escapeHtml` / `escapeAttr` pair in `utils/html-escape.ts` — `escapeHtml` for text content, `escapeAttr` for attribute values. The only HTML escaper allowed anywhere. (ADR-0011, ADR-0022) |
-| **i18n bridge** | The two-script pattern that feeds server-rendered i18n strings to a bundled client module: a `<script define:vars={{ xI18n }}>` that only does `window.__cmsXI18n = xI18n`, plus a `<script>` that imports `./client/x.js`. `define:vars` forces `is:inline`, so the bridge is how an admin page hands data to real (linted, escaper-reachable) module code. See `import-export.astro`. |
+| **`ct`** | The client-side i18n helper (`routes/admin/i18n/client.ts`). A client module resolves its own strings by catalog key; it reads the SSR-resolved UI locale from `window.getCmsUiLocale()` and uses the same catalogs as SSR. A missing key remains visible as the raw key and logs a development-only warning. **Client strings come from `ct`, never from an i18n bridge.** (ADR-0039) |
+| **i18n bridge** | The two-script pattern used to hand **data** from an admin `.astro` page to a bundled client module. A `define:vars` script forces `is:inline`; use an explicit `window.__cms*` attach when the module needs page data such as the SSR-resolved UI locale. Never use this channel for already translated strings: the module gets those from [`ct`](#ct). (ADR-0022, ADR-0039) |
 
 ---
 
@@ -163,8 +164,8 @@ astro.config  │                        register the `astro-blocks-runtime` Vit
 - **Admin HTML rendering lives in `client/*.ts`, and every API-sourced value is escaped at the sink.**
   Never build an HTML sink from dynamic data inside a `.astro` file — `define:vars` forces `is:inline`, so
   the code cannot reach the [canonical escaper] and Biome cannot lint it (`biome.json` excludes `**/*.astro`).
-  Put the logic in a client module (wired via the i18n bridge) and pass every API value through `escapeHtml`
-  (text) / `escapeAttr` (attribute) before it reaches `innerHTML`. `tests/html-escape-guard.test.js` enforces
+  Put the logic in a client module, resolve its strings with [`ct`](#ct), and pass every API value through
+  `escapeHtml` (text) / `escapeAttr` (attribute) before it reaches `innerHTML`. `tests/html-escape-guard.test.js` enforces
   this repo-wide; `layout.astro` is a time-boxed exception (its sinks are escaped but not yet moved — #106).
   (ADR-0022, #99)
 
@@ -250,7 +251,8 @@ create the component with its `schema` and add it to the `blocks` array. (See AD
   an explicit `window.__cms*` attach. (obs #934)
 - **Never render HTML from a `define:vars`/`is:inline` script** — beyond being un-transpiled and un-lintable, it
   cannot import the [canonical escaper], so any `innerHTML` built there is an unescaped XSS sink. This is exactly
-  how #99 happened. Move rendering to a `client/*.ts` module and feed it via the [i18n bridge]. (ADR-0022)
+  how #99 happened. Move rendering to a `client/*.ts` module; pass page **data** only through an [i18n bridge] and
+  resolve client strings with [`ct`](#ct). (ADR-0022, ADR-0039)
 - **A server-side auth guard on an admin page is NOT expressible** — and this is the trap that makes "just add a guard to `layout.astro`" look right. `getAuth` reads its token from the `Authorization` / `x-cms-token` **header**, and the client keeps it in `sessionStorage`. Neither travels with a page **navigation** (a browser sends cookies, and the only one is `cms-ui-locale`), so on a page request the server has **no credential to check**. That is why the panel's auth is client-side, and why the rule is *ship no data* rather than *gate the page*. Making a guard possible means issuing a session cookie, which would forfeit the header-only property the API's CSRF posture rests on — a decision with its own cycle. (ADR-0037)
 - **Variant files exist on disk before the registry knows about them** — `generateAndPersistVariants` writes each file **without holding the media lock** and calls `markMediaVariantsReady` only at the end. So between the first encode and that call the filesystem holds real files `media.json` does not list. Anything that deletes by "not in the registry" is therefore deleting on a **false premise**: absence is not proof of orphanhood. The orphan scan learned this the hard way — it ate the variants of the upload that triggered it, leaving entries marked `ready` whose srcset 404s. Proof now comes from age (`ORPHAN_MIN_AGE_MS`). (ADR-0038, #164)
 - **Block-form fields do not re-render on value change** — react to changes with **in-place DOM mutation**, not a
