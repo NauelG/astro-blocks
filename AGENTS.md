@@ -155,6 +155,36 @@ Vocabulario canónico sin mapeo: `needs-triage`, `needs-info`, `ready-for-agent`
 Single-context; el `CONTEXT.md` vive en `docs/CONTEXT.md` (no en la raíz) y los ADRs en
 `docs/adr/`. Ver `docs/agents/domain.md`.
 
+### Skills al servicio del ciclo
+
+**El ciclo de este documento manda; las skills lo sirven.** Ninguna skill redefine las fases,
+los GATEs ni dónde viven los artefactos. Cada skill del set curado sirve a una fase o a una
+política concreta:
+
+| Fase / política | Skill | Qué aporta |
+| --- | --- | --- |
+| 1. Grilling | `grilling`, `grill-with-docs` | Interrogatorio hasta fijar alcance; la variante *with-docs* deja ADR y glosario por el camino. |
+| 4. Implement | `tdd` | Disciplina red-green-refactor que la fase ya exige. |
+| 5. Review | `code-review` | Dos ejes en paralelo: **Standards** = `docs/CONTEXT.md` + `docs/DESIGN.md`; **Spec** = el `spec-delta.md` del cambio. |
+| Enrutado de artefactos | `domain-modeling` | Escribe `docs/CONTEXT.md` y los ADRs con el formato de este repo. |
+| Triage | `triage` | Consume `docs/agents/issue-tracker.md` y `docs/agents/triage-labels.md`. |
+| Documentación de agentes | `writing-for-agents` | Estilo obligatorio al editar este fichero o cualquier skill. |
+| Post-ciclo | `retro` | Propone mejoras del entorno del agente, no del producto. |
+
+**Skills deliberadamente excluidas.** `to-spec` e `implement-spec` traen un ciclo propio —
+spec publicada como issue, tickets en grafo `blocked_by`, subagentes concurrentes en worktrees
+y sin GATEs. Es incompatible con este ciclo en tres ejes: dónde vive la spec (`docs/changes/`,
+no un issue), quién manda (GATE humano, no autonomía) y cuál es la unidad de trabajo (vertical
+slice con TDD, no ticket del grafo). No se vendorizan y no se usan.
+
+**Cómo se instalan.** `.agents/skills/` y `.claude/skills/` están gitignoreados: solo se trackea
+el set curado, con el contenido real en `.agents/skills/<name>/` y un symlink en
+`.claude/skills/<name>/` para que Claude Code lo vea. Las skills vendorizadas se copian verbatim
+— conservan su frontmatter y licencia upstream y **no** llevan cabecera BSL. Para promover una
+skill local al set curado: `git add -f .agents/skills/<name> .claude/skills/<name>`, más su
+comando en `.opencode/commands/<name>.md`. `skills-lock.json` es un fichero generado que registra
+la procedencia; no se edita a mano.
+
 ---
 
 ## Punteros
