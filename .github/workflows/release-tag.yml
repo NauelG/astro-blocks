@@ -56,6 +56,19 @@ jobs:
             exit 1
           fi
 
+          # The README version badge is kept in sync by scripts/sync-readme-version.mjs,
+          # which only runs off npm's `version` lifecycle hook — so it fires when the
+          # release is cut with `npm version`, and never when someone edits the version
+          # in package.json by hand. Without this check that omission is invisible: the
+          # tag validates, npm publishes, and the README advertises the previous release.
+          # A doctrine written in prose has no failure mode; this one does.
+          README_VERSION="$(grep -o 'version-[0-9][0-9.]*\(-alpha\.[0-9]*\)\?-blue' README.md || true)"
+          if [[ "$README_VERSION" != "version-${VERSION}-blue" ]]; then
+            echo "README version badge ('${README_VERSION:-not found}') does not match the release (expected 'version-${VERSION}-blue')."
+            echo "Run 'node scripts/sync-readme-version.mjs' and amend the release commit."
+            exit 1
+          fi
+
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           if [[ "$VERSION" == *"-alpha."* ]]; then
             echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
