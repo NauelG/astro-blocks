@@ -94,10 +94,11 @@ Todos los commits siguen [Conventional Commits](https://www.conventionalcommits.
 - **Formato de la primera línea:** `<tipo>[ámbito opcional]: <descripción>`.
 - **Tipos:** `feat` (funcionalidad), `fix` (bug), `docs` (solo documentación), `chore` (mantenimiento/tooling),
   `refactor` (sin cambio de comportamiento), `style` (formato), `test` (tests).
-- **`Reviewed-by`:** todo commit incluye en el footer `Reviewed-by: <nombre> <email>` con los datos del
-  usuario git que ejecuta (`git config user.name`, `git config user.email`).
-- **Sin etiquetas del agente:** no añadir `Co-authored-by` de bots, `Generated-by`, `Agent:` ni similares.
-  El historial refleja solo autores humanos + el `Reviewed-by`.
+- **Sin footers de atribución:** ningún commit lleva `Reviewed-by`, `Co-authored-by`, `Generated-by`,
+  `Agent:` ni etiqueta equivalente. El autor git ya identifica a quien firma; cualquier footer añadido
+  o bien repite ese dato o bien introduce una traza de herramienta. El historial es humano y punto.
+  (Los `tasks.md` archivados bajo `docs/changes/archive/` piden un footer `Reviewed-by`: son registro
+  de la política vigente entonces, no se reescriben.)
 - **Antes del commit:** si hay cambios en el paquete sin versión cerrada, primero bump de `package.json` +
   entrada en `CHANGELOG.md` (ver *Versionado*), y después el commit.
 
