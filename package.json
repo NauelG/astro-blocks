@@ -61,6 +61,8 @@
     "build": "node scripts/build.mjs",
     "build:watch": "node scripts/build.mjs --watch",
     "features:validate": "node scripts/validate-features.mjs",
+    "adr:index": "node scripts/adr-index.mjs --write",
+    "adr:check": "node scripts/adr-index.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",

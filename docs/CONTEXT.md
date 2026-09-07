@@ -12,8 +12,8 @@ Each item cites the source observation ID(s) it is based on.
 Working context for humans and agents: the mental model of the system, the domain
 vocabulary, the conventions we hold ourselves to, and the known traps ("gotchas").
 
-Architectural **decisions** (the "why we chose X") live in `DECISIONS.md` (ADR-001…006)
-and `adr/` (ADR-0007…0020, draft). The panel **design system** lives in `DESIGN.md`. The
+Architectural **decisions** (the "why we chose X") live in `adr/`, one file per ADR;
+`DECISIONS.md` is their generated index and holds no decision text. The panel **design system** lives in `DESIGN.md`. The
 working **cycle and policies** live in `AGENTS.md`. This file is the **operational** companion:
 what things are called, how we do things, and where the sharp edges are.
 
@@ -143,7 +143,7 @@ astro.config  │                        register the `astro-blocks-runtime` Vit
 - **Skills location**: project skills are canonical under `.agents/skills/{name}/`; `.claude/skills/{name}`
   are **symlinks**. Create new skills under `.agents/` and add the symlink — never author directly under
   `.claude/skills/`. (obs #59, #63)
-- **Every new feature ships a `playgrounds/basic/` sample** in the same change (also ADR-006). (obs #129 — already in DECISIONS.md)
+- **Every new feature ships a `playgrounds/basic/` sample** in the same change (ADR-0006). (obs #129)
 - **Admin list pages follow one structural pattern** (`.cms-stack` → intro → optional toolbar →
   `.cms-card--no-padding` with the table *and* an inset empty-state toggled by `cms-hidden`; edit = left-column
   Pencil icon button; `<DetailModal>` not raw `<dialog>`). Diff any new admin list page against `menus.astro`. (obs #140)
@@ -157,7 +157,7 @@ astro.config  │                        register the `astro-blocks-runtime` Vit
 - **Surface upload/admin failures to the user** — never swallow them silently. (obs #1912)
 - **Release checklist bundle**: bump `package.json` (+lock) + `CHANGELOG.md` (`### Title` sub-heading) +
   `src/meta/features.json` + the **README version badge** (`README.md`, shields.io). Missing any breaks the release
-  narrative. (obs #146; release automation itself is ADR-003)
+  narrative. (obs #146; release automation itself is ADR-0003)
 - **`CHANGELOG.md` has no `[Unreleased]` section** — it is written at the release-cut commit, organized strictly by
   released version. CI-only/infra changes get no changelog entry; they fold in at the next cut. (obs #1935)
 - **CI gate = tests AND `npm run check`** (`biome ci .`), which is a **separate** job from `npm test`. See ADR-0013.
@@ -327,7 +327,8 @@ create the component with its `schema` and add it to the `blocks` array. (See AD
 
 - Working cycle and cross-cutting policies: `AGENTS.md`.
 - Panel design system: `DESIGN.md`.
-- Architectural decisions: `DECISIONS.md` (ADR-001…006), `adr/` (ADR-0007…0020, draft).
+- Architectural decisions: `adr/NNNN-*.md` (the bodies), indexed by `DECISIONS.md`
+  (generated — `npm run adr:index`).
 - Provenance: this file and each `adr/NNNN-*.md` cite their source engram observation IDs. Open
   follow-ups from the triage are tracked in issues #85 (in-code ADR-N references) and #86 (living-spec
   candidates + media backlog).

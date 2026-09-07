@@ -7,7 +7,7 @@ Licensed under the Business Source License 1.1
 
 - **Status:** Accepted
 - **Date:** 2026-07-15
-- **Deciders:** Nauel Gómez
+- **Decisores:** Nauel Gómez
 - **Source:** issue [#114](https://github.com/NauelG/astro-blocks/issues/114) — the admin UI and
   README still say "images" although media has handled files, video and audio since 3.6.0 (#111).
 

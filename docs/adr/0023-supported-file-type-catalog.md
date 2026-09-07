@@ -7,7 +7,7 @@ Licensed under the Business Source License 1.1
 
 - **Status:** Accepted — supersedes ADR-0018
 - **Date:** 2026-07-14
-- **Deciders:** Nauel Gómez
+- **Decisores:** Nauel Gómez
 - **Source:** user incident against `@astroblocks/astro-blocks@3.4.0` — `type: 'file'` returns 415 for
   `video/mp4` despite it being listed in `allowedFileTypes`. Reproduced at 3.5.4.
 

@@ -5,159 +5,73 @@ Licensed under the Business Source License 1.1
 
 # Architecture Decision Records
 
-This file is the **public discoverable decision log** for `@astroblocks/astro-blocks`.
-It records significant architectural and product decisions so contributors understand
-the "why" behind project conventions.
+The **public, discoverable index** of every architectural decision in
+`@astroblocks/astro-blocks`, so a contributor can see the "why" behind the project's conventions
+without reading forty files.
 
-`AGENTS.md` and `AGENTS.consumer.md` remain the working agent context files.
-This document is the human-readable canonical record.
+This document holds **no decision text**. Every ADR body lives in `docs/adr/NNNN-titulo.md`, in
+Nygard format, and is **immutable**: if a decision changes, a new ADR supersedes the old one and
+the old one's `Status` records it. `AGENTS.md` § *Enrutado de artefactos* routes every decision
+there; this file only indexes them.
 
----
-
-## Summary table
-
-| #       | Topic                                  | Decision                                              | Status   |
-| ------- | -------------------------------------- | ----------------------------------------------------- | -------- |
-| ADR-001 | License                                | BUSL-1.1 with 2029-01-01 change date to MIT           | Accepted |
-| ADR-002 | Test runner                            | Node built-in `node:test` — no external runner        | Accepted |
-| ADR-003 | Release automation                     | Tag-driven CI with npm provenance + dist-tag policy   | Accepted |
-| ADR-004 | Admin UI language                      | English default, i18n with en/es catalogs (SSR-first) | Accepted |
-| ADR-005 | Consumer AI context file               | `AGENTS.consumer.md` ships in tarball; mandatory sync | Accepted |
-| ADR-006 | Playground sample per feature          | Every new feature ships a demo under `playgrounds/`   | Accepted |
+The table below is **generated**. Run `npm run adr:index` after adding an ADR, or let
+`npm run adr:check` fail the build — CI runs it on every push and pull request.
 
 ---
 
-## ADR-001 — BUSL-1.1 license with 2029 change date to MIT
+## Index
 
-**Context:** The project needs a license that protects the author during active
-development while committing to open-source availability in the future. Pure
-open-source (MIT) would allow commercial forks from day one; a proprietary
-license would prevent community contribution.
-
-**Decision:** Business Source License 1.1 (BUSL-1.1), with a Change Date of
-`2029-01-01`. On that date the license automatically converts to MIT.
-
-**Rationale:** BUSL-1.1 allows free use, modification, and distribution for
-non-production and internal purposes. It restricts competing production SaaS
-use until the change date. The automatic MIT conversion gives the community a
-clear, time-bound commitment. The LICENSE.md and NOTICE.md files, the
-`package.json#license` field, and the copyright header on every source file all
-carry this declaration.
-
-**Status:** Accepted — see `LICENSE.md`, `NOTICE.md`.
-
----
-
-## ADR-002 — Node built-in test runner (`node:test`)
-
-**Context:** The project needs a test runner for unit and integration tests. The
-JavaScript ecosystem has many options (Jest, Vitest, Mocha, etc.), each adding
-a dev dependency and an opinion on module resolution.
-
-**Decision:** Use Node.js's built-in `node:test` module with `node:assert/strict`.
-No external test runner is added to `devDependencies`.
-
-**Rationale:** Node 18+ ships `node:test` and `node:assert` in the standard
-library. Using them eliminates a dependency, ensures tests always pass through
-the same Node version as the integration, and simplifies the CI matrix. The
-`npm test` command is `npm run build && node --test tests/*.test.js` — no
-configuration file needed. Coverage is collected separately via `c8`.
-
-**Status:** Accepted — see `CONTRIBUTING.md`, `package.json#scripts.test`.
-
----
-
-## ADR-003 — Tag-driven release automation with npm provenance and dist-tag policy
-
-**Context:** npm packages require a reliable, auditable release process. Manual
-`npm publish` is error-prone; the changelog extraction, tag validation, and
-provenance attestation need to be automated.
-
-**Decision:** Releases are triggered by pushing a Git tag matching
-`vX.Y.Z` (stable) or `vX.Y.Z-alpha.N` (pre-release). The `release-tag.yml`
-GitHub Actions workflow validates the tag format, checks it matches
-`package.json#version`, extracts the changelog entry via
-`scripts/extract-changelog-entry.mjs`, runs `npm test`, and publishes with
-`--provenance`. Stable releases go to the `latest` dist-tag only; pre-releases
-go to both `latest` and `alpha`.
-
-**Rationale:** Tag-driven automation prevents version mismatches and ensures
-every published artifact has a corresponding GitHub Release with the changelog
-body. Provenance attestation links the npm package to the exact source commit.
-The `### Title` sub-heading requirement in CHANGELOG entries is enforced by the
-extractor script — missing it aborts the release.
-
-**Status:** Accepted — see `.github/workflows/release-tag.yml`,
-`scripts/extract-changelog-entry.mjs`, `.claude/skills/npm-release/SKILL.md`.
+<!-- adr-index:start -->
+| # | Decision | Status | Date |
+| --- | --- | --- | --- |
+| [ADR-0001](./adr/0001-busl-license-with-2029-change-date.md) | BUSL-1.1 license with 2029 change date to MIT | Accepted | 2026-06-29 |
+| [ADR-0002](./adr/0002-node-builtin-test-runner.md) | Node built-in test runner (`node:test`) | Accepted | 2026-06-29 |
+| [ADR-0003](./adr/0003-tag-driven-release-automation.md) | Tag-driven release automation with npm provenance and dist-tag policy | Accepted | 2026-06-29 |
+| [ADR-0004](./adr/0004-admin-ui-english-default-i18n.md) | Admin UI default language English; i18n with en/es catalogs (SSR-first) | Accepted | 2026-06-29 |
+| [ADR-0005](./adr/0005-consumer-agents-md-ships-in-tarball.md) | `AGENTS.consumer.md` ships in the npm tarball; mandatory sync | Accepted | 2026-06-29 |
+| [ADR-0006](./adr/0006-playground-sample-per-feature.md) | Playground sample required per feature | Accepted | 2026-06-29 |
+| [ADR-0007](./adr/0007-token-in-header-auth-no-csrf.md) | Token-in-header JWT auth model (no CSRF surface) | Accepted | 2026-06-30 |
+| [ADR-0008](./adr/0008-json-file-store-atomic-write-mutex.md) | JSON file store: atomic write + per-file mutex | Accepted | 2026-06-13 |
+| [ADR-0009](./adr/0009-runtime-registry-resolution.md) | Runtime registry resolution for injected & precompiled routes | Accepted | 2026-04-21 |
+| [ADR-0010](./adr/0010-ssr-adapter-config-guard.md) | SSR adapter required via config-time guard, not peerDependency | Accepted | 2026-07-06 |
+| [ADR-0011](./adr/0011-canonical-html-escaper.md) | Single canonical context-aware HTML escaper | Accepted | 2026-07-07 |
+| [ADR-0012](./adr/0012-handlers-decomposition-nodenext-shim.md) | Decompose api/handlers.ts behind a NodeNext re-export shim | Accepted | 2026-07-07 |
+| [ADR-0013](./adr/0013-biome-ci-gate.md) | Adopt Biome as a CI gate separate from tests | Accepted | 2026-07-07 |
+| [ADR-0014](./adr/0014-coverage-c8.md) | Test coverage via c8; browser-only controllers excluded | Accepted | 2026-06-15 |
+| [ADR-0015](./adr/0015-bootstrap-import-full-restore.md) | Bootstrap import = full restore, gated only by zero-users | Accepted | 2026-06-30 |
+| [ADR-0016](./adr/0016-image-field-value-model.md) | Image field value is a structured object (alt, dimensions, caption) | Accepted | 2026-06-13 |
+| [ADR-0017](./adr/0017-responsive-images-variant-generation.md) | Responsive images via sharp on-upload variant generation | Accepted | 2026-06-14 |
+| [ADR-0018](./adr/0018-non-image-file-uploads.md) | Non-image file uploads: 'file' prop type + server-side denylist | Superseded by [ADR-0023](./0023-supported-file-type-catalog.md) | 2026-06-29 |
+| [ADR-0019](./adr/0019-media-lifecycle-delete-replace.md) | Media lifecycle: warn-and-allow delete, same-MIME keep-URL replace | Accepted | 2026-06-14 |
+| [ADR-0020](./adr/0020-media-server-side-search-pagination.md) | Media library: server-side search + pagination | Accepted | 2026-06-14 |
+| [ADR-0021](./adr/0021-src-as-publish-root.md) | `src/` is the publish root: `dist/` mirrors `src/` | Accepted | 2026-07-14 |
+| [ADR-0022](./adr/0022-admin-escaping-enforced-by-source-guard.md) | Admin HTML escaping is enforced by a source guard, not by the linter | Accepted | 2026-07-14 |
+| [ADR-0023](./adr/0023-supported-file-type-catalog.md) | The supported-file-type catalog is the single source of truth | Accepted | 2026-07-14 |
+| [ADR-0024](./adr/0024-streaming-ingest-and-range-serving.md) | Category-branched ingest and Range-capable, streamed serving | Accepted | 2026-07-14 |
+| [ADR-0025](./adr/0025-schema-map-hard-dependency.md) | The schema map is a hard dependency: no degraded reads | Accepted | 2026-07-14 |
+| [ADR-0026](./adr/0026-media-user-facing-vocabulary.md) | User-facing media vocabulary: media, asset, file, image | Accepted | 2026-07-15 |
+| [ADR-0027](./adr/0027-stateful-session-revocation.md) | Stateful session revocation via `tokenVersion` | Accepted | 2026-07-15 |
+| [ADR-0028](./adr/0028-restore-is-a-session-revocation-event.md) | Restore is a session-revocation event | Accepted | 2026-07-19 |
+| [ADR-0029](./adr/0029-integration-version-contract.md) | The integration's version does not track Astro's | Accepted | 2026-07-19 |
+| [ADR-0030](./adr/0030-single-mutation-seam-for-users.md) | One mutation seam for users.json, with no way to skip the write | Accepted | 2026-07-19 |
+| [ADR-0031](./adr/0031-floating-panels-stay-in-the-dom.md) | Los paneles flotantes del admin no se sacan del DOM | Accepted | 2026-07-20 |
+| [ADR-0032](./adr/0032-no-usamos-la-ip-como-clave-de-throttling.md) | La IP del cliente no es clave de throttling; el login se frena por email y con retraso, no con bloqueo | Accepted | 2026-07-20 |
+| [ADR-0033](./adr/0033-el-modulo-de-bake-es-isomorfo-y-el-fallo-no-es-un-response.md) | El módulo del bake es isomorfo; el fallo devuelve un union, no un Response | Accepted | 2026-07-20 |
+| [ADR-0034](./adr/0034-la-parity-i18n-y-los-mensajes-de-validacion-son-un-solo-origen-enforced-por-el-compilador.md) | La parity i18n y los mensajes de validación son un solo origen, enforced por el compilador | Accepted | 2026-07-21 |
+| [ADR-0035](./adr/0035-createlisteditor-es-un-modulo-profundo-con-escaping-estructural-sobre-un-sink-visible.md) | createListEditor es un módulo profundo con escaping estructural sobre un sink visible | Accepted | 2026-07-21 |
+| [ADR-0036](./adr/0036-el-handler-es-la-unica-implementacion-del-listado-de-media.md) | El handler es la única implementación del listado de media; el consumidor pide, no filtra | Accepted | 2026-07-27 |
+| [ADR-0037](./adr/0037-el-panel-no-renderiza-datos-en-servidor-porque-no-puede-autenticar-la-navegacion.md) | El panel no renderiza datos en servidor, porque no puede autenticar la navegación | Accepted | 2026-07-28 |
+| [ADR-0038](./adr/0038-el-escaneo-solo-borra-lo-que-puede-demostrar-que-es-huerfano.md) | El escaneo solo borra lo que puede demostrar que es huérfano, y la prueba es la antigüedad | Accepted | 2026-07-29 |
+| [ADR-0039](./adr/0039-las-cadenas-de-cliente-del-panel-vienen-de-ct.md) | Las cadenas de cliente del panel vienen de `ct`, no de un puente i18n | Accepted | 2026-08-20 |
+| [ADR-0040](./adr/0040-el-orden-del-backlog-es-una-cadena-de-blocked-by-no-las-etiquetas-p0-p3.md) | El orden del backlog es una cadena de `blocked_by`, no las etiquetas `P0`–`P3` | Accepted | 2026-09-07 |
+<!-- adr-index:end -->
 
 ---
 
-## ADR-004 — Admin UI default language English; i18n with en/es catalogs (SSR-first)
+## Adding a decision
 
-**Context:** The admin panel was initially built in Spanish (the maintainer's
-language). Issue #1 raised by the community requested English as the default for
-international contributors and consumers.
-
-**Decision:** The admin UI defaults to English. A full i18n system was
-introduced in v3.1.0 with two catalogs (`src/routes/admin/i18n/en.ts` and
-`src/routes/admin/i18n/es.ts`). Language resolution is SSR-first: the server
-resolves the UI locale on every request using the resolution order
-`cms-ui-locale` cookie → `Accept-Language` header → English fallback. A
-language switcher in the profile dropdown writes the `cms-ui-locale` cookie and
-reloads the page — no client-side detection or flash.
-
-**Rationale:** English is the lingua franca for OSS tooling. SSR resolution
-ensures the first paint is always in the correct language (WCAG 3.1.1 — `<html
-lang>` attribute). The cookie/header approach requires no URL changes and is
-transparent to the consumer's site routing. Both catalogs are TypeScript files
-with strict parity enforced at compile time (missing or extra keys are type
-errors). A hardcoded-string guard test (`tests/i18n-no-spanish-leak.test.js`)
-prevents Spanish literals from leaking into shared files.
-
-**Status:** Accepted — see `src/routes/admin/i18n/`, `CHANGELOG.md` v3.1.0.
-
----
-
-## ADR-005 — `AGENTS.consumer.md` ships in the npm tarball; mandatory sync
-
-**Context:** AI assistants (Cursor, Claude, Copilot, etc.) increasingly act as
-first-line documentation for npm packages. Consumers using AI tooling need
-accurate, structured context about the integration's public API.
-
-**Decision:** `AGENTS.consumer.md` is a consumer-facing AI context file listed
-in `package.json#files` so it ships inside the npm tarball at
-`node_modules/@astroblocks/astro-blocks/AGENTS.consumer.md`. Consumers can
-initialize it in their project AI context via `npx astro-blocks init-ai`.
-Updating `AGENTS.consumer.md` in the same PR as any public API change is a
-mandatory checklist item. Compliance is enforced by
-`tests/consumer-agents-md.test.js`, which fails if any `package.json#exports`
-key is undocumented.
-
-**Rationale:** Shipping the context file in the tarball means it is always
-version-pinned to the installed release — no risk of consumer AI context drifting
-out of sync with the actual API. The structural test provides a compile-time
-guard against forgetting to update it.
-
-**Status:** Accepted — see `AGENTS.consumer.md`, `CONTRIBUTING.md`,
-`tests/consumer-agents-md.test.js`.
-
----
-
-## ADR-006 — Playground sample required per feature
-
-**Context:** The integration is complex to set up and test in isolation. New
-features need a minimal but real working demonstration to validate integration
-correctness and to give contributors a runnable reference.
-
-**Decision:** Every new feature must ship a minimal working demo under
-`playgrounds/` in the same change. The `playgrounds/basic/` Astro project
-serves as the reference consumer. The playground is excluded from the npm tarball
-(`package.json#files` lists only `dist` and `AGENTS.consumer.md`).
-
-**Rationale:** A playground demo forces the author to validate the feature
-end-to-end in a real consumer project before merging. It also serves as a
-regression baseline: subsequent changes that break the playground are caught
-before they reach consumers. The `npm run prepare:playground` and
-`npm run dev:playground` scripts make this workflow low-friction.
-
-**Status:** Accepted — see `playgrounds/basic/`, `package.json#scripts`.
+1. Write `docs/adr/NNNN-titulo.md` with the next free number, using the header and section format
+   documented in `AGENTS.md` § *Enrutado de artefactos*.
+2. Run `npm run adr:index` to refresh the table above.
+3. Never edit an accepted ADR to change its decision. Write a new one, and set the old one's
+   `Status` to `Superseded by [ADR-NNNN](./NNNN-....md)`.

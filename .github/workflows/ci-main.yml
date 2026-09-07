@@ -42,6 +42,13 @@ jobs:
       - name: Validate features catalog
         run: npm run features:validate
 
+      # docs/DECISIONS.md calls itself the public decision log, and its table had
+      # stopped at ADR-006 while docs/adr/ grew to 0040 — 34 decisions nobody could
+      # discover from the document meant to index them. A hand-kept index has no
+      # failure mode; this gate is the one it was missing.
+      - name: ADR index in sync
+        run: npm run adr:check
+
       - name: Typecheck
         run: npm run typecheck
 

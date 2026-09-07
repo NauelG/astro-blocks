@@ -7,7 +7,7 @@ Licensed under the Business Source License 1.1
 
 - **Status:** Accepted
 - **Date:** 2026-07-14
-- **Deciders:** Nauel Gómez
+- **Decisores:** Nauel Gómez
 - **Source:** issue #99 (stored XSS in `languages.astro` / `users.astro`), found while verifying ADR-0011
 
 ## Context

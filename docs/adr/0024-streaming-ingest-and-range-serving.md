@@ -7,7 +7,7 @@ Licensed under the Business Source License 1.1
 
 - **Status:** Accepted
 - **Date:** 2026-07-14
-- **Deciders:** Nauel Gómez
+- **Decisores:** Nauel Gómez
 - **Source:** the `video/mp4` 415 incident (see ADR-0023) — admitting video to the catalog exposes the
   upload and serving paths as image-shaped.
 

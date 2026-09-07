@@ -13,7 +13,8 @@ diseño viven en documentos aparte, que se cargan bajo demanda para no gastar co
 
 - **`docs/CONTEXT.md`** — mental model, glosario, convenciones y gotchas del sistema.
 - **`docs/DESIGN.md`** — design system del panel. Obligatorio para cualquier trabajo de UI del admin.
-- **`docs/DECISIONS.md` + `docs/adr/`** — decisiones de arquitectura y su porqué (inmutables).
+- **`docs/adr/`** — decisiones de arquitectura y su porqué (inmutables); `docs/DECISIONS.md` es su
+  índice generado.
 - **`docs/agents/definition-of-done.md`** — la barra de "hecho", única para todo el repo.
 - Plan de referencia: documento "Plan final: CMS para Astro".
 
@@ -81,9 +82,20 @@ En **Archive** estos deltas se integran en `docs/specs/` para que la spec viva r
 - **Comportamiento vivo del sistema** → **`docs/specs/`**.
 - **Contexto de código efímero** → **descartar**.
 
-Formato ADR (`docs/adr/NNNN-titulo.md`): `Estado` · `Fecha` · `Decisores`, y las secciones
-`## Contexto` / `## Decisión` / `## Consecuencias`. Un ADR es inmutable: si la decisión cambia,
-se crea uno nuevo que marca al viejo como *Reemplazado por ADR-XXXX*.
+Formato ADR (`docs/adr/NNNN-titulo.md`), con la numeración a **cuatro dígitos** y una serie única:
+
+- Título `# NNNN — <decisión>`.
+- Cabecera: `- **Status:**` y `- **Date:** AAAA-MM-DD` (obligatorios, los parsea el índice),
+  `- **Decisores:**` y `- **Source:**` (recomendados). Otras claves (`Relación`, `Procedencia`) son libres.
+- Secciones `## Contexto` / `## Decisión` / `## Consecuencias`.
+
+Un ADR es **inmutable**: si la decisión cambia, se crea uno nuevo y el viejo pasa a
+`Status: Superseded by [ADR-NNNN](./NNNN-….md)`. Tras crear uno, `npm run adr:index` regenera
+`docs/DECISIONS.md`; CI falla si el índice no está al día.
+
+**No cites decisiones por números que no vivan en `docs/adr/`.** Un `ADR-4` de un `design.md` de
+cambio no es un ADR del proyecto: colisiona con la serie real y deja de resolverse en cuanto ese
+documento desaparece. O apunta al ADR canónico, o enuncia la restricción en el propio comentario.
 
 ---
 

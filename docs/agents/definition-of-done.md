@@ -27,8 +27,9 @@ depend on the author, which is exactly why they are written down.
   Never consumer-site logic. This is a library; a change that only makes sense for one site is
   out of scope by definition.
 - Diff under **~400 lines**, or split into chained PRs with the reason stated in the PR body.
-- No closed ADR reopened without explicit justification (`docs/DECISIONS.md`, `docs/adr/`). A new
-  non-obvious decision means a **new** ADR, never an edit to an existing one — ADRs are immutable.
+- No closed ADR reopened without explicit justification (`docs/adr/`, indexed by
+  `docs/DECISIONS.md`). A new non-obvious decision means a **new** ADR, never an edit to an existing
+  one — ADRs are immutable. After adding one, `npm run adr:index` _(CI)_.
 
 ### Code
 

@@ -7,7 +7,7 @@ Licensed under the Business Source License 1.1
 
 - **Status:** Accepted
 - **Date:** 2026-07-14
-- **Deciders:** Nauel Gómez
+- **Decisores:** Nauel Gómez
 - **Source:** issue #101, raised by the ADR-0009 compliance pass.
 
 ## Contexto
