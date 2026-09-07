@@ -47,3 +47,25 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 - **Frontier query**: list the map's open children (`gh issue list --state open`, scoped to the map's sub-issues / task list), drop any with an open blocker (`issue_dependencies_summary.blocked_by > 0`, or an open issue in the `Blocked by` line) or an assignee; first in map order wins.
 - **Claim**: `gh issue edit <n> --add-assignee @me` — the session's first write.
 - **Resolve**: `gh issue comment <n> --body "<answer>"`, then `gh issue close <n>`, then append a context pointer (gist + link) to the map's Decisions-so-far.
+
+## Backlog priority chain
+
+A general-purpose execution order for `ready-for-agent` issues, independent of `/wayfinder` (no map
+issue, no fog, no HITL tickets — just an order). It reuses the same native-dependency primitive
+described above. See ADR-0040 for why the order lives in edges rather than in the `P0`–`P3` labels.
+
+- **Mechanism**: priority is encoded as a **serial chain of native `blocked_by` edges** between the
+  issues themselves, not just against foundational work. Ticket B follows ticket A by adding
+  `B blocked_by A`. Where a later ticket's scope genuinely spans several earlier ones (an e2e smoke
+  test exercising three admin surfaces just built), block it against **all** of them, not only the
+  last one in the chain — the direct edges stay correct even if the chain between them is reordered.
+- **Frontier query = the next work item**: for each open `ready-for-agent` issue, run
+  `gh api repos/<owner>/<repo>/issues/<n> --jq .issue_dependencies_summary.blocked_by`; `0` means
+  unblocked. When the chain is a strict total order exactly one issue reads `0` — that issue is next.
+  One query per candidate, never a re-read of the whole backlog.
+- **Inserting an issue mid-chain** (the case where implementing one ticket surfaces new work): create
+  the issue, then re-wire two edges — point the new issue's `blocked_by` at whatever it now follows,
+  and point whatever used to follow that point at the new issue instead. Two `gh api POST` calls, no
+  document to rewrite.
+- **Precondition**: the frontier query is only trustworthy if `needs-info` and `ready-for-agent` are
+  never both set. See `triage-labels.md`.
