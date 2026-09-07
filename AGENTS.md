@@ -14,6 +14,7 @@ diseño viven en documentos aparte, que se cargan bajo demanda para no gastar co
 - **`docs/CONTEXT.md`** — mental model, glosario, convenciones y gotchas del sistema.
 - **`docs/DESIGN.md`** — design system del panel. Obligatorio para cualquier trabajo de UI del admin.
 - **`docs/DECISIONS.md` + `docs/adr/`** — decisiones de arquitectura y su porqué (inmutables).
+- **`docs/agents/definition-of-done.md`** — la barra de "hecho", única para todo el repo.
 - Plan de referencia: documento "Plan final: CMS para Astro".
 
 Guías de mantenedor/consumidor: `docs/DEVELOPING.md`, `docs/LOCAL_PACKAGE_TESTING.md`, `README.md`.
@@ -43,8 +44,10 @@ Disparador: el humano dice *"implementemos XYZ"*. Ejecuta estas fases en orden, 
    verificación). → **GATE: el humano aprueba el plan.**
 4. **Implement.** Ejecuta las tareas de un mismo cambio **de corrido**, con disciplina TDD:
    test que falla → mínimo código para pasarlo → refactor → commit. Marca cada tarea en `tasks.md`.
-5. **Review.** Revisa el diff contra `spec-delta.md` y las convenciones de `docs/CONTEXT.md` / `docs/DESIGN.md`.
-   Reporta problemas por severidad. → **GATE: el humano aprueba o pide cambios.**
+5. **Review.** Revisa el diff contra `spec-delta.md` y las convenciones de `docs/CONTEXT.md` / `docs/DESIGN.md`,
+   y contra la barra de `docs/agents/definition-of-done.md` (§ *Every change*). La skill `review-change`
+   ejecuta esos dos ejes en paralelo. Reporta problemas por severidad.
+   → **GATE: el humano aprueba o pide cambios.**
 6. **Archive.** Aplica el `spec-delta.md` sobre `docs/specs/` (la spec viva), mueve `docs/changes/<slug>/`
    a `docs/changes/archive/<fecha>-<slug>/`, y deja el ADR intacto. Commit.
 
@@ -99,8 +102,9 @@ Todos los commits siguen [Conventional Commits](https://www.conventionalcommits.
   o bien repite ese dato o bien introduce una traza de herramienta. El historial es humano y punto.
   (Los `tasks.md` archivados bajo `docs/changes/archive/` piden un footer `Reviewed-by`: son registro
   de la política vigente entonces, no se reescriben.)
-- **Antes del commit:** si hay cambios en el paquete sin versión cerrada, primero bump de `package.json` +
-  entrada en `CHANGELOG.md` (ver *Versionado*), y después el commit.
+- **Antes del commit:** pasa la barra de `docs/agents/definition-of-done.md` § *Every change*. El bump
+  de `package.json` y la entrada en `CHANGELOG.md` **no** van aquí: pertenecen al cierre de release
+  (ver *Versionado*), y solo cuando el humano lo pide.
 
 ### Versionado y release
 
@@ -112,9 +116,9 @@ Todos los commits siguen [Conventional Commits](https://www.conventionalcommits.
   (3) commit, (4) tag **anotado** `vX.Y.Z` (justo después del commit de release):
   `git tag -a vX.Y.Z -m "vX.Y.Z"`. Siempre anotado, nunca ligero — `git push --follow-tags`
   solo empuja tags anotados.
-- **Checklist de cierre:** alcance terminado · actualizar `src/meta/features.json` · `npm run features:validate` ·
-  `npm run typecheck` · `npm test` · si toca UI/README visual, `npm run screenshots:readme` · sin cambios
-  incidentales en playgrounds/datos · actualizar el **badge de versión** del `README.md`.
+- **Checklist de cierre:** en `docs/agents/definition-of-done.md` § *Closing a release*. Es la lista
+  única; no la dupliques aquí ni en el PR template. El badge de versión del `README.md` ya no depende
+  de que alguien se acuerde: `release-tag.yml` lo verifica contra `package.json` al validar el tag.
 - **CHANGELOG** ([Keep a Changelog](https://keepachangelog.com/en/1.0.0/)): entrada nueva al inicio,
   `## [X.Y.Z] - AAAA-MM-DD`, un `### Title` (frase corta, titula la GitHub Release), y bloques
   `### Added/Changed/Fixed/Removed`. Sin sección `[Unreleased]`; cambios solo-CI/infra no llevan entrada.
