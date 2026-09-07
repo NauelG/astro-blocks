@@ -144,7 +144,7 @@ test('matchRoute: method filter still returns the correct entry when methods dif
   assert.equal(match.descriptor.auth, 'owner');
 });
 
-// ─── Declaration-order, first-match-wins (ADR-4) ────────────────────────────
+// ─── Declaration-order, first-match-wins ────────────────────────────────────
 
 test('matchRoute: first declared match wins when two entries could both match', () => {
   const first = defineRoute({

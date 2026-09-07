@@ -330,5 +330,6 @@ create the component with its `schema` and add it to the `blocks` array. (See AD
 - Architectural decisions: `adr/NNNN-*.md` (the bodies), indexed by `DECISIONS.md`
   (generated — `npm run adr:index`).
 - Provenance: this file and each `adr/NNNN-*.md` cite their source engram observation IDs. Open
-  follow-ups from the triage are tracked in issues #85 (in-code ADR-N references) and #86 (living-spec
-  candidates + media backlog).
+  follow-ups from the triage are tracked in issue #86 (living-spec candidates + media backlog).
+  The in-code `ADR-N` single-digit references of issue #85 are resolved: each now points at its
+  canonical ADR, or states the constraint inline where the change's design doc was never versioned.

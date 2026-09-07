@@ -6,7 +6,8 @@ Licensed under the Business Source License 1.1
 /**
  * utils/file-value.ts
  *
- * Pure helpers for the FileFieldValue contract (ADR-3, ADR-5).
+ * Pure helpers for the FileFieldValue contract — ADR-0016's structured value
+ * model, applied to the 'file' prop type of ADR-0023.
  * Mirrors utils/image-value.ts — same hidden-input JSON pattern, different semantics.
  *
  * Exports:

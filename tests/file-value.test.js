@@ -10,7 +10,7 @@ Licensed under the Business Source License 1.1
  *
  * RED phase: written before the implementation exists.
  *
- * Spec: D8, ADR-3, ADR-5.
+ * Spec: D8. Decisions: ADR-0016 (structured value model), ADR-0023 ('file' prop type).
  */
 
 import test from 'node:test';

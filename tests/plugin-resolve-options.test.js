@@ -13,7 +13,7 @@ Licensed under the Business Source License 1.1
  *   C5 — DEFAULT_ALLOWED_FILE_TYPES importable from package root
  *
  * Spec: R1.1-A, R1.2-A, R1.3-A, R1.4-A, R7.2-A, R7.3-A
- * Design: src/plugin/index.ts resolveOptions + vite.define, ADR-6
+ * Design: src/plugin/index.ts resolveOptions + vite.define, ADR-0023
  */
 
 import test from 'node:test';
@@ -203,7 +203,7 @@ test('I2: allowedFileTypes:[] resolves to [] and emits empty-allowlist warn', as
   }
 });
 
-// ─── C4: validateFileProps advisory warn (ADR-6) ─────────────────────────────
+// ─── C4: validateFileProps advisory warn (ADR-0023) ──────────────────────────
 
 test('C4 R7.2-A: out-of-allowlist MIME emits advisory warn (will be ignored by the media picker)', async () => {
   const warns = [];

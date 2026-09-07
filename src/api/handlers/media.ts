@@ -32,7 +32,7 @@ let _allowedFileTypesCache: Set<string> | null = null;
 /**
  * Returns the resolved allowlist as a Set<string>.
  *
- * Source priority (ADR-1):
+ * Source priority:
  *   1. import.meta.env.ASTRO_BLOCKS_ALLOWED_FILE_TYPES (injected by vite.define as JSON string)
  *   2. DEFAULT_ALLOWED_FILE_TYPES fallback
  *

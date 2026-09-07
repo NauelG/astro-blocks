@@ -6,11 +6,11 @@ Licensed under the Business Source License 1.1
 /**
  * api/backup.ts — Export and import service for streaming zip archives.
  *
- * Implements ADR-4: buildExportStream enumerates only the 9-file allowlist
+ * Export: buildExportStream enumerates only the 9-file allowlist
  * (UNIT_TO_DATA_FILES) and, for the media unit, also includes the
  * public/uploads tree as `uploads/...` entries.
  *
- * Implements ADR-5: extractToStaging, validateStagedImport, createBackupSnapshot,
+ * Import: extractToStaging, validateStagedImport, createBackupSnapshot,
  * applyImport — the four steps of the import pipeline.
  *
  * Checksums (sha256) are computed for every entry; manifest.json is written

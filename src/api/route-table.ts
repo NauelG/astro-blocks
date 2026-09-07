@@ -9,13 +9,13 @@ Licensed under the Business Source License 1.1
  *
  * This is the SINGLE SOURCE OF TRUTH for every method+path+auth-level
  * combination reachable through `routes/api/catchall.ts`. Each entry is
- * built with `defineRoute<A>` (see `api/route-matcher.ts` ADR-3) so the
+ * built with `defineRoute<A>` (see `api/route-matcher.ts`) so the
  * handler's `RouteContext<A>.user` nullability is checked against its
  * declared `auth` literal at compile time, then erased to the widened
  * `RouteDescriptor` for storage in this homogeneous array.
  *
  * Declaration order mirrors the original if-chain branch order per method
- * (ADR-4: the matcher is a pure first-match, order-preserving scan with NO
+ * (the matcher is a pure first-match, order-preserving scan with NO
  * implicit static-over-dynamic precedence). The inventory has no arity+method
  * collision between a static and a dynamic pattern, so this ordering is a
  * defensive convention, not a correctness requirement — but it is kept

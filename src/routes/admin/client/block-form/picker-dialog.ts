@@ -132,7 +132,7 @@ function selectPickerImage(value: ImageFieldValue): void {
 
 /**
  * Select a file-field entry from the picker dialog.
- * Mirror of selectPickerImage for the 'file' prop type (ADR-3).
+ * Mirror of selectPickerImage for the 'file' prop type (ADR-0023).
  * Writes the serialized FileFieldValue into the hidden input and closes the dialog.
  */
 function selectPickerFile(value: FileFieldValue): void {

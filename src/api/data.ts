@@ -608,7 +608,7 @@ export async function findMediaUsages(
 
 /**
  * Update a MediaEntry in-place (by id) with new file byte metadata after a
- * replace operation. Runs under the media file lock (ADR-6).
+ * replace operation. Runs under the media file lock (ADR-0008).
  *
  * Sets status:'processing', variants:[], updates size/width/height.
  * Keeps id, url, filename, mimeType, createdAt unchanged.

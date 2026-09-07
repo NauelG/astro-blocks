@@ -10,7 +10,7 @@ Licensed under the Business Source License 1.1
  *
  * RED phase: written before the implementation exists.
  *
- * Spec scenarios: SEC-DENY-01, R2.3, R2.4 (ADR-4).
+ * Spec scenarios: SEC-DENY-01, R2.3, R2.4 (ADR-0023).
  * Evaluation ORDER (locked):
  *   1) denylist on MIME   → denied
  *   2) denylist on ext    → denied

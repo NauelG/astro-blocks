@@ -5092,7 +5092,7 @@ Licensed under the Business Source License 1.1
 }
 
 /* Caption input row — mirrors the alt-row block above. Admin UI only.
-   Consumer-side .cms-figure / figcaption styling is the consumer's responsibility (ADR-3). */
+   Consumer-side .cms-figure / figcaption styling is the consumer's responsibility (ADR-0016). */
 .cms-image-field-caption-row {
   display: flex;
   flex-direction: column;

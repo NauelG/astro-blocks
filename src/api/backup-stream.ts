@@ -10,7 +10,7 @@ Licensed under the Business Source License 1.1
  * streaming API and the web Streams API used by Request/Response bodies.
  * It has no dependency on handlers.ts or data.ts — pure I/O bridge.
  *
- * ADR-4: Streaming export constraint — never buffer the whole archive.
+ * Streaming export constraint — never buffer the whole archive.
  *
  * Implementation note: fflate's Async*Deflate/Inflate variants use Node.js
  * Worker threads, which are not available in all environments. We use the

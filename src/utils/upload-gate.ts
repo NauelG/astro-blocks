@@ -6,7 +6,8 @@ Licensed under the Business Source License 1.1
 /**
  * utils/upload-gate.ts
  *
- * Hard denylist + allowlist gate for file uploads (ADR-4).
+ * Hard denylist + allowlist gate for file uploads (ADR-0023, which carries
+ * ADR-0018's denylist and its locked evaluation order forward unchanged).
  *
  * Exports:
  *   - DANGEROUS_EXTENSIONS : Set of always-denied file extensions

@@ -159,7 +159,7 @@ flow. This is the typical path when migrating content between environments.
 7. Confirm. The import runs (`POST /cms/api/import`). When the status reads **Done**, the
    selected units have been replaced.
 
-> **Note — Users unit and session close (ADR-7):** when the Users unit is imported, the server
+> **Note — Users unit and session close (ADR-0028):** when the Users unit is imported, the server
 > responds with `{ usersReplaced: true }`. The client clears `sessionStorage` (`cms-token` and
 > `cms-user`) and redirects to `/cms`. Log in with the credentials from the imported backup.
 

@@ -432,7 +432,7 @@ test('E-3: client module uses fetch with Authorization header for import POST', 
   );
 });
 
-test('E-3: client module implements session close on usersReplaced (ADR-7)', () => {
+test('E-3: client module implements session close on usersReplaced (ADR-0028)', () => {
   const src = fs.readFileSync(path.join(ADMIN_DIR, 'client', 'import-export-editor.ts'), 'utf8');
   assert.match(src, /usersReplaced/, 'client must check usersReplaced from import response');
   assert.match(src, /sessionStorage\.removeItem.*cms-token/, 'session close must remove cms-token');

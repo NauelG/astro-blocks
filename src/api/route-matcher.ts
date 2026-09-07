@@ -14,9 +14,11 @@ Licensed under the Business Source License 1.1
  * (dependency injection) so PR2/PR3 can build `api/route-table.ts` and
  * `routes/api/catchall.ts` on top without ever creating a circular import.
  *
- * See design ADR-1 (module location), ADR-2 (closed auth union), ADR-3
- * (typed handler/auth contract), and ADR-4 (hand-rolled arity-exact,
- * declaration-order, first-match-wins matching).
+ * Design notes from the route-table-auth-gating change, restated here because
+ * its design document was never versioned in this repo: module location,
+ * closed auth union, typed handler/auth contract, and hand-rolled arity-exact,
+ * declaration-order, first-match-wins matching. The auth ladder these produce
+ * is specified in `docs/specs/api-dispatch.md`.
  */
 
 import type { APIContext } from 'astro';
@@ -26,7 +28,7 @@ import type { getAuth } from './handlers.js';
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 /**
- * Closed authorization tiers (ADR-2). No role hierarchy, no speculative
+ * Closed authorization tiers. No role hierarchy, no speculative
  * roles — extension cost is one literal here plus one branch in `dispatch`.
  */
 export type AuthLevel = 'public' | 'user' | 'owner';
@@ -35,7 +37,7 @@ export type AuthLevel = 'public' | 'user' | 'owner';
 export type AuthUser = NonNullable<Awaited<ReturnType<typeof getAuth>>>['user'];
 
 /**
- * Binds `RouteContext.user` nullability to the route's auth level (ADR-3):
+ * Binds `RouteContext.user` nullability to the route's auth level:
  * `public` handlers receive `AuthUser | null`; `user`/`owner` handlers are
  * guaranteed a non-null `AuthUser` by the central dispatcher before they run.
  */
@@ -66,7 +68,7 @@ export interface RouteDescriptor<A extends AuthLevel = AuthLevel> {
  * against `RouteContext<A>`, then erases to the widened union for storage
  * in a homogeneous `RouteDescriptor[]` table. A bare object literal (without
  * this helper) would widen `auth` to the `AuthLevel` union and collapse the
- * per-entry nullability guarantee from ADR-3.
+ * per-entry nullability guarantee described above.
  */
 export function defineRoute<A extends AuthLevel>(descriptor: RouteDescriptor<A>): RouteDescriptor {
   return descriptor as RouteDescriptor;
@@ -81,7 +83,7 @@ export interface RouteMatch {
 /**
  * Scans `table` in declaration order and returns the first descriptor whose
  * `method` and `pattern` match — mirroring the original if-chain's first-match
- * semantics exactly (ADR-4). Returns `null` when nothing matches.
+ * semantics exactly. Returns `null` when nothing matches.
  */
 export function matchRoute(
   method: HttpMethod,

@@ -19,7 +19,7 @@ Licensed under the Business Source License 1.1
  *   3. Show the manifest preview panel.
  *   4. On "Import" click, open the ConfirmDialog (window.cmsConfirm).
  *   5. POST the raw file body with Content-Type: application/zip + Authorization header.
- *   6. If response has usersReplaced === true → session close (ADR-7).
+ *   6. If response has usersReplaced === true → session close (ADR-0028).
  *
  * Aria-live status announcements are made via the #ie-status region.
  * Client-side strings resolve through ct(), against the same UI locale that the
@@ -219,7 +219,7 @@ function renderManifestPreview(
   }
 }
 
-// ─── Session close (ADR-7) ────────────────────────────────────────────────────
+// ─── Session close (ADR-0028) ─────────────────────────────────────────────────
 
 function closeSessionAndRedirect(): void {
   try {
@@ -303,7 +303,7 @@ async function handleImport(
     setStatus(statusEl, ct('importExport.status.done'));
     showToast(ct('importExport.status.done'), 'success', ct('importExport.upload'));
 
-    // ADR-7: if users were replaced, the current session is invalid.
+    // ADR-0028: if users were replaced, the current session is invalid.
     // Clear sessionStorage and redirect to login immediately.
     if (data.usersReplaced) {
       closeSessionAndRedirect();

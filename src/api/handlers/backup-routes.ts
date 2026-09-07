@@ -16,7 +16,7 @@ import { requireOwner } from './auth-core.js';
 /**
  * GET /cms/api/export?units=pages,media,...
  *
- * Owner-only streaming zip export of selected CMS units (ADR-4).
+ * Owner-only streaming zip export of selected CMS units.
  * Returns the zip archive as a ReadableStream with Content-Type application/zip.
  */
 export async function handleExport(
@@ -80,7 +80,7 @@ export async function handleExport(
 /**
  * POST /cms/api/import
  *
- * Owner-only import handler (ADR-5).
+ * Owner-only import handler.
  * Reads the request body as a stream (never fully buffered in memory beyond what
  * we collect for fflate extraction). Orchestrates:
  *   requireOwner → readCeilingEnvVars → runImportPipeline → JSON response.
@@ -186,7 +186,7 @@ export async function handleImport(
 /**
  * POST /cms/api/import/bootstrap
  *
- * Unauthenticated import endpoint for seeding a fresh instance (ADR-6).
+ * Unauthenticated import endpoint for seeding a fresh instance (ADR-0015).
  * SECURITY-CRITICAL: this surface is public — the zero-user gate is the ONLY
  * protection. The gate MUST be checked before any request-body access.
  *
@@ -253,7 +253,7 @@ export async function handleBootstrapImport(
   const projectRoot = process.env.ASTRO_BLOCKS_PROJECT_ROOT || process.cwd();
 
   // Run the shared import pipeline — same validation, ceilings, path guards,
-  // backup snapshot, and atomic apply as the authenticated import (C-5/ADR-5).
+  // backup snapshot, and atomic apply as the authenticated import.
   // bootstrapMode:true enables the in-lock re-check inside _runImportPipelineCore
   // to close the TOCTOU race between the outer gate above and pipeline start.
   let result: Awaited<ReturnType<typeof runImportPipeline>>;

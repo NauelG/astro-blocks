@@ -11,7 +11,8 @@ Licensed under the Business Source License 1.1
  * resolves auth exactly ONCE per request and enforces the matched route's
  * declared `auth` level BEFORE invoking any handler. There is exactly one
  * code path to any handler and it always passes through the auth gate —
- * authorization is correct-by-construction (ADR-5).
+ * authorization is correct-by-construction. The ladder it enforces is
+ * specified in `docs/specs/api-dispatch.md`.
  *
  * This module keeps only: `getPathSegments` (the `/cms/api` mount-prefix
  * strip), `dispatch`, and the five per-verb exports Astro requires. The

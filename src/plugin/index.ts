@@ -385,7 +385,7 @@ export type { AstroBlocksOptions, CustomFileTypeSpec } from '../types/index.js';
 export { DEFAULT_ALLOWED_FILE_TYPES } from '../utils/file-catalog.js';
 
 /**
- * Advisory validator for 'file' prop accept arrays (ADR-6).
+ * Advisory validator for 'file' prop accept arrays (ADR-0023).
  *
  * ADVISORY ONLY — this function warns; it does NOT mutate def.accept or drop
  * any MIMEs. The admin picker (Slice D) enforces the intersection of accept ∩

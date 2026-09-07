@@ -9,7 +9,7 @@ Licensed under the Business Source License 1.1
  * Tests for loadMedia fileCategory derivation (B4 — src/api/data.ts).
  *
  * Spec: R6.2, R6.3.
- * Design: ADR-2, src/api/data.ts loadMedia normalization.
+ * Design: ADR-0023 (the catalog's `category` column), src/api/data.ts loadMedia normalization.
  *
  * RED phase written before (combined with B3 which already added the impl).
  */
