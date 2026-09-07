@@ -1,5 +1,5 @@
 ---
-description: Re-pitch the last message: it did not land.
+description: "Re-pitch the last message: it did not land."
 ---
 <!--
 Copyright (c) 2026 Nauel Gómez Gamero

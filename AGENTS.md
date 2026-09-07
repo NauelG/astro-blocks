@@ -166,7 +166,7 @@ política concreta:
 | --- | --- | --- |
 | 1. Grilling | `grilling`, `grill-with-docs` | Interrogatorio hasta fijar alcance; la variante *with-docs* deja ADR y glosario por el camino. |
 | 4. Implement | `tdd` | Disciplina red-green-refactor que la fase ya exige. |
-| 5. Review | `code-review` | Dos ejes en paralelo: **Standards** = `docs/CONTEXT.md` + `docs/DESIGN.md`; **Spec** = el `spec-delta.md` del cambio. |
+| 5. Review | `review-change` | Dos ejes en paralelo: **Standards** = `docs/CONTEXT.md` + `docs/DESIGN.md`; **Spec** = el `spec-delta.md` del cambio. |
 | Enrutado de artefactos | `domain-modeling` | Escribe `docs/CONTEXT.md` y los ADRs con el formato de este repo. |
 | Triage | `triage` | Consume `docs/agents/issue-tracker.md` y `docs/agents/triage-labels.md`. |
 | Documentación de agentes | `writing-for-agents` | Estilo obligatorio al editar este fichero o cualquier skill. |
@@ -183,7 +183,7 @@ el set curado, con el contenido real en `.agents/skills/<name>/` y un symlink en
 `.claude/skills/<name>/` para que Claude Code lo vea. Las skills vendorizadas se copian verbatim
 — conservan su frontmatter y licencia upstream y **no** llevan cabecera BSL. Para promover una
 skill local al set curado: `git add -f .agents/skills/<name> .claude/skills/<name>`, más su
-comando en `.opencode/commands/<name>.md`. `skills-lock.json` es un fichero generado que registra
+comando en `.opencode/command/<name>.md`. `skills-lock.json` es un fichero generado que registra
 la procedencia; no se edita a mano.
 
 ---

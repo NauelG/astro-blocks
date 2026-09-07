@@ -1,5 +1,5 @@
 ---
-description: Sharpen the domain model: edit docs/CONTEXT.md or record an ADR.
+description: "Sharpen the domain model: edit docs/CONTEXT.md or record an ADR."
 ---
 <!--
 Copyright (c) 2026 Nauel Gómez Gamero
