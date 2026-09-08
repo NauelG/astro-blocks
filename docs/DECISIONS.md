@@ -64,6 +64,7 @@ The table below is **generated**. Run `npm run adr:index` after adding an ADR, o
 | [ADR-0038](./adr/0038-el-escaneo-solo-borra-lo-que-puede-demostrar-que-es-huerfano.md) | El escaneo solo borra lo que puede demostrar que es huérfano, y la prueba es la antigüedad | Accepted | 2026-07-29 |
 | [ADR-0039](./adr/0039-las-cadenas-de-cliente-del-panel-vienen-de-ct.md) | Las cadenas de cliente del panel vienen de `ct`, no de un puente i18n | Accepted | 2026-08-20 |
 | [ADR-0040](./adr/0040-el-orden-del-backlog-es-una-cadena-de-blocked-by-no-las-etiquetas-p0-p3.md) | El orden del backlog es una cadena de `blocked_by`, no las etiquetas `P0`–`P3` | Accepted | 2026-09-07 |
+| [ADR-0041](./adr/0041-the-adr-corpus-is-written-in-english.md) | The ADR corpus is written in English, and translating one does not break its immutability | Accepted | 2026-09-08 |
 <!-- adr-index:end -->
 
 ---

@@ -82,16 +82,22 @@ En **Archive** estos deltas se integran en `docs/specs/` para que la spec viva r
 - **Comportamiento vivo del sistema** → **`docs/specs/`**.
 - **Contexto de código efímero** → **descartar**.
 
-Formato ADR (`docs/adr/NNNN-titulo.md`), con la numeración a **cuatro dígitos** y una serie única:
+**Los ADR se escriben en inglés** (ADR-0041): slug del fichero, título, cabecera, secciones y prosa.
+Es la única excepción al principio de idioma de este documento — el resto de `docs/` sigue el idioma
+del humano.
 
-- Título `# NNNN — <decisión>`.
+Formato ADR (`docs/adr/NNNN-english-slug.md`), con la numeración a **cuatro dígitos** y una serie única:
+
+- Título `# NNNN — <decision>`.
 - Cabecera: `- **Status:**` y `- **Date:** AAAA-MM-DD` (obligatorios, los parsea el índice),
-  `- **Decisores:**` y `- **Source:**` (recomendados). Otras claves (`Relación`, `Procedencia`) son libres.
-- Secciones `## Contexto` / `## Decisión` / `## Consecuencias`.
+  `- **Deciders:**` y `- **Source:**` (recomendados). Otras claves son libres.
+- Secciones `## Context` / `## Decision` / `## Consequences`. No añadas una sección de evidencia del
+  código actual: envejece hasta volverse falsa y es justo el contexto efímero que se descarta (ADR-0041).
 
 Un ADR es **inmutable**: si la decisión cambia, se crea uno nuevo y el viejo pasa a
-`Status: Superseded by [ADR-NNNN](./NNNN-….md)`. Tras crear uno, `npm run adr:index` regenera
-`docs/DECISIONS.md`; CI falla si el índice no está al día.
+`Status: Superseded by [ADR-NNNN](./NNNN-….md)`. La inmutabilidad protege **la decisión, no la prosa**:
+traducir, renombrar o normalizar cabeceras la preserva y no requiere superseder (ADR-0041). Tras crear
+uno, `npm run adr:index` regenera `docs/DECISIONS.md`; CI falla si el índice no está al día.
 
 **No cites decisiones por números que no vivan en `docs/adr/`.** Un `ADR-4` de un `design.md` de
 cambio no es un ADR del proyecto: colisiona con la serie real y deja de resolverse en cuanto ese
