@@ -61,7 +61,7 @@ test('cache hit — single loadMedia call when mtime unchanged', async () => {
   });
 });
 
-test('cache invalidation — re-reads after mtime changes', async () => {
+test('cache invalidation — re-reads after a registry write, no delay needed', async () => {
   await withTempProject(async () => {
     const url = '/uploads/2026/06/img2.jpg';
     const entry1 = {
@@ -79,9 +79,9 @@ test('cache invalidation — re-reads after mtime changes', async () => {
     const result1 = await getMediaVariants(url);
     assert.equal(result1.status, 'processing');
 
-    // Wait briefly so mtime can change, then update the registry
-    await new Promise((r) => setTimeout(r, 10));
-
+    // Write the registry again IMMEDIATELY — no artificial delay. Two writes
+    // landing in the same mtime resolution window (even nanosecond) must still
+    // both be observed (#182).
     const entry2 = {
       ...entry1,
       status: 'ready',
@@ -91,10 +91,37 @@ test('cache invalidation — re-reads after mtime changes', async () => {
 
     // Next call should see the updated status
     const result2 = await getMediaVariants(url);
-    // Status should reflect the new registry (processing or ready depending on cache)
-    // Since mtime changed (replaceMedia writes a new file), cache should be invalidated
-    assert.equal(result2.status, 'ready', 'should read updated status after mtime change');
-    assert.equal(result2.variants.length, 1, 'should have updated variants');
+    assert.equal(result2.status, 'ready', 'should read the updated status after the second write');
+    assert.equal(result2.variants.length, 1, 'should have the updated variants');
+  });
+});
+
+test('cache invalidation — observes a rapid burst of back-to-back writes', async () => {
+  await withTempProject(async () => {
+    const url = '/uploads/2026/06/img3.jpg';
+    const baseEntry = {
+      id: 'burst-test-1',
+      url,
+      filename: 'img3.jpg',
+      size: 1000,
+      mimeType: 'image/jpeg',
+      createdAt: new Date().toISOString(),
+      status: 'processing',
+      variants: [],
+    };
+
+    // Write the registry 20 times in a tight loop with no delay, reading the
+    // accessor after each write. Every read must reflect the write that just
+    // happened — a stale hit anywhere in the burst reproduces #182.
+    for (let i = 0; i < 20; i++) {
+      const width = i + 1;
+      await replaceMedia({
+        uploads: [{ ...baseEntry, width, status: i % 2 === 0 ? 'ready' : 'processing' }],
+      });
+      const result = await getMediaVariants(url);
+      assert.equal(result.status, i % 2 === 0 ? 'ready' : 'processing', `write #${i} observed`);
+      assert.equal(result.width, width, `write #${i} width observed`);
+    }
   });
 });
 
