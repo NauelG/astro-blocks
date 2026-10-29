@@ -333,6 +333,8 @@ Set the [required environment variables](#environment-setup), start your dev ser
 > **Add `.astro-blocks/` to your `.gitignore`.** The plugin generates this directory on every build to re-export your layout and block components. It must not be edited or committed. Your CMS content (`data/*.json`, `public/uploads/`) is separate and *should* be committed.
 
 > In SSR mode (`publicRendering: 'server'`), AstroBlocks can use `Accept-Language` on `/` to redirect to a non-default enabled locale when available. Locale preference is then persisted with a cookie so users can switch language and keep their chosen locale.
+>
+> The redirect is skipped when the visitor arrives at `/` from a page of the same site, detected through the `Referer` hostname (scheme, port and a leading `www.` are ignored). Behind a reverse proxy, forward the original `Host` header, and do not suppress the `Referer` on same-site navigation (e.g. `Referrer-Policy: no-referrer`), or your language switcher cannot return to the default locale.
 
 ## Public API (Imports)
 

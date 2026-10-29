@@ -6,8 +6,8 @@ import {
   getDefaultLanguageCode,
   getLocalizedValue,
   getLocalizedValueForLocale,
-  hasSameOriginReferrer,
   hasLocalizedValue,
+  isInternalNavigation,
   isLocalizedMapValue,
   isSchemaPropLocalizable,
   normalizeLanguages,
@@ -88,12 +88,41 @@ test('getLocaleFromCookiePreference validates and normalizes cookie locales', ()
   assert.equal(getLocaleFromCookiePreference('', available), null);
 });
 
-test('hasSameOriginReferrer validates same-origin navigation', () => {
-  const requestUrl = new URL('https://example.com/');
-  assert.equal(hasSameOriginReferrer(requestUrl, 'https://example.com/es'), true);
-  assert.equal(hasSameOriginReferrer(requestUrl, 'https://other.com/es'), false);
-  assert.equal(hasSameOriginReferrer(requestUrl, 'not-a-url'), false);
-  assert.equal(hasSameOriginReferrer(requestUrl, null), false);
+test('isInternalNavigation matches the site hostname, ignoring scheme, port and a leading www.', () => {
+  // What the server sees behind a TLS-terminating proxy: plain http.
+  const requestUrl = new URL('http://example.com/');
+  assert.equal(isInternalNavigation(requestUrl, 'https://example.com/es'), true);
+  assert.equal(isInternalNavigation(requestUrl, 'http://example.com/es'), true);
+  assert.equal(isInternalNavigation(requestUrl, 'https://example.com:8443/es'), true);
+  assert.equal(isInternalNavigation(requestUrl, 'https://www.example.com/es'), true);
+  assert.equal(
+    isInternalNavigation(new URL('http://www.example.com/'), 'https://example.com/es'),
+    true,
+  );
+});
+
+test('isInternalNavigation treats other hosts and a missing or invalid Referer as external', () => {
+  const requestUrl = new URL('http://example.com/');
+  assert.equal(isInternalNavigation(requestUrl, 'https://dev.example.com/es'), false);
+  assert.equal(isInternalNavigation(requestUrl, 'https://www2.example.com/es'), false);
+  assert.equal(isInternalNavigation(requestUrl, 'https://other.com/es'), false);
+  assert.equal(isInternalNavigation(requestUrl, 'not-a-url'), false);
+  assert.equal(isInternalNavigation(requestUrl, ''), false);
+  assert.equal(isInternalNavigation(requestUrl, null), false);
+});
+
+test('resolveRootLocaleRedirect skips redirect on internal navigation behind a TLS proxy', () => {
+  const result = resolveRootLocaleRedirect({
+    requestUrl: new URL('http://example.com/'),
+    referer: 'https://example.com/es',
+    cookieLocale: 'es',
+    acceptLanguage: null,
+    availableLocales: ['ca', 'es'],
+    defaultLocale: 'ca',
+    hasPublishedHome: () => true,
+  });
+
+  assert.equal(result, null);
 });
 
 test('resolveRootLocaleRedirect prioritizes cookie locale preference', () => {
@@ -124,7 +153,7 @@ test('resolveRootLocaleRedirect respects default-locale cookie and skips auto re
   assert.equal(result, null);
 });
 
-test('resolveRootLocaleRedirect skips redirect on in-site navigation', () => {
+test('resolveRootLocaleRedirect skips redirect on internal navigation', () => {
   const result = resolveRootLocaleRedirect({
     requestUrl: new URL('https://example.com/'),
     referer: 'https://example.com/es/contact',
