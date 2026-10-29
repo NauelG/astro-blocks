@@ -24,7 +24,8 @@ elección del visitante. Hasta ahora solo estaba descrita en una nota del README
   igual al por defecto, no hay redirección. (b) Si es un idioma habilitado distinto del por defecto
   con home publicado, `302` a su home. (c) Si no, se toma la **primera** entrada de
   `Accept-Language` (por orden de `q`) que resuelva a un idioma habilitado — por código exacto o por
-  idioma base —; si ese idioma no es el por defecto y tiene home publicado, `302` a su home con
+  idioma base, incluida otra variante regional del mismo idioma (`es-MX` resuelve a `es-es`) —; si
+  ese idioma no es el por defecto y tiene home publicado, `302` a su home con
   `Vary: Accept-Language`. Si la primera coincidencia es el idioma por defecto, la búsqueda se
   detiene ahí. (d) Si no, no hay redirección.
 - **R5 — La redirección conserva la query y fija la preferencia.** El destino es el path localizado

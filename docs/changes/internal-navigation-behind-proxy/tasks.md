@@ -84,7 +84,7 @@ refactor → commit.
 
 ## Gates finales antes de Review
 
-- [ ] `npm run typecheck` · `npm test` · `npm run check` · `npm run features:validate` ·
+- [x] `npm run typecheck` · `npm test` · `npm run check` · `npm run features:validate` ·
       `npm run e2e` (no hay e2e de la redirección pública; debe seguir verde sin cambios).
 
 ---

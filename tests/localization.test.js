@@ -111,7 +111,7 @@ test('isInternalNavigation treats other hosts and a missing or invalid Referer a
   assert.equal(isInternalNavigation(requestUrl, null), false);
 });
 
-test('resolveRootLocaleRedirect skips redirect on in-site navigation behind a TLS proxy', () => {
+test('resolveRootLocaleRedirect skips redirect on internal navigation behind a TLS proxy', () => {
   const result = resolveRootLocaleRedirect({
     requestUrl: new URL('http://example.com/'),
     referer: 'https://example.com/es',
@@ -153,7 +153,7 @@ test('resolveRootLocaleRedirect respects default-locale cookie and skips auto re
   assert.equal(result, null);
 });
 
-test('resolveRootLocaleRedirect skips redirect on in-site navigation', () => {
+test('resolveRootLocaleRedirect skips redirect on internal navigation', () => {
   const result = resolveRootLocaleRedirect({
     requestUrl: new URL('https://example.com/'),
     referer: 'https://example.com/es/contact',
