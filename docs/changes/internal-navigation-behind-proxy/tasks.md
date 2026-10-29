@@ -72,7 +72,7 @@ refactor → commit.
 
 `docs(readme): explain how the root locale redirect detects same-site navigation`
 
-- [ ] **T3.1 — Ampliar la nota de `README.md:335`** con el párrafo exacto de `design.md`
+- [x] **T3.1 — Ampliar la nota de `README.md:335`** con el párrafo exacto de `design.md`
       § *Documentación de consumidor* (inglés, como el resto del README). La nota queda en el mismo
       bloque `>` tras la frase existente.
 
