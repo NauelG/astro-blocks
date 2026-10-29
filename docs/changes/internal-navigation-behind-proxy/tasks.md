@@ -15,12 +15,12 @@ refactor → commit.
 
 ## Slice 1 — Artefactos del cambio y glosario
 
-- [ ] **T1.1 — Commit de la propuesta.** `docs/changes/internal-navigation-behind-proxy/`
+- [x] **T1.1 — Commit de la propuesta.** `docs/changes/internal-navigation-behind-proxy/`
       (`proposal.md`, `design.md`, `spec-delta.md`, `tasks.md`).
 
       `docs(changes): propose recognising internal navigation behind a TLS proxy`
 
-- [ ] **T1.2 — Commit del glosario.** `docs/CONTEXT.md` §3: *Root locale redirect*, *Locale
+- [x] **T1.2 — Commit del glosario.** `docs/CONTEXT.md` §3: *Root locale redirect*, *Locale
       preference*, *Internal navigation* (ya redactados durante el grilling).
 
       `docs(context): define root locale redirect, locale preference and internal navigation`
@@ -34,7 +34,7 @@ refactor → commit.
 
 `fix(routing): recognise internal navigation behind a TLS-terminating proxy`
 
-- [ ] **T2.1 — Test primero (rojo).** En `tests/localization.test.js`:
+- [x] **T2.1 — Test primero (rojo).** En `tests/localization.test.js`:
       - Cambiar el import `hasSameOriginReferrer` → `isInternalNavigation`.
       - Sustituir el test `hasSameOriginReferrer validates same-origin navigation` (`:91-97`) por
         uno de `isInternalNavigation` con `requestUrl = new URL('http://example.com/')` y la tabla de
@@ -51,7 +51,7 @@ refactor → commit.
       actual, `resolveRootLocaleRedirect` devuelve `{ locale: 'es', source: 'cookie' }` (ejecutarlo
       a mano contra el `dist/` actual antes de tocar `src/`).
 
-- [ ] **T2.2 — Implementar (verde).** En `src/utils/localization.ts`, según `design.md` § *La
+- [x] **T2.2 — Implementar (verde).** En `src/utils/localization.ts`, según `design.md` § *La
       función*:
       - Helper privado `siteHostname(hostname)` que elimina un único `www.` inicial.
       - `hasSameOriginReferrer` → `isInternalNavigation`; compara
@@ -61,7 +61,7 @@ refactor → commit.
       **Verificación:** `npm test` verde, incluidos los tres tests existentes de
       `resolveRootLocaleRedirect` (`:99-139` y siguientes) sin modificarlos.
 
-- [ ] **T2.3 — Barrido del nombre viejo.** `rg hasSameOriginReferrer src tests` no devuelve nada.
+- [x] **T2.3 — Barrido del nombre viejo.** `rg hasSameOriginReferrer src tests` no devuelve nada.
       (Menciones en `docs/changes/` del propio cambio son esperadas.)
 
       **Verificación:** `npm run typecheck` · `npm test` · `npm run check`.

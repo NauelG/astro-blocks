@@ -246,7 +246,17 @@ export function getLocaleFromCookiePreference(
   return localeSet.has(locale) ? locale : null;
 }
 
-export function hasSameOriginReferrer(
+function siteHostname(hostname: string): string {
+  return hostname.startsWith('www.') ? hostname.slice(4) : hostname;
+}
+
+/**
+ * Whether the request comes from a page of the same site, judged by the Referer hostname.
+ * Scheme and port are ignored on purpose: behind a TLS-terminating proxy the server builds
+ * an `http` request URL while the browser sends an `https` Referer. A single leading `www.`
+ * is dropped from both sides; any other subdomain is a different site.
+ */
+export function isInternalNavigation(
   requestUrl: URL,
   refererValue: string | null | undefined,
 ): boolean {
@@ -255,7 +265,7 @@ export function hasSameOriginReferrer(
 
   try {
     const refererUrl = new URL(raw);
-    return refererUrl.origin === requestUrl.origin;
+    return siteHostname(refererUrl.hostname) === siteHostname(requestUrl.hostname);
   } catch {
     return false;
   }
@@ -282,7 +292,7 @@ export function resolveRootLocaleRedirect(
   input: ResolveRootLocaleRedirectInput,
 ): RootLocaleRedirectResolution | null {
   if (input.requestUrl.pathname !== '/') return null;
-  if (hasSameOriginReferrer(input.requestUrl, input.referer)) return null;
+  if (isInternalNavigation(input.requestUrl, input.referer)) return null;
 
   const availableLocales = (input.availableLocales || [])
     .map((entry) => normalizeLocaleCode(entry))
