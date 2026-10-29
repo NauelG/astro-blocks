@@ -9,6 +9,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [4.1.4] - 2026-10-29
+
+### Title
+
+The language switcher can return to the default locale behind an HTTPS proxy
+
+### Fixed
+
+- **Behind a reverse proxy that terminates HTTPS, visitors could not switch back to the default locale.** Clicking the default-locale entry of a language switcher (a link to `/`) sent them back to the locale stored in their cookie. The same-site check compared full origins, and the server sees `http` while the browser sends an `https` Referer, so every click looked like an external arrival. Same-site navigation is now detected by hostname: scheme, port and a leading `www.` are ignored. Behind a proxy, forward the original `Host` header, and do not suppress the `Referer` on same-site navigation. (#193)
+
 ## [4.1.3] - 2026-08-21
 
 ### Title
